@@ -20,6 +20,7 @@ dev = [
     "bandit>=1.7.10",
     "build>=1.0.0",
     "wheel>=0.40.0",
+    "litellm>=1.52.11",
 ]
 
 [build-system]

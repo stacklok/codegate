@@ -9,6 +9,7 @@ import click
 
 from .config import Config, ConfigurationError, LogFormat, LogLevel
 from .logging import setup_logging
+from .server import init_app
 
 
 def validate_port(ctx: click.Context, param: click.Parameter, value: int) -> int:
@@ -65,7 +66,6 @@ def serve(
     config: Optional[Path],
 ) -> None:
     """Start the codegate server."""
-
     try:
         # Load configuration with priority resolution
         cfg = Config.load(
@@ -79,11 +79,6 @@ def serve(
         setup_logging(cfg.log_level, cfg.log_format)
         logger = logging.getLogger(__name__)
 
-        logger.info("This is an info message")
-        logger.debug("This is a debug message")
-        logger.error("This is an error message")
-        logger.warning("This is a warning message")
-
         logger.info(
             "Starting server",
             extra={
@@ -94,13 +89,25 @@ def serve(
             },
         )
 
-        # TODO: Jakub Implement actual server logic here
-        logger.info("Server started successfully")
+        app = init_app()
 
+        import uvicorn
+
+        uvicorn.run(
+            app,
+            host=cfg.host,
+            port=cfg.port,
+            log_level=cfg.log_level.value.lower(),
+            log_config=None,  # Default logging configuration
+        )
+
+    except KeyboardInterrupt:
+        logger.info("Shutting down server")
     except ConfigurationError as e:
         click.echo(f"Configuration error: {e}", err=True)
         sys.exit(1)
     except Exception as e:
+        logger.exception("Unexpected error occurred")
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
 
