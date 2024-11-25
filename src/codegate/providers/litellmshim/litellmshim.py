@@ -14,8 +14,9 @@ class LiteLLmShim(BaseCompletionHandler):
     LiteLLM API.
     """
 
-    def __init__(self, adapter: BaseAdapter):
+    def __init__(self, adapter: BaseAdapter, completion_func=acompletion):
         self._adapter = adapter
+        self._completion_func = completion_func
 
     async def complete(self, data: Dict, api_key: str) -> AsyncIterator[Any]:
         """
@@ -28,7 +29,7 @@ class LiteLLmShim(BaseCompletionHandler):
         if completion_request is None:
             raise Exception("Couldn't translate the request")
 
-        response = await acompletion(**completion_request)
+        response = await self._completion_func(**completion_request)
 
         if isinstance(response, ModelResponse):
             return self._adapter.translate_completion_output_params(response)

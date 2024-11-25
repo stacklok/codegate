@@ -1,6 +1,8 @@
 import json
 from typing import Any, AsyncIterator
 
+from pydantic import BaseModel
+
 # Since different providers typically use one of these formats for streaming
 # responses, we have a single stream generator for each format that is then plugged
 # into the adapter.
@@ -10,7 +12,9 @@ async def sse_stream_generator(stream: AsyncIterator[Any]) -> AsyncIterator[str]
     """OpenAI-style SSE format"""
     try:
         async for chunk in stream:
-            if hasattr(chunk, "model_dump_json"):
+            if isinstance(chunk, BaseModel):
+                # alternatively we might want to just dump the whole object
+                # this might even allow us to tighten the typing of the stream
                 chunk = chunk.model_dump_json(exclude_none=True, exclude_unset=True)
             try:
                 yield f"data:{chunk}\n\n"
