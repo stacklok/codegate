@@ -1,33 +1,56 @@
-from typing import Any, AsyncIterator, Dict, Optional
+from typing import Any, Dict
 
-from litellm import ChatCompletionRequest, ModelResponse
+from litellm import ChatCompletionRequest
 
-from codegate.providers.base import StreamGenerator
-from codegate.providers.litellmshim import sse_stream_generator, BaseAdapter
+from codegate.providers.normalizer.base import ModelInputNormalizer, ModelOutputNormalizer
 
 
-class OpenAIAdapter(BaseAdapter):
-    """
-    This is just a wrapper around LiteLLM's adapter class interface that passes
-    through the input and output as-is - LiteLLM's API expects OpenAI's API
-    format.
-    """
+class OpenAIInputNormalizer(ModelInputNormalizer):
+    def __init__(self):
+        super().__init__()
 
-    def __init__(self, stream_generator: StreamGenerator = sse_stream_generator):
-        super().__init__(stream_generator)
+    def normalize(self, data: Dict) -> ChatCompletionRequest:
+        """
+        No normalizing needed, already OpenAI format
+        """
+        return ChatCompletionRequest(**data)
 
-    def translate_completion_input_params(
-        self, kwargs: Dict
-    ) -> Optional[ChatCompletionRequest]:
-        try:
-            return ChatCompletionRequest(**kwargs)
-        except Exception as e:
-            raise ValueError(f"Invalid completion parameters: {str(e)}")
+    def denormalize(self, data: ChatCompletionRequest) -> Dict:
+        """
+        No denormalizing needed, already OpenAI format
+        """
+        return data
 
-    def translate_completion_output_params(self, response: ModelResponse) -> Any:
-        return response
+class OpenAIOutputNormalizer(ModelOutputNormalizer):
+    def __init__(self):
+        super().__init__()
 
-    def translate_completion_output_params_streaming(
-        self, completion_stream: AsyncIterator[ModelResponse]
-    ) -> AsyncIterator[ModelResponse]:
-        return completion_stream
+    def normalize_streaming(
+            self,
+            model_reply: Any,
+    ) -> Any:
+        """
+        No normalizing needed, already OpenAI format
+        """
+        return model_reply
+
+    def normalize(self, model_reply: Any) -> Any:
+        """
+        No normalizing needed, already OpenAI format
+        """
+        return model_reply
+
+    def denormalize(self, normalized_reply: Any) -> Any:
+        """
+        No denormalizing needed, already OpenAI format
+        """
+        return normalized_reply
+
+    def denormalize_streaming(
+            self,
+            normalized_reply: Any,
+    ) -> Any:
+        """
+        No denormalizing needed, already OpenAI format
+        """
+        return normalized_reply

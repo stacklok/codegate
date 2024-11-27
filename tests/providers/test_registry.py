@@ -1,10 +1,21 @@
-from typing import Any, AsyncIterator, Dict
+from typing import (
+    Any,
+    AsyncIterable,
+    AsyncIterator,
+    Dict,
+    Iterable,
+    Iterator,
+    Optional,
+    Union,
+)
 
 import pytest
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
+from litellm import ChatCompletionRequest, ModelResponse
 
 from codegate.providers.base import BaseCompletionHandler, BaseProvider
+from codegate.providers.normalizer import ModelInputNormalizer, ModelOutputNormalizer
 from codegate.providers.registry import ProviderRegistry
 
 
@@ -26,7 +37,8 @@ class MockCompletionHandler(BaseCompletionHandler):
 
     def execute_completion(
         self,
-        request: Any,
+        request: ChatCompletionRequest,
+        api_key: Optional[str],
         stream: bool = False,
     ) -> Any:
         pass
@@ -37,8 +49,41 @@ class MockCompletionHandler(BaseCompletionHandler):
     ) -> StreamingResponse:
         return StreamingResponse(stream)
 
+class MockInputNormalizer(ModelInputNormalizer):
+    def normalize(self, data: Dict) -> Dict:
+        return data
+
+    def denormalize(self, data: Dict) -> Dict:
+        return data
+
+class MockOutputNormalizer(ModelOutputNormalizer):
+    def normalize_streaming(
+            self,
+            model_reply: Union[AsyncIterable[Any], Iterable[Any]],
+    ) -> Union[AsyncIterator[ModelResponse], Iterator[ModelResponse]]:
+        pass
+
+    def normalize(self, model_reply: Any) -> ModelResponse:
+        pass
+
+    def denormalize(self, normalized_reply: ModelResponse) -> Any:
+        pass
+
+    def denormalize_streaming(
+            self,
+            normalized_reply: Union[AsyncIterable[ModelResponse], Iterable[ModelResponse]],
+    ) -> Union[AsyncIterator[Any], Iterator[Any]]:
+        pass
 
 class MockProvider(BaseProvider):
+    def __init__(
+            self,
+    ):
+        super().__init__(
+            MockInputNormalizer(),
+            MockOutputNormalizer(),
+            MockCompletionHandler(),
+            None)
 
     @property
     def provider_route_name(self) -> str:
@@ -65,24 +110,24 @@ def registry(app):
     return ProviderRegistry(app)
 
 
-def test_add_provider(registry, mock_completion_handler):
-    provider = MockProvider(mock_completion_handler)
+def test_add_provider(registry):
+    provider = MockProvider()
     registry.add_provider("test", provider)
 
     assert "test" in registry.providers
     assert registry.providers["test"] == provider
 
 
-def test_get_provider(registry, mock_completion_handler):
-    provider = MockProvider(mock_completion_handler)
+def test_get_provider(registry):
+    provider = MockProvider()
     registry.add_provider("test", provider)
 
     assert registry.get_provider("test") == provider
     assert registry.get_provider("nonexistent") is None
 
 
-def test_provider_routes_added(app, registry, mock_completion_handler):
-    provider = MockProvider(mock_completion_handler)
+def test_provider_routes_added(app, registry):
+    provider = MockProvider()
     registry.add_provider("test", provider)
 
     routes = [route for route in app.routes if route.path == "/mock_provider/test"]

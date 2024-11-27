@@ -5,7 +5,7 @@ from litellm import ModelResponse
 from litellm.types.utils import Delta, StreamingChoices
 
 from codegate.pipeline.base import PipelineResponse
-from codegate.providers.completion.base import BaseCompletionHandler
+from codegate.providers.normalizer.base import ModelOutputNormalizer
 
 
 def _create_stream_end_response(original_response: ModelResponse) -> ModelResponse:
@@ -88,9 +88,9 @@ async def _convert_to_stream(
 
 class PipelineResponseFormatter:
     def __init__(self,
-         completion_handler: BaseCompletionHandler,
+         output_normalizer: ModelOutputNormalizer,
          ):
-        self._completion_handler = completion_handler
+        self._output_normalizer = output_normalizer
 
     def handle_pipeline_response(
             self,
@@ -114,7 +114,7 @@ class PipelineResponseFormatter:
         if not streaming:
             # If we're not streaming, we just return the response translated
             # to the provider-specific format
-            return self._completion_handler.translate_response(model_response)
+            return self._output_normalizer.denormalize(model_response)
 
         # If we're streaming, we need to convert the response to a stream first
         # then feed the stream into the completion handler's conversion method
@@ -123,7 +123,7 @@ class PipelineResponseFormatter:
             pipeline_response.step_name,
             pipeline_response.model
         )
-        return self._completion_handler.translate_streaming_response(
+        return self._output_normalizer.denormalize_streaming(
             model_response_stream
         )
 

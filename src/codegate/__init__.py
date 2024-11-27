@@ -1,10 +1,10 @@
 """Codegate - A Generative AI security gateway."""
 
-from importlib import metadata
 import logging as python_logging
+from importlib import metadata
 
+from codegate.codegate_logging import LogFormat, LogLevel, setup_logging
 from codegate.config import Config
-from codegate.codegate_logging import setup_logging, LogFormat, LogLevel
 from codegate.exceptions import ConfigurationError
 
 try:

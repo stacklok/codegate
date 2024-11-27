@@ -2,16 +2,20 @@ import json
 
 from fastapi import Header, HTTPException, Request
 
+from codegate.providers.anthropic.adapter import AnthropicInputNormalizer, AnthropicOutputNormalizer
 from codegate.providers.base import BaseProvider
-from codegate.providers.litellmshim import LiteLLmShim
-from codegate.providers.anthropic.adapter import AnthropicAdapter
+from codegate.providers.litellmshim import LiteLLmShim, anthropic_stream_generator
 
 
 class AnthropicProvider(BaseProvider):
     def __init__(self, pipeline_processor=None):
-        adapter = AnthropicAdapter()
-        completion_handler = LiteLLmShim(adapter)
-        super().__init__(completion_handler, pipeline_processor)
+        completion_handler = LiteLLmShim(stream_generator=anthropic_stream_generator)
+        super().__init__(
+            AnthropicInputNormalizer(),
+            AnthropicOutputNormalizer(),
+            completion_handler,
+            pipeline_processor,
+        )
 
     @property
     def provider_route_name(self) -> str:

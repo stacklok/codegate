@@ -1,48 +1,39 @@
-from typing import Any, AsyncIterator, Dict, Union
+import json
+import asyncio
+from typing import Any, AsyncIterator, Iterator, Optional, Union
 
 from fastapi.responses import StreamingResponse
 from litellm import ChatCompletionRequest, ModelResponse
 
-from codegate.providers.base import BaseCompletionHandler
-from codegate.providers.llamacpp.adapter import BaseAdapter
-from codegate.inference.inference_engine import LlamaCppInferenceEngine
 from codegate.config import Config
+from codegate.inference.inference_engine import LlamaCppInferenceEngine
+from codegate.providers.base import BaseCompletionHandler
 
+
+async def llamacpp_stream_generator(stream: Iterator[Any]) -> AsyncIterator[str]:
+    """OpenAI-style SSE format"""
+    try:
+        for chunk in stream:
+            if hasattr(chunk, "model_dump_json"):
+                chunk = chunk.model_dump_json(exclude_none=True, exclude_unset=True)
+            try:
+                yield f"data:{json.dumps(chunk)}\n\n"
+                await asyncio.sleep(0)
+            except Exception as e:
+                yield f"data:{str(e)}\n\n"
+    except Exception as e:
+        yield f"data: {str(e)}\n\n"
+    finally:
+        yield "data: [DONE]\n\n"
 
 class LlamaCppCompletionHandler(BaseCompletionHandler):
-    def __init__(self, adapter: BaseAdapter):
-        self._adapter = adapter
+    def __init__(self):
         self.inference_engine = LlamaCppInferenceEngine()
-
-    def translate_request(self, data: Dict, api_key: str) -> ChatCompletionRequest:
-        completion_request = self._adapter.translate_completion_input_params(
-            data)
-        if completion_request is None:
-            raise Exception("Couldn't translate the request")
-
-        return ChatCompletionRequest(**completion_request)
-
-    def translate_streaming_response(
-            self,
-            response: AsyncIterator[ModelResponse],
-    ) -> AsyncIterator[ModelResponse]:
-        """
-        Convert pipeline or completion response to provider-specific stream
-        """
-        return self._adapter.translate_completion_output_params_streaming(response)
-
-    def translate_response(
-            self,
-            response: ModelResponse,
-    ) -> ModelResponse:
-        """
-        Convert pipeline or completion response to provider-specific format
-        """
-        return self._adapter.translate_completion_output_params(response)
 
     async def execute_completion(
             self,
             request: ChatCompletionRequest,
+            api_key: Optional[str],
             stream: bool = False
     ) -> Union[ModelResponse, AsyncIterator[ModelResponse]]:
         """
@@ -63,14 +54,14 @@ class LlamaCppCompletionHandler(BaseCompletionHandler):
         return response
 
     def create_streaming_response(
-        self, stream: AsyncIterator[Any]
+        self, stream: Iterator[Any]
     ) -> StreamingResponse:
         """
         Create a streaming response from a stream generator. The StreamingResponse
         is the format that FastAPI expects for streaming responses.
         """
         return StreamingResponse(
-            self._adapter.stream_generator(stream),
+            llamacpp_stream_generator(stream),
             headers={
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",

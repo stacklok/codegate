@@ -7,7 +7,7 @@ from typing import Optional, Union
 
 import yaml
 
-from codegate.codegate_logging import setup_logging, LogFormat, LogLevel
+from codegate.codegate_logging import LogFormat, LogLevel, setup_logging
 from codegate.exceptions import ConfigurationError
 from codegate.prompts import PromptConfig
 

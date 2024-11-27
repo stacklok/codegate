@@ -1,6 +1,5 @@
 import json
-from typing import Any, AsyncIterator, Iterator
-import asyncio
+from typing import Any, AsyncIterator
 
 from pydantic import BaseModel
 
@@ -38,20 +37,3 @@ async def anthropic_stream_generator(stream: AsyncIterator[Any]) -> AsyncIterato
                 yield f"event: {event_type}\ndata:{str(e)}\n\n"
     except Exception as e:
         yield f"data: {str(e)}\n\n"
-
-
-async def llamacpp_stream_generator(stream: Iterator[Any]) -> AsyncIterator[str]:
-    """OpenAI-style SSE format"""
-    try:
-        for chunk in stream:
-            if hasattr(chunk, "model_dump_json"):
-                chunk = chunk.model_dump_json(exclude_none=True, exclude_unset=True)
-            try:
-                yield f"data:{json.dumps(chunk)}\n\n"
-                await asyncio.sleep(0)
-            except Exception as e:
-                yield f"data:{str(e)}\n\n"
-    except Exception as e:
-        yield f"data: {str(e)}\n\n"
-    finally:
-        yield "data: [DONE]\n\n"

@@ -1,4 +1,4 @@
-from typing import AsyncIterator, Dict, List, Union
+from typing import List, Union
 
 import pytest
 from litellm import ModelResponse
@@ -12,24 +12,24 @@ from litellm.types.llms.anthropic import (
 )
 from litellm.types.utils import Delta, StreamingChoices
 
-from codegate.providers.anthropic.adapter import AnthropicAdapter
+from codegate.providers.anthropic.adapter import AnthropicInputNormalizer, AnthropicOutputNormalizer
 
 
 @pytest.fixture
-def adapter():
-    return AnthropicAdapter()
+def input_normalizer():
+    return AnthropicInputNormalizer()
 
 
-def test_translate_completion_input_params(adapter):
+def test_normalize_anthropic_input(input_normalizer):
     # Test input data
     completion_request = {
         "model": "claude-3-haiku-20240307",
+        "system": "You are an expert code reviewer",
         "max_tokens": 1024,
         "stream": True,
         "messages": [
             {
                 "role": "user",
-                "system": "You are an expert code reviewer",
                 "content": [{"type": "text", "text": "Review this code"}],
             }
         ],
@@ -37,6 +37,7 @@ def test_translate_completion_input_params(adapter):
     expected = {
         "max_tokens": 1024,
         "messages": [
+            {"content": "You are an expert code reviewer", "role": "system"},
             {"content": [{"text": "Review this code", "type": "text"}], "role": "user"}
         ],
         "model": "claude-3-haiku-20240307",
@@ -44,12 +45,16 @@ def test_translate_completion_input_params(adapter):
     }
 
     # Get translation
-    result = adapter.translate_completion_input_params(completion_request)
+    result = input_normalizer.normalize(completion_request)
     assert result == expected
+
+@pytest.fixture
+def output_normalizer():
+    return AnthropicOutputNormalizer()
 
 
 @pytest.mark.asyncio
-async def test_translate_completion_output_params_streaming(adapter):
+async def test_normalize_anthropic_output_stream(output_normalizer):
     # Test stream data
     async def mock_stream():
         messages = [
@@ -129,7 +134,7 @@ async def test_translate_completion_output_params_streaming(adapter):
         dict(type="message_stop"),
     ]
 
-    stream = adapter.translate_completion_output_params_streaming(mock_stream())
+    stream = output_normalizer.denormalize_streaming(mock_stream())
     assert isinstance(stream, AnthropicStreamWrapper)
 
     # just so that we can zip over the expected chunks
@@ -139,20 +144,3 @@ async def test_translate_completion_output_params_streaming(adapter):
 
     for chunk, expected_chunk in zip(stream_list, expected):
         assert chunk == expected_chunk
-
-
-def test_stream_generator_initialization(adapter):
-    # Verify the default stream generator is set
-    from codegate.providers.litellmshim import anthropic_stream_generator
-
-    assert adapter.stream_generator == anthropic_stream_generator
-
-
-def test_custom_stream_generator():
-    # Test that we can inject a custom stream generator
-    async def custom_generator(stream: AsyncIterator[Dict]) -> AsyncIterator[str]:
-        async for chunk in stream:
-            yield "custom: " + str(chunk)
-
-    adapter = AnthropicAdapter(stream_generator=custom_generator)
-    assert adapter.stream_generator == custom_generator

@@ -3,15 +3,19 @@ import json
 from fastapi import Header, HTTPException, Request
 
 from codegate.providers.base import BaseProvider
-from codegate.providers.litellmshim import LiteLLmShim
-from codegate.providers.openai.adapter import OpenAIAdapter
+from codegate.providers.litellmshim import LiteLLmShim, sse_stream_generator
+from codegate.providers.openai.adapter import OpenAIInputNormalizer, OpenAIOutputNormalizer
 
 
 class OpenAIProvider(BaseProvider):
     def __init__(self, pipeline_processor=None):
-        adapter = OpenAIAdapter()
-        completion_handler = LiteLLmShim(adapter)
-        super().__init__(completion_handler, pipeline_processor)
+        completion_handler = LiteLLmShim(stream_generator=sse_stream_generator)
+        super().__init__(
+            OpenAIInputNormalizer(),
+            OpenAIOutputNormalizer(),
+            completion_handler,
+            pipeline_processor,
+        )
 
     @property
     def provider_route_name(self) -> str:

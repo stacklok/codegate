@@ -4,14 +4,18 @@ from fastapi import Request
 
 from codegate.providers.base import BaseProvider
 from codegate.providers.llamacpp.completion_handler import LlamaCppCompletionHandler
-from codegate.providers.llamacpp.adapter import LlamaCppAdapter
+from codegate.providers.llamacpp.normalizer import LLamaCppInputNormalizer, LLamaCppOutputNormalizer
 
 
 class LlamaCppProvider(BaseProvider):
     def __init__(self, pipeline_processor=None):
-        adapter = LlamaCppAdapter()
-        completion_handler = LlamaCppCompletionHandler(adapter)
-        super().__init__(completion_handler, pipeline_processor)
+        completion_handler = LlamaCppCompletionHandler()
+        super().__init__(
+            LLamaCppInputNormalizer(),
+            LLamaCppOutputNormalizer(),
+            completion_handler,
+            pipeline_processor,
+        )
 
     @property
     def provider_route_name(self) -> str:
@@ -30,5 +34,5 @@ class LlamaCppProvider(BaseProvider):
             body = await request.body()
             data = json.loads(body)
 
-            stream = await self.complete(data, None)
+            stream = await self.complete(data, api_key=None)
             return self._completion_handler.create_streaming_response(stream)

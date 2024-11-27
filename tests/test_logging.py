@@ -2,7 +2,13 @@ import json
 import logging
 from io import StringIO
 
-from codegate.codegate_logging import JSONFormatter, TextFormatter, setup_logging, LogFormat, LogLevel
+from codegate.codegate_logging import (
+    JSONFormatter,
+    LogFormat,
+    LogLevel,
+    TextFormatter,
+    setup_logging,
+)
 
 
 def test_json_formatter():

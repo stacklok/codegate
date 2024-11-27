@@ -5,7 +5,7 @@ import pytest
 from fastapi.responses import StreamingResponse
 from litellm import ChatCompletionRequest, ModelResponse
 
-from codegate.providers.litellmshim import BaseAdapter, LiteLLmShim
+from codegate.providers.litellmshim import BaseAdapter, LiteLLmShim, sse_stream_generator
 
 
 class MockAdapter(BaseAdapter):
@@ -38,24 +38,17 @@ class MockAdapter(BaseAdapter):
         return modified_stream()
 
 
-@pytest.fixture
-def mock_adapter():
-    return MockAdapter()
-
-
-@pytest.fixture
-def litellm_shim(mock_adapter):
-    return LiteLLmShim(mock_adapter)
-
-
 @pytest.mark.asyncio
-async def test_complete_non_streaming(litellm_shim, mock_adapter):
+async def test_complete_non_streaming():
     # Mock response
     mock_response = ModelResponse(id="123", choices=[{"text": "test response"}])
     mock_completion = AsyncMock(return_value=mock_response)
 
     # Create shim with mocked completion
-    litellm_shim = LiteLLmShim(mock_adapter, completion_func=mock_completion)
+    litellm_shim = LiteLLmShim(
+        stream_generator=sse_stream_generator,
+        completion_func=mock_completion
+    )
 
     # Test data
     data = {
@@ -64,7 +57,7 @@ async def test_complete_non_streaming(litellm_shim, mock_adapter):
     }
 
     # Execute
-    result = await litellm_shim.execute_completion(data)
+    result = await litellm_shim.execute_completion(data, api_key=None)
 
     # Verify
     assert result == mock_response
@@ -81,8 +74,10 @@ async def test_complete_streaming():
         yield ModelResponse(id="123", choices=[{"text": "chunk2"}])
 
     mock_completion = AsyncMock(return_value=mock_stream())
-    mock_adapter = MockAdapter()
-    litellm_shim = LiteLLmShim(mock_adapter, completion_func=mock_completion)
+    litellm_shim = LiteLLmShim(
+        stream_generator=sse_stream_generator,
+        completion_func=mock_completion
+    )
 
     # Test data
     data = {
@@ -92,7 +87,9 @@ async def test_complete_streaming():
     }
 
     # Execute
-    result_stream = await litellm_shim.execute_completion(data)
+    result_stream = await litellm_shim.execute_completion(
+        ChatCompletionRequest(**data),
+        api_key=None)
 
     # Verify stream contents and adapter processing
     chunks = []
@@ -112,7 +109,7 @@ async def test_complete_streaming():
 
 
 @pytest.mark.asyncio
-async def test_create_streaming_response(litellm_shim):
+async def test_create_streaming_response():
     # Create a simple async generator that we know works
     async def mock_stream_gen():
         for msg in ["Hello", "World"]:
@@ -121,6 +118,7 @@ async def test_create_streaming_response(litellm_shim):
     # Create and verify the generator
     generator = mock_stream_gen()
 
+    litellm_shim = LiteLLmShim(stream_generator=sse_stream_generator)
     response = litellm_shim.create_streaming_response(generator)
 
     # Verify response metadata

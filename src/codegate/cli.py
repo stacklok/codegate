@@ -6,8 +6,8 @@ from typing import Optional
 
 import click
 
+from codegate.codegate_logging import LogFormat, LogLevel, setup_logging
 from codegate.config import Config, ConfigurationError
-from codegate.codegate_logging import setup_logging, LogFormat, LogLevel
 from codegate.server import init_app
 
 

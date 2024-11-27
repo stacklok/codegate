@@ -3,11 +3,12 @@ from typing import Any, AsyncIterator, Callable, Dict, Optional, Union
 
 from fastapi import APIRouter
 from litellm import ModelResponse
+from litellm.types.llms.openai import ChatCompletionRequest
 
+from codegate.pipeline.base import PipelineResult, SequentialPipelineProcessor
 from codegate.providers.completion.base import BaseCompletionHandler
 from codegate.providers.formatting.input_pipeline import PipelineResponseFormatter
-
-from ..pipeline.base import SequentialPipelineProcessor
+from codegate.providers.normalizer.base import ModelInputNormalizer, ModelOutputNormalizer
 
 StreamGenerator = Callable[[AsyncIterator[Any]], AsyncIterator[str]]
 
@@ -19,14 +20,20 @@ class BaseProvider(ABC):
 
     def __init__(
         self,
+        input_normalizer: ModelInputNormalizer,
+        output_normalizer: ModelOutputNormalizer,
         completion_handler: BaseCompletionHandler,
         pipeline_processor: Optional[SequentialPipelineProcessor] = None
     ):
         self.router = APIRouter()
         self._completion_handler = completion_handler
+        self._input_normalizer = input_normalizer
+        self._output_normalizer = output_normalizer
         self._pipeline_processor = pipeline_processor
+
         self._pipeline_response_formatter = \
-            PipelineResponseFormatter(completion_handler)
+            PipelineResponseFormatter(output_normalizer)
+
         self._setup_routes()
 
     @abstractmethod
@@ -38,8 +45,23 @@ class BaseProvider(ABC):
     def provider_route_name(self) -> str:
         pass
 
+    async def _run_input_pipeline(
+            self,
+            normalized_request: ChatCompletionRequest,
+    ) -> PipelineResult:
+        if self._pipeline_processor is None:
+            return PipelineResult(request=normalized_request)
+
+        result = await self._pipeline_processor.process_request(normalized_request)
+
+        # TODO(jakub): handle this by returning a message to the client
+        if result.error_message:
+            raise Exception(result.error_message)
+
+        return result
+
     async def complete(
-            self, data: Dict, api_key: str,
+            self, data: Dict, api_key: Optional[str],
         ) -> Union[ModelResponse, AsyncIterator[ModelResponse]]:
         """
         Main completion flow with pipeline integration
@@ -52,31 +74,28 @@ class BaseProvider(ABC):
         - Execute the completion and translate the response back to the
           provider-specific format
         """
-        completion_request = self._completion_handler.translate_request(data, api_key)
+        normalized_request = self._input_normalizer.normalize(data)
         streaming = data.get("stream", False)
 
-        if self._pipeline_processor is not None:
-            result = await self._pipeline_processor.process_request(completion_request)
+        input_pipeline_result = await self._run_input_pipeline(normalized_request)
+        if input_pipeline_result.response:
+            return self._pipeline_response_formatter.handle_pipeline_response(
+                input_pipeline_result.response, streaming)
 
-            if result.error_message:
-                raise Exception(result.error_message)
-
-            if result.response:
-                return self._pipeline_response_formatter.handle_pipeline_response(
-                    result.response, streaming)
-
-            completion_request = result.request
+        provider_request = self._input_normalizer.denormalize(input_pipeline_result.request)
 
         # Execute the completion and translate the response
         # This gives us either a single response or a stream of responses
         # based on the streaming flag
-        raw_response = await self._completion_handler.execute_completion(
-            completion_request,
+        model_response = await self._completion_handler.execute_completion(
+            provider_request,
+            api_key=api_key,
             stream=streaming
         )
+
         if not streaming:
-            return self._completion_handler.translate_response(raw_response)
-        return self._completion_handler.translate_streaming_response(raw_response)
+            return self._output_normalizer.denormalize(model_response)
+        return self._output_normalizer.denormalize_streaming(model_response)
 
     def get_routes(self) -> APIRouter:
         return self.router
