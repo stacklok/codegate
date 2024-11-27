@@ -26,15 +26,13 @@ async def llamacpp_stream_generator(stream: Iterator[Any]) -> AsyncIterator[str]
     finally:
         yield "data: [DONE]\n\n"
 
+
 class LlamaCppCompletionHandler(BaseCompletionHandler):
     def __init__(self):
         self.inference_engine = LlamaCppInferenceEngine()
 
     async def execute_completion(
-            self,
-            request: ChatCompletionRequest,
-            api_key: Optional[str],
-            stream: bool = False
+        self, request: ChatCompletionRequest, api_key: Optional[str], stream: bool = False
     ) -> Union[ModelResponse, AsyncIterator[ModelResponse]]:
         """
         Execute the completion request with inference engine API
@@ -53,9 +51,7 @@ class LlamaCppCompletionHandler(BaseCompletionHandler):
                                                         **request)
         return response
 
-    def create_streaming_response(
-        self, stream: Iterator[Any]
-    ) -> StreamingResponse:
+    def create_streaming_response(self, stream: Iterator[Any]) -> StreamingResponse:
         """
         Create a streaming response from a stream generator. The StreamingResponse
         is the format that FastAPI expects for streaming responses.

@@ -34,9 +34,7 @@ class OpenAIProvider(BaseProvider):
             authorization: str = Header(..., description="Bearer token"),
         ):
             if not authorization.startswith("Bearer "):
-                raise HTTPException(
-                    status_code=401, detail="Invalid authorization header"
-                )
+                raise HTTPException(status_code=401, detail="Invalid authorization header")
 
             api_key = authorization.split(" ")[1]
             body = await request.body()

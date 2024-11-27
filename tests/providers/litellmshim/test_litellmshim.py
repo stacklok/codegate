@@ -46,8 +46,7 @@ async def test_complete_non_streaming():
 
     # Create shim with mocked completion
     litellm_shim = LiteLLmShim(
-        stream_generator=sse_stream_generator,
-        completion_func=mock_completion
+        stream_generator=sse_stream_generator, completion_func=mock_completion
     )
 
     # Test data
@@ -75,8 +74,7 @@ async def test_complete_streaming():
 
     mock_completion = AsyncMock(return_value=mock_stream())
     litellm_shim = LiteLLmShim(
-        stream_generator=sse_stream_generator,
-        completion_func=mock_completion
+        stream_generator=sse_stream_generator, completion_func=mock_completion
     )
 
     # Test data
@@ -88,8 +86,8 @@ async def test_complete_streaming():
 
     # Execute
     result_stream = await litellm_shim.execute_completion(
-        ChatCompletionRequest(**data),
-        api_key=None)
+        ChatCompletionRequest(**data), api_key=None
+    )
 
     # Verify stream contents and adapter processing
     chunks = []

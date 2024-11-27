@@ -12,6 +12,7 @@ from codegate.providers.normalizer.base import ModelInputNormalizer, ModelOutput
 
 StreamGenerator = Callable[[AsyncIterator[Any]], AsyncIterator[str]]
 
+
 class BaseProvider(ABC):
     """
     The provider class is responsible for defining the API routes and
@@ -23,7 +24,7 @@ class BaseProvider(ABC):
         input_normalizer: ModelInputNormalizer,
         output_normalizer: ModelOutputNormalizer,
         completion_handler: BaseCompletionHandler,
-        pipeline_processor: Optional[SequentialPipelineProcessor] = None
+        pipeline_processor: Optional[SequentialPipelineProcessor] = None,
     ):
         self.router = APIRouter()
         self._completion_handler = completion_handler
@@ -31,8 +32,7 @@ class BaseProvider(ABC):
         self._output_normalizer = output_normalizer
         self._pipeline_processor = pipeline_processor
 
-        self._pipeline_response_formatter = \
-            PipelineResponseFormatter(output_normalizer)
+        self._pipeline_response_formatter = PipelineResponseFormatter(output_normalizer)
 
         self._setup_routes()
 
@@ -46,8 +46,8 @@ class BaseProvider(ABC):
         pass
 
     async def _run_input_pipeline(
-            self,
-            normalized_request: ChatCompletionRequest,
+        self,
+        normalized_request: ChatCompletionRequest,
     ) -> PipelineResult:
         if self._pipeline_processor is None:
             return PipelineResult(request=normalized_request)
@@ -61,8 +61,10 @@ class BaseProvider(ABC):
         return result
 
     async def complete(
-            self, data: Dict, api_key: Optional[str],
-        ) -> Union[ModelResponse, AsyncIterator[ModelResponse]]:
+        self,
+        data: Dict,
+        api_key: Optional[str],
+    ) -> Union[ModelResponse, AsyncIterator[ModelResponse]]:
         """
         Main completion flow with pipeline integration
 
@@ -80,7 +82,8 @@ class BaseProvider(ABC):
         input_pipeline_result = await self._run_input_pipeline(normalized_request)
         if input_pipeline_result.response:
             return self._pipeline_response_formatter.handle_pipeline_response(
-                input_pipeline_result.response, streaming)
+                input_pipeline_result.response, streaming
+            )
 
         provider_request = self._input_normalizer.denormalize(input_pipeline_result.request)
 
@@ -88,9 +91,7 @@ class BaseProvider(ABC):
         # This gives us either a single response or a stream of responses
         # based on the streaming flag
         model_response = await self._completion_handler.execute_completion(
-            provider_request,
-            api_key=api_key,
-            stream=streaming
+            provider_request, api_key=api_key, stream=streaming
         )
 
         if not streaming:

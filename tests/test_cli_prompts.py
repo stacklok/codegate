@@ -72,9 +72,7 @@ def test_serve_with_prompts(temp_prompts_file):
     """Test the serve command with prompts file."""
     runner = CliRunner()
     # Use --help to avoid actually starting the server
-    result = runner.invoke(
-        cli, ["serve", "--prompts", str(temp_prompts_file), "--help"]
-    )
+    result = runner.invoke(cli, ["serve", "--prompts", str(temp_prompts_file), "--help"])
 
     assert result.exit_code == 0
     assert "Path to YAML prompts file" in result.output

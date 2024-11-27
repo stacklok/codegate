@@ -52,9 +52,7 @@ class Config:
     @staticmethod
     def _load_default_prompts() -> PromptConfig:
         """Load default prompts from prompts/default.yaml."""
-        default_prompts_path = (
-            Path(__file__).parent.parent.parent / "prompts" / "default.yaml"
-        )
+        default_prompts_path = Path(__file__).parent.parent.parent / "prompts" / "default.yaml"
         try:
             return PromptConfig.from_file(default_prompts_path)
         except Exception as e:

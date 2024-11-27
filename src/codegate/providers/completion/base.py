@@ -16,13 +16,11 @@ class BaseCompletionHandler(ABC):
         self,
         request: ChatCompletionRequest,
         api_key: Optional[str],
-        stream: bool = False, # TODO: remove this param?
+        stream: bool = False,  # TODO: remove this param?
     ) -> Union[ModelResponse, AsyncIterator[ModelResponse]]:
         """Execute the completion request"""
         pass
 
     @abstractmethod
-    def create_streaming_response(
-        self, stream: AsyncIterator[Any]
-    ) -> StreamingResponse:
+    def create_streaming_response(self, stream: AsyncIterator[Any]) -> StreamingResponse:
         pass

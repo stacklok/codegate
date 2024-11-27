@@ -49,6 +49,7 @@ class MockCompletionHandler(BaseCompletionHandler):
     ) -> StreamingResponse:
         return StreamingResponse(stream)
 
+
 class MockInputNormalizer(ModelInputNormalizer):
     def normalize(self, data: Dict) -> Dict:
         return data
@@ -56,10 +57,11 @@ class MockInputNormalizer(ModelInputNormalizer):
     def denormalize(self, data: Dict) -> Dict:
         return data
 
+
 class MockOutputNormalizer(ModelOutputNormalizer):
     def normalize_streaming(
-            self,
-            model_reply: Union[AsyncIterable[Any], Iterable[Any]],
+        self,
+        model_reply: Union[AsyncIterable[Any], Iterable[Any]],
     ) -> Union[AsyncIterator[ModelResponse], Iterator[ModelResponse]]:
         pass
 
@@ -70,24 +72,23 @@ class MockOutputNormalizer(ModelOutputNormalizer):
         pass
 
     def denormalize_streaming(
-            self,
-            normalized_reply: Union[AsyncIterable[ModelResponse], Iterable[ModelResponse]],
+        self,
+        normalized_reply: Union[AsyncIterable[ModelResponse], Iterable[ModelResponse]],
     ) -> Union[AsyncIterator[Any], Iterator[Any]]:
         pass
 
+
 class MockProvider(BaseProvider):
     def __init__(
-            self,
+        self,
     ):
         super().__init__(
-            MockInputNormalizer(),
-            MockOutputNormalizer(),
-            MockCompletionHandler(),
-            None)
+            MockInputNormalizer(), MockOutputNormalizer(), MockCompletionHandler(), None
+        )
 
     @property
     def provider_route_name(self) -> str:
-        return 'mock_provider'
+        return "mock_provider"
 
     def _setup_routes(self) -> None:
         @self.router.get(f"/{self.provider_route_name}/test")

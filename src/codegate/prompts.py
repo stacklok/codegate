@@ -44,9 +44,7 @@ class PromptConfig:
             # Validate all values are strings
             for key, value in prompt_data.items():
                 if not isinstance(value, str):
-                    raise ConfigurationError(
-                        f"Prompt '{key}' must be a string, got {type(value)}"
-                    )
+                    raise ConfigurationError(f"Prompt '{key}' must be a string, got {type(value)}")
 
             return cls(prompts=prompt_data)
         except yaml.YAMLError as e:

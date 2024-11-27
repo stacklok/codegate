@@ -23,9 +23,7 @@ class BaseAdapter(ABC):
         self.stream_generator = stream_generator
 
     @abstractmethod
-    def translate_completion_input_params(
-            self, kwargs: Dict
-    ) -> Optional[ChatCompletionRequest]:
+    def translate_completion_input_params(self, kwargs: Dict) -> Optional[ChatCompletionRequest]:
         """Convert input parameters to LiteLLM's ChatCompletionRequest format"""
         pass
 
@@ -35,14 +33,13 @@ class BaseAdapter(ABC):
         pass
 
     @abstractmethod
-    def translate_completion_output_params_streaming(
-            self, completion_stream: Any
-    ) -> Any:
+    def translate_completion_output_params_streaming(self, completion_stream: Any) -> Any:
         """
         Convert streaming response from LiteLLM format to a format that
         can be passed to a stream generator and to the client.
         """
         pass
+
 
 class LiteLLMAdapterInputNormalizer(ModelInputNormalizer):
     def __init__(self, adapter: BaseAdapter):
@@ -62,13 +59,14 @@ class LiteLLMAdapterInputNormalizer(ModelInputNormalizer):
         """
         return data
 
+
 class LiteLLMAdapterOutputNormalizer(ModelOutputNormalizer):
     def __init__(self, adapter: BaseAdapter):
         self._adapter = adapter
 
     def normalize_streaming(
-            self,
-            model_reply: Union[AsyncIterable[Any], Iterable[Any]],
+        self,
+        model_reply: Union[AsyncIterable[Any], Iterable[Any]],
     ) -> Union[AsyncIterator[ModelResponse], Iterator[ModelResponse]]:
         """
         Normalize the output stream. This is a pass-through for liteLLM output normalizer
@@ -91,8 +89,8 @@ class LiteLLMAdapterOutputNormalizer(ModelOutputNormalizer):
         return self._adapter.translate_completion_output_params(normalized_reply)
 
     def denormalize_streaming(
-            self,
-            normalized_reply: Union[AsyncIterable[ModelResponse], Iterable[ModelResponse]],
+        self,
+        normalized_reply: Union[AsyncIterable[ModelResponse], Iterable[ModelResponse]],
     ) -> Union[AsyncIterator[Any], Iterator[Any]]:
         """
         Denormalize the output stream from the completion function to the format

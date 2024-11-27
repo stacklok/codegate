@@ -147,9 +147,7 @@ def test_environment_variable_override(temp_env_prompts_file, monkeypatch):
     assert config.prompts.another_env == "Another environment prompt"
 
 
-def test_cli_override_takes_precedence(
-    temp_prompts_file, temp_env_prompts_file, monkeypatch
-):
+def test_cli_override_takes_precedence(temp_prompts_file, temp_env_prompts_file, monkeypatch):
     """Test that CLI prompts override config and environment."""
     # Set environment variable
     monkeypatch.setenv("CODEGATE_PROMPTS_FILE", str(temp_env_prompts_file))

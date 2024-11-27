@@ -23,9 +23,7 @@ class CodegateVersion(PipelineStep):
         return "codegate-version"
 
     async def process(
-            self,
-            request: ChatCompletionRequest,
-            context: PipelineContext
+        self, request: ChatCompletionRequest, context: PipelineContext
     ) -> PipelineResult:
         """
         Checks if the last user message contains "codegate-version" and

@@ -14,24 +14,21 @@ def _create_stream_end_response(original_response: ModelResponse) -> ModelRespon
         id=original_response.id,
         choices=[
             StreamingChoices(
-                finish_reason="stop",
-                index=0,
-                delta=Delta(
-                    content="",
-                    role=None
-                ),
-                logprobs=None
+                finish_reason="stop", index=0, delta=Delta(content="", role=None), logprobs=None
             )
         ],
         created=original_response.created,
         model=original_response.model,
-        object="chat.completion.chunk"
+        object="chat.completion.chunk",
     )
 
 
 def _create_model_response(
-        content: str, step_name: str, model: str, streaming: bool,
-    ) -> ModelResponse:
+    content: str,
+    step_name: str,
+    model: str,
+    streaming: bool,
+) -> ModelResponse:
     """
     Create a ModelResponse in either streaming or non-streaming format
     This is required because the ModelResponse format is different for streaming
@@ -47,33 +44,28 @@ def _create_model_response(
                 StreamingChoices(
                     finish_reason=None,
                     index=0,
-                    delta=Delta(
-                        content=content,
-                        role="assistant"
-                    ),
-                    logprobs=None
+                    delta=Delta(content=content, role="assistant"),
+                    logprobs=None,
                 )
             ],
             created=created,
             model=model,
-            object="chat.completion.chunk"
+            object="chat.completion.chunk",
         )
     else:
         return ModelResponse(
             id=response_id,
-            choices=[{
-                "text": content,
-                "index": 0,
-                "finish_reason": None
-            }],
+            choices=[{"text": content, "index": 0, "finish_reason": None}],
             created=created,
-            model=model
+            model=model,
         )
 
 
 async def _convert_to_stream(
-        content: str, step_name: str, model: str,
-    ) -> AsyncIterator[ModelResponse]:
+    content: str,
+    step_name: str,
+    model: str,
+) -> AsyncIterator[ModelResponse]:
     """
     Converts a single completion response, provided by our pipeline as a shortcut
     to a streaming response. The streaming response has two chunks: the first
@@ -87,15 +79,14 @@ async def _convert_to_stream(
 
 
 class PipelineResponseFormatter:
-    def __init__(self,
-         output_normalizer: ModelOutputNormalizer,
-         ):
+    def __init__(
+        self,
+        output_normalizer: ModelOutputNormalizer,
+    ):
         self._output_normalizer = output_normalizer
 
     def handle_pipeline_response(
-            self,
-            pipeline_response: PipelineResponse,
-            streaming: bool
+        self, pipeline_response: PipelineResponse, streaming: bool
     ) -> Union[ModelResponse, AsyncIterator[ModelResponse]]:
         """
         Convert pipeline response to appropriate format based on streaming flag
@@ -109,7 +100,7 @@ class PipelineResponseFormatter:
             pipeline_response.content,
             pipeline_response.step_name,
             pipeline_response.model,
-            streaming=streaming
+            streaming=streaming,
         )
         if not streaming:
             # If we're not streaming, we just return the response translated
@@ -119,11 +110,6 @@ class PipelineResponseFormatter:
         # If we're streaming, we need to convert the response to a stream first
         # then feed the stream into the completion handler's conversion method
         model_response_stream = _convert_to_stream(
-            pipeline_response.content,
-            pipeline_response.step_name,
-            pipeline_response.model
+            pipeline_response.content, pipeline_response.step_name, pipeline_response.model
         )
-        return self._output_normalizer.denormalize_streaming(
-            model_response_stream
-        )
-
+        return self._output_normalizer.denormalize_streaming(model_response_stream)

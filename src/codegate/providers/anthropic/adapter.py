@@ -18,6 +18,7 @@ class AnthropicInputNormalizer(LiteLLMAdapterInputNormalizer):
     def __init__(self):
         super().__init__(LitellmAnthropicAdapter())
 
+
 class AnthropicOutputNormalizer(LiteLLMAdapterOutputNormalizer):
     """
     LiteLLM's adapter class interface is used to translate between the Anthropic data

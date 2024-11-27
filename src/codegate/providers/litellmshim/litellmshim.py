@@ -29,9 +29,7 @@ class LiteLLmShim(BaseCompletionHandler):
         request["api_key"] = api_key
         return await self._completion_func(**request)
 
-    def create_streaming_response(
-        self, stream: AsyncIterator[Any]
-    ) -> StreamingResponse:
+    def create_streaming_response(self, stream: AsyncIterator[Any]) -> StreamingResponse:
         """
         Create a streaming response from a stream generator. The StreamingResponse
         is the format that FastAPI expects for streaming responses.

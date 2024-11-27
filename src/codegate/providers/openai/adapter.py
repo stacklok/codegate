@@ -21,13 +21,14 @@ class OpenAIInputNormalizer(ModelInputNormalizer):
         """
         return data
 
+
 class OpenAIOutputNormalizer(ModelOutputNormalizer):
     def __init__(self):
         super().__init__()
 
     def normalize_streaming(
-            self,
-            model_reply: Any,
+        self,
+        model_reply: Any,
     ) -> Any:
         """
         No normalizing needed, already OpenAI format
@@ -47,8 +48,8 @@ class OpenAIOutputNormalizer(ModelOutputNormalizer):
         return normalized_reply
 
     def denormalize_streaming(
-            self,
-            normalized_reply: Any,
+        self,
+        normalized_reply: Any,
     ) -> Any:
         """
         No denormalizing needed, already OpenAI format
