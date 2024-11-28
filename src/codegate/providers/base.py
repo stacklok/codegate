@@ -49,6 +49,20 @@ class BaseProvider(ABC):
     def provider_route_name(self) -> str:
         pass
 
+    async def _run_output_stream_pipeline(
+        self,
+        normalized_stream: AsyncIterator[ModelResponse],
+    ) -> AsyncIterator[ModelResponse]:
+        # we don't have a pipeline for output stream yet
+        return normalized_stream
+
+    def _run_output_pipeline(
+        self,
+        normalized_response: ModelResponse,
+    ) -> ModelResponse:
+        # we don't have a pipeline for output yet
+        return normalized_response
+
     async def _run_input_pipeline(
         self, normalized_request: ChatCompletionRequest, is_fim_request: bool
     ) -> PipelineResult:
@@ -149,8 +163,13 @@ class BaseProvider(ABC):
             provider_request, api_key=api_key, stream=streaming
         )
         if not streaming:
-            return self._output_normalizer.denormalize(model_response)
-        return self._output_normalizer.denormalize_streaming(model_response)
+            normalized_response = self._output_normalizer.normalize(model_response)
+            pipeline_output = self._run_output_pipeline(normalized_response)
+            return self._output_normalizer.denormalize(pipeline_output)
+
+        normalized_stream = self._output_normalizer.normalize_streaming(model_response)
+        pipeline_output_stream = await self._run_output_stream_pipeline(normalized_stream)
+        return self._output_normalizer.denormalize_streaming(pipeline_output_stream)
 
     def get_routes(self) -> APIRouter:
         return self.router

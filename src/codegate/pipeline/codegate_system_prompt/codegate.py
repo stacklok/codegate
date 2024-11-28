@@ -17,8 +17,7 @@ class CodegateSystemPrompt(PipelineStep):
 
     def __init__(self, system_prompt_message: Optional[str] = None):
         self._system_message = ChatCompletionSystemMessage(
-            content=system_prompt_message,
-            role="system"
+            content=system_prompt_message, role="system"
         )
 
     @property
@@ -29,7 +28,7 @@ class CodegateSystemPrompt(PipelineStep):
         return "codegate-system-prompt"
 
     async def process(
-            self, request: ChatCompletionRequest, context: PipelineContext
+        self, request: ChatCompletionRequest, context: PipelineContext
     ) -> PipelineResult:
         """
         Process the completion request and add a system prompt if the user message contains

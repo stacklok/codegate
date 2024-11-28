@@ -6,8 +6,6 @@ from codegate import __description__, __version__
 from codegate.config import Config
 from codegate.pipeline.base import PipelineStep, SequentialPipelineProcessor
 from codegate.pipeline.codegate_system_prompt.codegate import CodegateSystemPrompt
-from codegate.pipeline.secrets.secrets import CodegateSecrets
-from codegate.pipeline.secrets.signatures import CodegateSignatures
 from codegate.pipeline.version.version import CodegateVersion
 from codegate.providers.anthropic.provider import AnthropicProvider
 from codegate.providers.llamacpp.provider import LlamaCppProvider

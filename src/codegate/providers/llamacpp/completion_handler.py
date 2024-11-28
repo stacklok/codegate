@@ -4,27 +4,42 @@ from typing import Any, AsyncIterator, Iterator, Optional, Union
 
 from fastapi.responses import StreamingResponse
 from litellm import ChatCompletionRequest, ModelResponse
+from llama_cpp.llama_types import (
+    CreateChatCompletionStreamResponse,
+)
 
 from codegate.config import Config
 from codegate.inference.inference_engine import LlamaCppInferenceEngine
 from codegate.providers.base import BaseCompletionHandler
 
 
-async def llamacpp_stream_generator(stream: Iterator[Any]) -> AsyncIterator[str]:
+async def llamacpp_stream_generator(
+    stream: AsyncIterator[CreateChatCompletionStreamResponse],
+) -> AsyncIterator[str]:
     """OpenAI-style SSE format"""
     try:
-        for chunk in stream:
-            if hasattr(chunk, "model_dump_json"):
-                chunk = chunk.model_dump_json(exclude_none=True, exclude_unset=True)
+        async for chunk in stream:
+            chunk = json.dumps(chunk)
             try:
-                yield f"data:{json.dumps(chunk)}\n\n"
-                await asyncio.sleep(0)
+                yield f"data:{chunk}\n\n"
             except Exception as e:
                 yield f"data:{str(e)}\n\n"
     except Exception as e:
         yield f"data: {str(e)}\n\n"
     finally:
         yield "data: [DONE]\n\n"
+
+
+async def convert_to_async_iterator(
+    sync_iterator: Iterator[CreateChatCompletionStreamResponse],
+) -> AsyncIterator[CreateChatCompletionStreamResponse]:
+    """
+    Convert a synchronous iterator to an asynchronous iterator. This makes the logic easier
+    because both the pipeline and the completion handler can use async iterators.
+    """
+    for item in sync_iterator:
+        yield item
+        await asyncio.sleep(0)
 
 
 class LlamaCppCompletionHandler(BaseCompletionHandler):
@@ -53,9 +68,10 @@ class LlamaCppCompletionHandler(BaseCompletionHandler):
                 Config.get_config().chat_model_n_gpu_layers,
                 **request,
             )
-        return response
 
-    def create_streaming_response(self, stream: Iterator[Any]) -> StreamingResponse:
+        return convert_to_async_iterator(response) if stream else response
+
+    def create_streaming_response(self, stream: AsyncIterator[Any]) -> StreamingResponse:
         """
         Create a streaming response from a stream generator. The StreamingResponse
         is the format that FastAPI expects for streaming responses.
