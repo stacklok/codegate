@@ -15,15 +15,13 @@ class CodeSnippet:
         code: The actual code content
     """
 
-    language: str
+    language: Optional[str]
+    filepath: Optional[str]
     code: str
 
     def __post_init__(self):
-        if not self.language or not self.language.strip():
-            raise ValueError("Language must not be empty")
-        if not self.code or not self.code.strip():
-            raise ValueError("Code must not be empty")
-        self.language = self.language.strip().lower()
+        if self.language is not None:
+            self.language = self.language.strip().lower()
 
 
 @dataclass
@@ -57,6 +55,7 @@ class PipelineResult:
 
     request: Optional[ChatCompletionRequest] = None
     response: Optional[PipelineResponse] = None
+    context: Optional[PipelineContext] = None
     error_message: Optional[str] = None
 
     def shortcuts_processing(self) -> bool:
@@ -165,4 +164,7 @@ class SequentialPipelineProcessor:
             if result.request is not None:
                 current_request = result.request
 
-        return PipelineResult(request=current_request)
+            if result.context is not None:
+                context = result.context
+
+        return PipelineResult(request=current_request, context=context)
