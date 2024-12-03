@@ -256,9 +256,9 @@ class TestOutputPipelineInstance:
                 chunk: ModelResponse,
                 context: OutputPipelineContext,
                 input_context: PipelineContext = None,
-            ) -> ModelResponse:
+            ) -> List[ModelResponse]:
                 assert input_context.metadata["test"] == "value"
-                return chunk
+                return [chunk]
 
         instance = OutputPipelineInstance([ContextCheckingStep()], input_context=input_context)
 

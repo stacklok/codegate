@@ -5,7 +5,7 @@ from typing import AsyncIterator, List, Optional
 from litellm import ModelResponse
 from litellm.types.utils import Delta, StreamingChoices
 
-from codegate.pipeline.base import PipelineContext
+from codegate.pipeline.base import CodeSnippet, PipelineContext
 
 
 @dataclass
@@ -19,6 +19,10 @@ class OutputPipelineContext:
     # We store the messages that are not yet sent to the client in the buffer.
     # One reason for this might be that the buffer contains a secret that we want to de-obfuscate
     buffer: list[str] = field(default_factory=list)
+    # Store extracted code snippets
+    snippets: List[CodeSnippet] = field(default_factory=list)
+    # Store all content that has been processed by the pipeline
+    processed_content: List[str] = field(default_factory=list)
 
 
 class OutputPipelineStep(ABC):
@@ -79,13 +83,24 @@ class OutputPipelineInstance:
 
     def _buffer_chunk(self, chunk: ModelResponse) -> None:
         """
-        Add chunk content to buffer.
+        Add chunk content to buffer. This is used to store content that is not yet processed
+        when a pipeline pauses streaming.
         """
         self._buffered_chunk = chunk
         for choice in chunk.choices:
             # the last choice has no delta or content, let's not buffer it
             if choice.delta is not None and choice.delta.content is not None:
                 self._context.buffer.append(choice.delta.content)
+
+    def _store_chunk_content(self, chunk: ModelResponse) -> None:
+        """
+        Store chunk content in processed content. This keeps track of the content that has been
+        streamed through the pipeline.
+        """
+        for choice in chunk.choices:
+            # the last choice has no delta or content, let's not buffer it
+            if choice.delta is not None and choice.delta.content is not None:
+                self._context.processed_content.append(choice.delta.content)
 
     async def process_stream(
         self, stream: AsyncIterator[ModelResponse]
@@ -116,6 +131,7 @@ class OutputPipelineInstance:
 
                 # Yield all processed chunks
                 for c in current_chunks:
+                    self._store_chunk_content(c)
                     self._context.buffer.clear()
                     yield c
 
