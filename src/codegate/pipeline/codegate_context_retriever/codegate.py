@@ -1,10 +1,7 @@
-import json
-
 import structlog
 from litellm import ChatCompletionRequest
 
-from codegate.config import Config
-from codegate.inference.inference_engine import LlamaCppInferenceEngine
+from codegate.llm_utils.extractor import PackageExtractor
 from codegate.pipeline.base import (
     AlertSeverity,
     PipelineContext,
@@ -25,7 +22,6 @@ class CodegateContextRetriever(PipelineStep):
 
     def __init__(self):
         self.storage_engine = StorageEngine()
-        self.inference_engine = LlamaCppInferenceEngine()
 
     @property
     def name(self) -> str:
@@ -54,29 +50,18 @@ class CodegateContextRetriever(PipelineStep):
             context_str += package_str + "\n"
         return context_str
 
-    async def __lookup_packages(self, user_query: str):
-        # Check which packages are referenced in the user query
-        request = {
-            "messages": [
-                {"role": "system", "content": Config.get_config().prompts.lookup_packages},
-                {"role": "user", "content": user_query},
-            ],
-            "model": "qwen2-1_5b-instruct-q5_k_m",
-            "stream": False,
-            "response_format": {"type": "json_object"},
-            "temperature": 0,
-        }
-
-        result = await self.inference_engine.chat(
-            f"{Config.get_config().model_base_path}/{request['model']}.gguf",
-            n_ctx=Config.get_config().chat_model_n_ctx,
-            n_gpu_layers=Config.get_config().chat_model_n_gpu_layers,
-            **request,
+    async def __lookup_packages(self, user_query: str, context: PipelineContext):
+        # Use PackageExtractor to extract packages from the user query
+        packages = await PackageExtractor.extract_packages(
+            content=user_query,
+            provider=context.sensitive.provider,
+            model=context.sensitive.model,
+            api_key=context.sensitive.api_key,
+            base_url=context.sensitive.api_base,
         )
 
-        result = json.loads(result["choices"][0]["message"]["content"])
-        logger.info(f"Packages in user query: {result['packages']}")
-        return result["packages"]
+        logger.info(f"Packages in user query: {packages}")
+        return packages
 
     async def process(
         self, request: ChatCompletionRequest, context: PipelineContext
@@ -94,7 +79,7 @@ class CodegateContextRetriever(PipelineStep):
 
         # Extract packages from the user message
         last_user_message_str, last_user_idx = last_user_message
-        packages = await self.__lookup_packages(last_user_message_str)
+        packages = await self.__lookup_packages(last_user_message_str, context)
 
         # If user message does not reference any packages, then just return
         if len(packages) == 0:

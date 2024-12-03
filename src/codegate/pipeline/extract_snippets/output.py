@@ -4,7 +4,8 @@ import structlog
 from litellm import ModelResponse
 from litellm.types.utils import Delta, StreamingChoices
 
-from codegate.pipeline.base import PipelineContext
+from codegate.llm_utils.extractor import PackageExtractor
+from codegate.pipeline.base import CodeSnippet, PipelineContext, PipelineSensitiveData
 from codegate.pipeline.extract_snippets.extract_snippets import extract_snippets
 from codegate.pipeline.output import OutputPipelineContext, OutputPipelineStep
 
@@ -39,6 +40,27 @@ class CodeCommentStep(OutputPipelineStep):
             model=original_chunk.model,
             object="chat.completion.chunk",
         )
+
+    @staticmethod
+    async def _snippet_comment(snippet: CodeSnippet, secrets: PipelineSensitiveData) -> str:
+        """Create a comment for a snippet"""
+        snippet.libraries = await PackageExtractor.extract_packages(
+            content=snippet.code,
+            provider=secrets.provider,
+            model=secrets.model,
+            api_key=secrets.api_key,
+            base_url=secrets.api_base,
+        )
+
+        libraries_text = ""
+        if snippet.libraries:
+            libraries_text = " ".join(f"`{lib}`" for lib in snippet.libraries)
+        if libraries_text:
+            comment = f"\nThe above code snippet uses the following libraries: {libraries_text}\n"
+        else:
+            comment = "\ncodegate didn't detect any libraries in the snippet\n"
+        comment += "\n"
+        return comment
 
     def _split_chunk_at_code_end(self, content: str) -> tuple[str, str]:
         """Split content at the end of a code block (```)"""
@@ -86,10 +108,14 @@ class CodeCommentStep(OutputPipelineStep):
                 chunks.append(self._create_chunk(chunk, before))
                 complete_comment += before
 
-            # Add the comment
-            comment = f"\nThe above is a {last_snippet.language or 'unknown'} code snippet\n\n"
-            chunks.append(self._create_chunk(chunk, comment))
+            comment = await self._snippet_comment(last_snippet, input_context.sensitive)
             complete_comment += comment
+            chunks.append(
+                self._create_chunk(
+                    chunk,
+                    comment,
+                )
+            )
 
             # Add the remaining content if any
             if after:

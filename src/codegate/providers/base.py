@@ -79,7 +79,12 @@ class BaseProvider(ABC):
         return normalized_response
 
     async def _run_input_pipeline(
-        self, normalized_request: ChatCompletionRequest, is_fim_request: bool, prompt_id: str
+        self,
+        normalized_request: ChatCompletionRequest,
+        api_key: Optional[str],
+        api_base: Optional[str],
+        is_fim_request: bool,
+        prompt_id: str,
     ) -> PipelineResult:
         # Decide which pipeline processor to use
         if is_fim_request:
@@ -92,7 +97,13 @@ class BaseProvider(ABC):
             return PipelineResult(request=normalized_request)
 
         result = await pipeline_processor.process_request(
-            secret_manager=self._secrets_manager, request=normalized_request, prompt_id=prompt_id
+            secret_manager=self._secrets_manager,
+            request=normalized_request,
+            provider=self.provider_route_name,
+            prompt_id=prompt_id,
+            model=normalized_request.get("model"),
+            api_key=api_key,
+            api_base=api_base,
         )
 
         # TODO(jakub): handle this by returning a message to the client
@@ -184,7 +195,11 @@ class BaseProvider(ABC):
         )
 
         input_pipeline_result = await self._run_input_pipeline(
-            normalized_request, is_fim_request, prompt_id=prompt_db.id
+            normalized_request,
+            api_key,
+            data.get("base_url"),
+            is_fim_request,
+            prompt_id=prompt_db.id,
         )
         if input_pipeline_result.response:
             await self._db_recorder.record_alerts(input_pipeline_result.context.alerts_raised)

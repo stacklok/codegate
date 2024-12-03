@@ -26,9 +26,10 @@ class CodeSnippet:
         code: The actual code content
     """
 
+    code: str
     language: Optional[str]
     filepath: Optional[str]
-    code: str
+    libraries: List[str] = field(default_factory=list)
 
     def __post_init__(self):
         if self.language is not None:
@@ -44,6 +45,10 @@ class AlertSeverity(Enum):
 class PipelineSensitiveData:
     manager: SecretsManager
     session_id: str
+    api_key: Optional[str] = None
+    model: Optional[str] = None
+    provider: Optional[str] = None
+    api_base: Optional[str] = None
 
     def secure_cleanup(self):
         """Securely cleanup sensitive data for this session"""
@@ -52,6 +57,14 @@ class PipelineSensitiveData:
 
         self.manager.cleanup_session(self.session_id)
         self.session_id = ""
+
+        # Securely wipe the API key using the same method as secrets manager
+        if self.api_key is not None:
+            api_key_bytes = bytearray(self.api_key.encode())
+            self.manager.crypto.wipe_bytearray(api_key_bytes)
+            self.api_key = None
+
+        self.model = None
 
 
 @dataclass
@@ -202,21 +215,33 @@ class SequentialPipelineProcessor:
         self.pipeline_steps = pipeline_steps
 
     async def process_request(
-        self, secret_manager: SecretsManager, request: ChatCompletionRequest, prompt_id: str
+        self,
+        secret_manager: SecretsManager,
+        request: ChatCompletionRequest,
+        provider: str,
+        prompt_id: str,
+        model: str,
+        api_key: Optional[str] = None,
+        api_base: Optional[str] = None,
     ) -> PipelineResult:
         """
         Process a request through all pipeline steps
 
         Args:
-            request: The chat completion request to process
             secret_manager: The secrets manager instance to gather sensitive data from the request
+            request: The chat completion request to process
 
         Returns:
             PipelineResult containing either a modified request or response structure
         """
         context = PipelineContext()
         context.sensitive = PipelineSensitiveData(
-            manager=secret_manager, session_id=str(uuid.uuid4())
+            manager=secret_manager,
+            session_id=str(uuid.uuid4()),
+            api_key=api_key,
+            model=model,
+            provider=provider,
+            api_base=api_base,
         )  # Generate a new session ID for each request
         context.metadata["prompt_id"] = prompt_id
         current_request = request

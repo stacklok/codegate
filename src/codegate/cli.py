@@ -5,13 +5,13 @@ from pathlib import Path
 from typing import Dict, Optional
 
 import click
-from src.codegate.storage.utils import restore_storage_backup
 import structlog
 
 from codegate.codegate_logging import LogFormat, LogLevel, setup_logging
 from codegate.config import Config, ConfigurationError
 from codegate.db.connection import init_db_sync
 from codegate.server import init_app
+from src.codegate.storage.utils import restore_storage_backup
 
 
 def validate_port(ctx: click.Context, param: click.Parameter, value: int) -> int:
