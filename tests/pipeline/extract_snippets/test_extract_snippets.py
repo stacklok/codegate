@@ -34,6 +34,27 @@ class CodeSnippetTest(NamedTuple):
                 CodeSnippet(language=None, filepath=None, code='print("Hello, world!")'),
             ],
         ),
+        # output code snippet with no filename
+        CodeSnippetTest(
+            input_message=""":
+        ```python
+        @app.route('/')
+        def hello():
+            GITHUB_TOKEN="ghp_RjzIRljYij9CznoS7QAnD5RaFF6yH32073uI"
+            if __name__ == '__main__':
+                app.run()
+        return "Hello, Moon!"
+        ```
+        """,
+            expected_count=1,
+            expected=[
+                CodeSnippet(
+                    language="python",
+                    filepath=None,
+                    code="Hello, Moon!",
+                ),
+            ],
+        ),
         # Single Python code block
         CodeSnippetTest(
             input_message="""

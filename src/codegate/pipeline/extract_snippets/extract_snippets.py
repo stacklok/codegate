@@ -8,7 +8,14 @@ from litellm.types.llms.openai import ChatCompletionRequest
 from codegate.pipeline.base import CodeSnippet, PipelineContext, PipelineResult, PipelineStep
 
 CODE_BLOCK_PATTERN = re.compile(
-    r"```(?:(?P<language>\w+)\s+)?(?P<filename>[^\s\(]+)?(?:\s*\((?P<lineinfo>[^)]+)\))?\n(?P<content>(?:.|\n)*?)```"
+    r"```"  # Opening backticks, no whitespace after backticks and before language
+    r"(?:(?P<language>[a-zA-Z0-9_+-]+)\s+)?"  # Language must be followed by whitespace if present
+    r"(?:(?P<filename>[^\s\(\n]+))?"  # Optional filename (cannot contain spaces or parentheses)
+    r"(?:\s+\([0-9]+-[0-9]+\))?"  # Optional line numbers in parentheses
+    r"\s*\n"  # Required newline after metadata
+    r"(?P<content>.*?)"  # Content (non-greedy match)
+    r"```",  # Closing backticks
+    re.DOTALL,
 )
 
 logger = structlog.get_logger("codegate")
@@ -78,18 +85,26 @@ def extract_snippets(message: str) -> List[CodeSnippet]:
 
     # Find all code block matches
     for match in CODE_BLOCK_PATTERN.finditer(message):
-        filename = match.group("filename")
+        matched_language = match.group("language") if match.group("language") else None
+        filename = match.group("filename") if match.group("filename") else None
         content = match.group("content")
-        matched_language = match.group("language")
 
-        # Determine language
-        lang = None
-        if matched_language:
-            lang = ecosystem_from_message(matched_language.strip())
-        if lang is None and filename:
-            filename = filename.strip()
-            # Determine language from the filename
-            lang = ecosystem_from_filepath(filename)
+        # If we have a single word without extension after the backticks,
+        # it's a language identifier, not a filename. Typicaly used in the
+        # format ` ```python ` in output snippets
+        if filename and not matched_language and "." not in filename:
+            lang = filename
+            filename = None
+        else:
+            # Determine language from the message, either by the short
+            # language identifier or by the filename
+            lang = None
+            if matched_language:
+                lang = ecosystem_from_message(matched_language.strip())
+            if lang is None and filename:
+                filename = filename.strip()
+                # Determine language from the filename
+                lang = ecosystem_from_filepath(filename)
 
         snippets.append(CodeSnippet(filepath=filename, code=content, language=lang))
 
