@@ -57,8 +57,8 @@ class TestSecretUnredactionStep:
         )
 
         # Verify unredaction
-        assert result is not None
-        assert result.choices[0].delta.content == "Here is the secret_value in text"
+        assert len(result) == 1
+        assert result[0].choices[0].delta.content == "Here is the secret_value in text"
 
     @pytest.mark.asyncio
     async def test_partial_marker_buffering(self):
@@ -71,8 +71,8 @@ class TestSecretUnredactionStep:
             create_model_response("partial"), self.context, self.input_context
         )
 
-        # Should return None to continue buffering
-        assert result is None
+        # Should return empty list to continue buffering
+        assert result == []
 
     @pytest.mark.asyncio
     async def test_invalid_encrypted_value(self):
@@ -86,8 +86,8 @@ class TestSecretUnredactionStep:
         )
 
         # Should keep the REDACTED marker for invalid values
-        assert result is not None
-        assert result.choices[0].delta.content == "Here is REDACTED<$invalid_value> in text"
+        assert len(result) == 1
+        assert result[0].choices[0].delta.content == "Here is REDACTED<$invalid_value> in text"
 
     @pytest.mark.asyncio
     async def test_missing_context(self):
@@ -111,8 +111,8 @@ class TestSecretUnredactionStep:
         )
 
         # Should pass through empty chunks
-        assert result is not None
-        assert result.choices[0].delta.content == ""
+        assert len(result) == 1
+        assert result[0].choices[0].delta.content == ""
 
     @pytest.mark.asyncio
     async def test_no_markers(self):
@@ -124,8 +124,8 @@ class TestSecretUnredactionStep:
         result = await self.step.process_chunk(chunk, self.context, self.input_context)
 
         # Should pass through unchanged
-        assert result is not None
-        assert result.choices[0].delta.content == "Regular text without any markers"
+        assert len(result) == 1
+        assert result[0].choices[0].delta.content == "Regular text without any markers"
 
     @pytest.mark.asyncio
     async def test_wrong_session(self):
@@ -143,5 +143,5 @@ class TestSecretUnredactionStep:
         )
 
         # Should keep REDACTED marker when session doesn't match
-        assert result is not None
-        assert result.choices[0].delta.content == f"Here is the REDACTED<${encrypted}> in text"
+        assert len(result) == 1
+        assert result[0].choices[0].delta.content == f"Here is the REDACTED<${encrypted}> in text"

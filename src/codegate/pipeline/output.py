@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import AsyncIterator, Optional
+from typing import AsyncIterator, List, Optional
 
 from litellm import ModelResponse
 from litellm.types.utils import Delta, StreamingChoices
@@ -40,7 +40,7 @@ class OutputPipelineStep(ABC):
         chunk: ModelResponse,
         context: OutputPipelineContext,
         input_context: Optional[PipelineContext] = None,
-    ) -> Optional[ModelResponse]:
+    ) -> List[ModelResponse]:
         """
         Process a single chunk of the stream.
 
@@ -52,8 +52,8 @@ class OutputPipelineStep(ABC):
           obfuscated in the user message or code snippets in the user message.
 
         Return:
-        - None to pause the stream
-        - Modified or unmodified input chunk to pass through
+        - Empty list to pause the stream
+        - List containing one or more ModelResponse objects to emit
         """
         pass
 
@@ -99,27 +99,25 @@ class OutputPipelineInstance:
                 self._buffer_chunk(chunk)
 
                 # Process chunk through each step of the pipeline
-                current_chunk = chunk
+                current_chunks = [chunk]
                 for step in self._pipeline_steps:
-                    if current_chunk is None:
-                        # Stop processing if a step returned None previously
-                        # this means that the pipeline step requested to pause the stream
-                        # instead, let's try again with the next chunk
+                    if not current_chunks:
+                        # Stop processing if a step returned empty list
                         break
 
-                    processed_chunk = await step.process_chunk(
-                        current_chunk, self._context, self._input_context
-                    )
-                    # the returned chunk becomes the input for the next chunk in the pipeline
-                    current_chunk = processed_chunk
+                    processed_chunks = []
+                    for c in current_chunks:
+                        step_result = await step.process_chunk(
+                            c, self._context, self._input_context
+                        )
+                        processed_chunks.extend(step_result)
 
-                # we have either gone through all the steps in the pipeline and have a chunk
-                # to return or we are paused in which case we don't yield
-                if current_chunk is not None:
-                    # Step processed successfully, yield the chunk and clear buffer
+                    current_chunks = processed_chunks
+
+                # Yield all processed chunks
+                for c in current_chunks:
                     self._context.buffer.clear()
-                    yield current_chunk
-                # else: keep buffering for next iteration
+                    yield c
 
         except Exception as e:
             # Log exception and stop processing

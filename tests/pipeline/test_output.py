@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List
 
 import pytest
 from litellm import ModelResponse
@@ -29,16 +29,16 @@ class MockOutputPipelineStep(OutputPipelineStep):
         chunk: ModelResponse,
         context: OutputPipelineContext,
         input_context: PipelineContext = None,
-    ) -> ModelResponse:
+    ) -> list[ModelResponse]:
         if self._should_pause:
-            return None
+            return []
 
         if self._modify_content and chunk.choices[0].delta.content:
             # Append step name to content to track modifications
             modified_content = f"{chunk.choices[0].delta.content}_{self.name}"
             chunk.choices[0].delta.content = modified_content
 
-        return chunk
+        return [chunk]
 
 
 def create_model_response(content: str, id: str = "test") -> ModelResponse:
@@ -168,7 +168,7 @@ class TestOutputPipelineInstance:
                 chunk: ModelResponse,
                 context: OutputPipelineContext,
                 input_context: PipelineContext = None,
-            ) -> Optional[ModelResponse]:
+            ) -> List[ModelResponse]:
                 # Replace 'world' with 'moon' in buffered content
                 content = "".join(context.buffer)
                 if "world" in content:
@@ -181,8 +181,8 @@ class TestOutputPipelineInstance:
                             logprobs=None,
                         )
                     ]
-                    return chunk
-                return None
+                    return [chunk]
+                return []
 
         instance = OutputPipelineInstance([ReplacementStep()])
 
@@ -190,7 +190,7 @@ class TestOutputPipelineInstance:
             yield create_model_response("he")
             yield create_model_response("ll")
             yield create_model_response("o")
-            yield create_model_response("wo")
+            yield create_model_response(" wo")
             yield create_model_response("rld")
 
         chunks = []
@@ -199,7 +199,7 @@ class TestOutputPipelineInstance:
 
         # Should get one chunk at the end with modified content
         assert len(chunks) == 1
-        assert chunks[0].choices[0].delta.content == "hellomoon"
+        assert chunks[0].choices[0].delta.content == "hello moon"
         # Buffer should be cleared after flush
         assert len(instance._context.buffer) == 0
 

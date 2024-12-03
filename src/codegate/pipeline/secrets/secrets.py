@@ -229,7 +229,7 @@ class SecretUnredactionStep(OutputPipelineStep):
         chunk: ModelResponse,
         context: OutputPipelineContext,
         input_context: Optional[PipelineContext] = None,
-    ) -> Optional[ModelResponse]:
+    ) -> list[ModelResponse]:
         """Process a single chunk of the stream"""
         if not input_context:
             raise ValueError("Input context not found")
@@ -239,7 +239,7 @@ class SecretUnredactionStep(OutputPipelineStep):
             raise ValueError("Session ID not found in input context")
 
         if not chunk.choices[0].delta.content:
-            return chunk
+            return [chunk]
 
         # Check the buffered content
         buffered_content = "".join(context.buffer)
@@ -270,13 +270,13 @@ class SecretUnredactionStep(OutputPipelineStep):
                     logprobs=None,
                 )
             ]
-            return chunk
+            return [chunk]
 
         # If we have a partial marker at the end, keep buffering
         if self.marker_start in buffered_content or self._is_partial_marker_prefix(
             buffered_content
         ):
-            return None
+            return []
 
         # No markers or partial markers, let pipeline handle the chunk normally
-        return chunk
+        return [chunk]
