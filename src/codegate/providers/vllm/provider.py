@@ -1,6 +1,7 @@
 import json
 from typing import Optional
 
+import httpx
 from fastapi import Header, HTTPException, Request
 from litellm import atext_completion
 
@@ -43,6 +44,22 @@ class VLLMProvider(BaseProvider):
         OpenAI API. Extracts the API key from the "Authorization" header and
         passes it to the completion handler.
         """
+
+        @self.router.get(f"/{self.provider_route_name}/models")
+        async def get_models(authorization: str = Header(..., description="Bearer token")):
+            if not authorization.startswith("Bearer "):
+                raise HTTPException(status_code=401, detail="Invalid authorization header")
+
+            token = authorization.split(" ")[1]
+            config = Config.get_config()
+            base_url = config.provider_urls.get("vllm")
+
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{base_url}/v1/models", headers={"Authorization": f"Bearer {token}"}
+                )
+                response.raise_for_status()
+                return response.json()
 
         @self.router.post(f"/{self.provider_route_name}/chat/completions")
         @self.router.post(f"/{self.provider_route_name}/completions")
