@@ -40,7 +40,7 @@ def init_app() -> FastAPI:
     steps: List[PipelineStep] = [
         CodegateVersion(),
         CodeSnippetExtractor(),
-        CodegateSystemPrompt(Config.get_config().prompts.codegate_chat),
+        #CodegateSystemPrompt(Config.get_config().prompts.codegate_chat),
         CodegateContextRetriever(Config.get_config().prompts.codegate_chat),
         CodegateSecrets(),
     ]
