@@ -1,5 +1,5 @@
 # Builder stage: Install dependencies and build the application
-FROM python:3.12-slim AS builder
+FROM python:3.13-slim AS builder
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -22,7 +22,7 @@ RUN poetry config virtualenvs.create false && \
 COPY . /app
 
 # Runtime stage: Create the final lightweight image
-FROM python:3.12-slim AS runtime
+FROM python:3.13-slim AS runtime
 
 # Accept build argument for weaviate_data path
 ARG WEAVIATE_DATA_PATH
