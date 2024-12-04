@@ -164,7 +164,7 @@ class CodegateSecrets(PipelineStep):
         self, request: ChatCompletionRequest, context: PipelineContext
     ) -> PipelineResult:
         """
-        Process the request to find and protect secrets.
+        Process the request to find and protect secrets in all messages.
 
         Args:
             request: The chat completion request
@@ -181,25 +181,18 @@ class CodegateSecrets(PipelineStep):
         if not session_id:
             raise ValueError("Session ID not found in context")
 
-        last_user_message = self.get_last_user_message(request)
-        extracted_string = None
-        extracted_index = None
-        if last_user_message:
-            extracted_string = last_user_message[0]
-            extracted_index = last_user_message[1]
-
-        if not extracted_string:
-            return PipelineResult(request=request, context=context)
-
-        # Protect the text
-        protected_string = self._redeact_text(
-            extracted_string, secrets_manager, session_id, context
-        )
-
-        # Update the user message
         new_request = request.copy()
-        new_request["messages"][extracted_index]["content"] = protected_string
-        return PipelineResult(request=new_request, context=context)
+
+        # Process all messages
+        for i, message in enumerate(new_request["messages"]):
+            if "content" in message and message["content"]:
+                # Protect the text
+                protected_string = self._redeact_text(
+                    message["content"], secrets_manager, session_id, context
+                )
+                new_request["messages"][i]["content"] = protected_string
+
+        return PipelineResult(request=request, context=context)
 
 
 class SecretUnredactionStep(OutputPipelineStep):
