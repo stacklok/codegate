@@ -76,7 +76,7 @@ class CodegateSecrets(PipelineStep):
 
     def _redeact_text(
         self, text: str, secrets_manager: SecretsManager, session_id: str, context: PipelineContext
-    ) -> str:
+    ) -> tuple[str, int]:
         """
         Find and encrypt secrets in the given text.
 
@@ -86,12 +86,12 @@ class CodegateSecrets(PipelineStep):
             session_id: ..
             context: The pipeline context to be able to log alerts
         Returns:
-            Protected text with encrypted values
+            Tuple containing protected text with encrypted values and the count of redacted secrets
         """
         # Find secrets in the text
         matches = CodegateSignatures.find_in_string(text)
         if not matches:
-            return text
+            return text, 0
 
         logger.debug(f"Found {len(matches)} secrets in the user message")
 
@@ -145,20 +145,20 @@ class CodegateSecrets(PipelineStep):
                 }
             )
 
-            # Convert back to string
-            protected_string = "".join(protected_text)
+        # Convert back to string
+        protected_string = "".join(protected_text)
 
-            # Log the findings
-            logger.info("\nFound secrets:")
+        # Log the findings
+        logger.info("\nFound secrets:")
 
-            for secret in found_secrets:
-                logger.info(f"\nService: {secret['service']}")
-                logger.info(f"Type: {secret['type']}")
-                logger.info(f"Original: {secret['original']}")
-                logger.info(f"Encrypted: REDACTED<${secret['encrypted']}>")
+        for secret in found_secrets:
+            logger.info(f"\nService: {secret['service']}")
+            logger.info(f"Type: {secret['type']}")
+            logger.info(f"Original: {secret['original']}")
+            logger.info(f"Encrypted: REDACTED<${secret['encrypted']}>")
 
-            logger.info(f"\nProtected text:\n{protected_string}")
-            return "".join(protected_text)
+        print(f"\nProtected text:\n{protected_string}")
+        return protected_string, len(found_secrets)
 
     async def process(
         self, request: ChatCompletionRequest, context: PipelineContext
@@ -171,28 +171,34 @@ class CodegateSecrets(PipelineStep):
             context: The pipeline context
 
         Returns:
-            PipelineResult containing the processed request
+            PipelineResult containing the processed request and context with redaction metadata
         """
         secrets_manager = context.sensitive.manager
         if not secrets_manager or not isinstance(secrets_manager, SecretsManager):
-            # Should this be an error?
             raise ValueError("Secrets manager not found in context")
         session_id = context.sensitive.session_id
         if not session_id:
             raise ValueError("Session ID not found in context")
 
         new_request = request.copy()
+        total_redacted = 0
 
         # Process all messages
         for i, message in enumerate(new_request["messages"]):
             if "content" in message and message["content"]:
                 # Protect the text
-                protected_string = self._redeact_text(
+                protected_string, redacted_count = self._redeact_text(
                     message["content"], secrets_manager, session_id, context
                 )
                 new_request["messages"][i]["content"] = protected_string
+                total_redacted += redacted_count
 
-        return PipelineResult(request=request, context=context)
+        logger.info(f"Total secrets redacted: {total_redacted}")
+
+        # Store the count in context metadata
+        context.metadata["redacted_secrets_count"] = total_redacted
+
+        return PipelineResult(request=new_request, context=context)
 
 
 class SecretUnredactionStep(OutputPipelineStep):
@@ -285,4 +291,63 @@ class SecretUnredactionStep(OutputPipelineStep):
             return []
 
         # No markers or partial markers, let pipeline handle the chunk normally
+        return [chunk]
+
+
+class SecretRedactionNotifier(OutputPipelineStep):
+    """Pipeline step that notifies about redacted secrets in the stream"""
+
+    @property
+    def name(self) -> str:
+        return "secret-redaction-notifier"
+
+    def _create_chunk(self, original_chunk: ModelResponse, content: str) -> ModelResponse:
+        """
+        Creates a new chunk with the given content, preserving the original chunk's metadata
+        """
+        return ModelResponse(
+            id=original_chunk.id,
+            choices=[
+                StreamingChoices(
+                    finish_reason=None,
+                    index=0,
+                    delta=Delta(content=content, role="assistant"),
+                    logprobs=None,
+                )
+            ],
+            created=original_chunk.created,
+            model=original_chunk.model,
+            object="chat.completion.chunk",
+        )
+
+    async def process_chunk(
+        self,
+        chunk: ModelResponse,
+        context: OutputPipelineContext,
+        input_context: Optional[PipelineContext] = None,
+    ) -> list[ModelResponse]:
+        """Process a single chunk of the stream"""
+        if (
+            not input_context
+            or not input_context.metadata
+            or input_context.metadata.get("redacted_secrets_count", 0) == 0
+        ):
+            return [chunk]
+
+        # Check if this is the first chunk (delta role will be present, others will not)
+        if chunk.choices[0].delta.role:
+            redacted_count = input_context.metadata["redacted_secrets_count"]
+            secret_text = "secret" if redacted_count == 1 else "secrets"
+            # Create notification chunk
+            notification_chunk = self._create_chunk(
+                chunk,
+                f"\n🛡️ Codegate prevented {redacted_count} {secret_text} from being leaked by redacting them.\n\n",  # noqa
+            )
+
+            # Reset the counter
+            input_context.metadata["redacted_secrets_count"] = 0
+
+            # Return both the notification and original chunk
+            return [notification_chunk, chunk]
+
         return [chunk]

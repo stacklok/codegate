@@ -11,7 +11,11 @@ from codegate.pipeline.extract_snippets.extract_snippets import CodeSnippetExtra
 from codegate.pipeline.extract_snippets.output import CodeCommentStep
 from codegate.pipeline.output import OutputPipelineProcessor, OutputPipelineStep
 from codegate.pipeline.secrets.manager import SecretsManager
-from codegate.pipeline.secrets.secrets import CodegateSecrets, SecretUnredactionStep
+from codegate.pipeline.secrets.secrets import (
+    CodegateSecrets,
+    SecretRedactionNotifier,
+    SecretUnredactionStep,
+)
 from codegate.pipeline.secrets.signatures import CodegateSignatures
 from codegate.pipeline.system_prompt.codegate import SystemPrompt
 from codegate.pipeline.version.version import CodegateVersion
@@ -50,6 +54,7 @@ def init_app() -> FastAPI:
     fim_pipeline = SequentialPipelineProcessor(fim_steps)
 
     output_steps: List[OutputPipelineStep] = [
+        SecretRedactionNotifier(),
         SecretUnredactionStep(),
         CodeCommentStep(),
     ]
