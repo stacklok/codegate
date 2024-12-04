@@ -52,7 +52,13 @@ class LiteLLMAdapterInputNormalizer(ModelInputNormalizer):
         """
         # Make a copy of the data to avoid modifying the original and normalize the message content
         normalized_data = self._normalize_content_messages(data)
-        return self._adapter.translate_completion_input_params(normalized_data)
+        ret = self._adapter.translate_completion_input_params(normalized_data)
+
+        # this is a HACK - either we or liteLLM doesn't handle tools properly
+        # so let's just pretend they doesn't exist
+        if ret.get("tools") is not None:
+            ret["tools"] = []
+        return ret
 
     def denormalize(self, data: ChatCompletionRequest) -> Dict:
         """
