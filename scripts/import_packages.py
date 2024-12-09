@@ -4,7 +4,6 @@ import os
 import shutil
 import argparse
 
-
 import weaviate
 from weaviate.classes.config import DataType, Property
 from weaviate.embedded import EmbeddedOptions

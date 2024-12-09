@@ -6,9 +6,9 @@ from fastapi import Header, HTTPException, Request
 from litellm import atext_completion
 
 from codegate.config import Config
+from codegate.pipeline.base import SequentialPipelineProcessor
 from codegate.pipeline.output import OutputPipelineProcessor
-from codegate.pipeline.secrets.manager import SecretsManager
-from codegate.providers.base import BaseProvider, SequentialPipelineProcessor
+from codegate.providers.base import BaseProvider
 from codegate.providers.litellmshim import LiteLLmShim, sse_stream_generator
 from codegate.providers.vllm.adapter import VLLMInputNormalizer, VLLMOutputNormalizer
 
@@ -16,7 +16,6 @@ from codegate.providers.vllm.adapter import VLLMInputNormalizer, VLLMOutputNorma
 class VLLMProvider(BaseProvider):
     def __init__(
         self,
-        secrets_manager: SecretsManager,
         pipeline_processor: Optional[SequentialPipelineProcessor] = None,
         fim_pipeline_processor: Optional[SequentialPipelineProcessor] = None,
         output_pipeline_processor: Optional[OutputPipelineProcessor] = None,
@@ -25,7 +24,6 @@ class VLLMProvider(BaseProvider):
             stream_generator=sse_stream_generator, fim_completion_func=atext_completion
         )
         super().__init__(
-            secrets_manager,
             VLLMInputNormalizer(),
             VLLMOutputNormalizer(),
             completion_handler,

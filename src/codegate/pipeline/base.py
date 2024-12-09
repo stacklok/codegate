@@ -210,13 +210,14 @@ class PipelineStep(ABC):
         pass
 
 
-class SequentialPipelineProcessor:
-    def __init__(self, pipeline_steps: List[PipelineStep]):
+class InputPipelineInstance:
+    def __init__(self, pipeline_steps: List[PipelineStep], secret_manager: SecretsManager):
         self.pipeline_steps = pipeline_steps
+        self.secret_manager = secret_manager
+        self.context = PipelineContext()
 
     async def process_request(
         self,
-        secret_manager: SecretsManager,
         request: ChatCompletionRequest,
         provider: str,
         prompt_id: str,
@@ -224,30 +225,20 @@ class SequentialPipelineProcessor:
         api_key: Optional[str] = None,
         api_base: Optional[str] = None,
     ) -> PipelineResult:
-        """
-        Process a request through all pipeline steps
-
-        Args:
-            secret_manager: The secrets manager instance to gather sensitive data from the request
-            request: The chat completion request to process
-
-        Returns:
-            PipelineResult containing either a modified request or response structure
-        """
-        context = PipelineContext()
-        context.sensitive = PipelineSensitiveData(
-            manager=secret_manager,
+        """Process a request through all pipeline steps"""
+        self.context.sensitive = PipelineSensitiveData(
+            manager=self.secret_manager,
             session_id=str(uuid.uuid4()),
             api_key=api_key,
             model=model,
             provider=provider,
             api_base=api_base,
-        )  # Generate a new session ID for each request
-        context.metadata["prompt_id"] = prompt_id
+        )
+        self.context.metadata["prompt_id"] = prompt_id
         current_request = request
 
         for step in self.pipeline_steps:
-            result = await step.process(current_request, context)
+            result = await step.process(current_request, self.context)
             if result is None:
                 continue
 
@@ -258,6 +249,31 @@ class SequentialPipelineProcessor:
                 current_request = result.request
 
             if result.context is not None:
-                context = result.context
+                self.context = result.context
 
-        return PipelineResult(request=current_request, context=context)
+        return PipelineResult(request=current_request, context=self.context)
+
+
+class SequentialPipelineProcessor:
+    def __init__(self, pipeline_steps: List[PipelineStep], secret_manager: SecretsManager):
+        self.pipeline_steps = pipeline_steps
+        self.secret_manager = secret_manager
+
+    def create_instance(self) -> InputPipelineInstance:
+        """Create a new pipeline instance for processing a request"""
+        return InputPipelineInstance(self.pipeline_steps, self.secret_manager)
+
+    async def process_request(
+        self,
+        request: ChatCompletionRequest,
+        provider: str,
+        prompt_id: str,
+        model: str,
+        api_key: Optional[str] = None,
+        api_base: Optional[str] = None,
+    ) -> PipelineResult:
+        """Create a new pipeline instance and process the request"""
+        instance = self.create_instance()
+        return await instance.process_request(
+            request, provider, prompt_id, model, api_key, api_base
+        )

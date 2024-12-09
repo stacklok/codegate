@@ -8,9 +8,12 @@ from litellm import ModelResponse
 from litellm.types.llms.openai import ChatCompletionRequest
 
 from codegate.db.connection import DbRecorder
-from codegate.pipeline.base import PipelineContext, PipelineResult, SequentialPipelineProcessor
+from codegate.pipeline.base import (
+    PipelineContext,
+    PipelineResult,
+    SequentialPipelineProcessor,
+)
 from codegate.pipeline.output import OutputPipelineInstance, OutputPipelineProcessor
-from codegate.pipeline.secrets.manager import SecretsManager
 from codegate.providers.completion.base import BaseCompletionHandler
 from codegate.providers.formatting.input_pipeline import PipelineResponseFormatter
 from codegate.providers.normalizer.base import ModelInputNormalizer, ModelOutputNormalizer
@@ -28,7 +31,6 @@ class BaseProvider(ABC):
 
     def __init__(
         self,
-        secrets_manager: Optional[SecretsManager],
         input_normalizer: ModelInputNormalizer,
         output_normalizer: ModelOutputNormalizer,
         completion_handler: BaseCompletionHandler,
@@ -37,7 +39,6 @@ class BaseProvider(ABC):
         output_pipeline_processor: Optional[OutputPipelineProcessor] = None,
     ):
         self.router = APIRouter()
-        self._secrets_manager = secrets_manager
         self._completion_handler = completion_handler
         self._input_normalizer = input_normalizer
         self._output_normalizer = output_normalizer
@@ -97,7 +98,6 @@ class BaseProvider(ABC):
             return PipelineResult(request=normalized_request)
 
         result = await pipeline_processor.process_request(
-            secret_manager=self._secrets_manager,
             request=normalized_request,
             provider=self.provider_route_name,
             prompt_id=prompt_id,

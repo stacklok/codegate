@@ -67,7 +67,6 @@ class StorageEngine:
         except Exception as e:
             logger.error(f"Failed to close client: {str(e)}")
 
-
     def get_client(self, data_path):
         try:
             # Configure Weaviate logging
