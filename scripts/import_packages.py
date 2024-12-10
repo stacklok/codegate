@@ -1,8 +1,8 @@
+import argparse
 import asyncio
 import json
 import os
 import shutil
-import argparse
 
 import weaviate
 from weaviate.classes.config import DataType, Property
@@ -133,7 +133,8 @@ class PackageImporter:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Run the package importer with optional backup flags.")
+        description="Run the package importer with optional backup flags."
+    )
     parser.add_argument(
         "--take-backup",
         type=lambda x: x.lower() == "true",

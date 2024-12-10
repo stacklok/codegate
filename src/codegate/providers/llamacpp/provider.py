@@ -16,6 +16,7 @@ class LlamaCppProvider(BaseProvider):
         pipeline_processor: Optional[SequentialPipelineProcessor] = None,
         fim_pipeline_processor: Optional[SequentialPipelineProcessor] = None,
         output_pipeline_processor: Optional[OutputPipelineProcessor] = None,
+        fim_output_pipeline_processor: Optional[OutputPipelineProcessor] = None,
     ):
         completion_handler = LlamaCppCompletionHandler()
         super().__init__(
@@ -25,6 +26,7 @@ class LlamaCppProvider(BaseProvider):
             pipeline_processor,
             fim_pipeline_processor,
             output_pipeline_processor,
+            fim_output_pipeline_processor,
         )
 
     @property

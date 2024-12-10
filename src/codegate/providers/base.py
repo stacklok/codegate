@@ -17,6 +17,7 @@ from codegate.pipeline.output import OutputPipelineInstance, OutputPipelineProce
 from codegate.providers.completion.base import BaseCompletionHandler
 from codegate.providers.formatting.input_pipeline import PipelineResponseFormatter
 from codegate.providers.normalizer.base import ModelInputNormalizer, ModelOutputNormalizer
+from codegate.providers.normalizer.completion import CompletionNormalizer
 
 logger = structlog.get_logger("codegate")
 
@@ -37,6 +38,7 @@ class BaseProvider(ABC):
         pipeline_processor: Optional[SequentialPipelineProcessor] = None,
         fim_pipeline_processor: Optional[SequentialPipelineProcessor] = None,
         output_pipeline_processor: Optional[OutputPipelineProcessor] = None,
+        fim_output_pipeline_processor: Optional[OutputPipelineProcessor] = None,
     ):
         self.router = APIRouter()
         self._completion_handler = completion_handler
@@ -45,10 +47,12 @@ class BaseProvider(ABC):
         self._pipeline_processor = pipeline_processor
         self._fim_pipelin_processor = fim_pipeline_processor
         self._output_pipeline_processor = output_pipeline_processor
+        self._fim_output_pipeline_processor = fim_output_pipeline_processor
         self._db_recorder = DbRecorder()
         self._pipeline_response_formatter = PipelineResponseFormatter(
             output_normalizer, self._db_recorder
         )
+        self._fim_normalizer = CompletionNormalizer()
 
         self._setup_routes()
 
@@ -64,13 +68,33 @@ class BaseProvider(ABC):
     async def _run_output_stream_pipeline(
         self,
         input_context: PipelineContext,
-        normalized_stream: AsyncIterator[ModelResponse],
+        model_stream: AsyncIterator[ModelResponse],
+        is_fim_request: bool,
     ) -> AsyncIterator[ModelResponse]:
+        # Decide which pipeline processor to use
+        out_pipeline_processor = None
+        if is_fim_request:
+            out_pipeline_processor = self._fim_output_pipeline_processor
+            logger.info("FIM pipeline selected for output.")
+        else:
+            out_pipeline_processor = self._output_pipeline_processor
+            logger.info("Chat completion pipeline selected for output.")
+        if out_pipeline_processor is None:
+            logger.info("No output pipeline processor found, passing through")
+            return model_stream
+        if len(out_pipeline_processor.pipeline_steps) == 0:
+            logger.info("No output pipeline steps configured, passing through")
+            return model_stream
+
+        normalized_stream = self._output_normalizer.normalize_streaming(model_stream)
+
         output_pipeline_instance = OutputPipelineInstance(
-            self._output_pipeline_processor.pipeline_steps,
+            pipeline_steps=out_pipeline_processor.pipeline_steps,
             input_context=input_context,
         )
-        return output_pipeline_instance.process_stream(normalized_stream)
+        pipeline_output_stream = output_pipeline_instance.process_stream(normalized_stream)
+        denormalized_stream = self._output_normalizer.denormalize_streaming(pipeline_output_stream)
+        return denormalized_stream
 
     def _run_output_pipeline(
         self,
@@ -91,6 +115,7 @@ class BaseProvider(ABC):
         if is_fim_request:
             pipeline_processor = self._fim_pipelin_processor
             logger.info("FIM pipeline selected for execution.")
+            normalized_request = self._fim_normalizer.normalize(normalized_request)
         else:
             pipeline_processor = self._pipeline_processor
             logger.info("Chat completion pipeline selected for execution.")
@@ -208,10 +233,13 @@ class BaseProvider(ABC):
             )
 
         provider_request = self._input_normalizer.denormalize(input_pipeline_result.request)
+        if is_fim_request:
+            provider_request = self._fim_normalizer.denormalize(provider_request)
 
         # Execute the completion and translate the response
         # This gives us either a single response or a stream of responses
         # based on the streaming flag
+        logger.info(f"Executing completion with {provider_request}")
         model_response = await self._completion_handler.execute_completion(
             provider_request, api_key=api_key, stream=streaming, is_fim_request=is_fim_request
         )
@@ -230,13 +258,12 @@ class BaseProvider(ABC):
             return self._output_normalizer.denormalize(pipeline_output)
 
         model_response = self._db_recorder.record_output_stream(prompt_db, model_response)
-        normalized_stream = self._output_normalizer.normalize_streaming(model_response)
         pipeline_output_stream = await self._run_output_stream_pipeline(
             input_pipeline_result.context,
-            normalized_stream,
+            model_response,
+            is_fim_request=is_fim_request,
         )
-        denormalized_stream = self._output_normalizer.denormalize_streaming(pipeline_output_stream)
-        return self._cleanup_after_streaming(denormalized_stream, input_pipeline_result.context)
+        return self._cleanup_after_streaming(pipeline_output_stream, input_pipeline_result.context)
 
     def get_routes(self) -> APIRouter:
         return self.router

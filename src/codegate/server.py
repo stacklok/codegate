@@ -73,7 +73,13 @@ def init_app() -> FastAPI:
         SecretUnredactionStep(),
         CodeCommentStep(),
     ]
+    fim_output_steps: List[OutputPipelineStep] = [
+        # temporarily disabled
+        # SecretUnredactionStep(),
+    ]
+
     output_pipeline_processor = OutputPipelineProcessor(output_steps)
+    fim_output_pipeline_processor = OutputPipelineProcessor(fim_output_steps)
 
     # Create provider registry
     registry = ProviderRegistry(app)
@@ -88,6 +94,7 @@ def init_app() -> FastAPI:
             pipeline_processor=input_pipeline_processor,
             fim_pipeline_processor=fim_pipeline_processor,
             output_pipeline_processor=output_pipeline_processor,
+            fim_output_pipeline_processor=fim_output_pipeline_processor,
         ),
     )
     registry.add_provider(
@@ -96,6 +103,7 @@ def init_app() -> FastAPI:
             pipeline_processor=input_pipeline_processor,
             fim_pipeline_processor=fim_pipeline_processor,
             output_pipeline_processor=output_pipeline_processor,
+            fim_output_pipeline_processor=fim_output_pipeline_processor,
         ),
     )
     registry.add_provider(
@@ -104,6 +112,7 @@ def init_app() -> FastAPI:
             pipeline_processor=input_pipeline_processor,
             fim_pipeline_processor=fim_pipeline_processor,
             output_pipeline_processor=output_pipeline_processor,
+            fim_output_pipeline_processor=fim_output_pipeline_processor,
         ),
     )
     registry.add_provider(
@@ -112,6 +121,7 @@ def init_app() -> FastAPI:
             pipeline_processor=input_pipeline_processor,
             fim_pipeline_processor=fim_pipeline_processor,
             output_pipeline_processor=output_pipeline_processor,
+            fim_output_pipeline_processor=fim_output_pipeline_processor,
         ),
     )
     registry.add_provider(
@@ -120,6 +130,7 @@ def init_app() -> FastAPI:
             pipeline_processor=input_pipeline_processor,
             fim_pipeline_processor=fim_pipeline_processor,
             output_pipeline_processor=output_pipeline_processor,
+            fim_output_pipeline_processor=fim_output_pipeline_processor,
         ),
     )
 

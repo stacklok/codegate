@@ -17,6 +17,7 @@ class AnthropicProvider(BaseProvider):
         pipeline_processor: Optional[SequentialPipelineProcessor] = None,
         fim_pipeline_processor: Optional[SequentialPipelineProcessor] = None,
         output_pipeline_processor: Optional[OutputPipelineProcessor] = None,
+        fim_output_pipeline_processor: Optional[OutputPipelineProcessor] = None,
     ):
         completion_handler = AnthropicCompletion(stream_generator=anthropic_stream_generator)
         super().__init__(
@@ -26,6 +27,7 @@ class AnthropicProvider(BaseProvider):
             pipeline_processor,
             fim_pipeline_processor,
             output_pipeline_processor,
+            fim_output_pipeline_processor,
         )
 
     @property

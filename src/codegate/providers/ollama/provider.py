@@ -17,6 +17,7 @@ class OllamaProvider(BaseProvider):
         pipeline_processor: Optional[SequentialPipelineProcessor] = None,
         fim_pipeline_processor: Optional[SequentialPipelineProcessor] = None,
         output_pipeline_processor: Optional[OutputPipelineProcessor] = None,
+        fim_output_pipeline_processor: Optional[OutputPipelineProcessor] = None,
     ):
         completion_handler = OllamaCompletionHandler()
         super().__init__(

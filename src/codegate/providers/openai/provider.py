@@ -16,6 +16,7 @@ class OpenAIProvider(BaseProvider):
         pipeline_processor: Optional[SequentialPipelineProcessor] = None,
         fim_pipeline_processor: Optional[SequentialPipelineProcessor] = None,
         output_pipeline_processor: Optional[OutputPipelineProcessor] = None,
+        fim_output_pipeline_processor: Optional[OutputPipelineProcessor] = None,
     ):
         completion_handler = LiteLLmShim(stream_generator=sse_stream_generator)
         super().__init__(
@@ -25,6 +26,7 @@ class OpenAIProvider(BaseProvider):
             pipeline_processor,
             fim_pipeline_processor,
             output_pipeline_processor,
+            fim_output_pipeline_processor,
         )
 
     @property
