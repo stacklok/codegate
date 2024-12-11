@@ -15,6 +15,8 @@ from codegate.ca.codegate_ca import CertificateAuthority
 from codegate.codegate_logging import LogFormat, LogLevel, setup_logging
 from codegate.config import Config, ConfigurationError
 from codegate.db.connection import init_db_sync
+from codegate.pipeline.factory import PipelineFactory
+from codegate.pipeline.secrets.manager import SecretsManager
 from codegate.providers.copilot.provider import CopilotProvider
 from codegate.server import init_app
 from codegate.storage.utils import restore_storage_backup
@@ -307,7 +309,11 @@ def serve(
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
-        app = init_app()
+        # Initialize secrets manager and pipeline factory
+        secrets_manager = SecretsManager()
+        pipeline_factory = PipelineFactory(secrets_manager)
+
+        app = init_app(pipeline_factory)
 
         # Run the server
         try:
