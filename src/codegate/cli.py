@@ -10,6 +10,8 @@ import structlog
 from codegate.codegate_logging import LogFormat, LogLevel, setup_logging
 from codegate.config import Config, ConfigurationError
 from codegate.db.connection import init_db_sync
+from codegate.pipeline.factory import PipelineFactory
+from codegate.pipeline.secrets.manager import SecretsManager
 from codegate.server import init_app
 from codegate.storage.utils import restore_storage_backup
 
@@ -185,7 +187,11 @@ def serve(
         )
 
         init_db_sync()
-        app = init_app()
+        # Initialize secrets manager and pipeline factory
+        secrets_manager = SecretsManager()
+        pipeline_factory = PipelineFactory(secrets_manager)
+
+        app = init_app(pipeline_factory)
 
         import uvicorn
 

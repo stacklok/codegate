@@ -144,8 +144,9 @@ class StorageEngine:
             logger.error(f"An error occurred: {str(e)}")
             return []
 
-    async def search(self, query: str, limit=5, distance=0.3,
-                     ecosystem=None, packages=None) -> list[object]:
+    async def search(
+        self, query: str, limit=5, distance=0.3, ecosystem=None, packages=None
+    ) -> list[object]:
         """
         Search the 'Package' collection based on a query string.
 
