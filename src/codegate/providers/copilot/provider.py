@@ -132,7 +132,6 @@ class CopilotProvider(asyncio.Protocol):
     def _forward_data_to_target(self, data: bytes) -> None:
         """Forward data to target if connection is established"""
         if self.target_transport and not self.target_transport.is_closing():
-            self._log_decrypted_data(data, "Client to Server")
             self.target_transport.write(data)
 
     def data_received(self, data: bytes) -> None:
@@ -160,6 +159,7 @@ class CopilotProvider(asyncio.Protocol):
 
     async def handle_http_request(self) -> None:
         """Handle standard HTTP request"""
+
         try:
             target_url = await self._get_target_url()
             if not target_url:
@@ -182,7 +182,7 @@ class CopilotProvider(asyncio.Protocol):
             has_host = False
             new_headers = []
 
-            for header in self.headers:
+            for header in self.request.headers:
                 if header.lower().startswith("host:"):
                     has_host = True
                     new_headers.append(f"Host: {self.target_host}")
@@ -192,22 +192,20 @@ class CopilotProvider(asyncio.Protocol):
             if not has_host:
                 new_headers.append(f"Host: {self.target_host}")
 
-            request_line = f"{self.method} /{self.path} {self.version}\r\n".encode()
+            request_line = (
+                f"{self.request.method} /{self.request.path} {self.request.version}\r\n"
+            ).encode()
             logger.debug(f"Request Line: {request_line}")
             header_block = "\r\n".join(new_headers).encode()
             headers = request_line + header_block + b"\r\n\r\n"
 
             if self.target_transport:
                 logger.debug("=" * 40)
-                self.log_decrypted_data(headers, "Request")
                 self.target_transport.write(headers)
                 logger.debug("=" * 40)
 
                 body_start = self.buffer.index(b"\r\n\r\n") + 4
                 body = self.buffer[body_start:]
-
-                if body:
-                    self.log_decrypted_data(body, "Request Body")
 
                 for i in range(0, len(body), CHUNK_SIZE):
                     chunk = body[i : i + CHUNK_SIZE]
@@ -253,14 +251,6 @@ class CopilotProvider(asyncio.Protocol):
 
         headers = self._prepare_request_headers()
         self.target_transport.write(headers)
-
-        body_start = self.buffer.index(b"\r\n\r\n") + 4
-        body = self.buffer[body_start:]
-
-        if body:
-            self._log_decrypted_data(body, "Request Body")
-            for i in range(0, len(body), CHUNK_SIZE):
-                self.target_transport.write(body[i : i + CHUNK_SIZE])
 
     def _prepare_request_headers(self) -> bytes:
         """Prepare modified request headers"""
@@ -376,11 +366,6 @@ class CopilotProvider(asyncio.Protocol):
         self.buffer.clear()
         self.ssl_context = None
 
-    @staticmethod
-    def _log_decrypted_data(data: bytes, direction: str) -> None:
-        """Log decrypted data for debugging"""
-        pass  # Logging disabled by default
-
     @classmethod
     async def create_proxy_server(
         cls, host: str, port: int, ssl_context: Optional[ssl.SSLContext] = None
@@ -446,7 +431,6 @@ class CopilotProxyTargetProtocol(asyncio.Protocol):
     def data_received(self, data: bytes) -> None:
         """Handle data received from target"""
         if self.proxy.transport and not self.proxy.transport.is_closing():
-            self.proxy._log_decrypted_data(data, "Server to Client")
             self.proxy.transport.write(data)
 
     def connection_lost(self, exc: Optional[Exception]) -> None:
