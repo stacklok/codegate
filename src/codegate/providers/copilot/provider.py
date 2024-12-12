@@ -9,7 +9,11 @@ import structlog
 
 from codegate.ca.codegate_ca import CertificateAuthority
 from codegate.config import Config
+from codegate.pipeline.base import PipelineContext
+from codegate.pipeline.factory import PipelineFactory
+from codegate.pipeline.secrets.manager import SecretsManager
 from codegate.providers.copilot.mapping import VALIDATED_ROUTES
+from codegate.providers.copilot.pipeline import CopilotFimPipeline
 
 logger = structlog.get_logger("codegate")
 
@@ -56,6 +60,52 @@ class CopilotProvider(asyncio.Protocol):
         self.proxy_ep: Optional[str] = None
         self.ca = CertificateAuthority.get_instance()
         self._closing = False
+        self.pipeline_factory = PipelineFactory(SecretsManager())
+        self.context_tracking: Optional[PipelineContext] = None
+
+    def _select_pipeline(self):
+        if (
+            self.request.method == "POST"
+            and self.request.path == "v1/engines/copilot-codex/completions"
+        ):
+            logger.debug("Selected CopilotFimStrategy")
+            return CopilotFimPipeline(self.pipeline_factory)
+
+        logger.debug("No pipeline strategy selected")
+        return None
+
+    async def _body_through_pipeline(self, headers: list[str], body: bytes) -> bytes:
+        logger.debug(f"Processing body through pipeline: {len(body)} bytes")
+        strategy = self._select_pipeline()
+        if strategy is None:
+            # if we didn't select any strategy that would change the request
+            # let's just pass through the body as-is
+            return body
+        return await strategy.process_body(headers, body)
+
+    async def _request_to_target(self, headers: list[str], body: bytes):
+        request_line = (
+            f"{self.request.method} /{self.request.path} {self.request.version}\r\n"
+        ).encode()
+        logger.debug(f"Request Line: {request_line}")
+
+        body = await self._body_through_pipeline(headers, body)
+
+        for header in headers:
+            if header.lower().startswith("content-length:"):
+                headers.remove(header)
+                break
+        headers.append(f"Content-Length: {len(body)}")
+
+        header_block = "\r\n".join(headers).encode()
+        headers_request_block = request_line + header_block + b"\r\n\r\n"
+        logger.debug("=" * 40)
+        self.target_transport.write(headers_request_block)
+        logger.debug("=" * 40)
+
+        for i in range(0, len(body), CHUNK_SIZE):
+            chunk = body[i : i + CHUNK_SIZE]
+            self.target_transport.write(chunk)
 
     def connection_made(self, transport: asyncio.Transport) -> None:
         """Handle new client connection"""
@@ -192,24 +242,10 @@ class CopilotProvider(asyncio.Protocol):
             if not has_host:
                 new_headers.append(f"Host: {self.target_host}")
 
-            request_line = (
-                f"{self.request.method} /{self.request.path} {self.request.version}\r\n"
-            ).encode()
-            logger.debug(f"Request Line: {request_line}")
-            header_block = "\r\n".join(new_headers).encode()
-            headers = request_line + header_block + b"\r\n\r\n"
-
             if self.target_transport:
-                logger.debug("=" * 40)
-                self.target_transport.write(headers)
-                logger.debug("=" * 40)
-
                 body_start = self.buffer.index(b"\r\n\r\n") + 4
                 body = self.buffer[body_start:]
-
-                for i in range(0, len(body), CHUNK_SIZE):
-                    chunk = body[i : i + CHUNK_SIZE]
-                    self.target_transport.write(chunk)
+                await self._request_to_target(new_headers, body)
             else:
                 logger.debug("=" * 40)
                 logger.error("Target transport not available")
