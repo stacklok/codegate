@@ -5,6 +5,7 @@ from typing import Dict
 import structlog
 from litellm.types.llms.openai import ChatCompletionRequest
 
+from codegate.pipeline.base import PipelineContext
 from codegate.providers.normalizer.completion import CompletionNormalizer
 
 logger = structlog.get_logger("codegate")
@@ -62,7 +63,7 @@ class CopilotPipeline(ABC):
 
         return copilot_headers
 
-    async def process_body(self, headers: list[str], body: bytes) -> bytes:
+    async def process_body(self, headers: list[str], body: bytes) -> (bytes, PipelineContext):
         """Common processing logic for all strategies"""
         try:
             normalized_body = self.normalizer.normalize(body)
@@ -92,10 +93,10 @@ class CopilotPipeline(ABC):
                 body = self.normalizer.denormalize(result.request)
                 logger.info(f"Pipeline processed request: {body}")
 
-            return body
+            return body, result.context
         except Exception as e:
             logger.error(f"Pipeline processing error: {e}")
-            return body
+            return body, None
 
 
 class CopilotFimNormalizer:

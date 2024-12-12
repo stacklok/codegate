@@ -1,4 +1,5 @@
 import asyncio
+import json
 import re
 import ssl
 from dataclasses import dataclass
@@ -11,6 +12,7 @@ from codegate.ca.codegate_ca import CertificateAuthority
 from codegate.config import Config
 from codegate.pipeline.base import PipelineContext
 from codegate.pipeline.factory import PipelineFactory
+from codegate.pipeline.output import OutputPipelineInstance
 from codegate.pipeline.secrets.manager import SecretsManager
 from codegate.providers.copilot.mapping import VALIDATED_ROUTES
 from codegate.providers.copilot.pipeline import (
@@ -18,6 +20,7 @@ from codegate.providers.copilot.pipeline import (
     CopilotFimPipeline,
     CopilotPipeline,
 )
+from codegate.providers.copilot.streaming import SSEProcessor
 
 logger = structlog.get_logger("codegate")
 
@@ -139,13 +142,13 @@ class CopilotProvider(asyncio.Protocol):
         path: str,
         headers: list[str],
         body: bytes,
-    ) -> bytes:
+    ) -> (bytes, PipelineContext):
         logger.debug(f"Processing body through pipeline: {len(body)} bytes")
         strategy = self._select_pipeline(method, path)
         if strategy is None:
             # if we didn't select any strategy that would change the request
             # let's just pass through the body as-is
-            return body
+            return body, None
         return await strategy.process_body(headers, body)
 
     async def _request_to_target(self, headers: list[str], body: bytes):
@@ -154,12 +157,15 @@ class CopilotProvider(asyncio.Protocol):
         ).encode()
         logger.debug(f"Request Line: {request_line}")
 
-        body = await self._body_through_pipeline(
+        body, context = await self._body_through_pipeline(
             self.request.method,
             self.request.path,
             headers,
             body,
         )
+
+        if context:
+            self.context_tracking = context
 
         for header in headers:
             if header.lower().startswith("content-length:"):
@@ -243,12 +249,13 @@ class CopilotProvider(asyncio.Protocol):
             # we couldn't parse this into an HTTP request, so we just pass through
             return data
 
-        http_request.body = await self._body_through_pipeline(
+        http_request.body, context = await self._body_through_pipeline(
             http_request.method,
             http_request.path,
             http_request.headers,
             http_request.body,
         )
+        self.context_tracking = context
 
         for header in http_request.headers:
             if header.lower().startswith("content-length:"):
@@ -549,15 +556,68 @@ class CopilotProxyTargetProtocol(asyncio.Protocol):
         self.proxy = proxy
         self.transport: Optional[asyncio.Transport] = None
 
+        self.headers_sent = False
+        self.sse_processor: Optional[SSEProcessor] = None
+        self.output_pipeline_instance: Optional[OutputPipelineInstance] = None
+
     def connection_made(self, transport: asyncio.Transport) -> None:
         """Handle successful connection to target"""
         self.transport = transport
         self.proxy.target_transport = transport
 
+    def _process_chunk(self, chunk: bytes):
+        records = self.sse_processor.process_chunk(chunk)
+
+        for record in records:
+            if record["type"] == "done":
+                sse_data = b"data: [DONE]\n\n"
+                # Add chunk size for DONE message too
+                chunk_size = hex(len(sse_data))[2:] + "\r\n"
+                self._proxy_transport_write(chunk_size.encode())
+                self._proxy_transport_write(sse_data)
+                self._proxy_transport_write(b"\r\n")
+                # Now send the final zero chunk
+                self._proxy_transport_write(b"0\r\n\r\n")
+            else:
+                sse_data = f"data: {json.dumps(record['content'])}\n\n".encode("utf-8")
+                chunk_size = hex(len(sse_data))[2:] + "\r\n"
+                self._proxy_transport_write(chunk_size.encode())
+                self._proxy_transport_write(sse_data)
+                self._proxy_transport_write(b"\r\n")
+
+    def _proxy_transport_write(self, data: bytes):
+        self.proxy.transport.write(data)
+
     def data_received(self, data: bytes) -> None:
         """Handle data received from target"""
+        if self.proxy.context_tracking is not None and self.sse_processor is None:
+            logger.debug("Tracking context for pipeline processing")
+            self.sse_processor = SSEProcessor()
+            out_pipeline_processor = self.proxy.pipeline_factory.create_output_pipeline()
+            self.output_pipeline_instance = OutputPipelineInstance(
+                pipeline_steps=out_pipeline_processor.pipeline_steps,
+                input_context=self.proxy.context_tracking,
+            )
+
         if self.proxy.transport and not self.proxy.transport.is_closing():
-            self.proxy.transport.write(data)
+            if not self.sse_processor:
+                # Pass through non-SSE data unchanged
+                self.proxy.transport.write(data)
+                return
+
+            # Check if this is the first chunk with headers
+            if not self.headers_sent:
+                header_end = data.find(b"\r\n\r\n")
+                if header_end != -1:
+                    self.headers_sent = True
+                    # Send headers first
+                    headers = data[: header_end + 4]
+                    self._proxy_transport_write(headers)
+                    logger.debug(f"Headers sent: {headers}")
+
+                    data = data[header_end + 4 :]
+
+            self._process_chunk(data)
 
     def connection_lost(self, exc: Optional[Exception]) -> None:
         """Handle connection loss to target"""
@@ -570,3 +630,5 @@ class CopilotProxyTargetProtocol(asyncio.Protocol):
                 self.proxy.transport.close()
             except Exception as e:
                 logger.error(f"Error closing proxy transport: {e}")
+
+        # todo: clear the context to erase the sensitive data
