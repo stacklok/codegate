@@ -1,4 +1,5 @@
 import re
+from abc import abstractmethod
 from typing import Optional
 
 import structlog
@@ -14,14 +15,19 @@ from codegate.pipeline.base import (
 )
 from codegate.pipeline.output import OutputPipelineContext, OutputPipelineStep
 from codegate.pipeline.secrets.manager import SecretsManager
-from codegate.pipeline.secrets.signatures import CodegateSignatures
+from codegate.pipeline.secrets.signatures import CodegateSignatures, Match
 from codegate.pipeline.systemmsg import add_or_update_system_message
 
 logger = structlog.get_logger("codegate")
 
 
-class CodegateSecrets(PipelineStep):
-    """Pipeline step that handles secret information requests."""
+class SecretsModifier:
+    """
+    A class that helps obfuscate text by piping it through the secrets manager
+    that finds the secrets and then calling hide_secret to modify them.
+
+    What modifications are done is up to the user who subclasses SecretsModifier
+    """
 
     def __init__(self):
         """Initialize the CodegateSecrets pipeline step."""
@@ -29,15 +35,23 @@ class CodegateSecrets(PipelineStep):
         # Initialize and load signatures immediately
         CodegateSignatures.initialize("signatures.yaml")
 
-    @property
-    def name(self) -> str:
+    @abstractmethod
+    def _hide_secret(self, match: Match) -> str:
         """
-        Returns the name of this pipeline step.
+        User-defined callable to hide a secret match to either obfuscate
+        it or reversibly encrypt
+        """
+        pass
 
-        Returns:
-            str: The identifier 'codegate-secrets'.
+    @abstractmethod
+    def _notify_secret(self, secret):
         """
-        return "codegate-secrets"
+        Notify about a found secret
+        TODO: We should probably not notify about a secret value but rather
+        an obfuscated string. It might be nice to report the context as well
+        (e.g. the file or a couple of lines before and after)
+        """
+        pass
 
     def _get_absolute_position(self, line_number: int, line_offset: int, text: str) -> int:
         """
@@ -78,21 +92,7 @@ class CodegateSecrets(PipelineStep):
 
         return start, end
 
-    def _redact_text(
-        self, text: str, secrets_manager: SecretsManager, session_id: str, context: PipelineContext
-    ) -> tuple[str, int]:
-        """
-        Find and encrypt secrets in the given text.
-
-        Args:
-            text: The text to protect
-            secrets_manager: ..
-            session_id: ..
-            context: The pipeline context to be able to log alerts
-        Returns:
-            Tuple containing protected text with encrypted values and the count of redacted secrets
-        """
-        # Find secrets in the text
+    def obfuscate(self, text: str) -> tuple[str, int]:
         matches = CodegateSignatures.find_in_string(text)
         if not matches:
             return text, 0
@@ -123,47 +123,115 @@ class CodegateSecrets(PipelineStep):
 
         # Replace each match with its encrypted value
         for start, end, match in absolute_matches:
-            # Encrypt and store the value
-            encrypted_value = secrets_manager.store_secret(
-                match.value,
-                match.service,
-                match.type,
-                session_id,
-            )
-
-            # Create the replacement string
-            replacement = f"REDACTED<${encrypted_value}>"
-            # Store the protected text in DB.
-            context.add_alert(
-                self.name, trigger_string=replacement, severity_category=AlertSeverity.CRITICAL
-            )
+            hidden_secret = self._hide_secret(match)
+            self._notify_secret(hidden_secret)
 
             # Replace the secret in the text
-            protected_text[start:end] = replacement
+            protected_text[start:end] = hidden_secret
             # Store for logging
             found_secrets.append(
                 {
                     "service": match.service,
                     "type": match.type,
                     "original": match.value,
-                    "encrypted": encrypted_value,
+                    "encrypted": hidden_secret,
                 }
             )
 
-        # Convert back to string
-        protected_string = "".join(protected_text)
-
         # Log the findings
         logger.info("\nFound secrets:")
-
         for secret in found_secrets:
             logger.info(f"\nService: {secret['service']}")
             logger.info(f"Type: {secret['type']}")
             logger.info(f"Original: {secret['original']}")
-            logger.info(f"Encrypted: REDACTED<${secret['encrypted']}>")
+            logger.info(f"Encrypted: {secret['encrypted']}")
 
+        # Convert back to string
+        protected_string = "".join(protected_text)
         print(f"\nProtected text:\n{protected_string}")
         return protected_string, len(found_secrets)
+
+
+class SecretsEncryptor(SecretsModifier):
+    def __init__(
+        self,
+        secrets_manager: SecretsManager,
+        context: PipelineContext,
+        session_id: str,
+    ):
+        self._secrets_manager = secrets_manager
+        self._session_id = session_id
+        self._context = context
+        self._name = "codegate-secrets"
+        super().__init__()
+
+    def _hide_secret(self, match: Match) -> str:
+        # Encrypt and store the value
+        encrypted_value = self._secrets_manager.store_secret(
+            match.value,
+            match.service,
+            match.type,
+            self._session_id,
+        )
+        return f"REDACTED<${encrypted_value}>"
+
+    def _notify_secret(self, notify_string):
+        self._context.add_alert(
+            self._name, trigger_string=notify_string, severity_category=AlertSeverity.CRITICAL
+        )
+
+
+class SecretsObfuscator(SecretsModifier):
+    def __init__(
+        self,
+    ):
+        super().__init__()
+
+    def _hide_secret(self, match: Match) -> str:
+        """
+        Obfuscate the secret value. We use a hardcoded number of asterisks
+        to not leak the length of the secret.
+        """
+        return "*" * 32
+
+    def _notify_secret(self, secret):
+        pass
+
+
+class CodegateSecrets(PipelineStep):
+    """Pipeline step that handles secret information requests."""
+
+    def __init__(self):
+        """Initialize the CodegateSecrets pipeline step."""
+        super().__init__()
+
+    @property
+    def name(self) -> str:
+        """
+        Returns the name of this pipeline step.
+
+        Returns:
+            str: The identifier 'codegate-secrets'.
+        """
+        return "codegate-secrets"
+
+    def _redact_text(
+        self, text: str, secrets_manager: SecretsManager, session_id: str, context: PipelineContext
+    ) -> tuple[str, int]:
+        """
+        Find and encrypt secrets in the given text.
+
+        Args:
+            text: The text to protect
+            secrets_manager: ..
+            session_id: ..
+            context: The pipeline context to be able to log alerts
+        Returns:
+            Tuple containing protected text with encrypted values and the count of redacted secrets
+        """
+        # Find secrets in the text
+        text_encryptor = SecretsEncryptor(secrets_manager, context, session_id)
+        return text_encryptor.obfuscate(text)
 
     async def process(
         self, request: ChatCompletionRequest, context: PipelineContext
