@@ -8,6 +8,7 @@ from codegate.llm_utils.extractor import PackageExtractor
 from codegate.pipeline.base import CodeSnippet, PipelineContext
 from codegate.pipeline.extract_snippets.extract_snippets import extract_snippets
 from codegate.pipeline.output import OutputPipelineContext, OutputPipelineStep
+from codegate.pipeline.secrets.secrets import SecretsObfuscator
 from codegate.storage import StorageEngine
 
 logger = structlog.get_logger("codegate")
@@ -41,8 +42,12 @@ class CodeCommentStep(OutputPipelineStep):
 
     async def _snippet_comment(self, snippet: CodeSnippet, context: PipelineContext) -> str:
         """Create a comment for a snippet"""
+        # make sure we don't accidentally leak a secret in the output snippet
+        obfuscator = SecretsObfuscator()
+        obfuscated_code, _ = obfuscator.obfuscate(snippet.code)
+
         snippet.libraries = await PackageExtractor.extract_packages(
-            content=snippet.code,
+            content=obfuscated_code,
             provider=context.sensitive.provider if context.sensitive else None,
             model=context.sensitive.model if context.sensitive else None,
             api_key=context.sensitive.api_key if context.sensitive else None,

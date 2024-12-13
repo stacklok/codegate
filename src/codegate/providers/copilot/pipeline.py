@@ -93,7 +93,7 @@ class CopilotPipeline(ABC):
                 # in the original LLM format
                 body = self.normalizer.denormalize(result.request)
                 logger.debug(f"Pipeline processed request: {body}")
-            
+
             return body, result.context
         except Exception as e:
             logger.error(f"Pipeline processing error: {e}")

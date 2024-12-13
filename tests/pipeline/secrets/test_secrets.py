@@ -1,3 +1,6 @@
+import os
+import tempfile
+
 import pytest
 from litellm import ModelResponse
 from litellm.types.utils import Delta, StreamingChoices
@@ -5,7 +8,142 @@ from litellm.types.utils import Delta, StreamingChoices
 from codegate.pipeline.base import PipelineContext, PipelineSensitiveData
 from codegate.pipeline.output import OutputPipelineContext
 from codegate.pipeline.secrets.manager import SecretsManager
-from codegate.pipeline.secrets.secrets import SecretUnredactionStep
+from codegate.pipeline.secrets.secrets import (
+    SecretsEncryptor,
+    SecretsObfuscator,
+    SecretUnredactionStep,
+)
+from codegate.pipeline.secrets.signatures import CodegateSignatures, Match
+
+
+class TestSecretsModifier:
+    def test_get_absolute_position(self):
+        modifier = SecretsObfuscator()  # Using concrete implementation for testing
+        text = "line1\nline2\nline3"
+
+        # Test various positions
+        assert modifier._get_absolute_position(1, 0, text) == 0  # Start of first line
+        assert modifier._get_absolute_position(2, 0, text) == 6  # Start of second line
+        assert modifier._get_absolute_position(1, 4, text) == 4  # Middle of first line
+
+    def test_extend_match_boundaries(self):
+        modifier = SecretsObfuscator()
+
+        # Test extension with quotes
+        text = 'config = "secret_value" # comment'
+        secret = "secret_value"
+        start = text.index(secret)
+        end = start + len(secret)
+
+        start, end = modifier._extend_match_boundaries(text, start, end)
+        assert text[start:end] == secret
+
+        # Test extension without quotes spaces
+        text = "config = secret_value # comment"
+        secret = "secret_value"
+        start = text.index(secret)
+        end = start + len(secret)
+
+        start, end = modifier._extend_match_boundaries(text, start, end)
+        assert text[start:end] == secret
+
+
+@pytest.fixture
+def valid_yaml_content():
+    return """
+- AWS:
+    - Access Key: '[A-Z0-9]{20}'
+"""
+
+
+@pytest.fixture
+def temp_yaml_file(valid_yaml_content):
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".yaml") as f:
+        f.write(valid_yaml_content)
+    yield f.name
+    os.unlink(f.name)
+
+
+class TestSecretsEncryptor:
+    @pytest.fixture(autouse=True)
+    def setup(self, temp_yaml_file):
+        CodegateSignatures.initialize(temp_yaml_file)
+        self.context = PipelineContext()
+        self.secrets_manager = SecretsManager()
+        self.session_id = "test_session"
+        self.encryptor = SecretsEncryptor(self.secrets_manager, self.context, self.session_id)
+
+    def test_hide_secret(self):
+        # Create a test match
+        match = Match(
+            service="AWS",
+            type="Access Key",
+            value="AKIAIOSFODNN7EXAMPLE",
+            line_number=1,
+            start_index=0,
+            end_index=9,
+        )
+
+        # Test secret hiding
+        hidden = self.encryptor._hide_secret(match)
+        assert hidden.startswith("REDACTED<$")
+        assert hidden.endswith(">")
+
+        # Verify the secret was stored
+        encrypted_value = hidden[len("REDACTED<$") : -1]
+        original = self.secrets_manager.get_original_value(encrypted_value, self.session_id)
+        assert original == "AKIAIOSFODNN7EXAMPLE"
+
+    def test_obfuscate(self):
+        # Test text with a secret
+        text = "API_KEY=AKIAIOSFODNN7EXAMPLE\nOther text"
+        protected, count = self.encryptor.obfuscate(text)
+
+        assert count == 1
+        assert "REDACTED<$" in protected
+        assert "AKIAIOSFODNN7EXAMPLE" not in protected
+        assert "Other text" in protected
+
+
+class TestSecretsObfuscator:
+    @pytest.fixture(autouse=True)
+    def setup(self, temp_yaml_file):
+        CodegateSignatures.initialize(temp_yaml_file)
+        self.obfuscator = SecretsObfuscator()
+
+    def test_hide_secret(self):
+        match = Match(
+            service="AWS",
+            type="Access Key",
+            value="AKIAIOSFODNN7EXAMPLE",
+            line_number=1,
+            start_index=0,
+            end_index=15,
+        )
+
+        hidden = self.obfuscator._hide_secret(match)
+        assert hidden == "*" * 32
+        assert len(hidden) == 32  # Consistent length regardless of input
+
+    def test_obfuscate(self):
+        # Test text with multiple secrets
+        text = "API_KEY=AKIAIOSFODNN7EXAMPLE\nPASSWORD=AKIAIOSFODNN7EXAMPLE"
+        protected, count = self.obfuscator.obfuscate(text)
+
+        assert count == 2
+        assert "AKIAIOSFODNN7EXAMPLE" not in protected
+        assert "*" * 32 in protected
+
+        # Verify format
+        expected_pattern = f"API_KEY={'*' * 32}\nPASSWORD={'*' * 32}"
+        assert protected == expected_pattern
+
+    def test_obfuscate_no_secrets(self):
+        text = "Regular text without secrets"
+        protected, count = self.obfuscator.obfuscate(text)
+
+        assert count == 0
+        assert protected == text
 
 
 def create_model_response(content: str) -> ModelResponse:
