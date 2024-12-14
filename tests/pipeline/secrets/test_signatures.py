@@ -167,3 +167,26 @@ def test_duplicate_patterns():
         assert match.value == "AKIAIOSFODNN7EXAMPLE"
     finally:
         os.unlink(f.name)
+
+
+def test_no_duplicate_signature_groups(temp_yaml_file):
+    """Test that signature groups aren't added multiple times"""
+    CodegateSignatures.initialize(temp_yaml_file)
+
+    # First load
+    CodegateSignatures._signatures_loaded = False
+    CodegateSignatures._load_signatures()
+    initial_group_count = len(CodegateSignatures._signature_groups)
+    initial_regex_count = len(CodegateSignatures._compiled_regexes)
+
+    # Second load
+    CodegateSignatures._signatures_loaded = False
+    CodegateSignatures._load_signatures()
+
+    # Verify counts haven't changed
+    assert len(CodegateSignatures._signature_groups) == initial_group_count
+    assert len(CodegateSignatures._compiled_regexes) == initial_regex_count
+
+    # Verify GitHub group appears only once
+    github_groups = [g for g in CodegateSignatures._signature_groups if g.name == "GitHub"]
+    assert len(github_groups) == 1

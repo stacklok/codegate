@@ -155,6 +155,11 @@ class CodegateSignatures:
     @classmethod
     def _add_signature_group(cls, name: str, patterns: Dict[str, str]) -> None:
         """Add a new signature group and compile its regex patterns."""
+        # Check if this group already exists
+        if any(group.name == name for group in cls._signature_groups):
+            logger.debug(f"Signature group {name} already exists, skipping")
+            return
+
         signature_group = SignatureGroup(name, patterns)
 
         for pattern_name, pattern in patterns.items():
