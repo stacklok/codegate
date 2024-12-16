@@ -92,7 +92,7 @@ class CopilotPipeline(ABC):
                 # the pipeline did modify the request, return to the user
                 # in the original LLM format
                 body = self.normalizer.denormalize(result.request)
-                logger.info(f"Pipeline processed request: {body}")
+                logger.debug(f"Pipeline processed request: {body}")
 
             return body, result.context
         except Exception as e:
