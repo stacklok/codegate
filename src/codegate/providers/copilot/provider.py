@@ -114,6 +114,7 @@ class CopilotProvider(asyncio.Protocol):
         self.buffer = bytearray()
         self.target_host: Optional[str] = None
         self.target_port: Optional[int] = None
+        self.x_target_api: Optional[str] = None
         self.handshake_done = False
         self.is_connect = False
         self.headers_parsed = False
@@ -298,9 +299,10 @@ class CopilotProvider(asyncio.Protocol):
 
     async def handle_http_request(self) -> None:
         """Handle standard HTTP request"""
-
+        # get
         try:
-            target_url = await self._get_target_url()
+            x_target_api = await self._get_target_api_from_headers()
+            target_url = await self._get_target_url(x_target_api)
             if not target_url:
                 self.send_error_response(404, b"Not Found")
                 return
@@ -345,8 +347,15 @@ class CopilotProvider(asyncio.Protocol):
             logger.error(f"Error handling HTTP request: {e}")
             self.send_error_response(502, str(e).encode())
 
+    async def _get_target_api_from_headers(self) -> Optional[str]:
+        """Determine target URL based on request path and headers"""
+        headers_dict = self.get_headers_dict()
+        if 'x-target-api' in headers_dict:
+            return headers_dict['x-target-api']
+
     async def _get_target_url(self) -> Optional[str]:
         """Determine target URL based on request path and headers"""
+        logger.debug(f"Getting x_target_api for {self.x_target_api}")
         headers_dict = self.get_headers_dict()
         auth_header = headers_dict.get("authorization", "")
 
