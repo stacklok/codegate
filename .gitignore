@@ -48,3 +48,7 @@ codegate.db
 
 # certificate directory
 *certs/
+
+# installer
+installer/installer
+installer/installer.exe
