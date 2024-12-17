@@ -43,7 +43,7 @@ htmlcov/
 # Weaviate
 weaviate_data/
 
-# Codegate Dashboard DB
+# CodeGate Dashboard DB
 codegate.db
 
 # certificate directory

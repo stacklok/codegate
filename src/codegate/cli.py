@@ -94,7 +94,7 @@ def validate_port(ctx: click.Context, param: click.Parameter, value: int) -> int
 @click.group()
 @click.version_option()
 def cli() -> None:
-    """Codegate - A configurable service gateway."""
+    """CodeGate - A configurable service gateway."""
     pass
 
 

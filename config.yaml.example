@@ -1,4 +1,4 @@
-# Codegate Example Configuration
+# CodeGate Example Configuration
 
 # Network settings
 port: 8989           # Port to listen on (1-65535)

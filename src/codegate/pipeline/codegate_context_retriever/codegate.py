@@ -131,7 +131,7 @@ class CodegateContextRetriever(PipelineStep):
         if len(searched_objects) > 0:
             context_str = self.generate_context_str(searched_objects, context)
         else:
-            context_str = "Codegate did not find any malicious or archived packages."
+            context_str = "CodeGate did not find any malicious or archived packages."
 
         last_user_idx = self.get_last_user_message_idx(request)
         if last_user_idx == -1:

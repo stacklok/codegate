@@ -1,4 +1,4 @@
-"""Codegate - A Generative AI security gateway."""
+"""CodeGate - A Generative AI security gateway."""
 
 import logging as python_logging
 from importlib import metadata

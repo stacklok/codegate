@@ -44,8 +44,8 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           labels: |
             org.opencontainers.image.source=${{ github.repositoryUrl }}
-            org.opencontainers.image.description="Container image for the Codegate Local Gateway"
-            org.opencontainers.image.title="Codegate Container Image"
+            org.opencontainers.image.description="Container image for the CodeGate local gateway"
+            org.opencontainers.image.title="CodeGate container image"
             org.opencontainers.image.vendor="Stacklok Inc."
             org.opencontainers.image.version=${{ github.sha }}
           flavor: |

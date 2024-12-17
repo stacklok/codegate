@@ -47,7 +47,7 @@ class CodegateVersion(PipelineStep):
                 return PipelineResult(
                     response=PipelineResponse(
                         step_name=self.name,
-                        content="Codegate version: {}".format(__version__),
+                        content="CodeGate version: {}".format(__version__),
                         model=request["model"],
                     ),
                     context=context,
