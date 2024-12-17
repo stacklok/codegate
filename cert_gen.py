@@ -150,18 +150,18 @@ def generate_certificates(cert_dir="certs"):
     print("\nTo trust these certificates:")
     print("\nOn macOS:")
     print(
-        "sudo security add-trusted-cert -d -r trustRoot "
-        "-k /Library/Keychains/System.keychain certs/server.crt"
+        "security add-trusted-cert -r trustRoot "
+        "-k ~/Library/Keychains/login.keychain certs/server.crt"
     )
-    print("\nOn Windows (PowerShell as Admin):")
+    print("\nOn Windows (PowerShell):")
     print(
         'Import-Certificate -FilePath "certs\\server.crt" '
-        "-CertStoreLocation Cert:\\LocalMachine\\Root"
+        "-CertStoreLocation Cert:\\CurrentUser\\Root"
     )
     print("\nOn Linux:")
     print("sudo cp certs/server.crt /usr/local/share/ca-certificates/proxy-pilot.crt")
     print("sudo update-ca-certificates")
-    print("\nFor VSCode, add to settings.json:")
+    print("\nFor VS Code, add to settings.json:")
     print(
         """{
     "http.proxy": "https://localhost:8989",
