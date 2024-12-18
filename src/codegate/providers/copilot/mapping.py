@@ -26,7 +26,7 @@ class CoPilotMappings(BaseSettings):
         ("/copilot/suggestions", "https://githubcopilot.com"),
         ("/copilot_internal/user", "https://api.github.com"),
         ("/copilot_internal/v2/token", "https://api.github.com"),
-        ("/telemety", "https://copilot-telemetry.githubusercontent.com"),
+        ("/telemetry", "https://copilot-telemetry.githubusercontent.com"),
         ("/", "https://github.com"),
         ("/login/oauth/access_token", "https://github.com/login/oauth/access_token"),
         ("/api/copilot", "https://api.github.com/copilot_internal"),
