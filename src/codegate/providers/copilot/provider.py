@@ -159,7 +159,7 @@ class CopilotProvider(asyncio.Protocol):
             logger.debug("Selected CopilotChatStrategy")
             return CopilotChatPipeline(self.pipeline_factory)
 
-        logger.debug("No pipeline strategy selected")
+        logger.debug("No pipeline selected")
         return None
 
     async def _body_through_pipeline(
@@ -169,12 +169,12 @@ class CopilotProvider(asyncio.Protocol):
         headers: list[str],
         body: bytes,
     ) -> Tuple[bytes, PipelineContext]:
-        logger.debug(f"Processing body through pipeline: {len(body)} bytes")
         strategy = self._select_pipeline(method, path)
         if len(body) == 0 or strategy is None:
             # if we didn't select any strategy that would change the request
             # let's just pass through the body as-is
             return body, None
+        logger.debug(f"Processing body through pipeline: {len(body)} bytes")
         return await strategy.process_body(headers, body)
 
     async def _request_to_target(self, headers: list[str], body: bytes):
