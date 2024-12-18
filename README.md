@@ -161,7 +161,7 @@ docker pull ghcr.io/stacklok/codegate:latest
 docker run --name codegate -d -p 8989:8989 -p 9090:80 ghcr.io/stacklok/codegate:latest
 
 # It will mount a volume to /app/codegate_volume
-# The directory supports storing Llama CPP models under subidrectoy /models
+# The directory supports storing Llama CPP models under subdirectory /models
 # A sqlite DB with the messages and alerts is stored under the subdirectory /db
 docker run --name codegate -d -v /path/to/volume:/app/codegate_volume -p 8989:8989 -p 9090:80 ghcr.io/stacklok/codegate:latest
 ```
