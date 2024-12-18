@@ -16,8 +16,8 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-    - uses: actions/checkout@v4    
-    - uses: actions/setup-python@v5
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4    
+    - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5
       with:
         python-version: '3.12'    
     - name: Install dependencies
@@ -32,7 +32,7 @@ jobs:
 
     - name: Download json data
       id: download-json-data
-      uses: dawidd6/action-download-artifact@v7
+      uses: dawidd6/action-download-artifact@80620a5d27ce0ae443b965134db88467fc607b43 # v7
       with:
         repo: stacklok/codegate-data
         workflow: ".github/workflows/generate-artifact.yml"
@@ -46,7 +46,7 @@ jobs:
     - name: Download artifact
       if: ${{ github.event.inputs.enable_artifact_download == 'true' }}    
       id: download-artifact
-      uses: dawidd6/action-download-artifact@v7
+      uses: dawidd6/action-download-artifact@80620a5d27ce0ae443b965134db88467fc607b43 # v7
       with:
         github_token: ${{ github.token }}
         workflow: ".github/workflows/import_packages.yml"
@@ -76,7 +76,7 @@ jobs:
         fi
 
     - name: 'Upload Backup Files'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4
       with:
         name: backup_weaviate
         path: /tmp/backup_weaviate/backup*

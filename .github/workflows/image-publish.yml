@@ -20,11 +20,11 @@ jobs:
       IMAGE_NAME: ${{ github.repository }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - name: Set up QEMU for cross-platform builds
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@49b3bc8e6bdd4a60e6116a5414239cba5943d3cf # v3
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@6524bf65af31da8d45b59e8c27de4bd072b392f5 # v3
       - name: Compute version number
         id: version-string
         run: |
@@ -32,13 +32,13 @@ jobs:
           COMMIT="$(git rev-parse --short HEAD)"
           echo "tag=0.$DATE.$GITHUB_RUN_NUMBER-ref.$COMMIT" >> "$GITHUB_OUTPUT"
       - name: Login to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Set container metadata
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@369eb591f429131d6889c46b94e711f089e6ca96 # v5
         id: docker-metadata
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
@@ -54,7 +54,7 @@ jobs:
             type=raw,value=${{ steps.version-string.outputs.tag }}
       - name: Download artifact
         id: download-artifact
-        uses: dawidd6/action-download-artifact@v7
+        uses: dawidd6/action-download-artifact@80620a5d27ce0ae443b965134db88467fc607b43 # v7
         with:
           github_token: ${{ github.token }}
           workflow: ".github/workflows/import_packages.yml"
@@ -75,7 +75,7 @@ jobs:
           git lfs pull
       - name: Build and Push Image
         id: image-build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355 # v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64
