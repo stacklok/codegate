@@ -30,6 +30,6 @@ build: clean test
 	poetry build
 
 image-build:
-	DOCKER_BUILDKIT=1 $(CONTAINER_BUILD) -f Dockerfile --secret id=gh_token,env=GH_CI_TOKEN  -t codegate . -t ghcr.io/stacklok/codegate:$(VER) --load
+	DOCKER_BUILDKIT=1 $(CONTAINER_BUILD) -f Dockerfile -t codegate . -t ghcr.io/stacklok/codegate:$(VER) --load
 
 all: clean install format lint test security build

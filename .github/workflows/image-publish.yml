@@ -66,7 +66,7 @@ jobs:
       - name: Fetch latest FE commit SHA
         id: fetch_commit_fe_sha
         run: |
-          echo "LATEST_RELEASE=$(curl -s "https://api.github.com/repos/stacklok/codegate-ui/releases/latest" -H "Authorization: Bearer ${{ secrets.GH_CI_TOKEN }}" | grep '"zipball_url":' | cut -d '"' -f 4)" >> $GITHUB_ENV
+          echo "LATEST_RELEASE=$(curl -s "https://api.github.com/repos/stacklok/codegate-ui/releases/latest" | grep '"tag_name":' | cut -d '"' -f 4)" >> $GITHUB_ENV
       - name: Rename to accommodate to image
         run: mv ./backup_weaviate ./weaviate_backup
       - name: Download git lfs dependencies
@@ -84,8 +84,6 @@ jobs:
           labels: ${{ steps.docker-metadata.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          secrets: |
-            gh_token=${{ secrets.GH_CI_TOKEN }}
           build-args: |
             LATEST_RELEASE=${{ env.LATEST_RELEASE }}
       - name: Capture Image Digest
