@@ -147,6 +147,7 @@ def setup_logging(
 
     # Set explicitly the log level for other modules
     logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
+    logging.getLogger("uvicorn.error").disabled = True
 
     # Create a logger for our package
     logger = structlog.get_logger("codegate")

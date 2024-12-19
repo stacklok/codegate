@@ -1,5 +1,10 @@
+import traceback
+
+import structlog
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.middleware.errors import ServerErrorMiddleware
 
 from codegate import __description__, __version__
 from codegate.dashboard.dashboard import dashboard_router
@@ -10,6 +15,16 @@ from codegate.providers.ollama.provider import OllamaProvider
 from codegate.providers.openai.provider import OpenAIProvider
 from codegate.providers.registry import ProviderRegistry
 from codegate.providers.vllm.provider import VLLMProvider
+
+logger = structlog.get_logger("codegate")
+
+async def custom_error_handler(request, exc: Exception):
+    """This is a Middleware to handle exceptions and log them."""
+    # Capture the stack trace
+    extracted_traceback = traceback.extract_tb(exc.__traceback__)
+    # Log only the last 3 items of the stack trace. 3 is an arbitrary number.
+    logger.error(traceback.print_list(extracted_traceback[-3:]))
+    return JSONResponse({"error": str(exc)}, status_code=500)
 
 
 def init_app(pipeline_factory: PipelineFactory) -> FastAPI:
@@ -26,6 +41,8 @@ def init_app(pipeline_factory: PipelineFactory) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    # Apply error handling middleware
+    app.add_middleware(ServerErrorMiddleware, handler=custom_error_handler)
 
     # Create provider registry
     registry = ProviderRegistry(app)
