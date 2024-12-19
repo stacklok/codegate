@@ -44,6 +44,45 @@ from potential AI-related security risks. Key features include:
    poetry install --with dev
    ```
 
+## Dashboard CodeGate UI 
+### Setting up local development environment
+
+Clone the repository
+   ```bash
+      git clone https://github.com/stacklok/codegate-ui
+      cd codegate-ui
+   ```
+
+To install all dependencies for your local development environment, run
+
+```bash
+npm install
+```
+
+### Running the development server
+
+Run the development server using:
+
+```bash
+npm run dev
+```
+
+### Build production
+
+Run the build command:
+
+```bash
+npm run build
+```
+
+### Running production build
+
+Run the production build command:
+
+```bash
+npm run preview
+```
+
 ## Project structure
 
 ```plain
