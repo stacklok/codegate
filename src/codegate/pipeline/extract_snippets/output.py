@@ -1,10 +1,10 @@
+import ast
 from typing import Optional
 
 import structlog
 from litellm import ModelResponse
 from litellm.types.utils import Delta, StreamingChoices
 
-from codegate.llm_utils.extractor import PackageExtractor
 from codegate.pipeline.base import CodeSnippet, PipelineContext
 from codegate.pipeline.extract_snippets.extract_snippets import extract_snippets
 from codegate.pipeline.output import OutputPipelineContext, OutputPipelineStep
@@ -20,6 +20,26 @@ class CodeCommentStep(OutputPipelineStep):
     @property
     def name(self) -> str:
         return "code-comment"
+
+    @staticmethod
+    def _extract_imported_packages(code: str) -> list[str]:
+        """
+        Extracts the names of packages imported in the given Python code.
+
+        :param code: The Python code as a string.
+        :return: A list of imported package names.
+        """
+        tree = ast.parse(code)
+        imported_packages = set()
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    imported_packages.add(alias.name.split('.')[0])
+            elif isinstance(node, ast.ImportFrom):
+                imported_packages.add(node.module.split('.')[0])
+
+        return list(imported_packages)
 
     def _create_chunk(self, original_chunk: ModelResponse, content: str) -> ModelResponse:
         """
@@ -46,14 +66,9 @@ class CodeCommentStep(OutputPipelineStep):
         obfuscator = SecretsObfuscator()
         obfuscated_code, _ = obfuscator.obfuscate(snippet.code)
 
-        snippet.libraries = await PackageExtractor.extract_packages(
-            content=obfuscated_code,
-            provider=context.sensitive.provider if context.sensitive else None,
-            model=context.sensitive.model if context.sensitive else None,
-            api_key=context.sensitive.api_key if context.sensitive else None,
-            base_url=context.sensitive.api_base if context.sensitive else None,
-            extra_headers=context.metadata.get("extra_headers", None),
-        )
+        # extract imported libs
+        snippet.libraries = CodeCommentStep._extract_imported_packages(obfuscated_code)
+
         # Check if any of the snippet libraries is a bad package
         storage_engine = StorageEngine()
         libobjects = await storage_engine.search_by_property("name", snippet.libraries)

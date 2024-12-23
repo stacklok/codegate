@@ -244,14 +244,16 @@ class PipelineStep(ABC):
         return -1
 
     @staticmethod
-    def get_all_user_messages(request: ChatCompletionRequest) -> str:
-        all_user_messages = ""
+    def get_latest_user_messages(request: ChatCompletionRequest) -> str:
+        latest_user_messages = ""
 
-        for message in request.get("messages", []):
+        for message in reversed(request.get("messages", [])):
             if message["role"] == "user":
-                all_user_messages += "\n" + message["content"]
+                latest_user_messages += "\n" + message["content"]
+            else:
+                break
 
-        return all_user_messages
+        return latest_user_messages
 
     @abstractmethod
     async def process(

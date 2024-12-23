@@ -3,7 +3,6 @@ import json
 import structlog
 from litellm import ChatCompletionRequest
 
-from codegate.llm_utils.extractor import PackageExtractor
 from codegate.pipeline.base import (
     AlertSeverity,
     PipelineContext,
@@ -29,15 +28,6 @@ class CodegateContextRetriever(PipelineStep):
         """
         return "codegate-context-retriever"
 
-    async def get_objects_from_db(
-        self, ecosystem, packages: list[str] = None
-    ) -> list[object]:
-        storage_engine = StorageEngine()
-        objects = await storage_engine.search(
-            distance=0.8, ecosystem=ecosystem, packages=packages
-        )
-        return objects
-
     def generate_context_str(self, objects: list[object], context: PipelineContext) -> str:
         context_str = ""
         for obj in objects:
@@ -58,34 +48,6 @@ class CodegateContextRetriever(PipelineStep):
             context_str += package_str + "\n"
         return context_str
 
-    async def __lookup_packages(self, user_query: str, context: PipelineContext):
-        # Use PackageExtractor to extract packages from the user query
-        packages = await PackageExtractor.extract_packages(
-            content=user_query,
-            provider=context.sensitive.provider,
-            model=context.sensitive.model,
-            api_key=context.sensitive.api_key,
-            base_url=context.sensitive.api_base,
-            extra_headers=context.metadata.get("extra_headers", None),
-        )
-
-        logger.info(f"Packages in user query: {packages}")
-        return packages
-
-    async def __lookup_ecosystem(self, user_query: str, context: PipelineContext):
-        # Use PackageExtractor to extract ecosystem from the user query
-        ecosystem = await PackageExtractor.extract_ecosystem(
-            content=user_query,
-            provider=context.sensitive.provider,
-            model=context.sensitive.model,
-            api_key=context.sensitive.api_key,
-            base_url=context.sensitive.api_base,
-            extra_headers=context.metadata.get("extra_headers", None),
-        )
-
-        logger.info(f"Ecosystem in user query: {ecosystem}")
-        return ecosystem
-
     async def process(
         self, request: ChatCompletionRequest, context: PipelineContext
     ) -> PipelineResult:
@@ -93,33 +55,31 @@ class CodegateContextRetriever(PipelineStep):
         Use RAG DB to add context to the user request
         """
 
-        # Get all user messages
-        user_messages = self.get_all_user_messages(request)
+        # Get the latest user messages
+        user_messages = self.get_latest_user_messages(request)
 
         # Nothing to do if the user_messages string is empty
         if len(user_messages) == 0:
             return PipelineResult(request=request)
 
-        # Extract packages from the user message
-        ecosystem = await self.__lookup_ecosystem(user_messages, context)
-        packages = await self.__lookup_packages(user_messages, context)
-
         context_str = "CodeGate did not find any malicious or archived packages."
 
-        if len(packages) > 0:
-            # Look for matches in DB using packages and ecosystem
-            searched_objects = await self.get_objects_from_db(ecosystem, packages)
+        # Vector search to find bad packages
+        storage_engine = StorageEngine()
+        searched_objects = await storage_engine.search(
+            query=user_messages, distance=0.8, limit=100
+        )
 
-            logger.info(
-                f"Found {len(searched_objects)} matches in the database",
-                searched_objects=searched_objects,
-            )
+        logger.info(
+            f"Found {len(searched_objects)} matches in the database",
+            searched_objects=searched_objects,
+        )
 
-            # Generate context string using the searched objects
-            logger.info(f"Adding {len(searched_objects)} packages to the context")
+        # Generate context string using the searched objects
+        logger.info(f"Adding {len(searched_objects)} packages to the context")
 
-            if len(searched_objects) > 0:
-                context_str = self.generate_context_str(searched_objects, context)
+        if len(searched_objects) > 0:
+            context_str = self.generate_context_str(searched_objects, context)
 
         last_user_idx = self.get_last_user_message_idx(request)
 
