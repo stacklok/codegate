@@ -1372,13 +1372,13 @@ referencing = ">=0.31.0"
 
 [[package]]
 name = "litellm"
-version = "1.55.6"
+version = "1.55.10"
 description = "Library to easily interface with LLM API providers"
 optional = false
 python-versions = "!=2.7.*,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,!=3.7.*,>=3.8"
 files = [
-    {file = "litellm-1.55.6-py3-none-any.whl", hash = "sha256:9987d275fe92096daed2a50cb7fcfb6a937bbab3934c03cf20c432dd1dff82f0"},
-    {file = "litellm-1.55.6.tar.gz", hash = "sha256:8a2dfee6b432ac51d2e824f21d4fe55cd60015639ff233d7018dfadc6f093cfa"},
+    {file = "litellm-1.55.10-py3-none-any.whl", hash = "sha256:ed5c940105c1953dccb42d376f62de0a417b670f57752e76d6138bba1fba769a"},
+    {file = "litellm-1.55.10.tar.gz", hash = "sha256:e346f89244d4c9dd79524ab4b6e5fff3ada8488a25382a299aeb9dc6d535fa15"},
 ]
 
 [package.dependencies]
@@ -1391,7 +1391,6 @@ jsonschema = ">=4.22.0,<5.0.0"
 openai = ">=1.55.3"
 pydantic = ">=2.0.0,<3.0.0"
 python-dotenv = ">=0.2.0"
-requests = ">=2.31.0,<3.0.0"
 tiktoken = ">=0.7.0"
 tokenizers = "*"
 
@@ -3134,4 +3133,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<4.0"
-content-hash = "aae85414c141e4416825dd58988cdff5088526081d6ff5ba641b7bb1fd620a71"
+content-hash = "96115bffb1e7cf6c8bd6d7e29fd41d3b75c99ab6053854e388b10604d324682b"
