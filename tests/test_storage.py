@@ -12,16 +12,15 @@ from codegate.storage.storage_engine import (
 def mock_weaviate_client():
     client = MagicMock()
     response = MagicMock()
-    response.objects = [
-        {
-            "properties": {
+    obj = MagicMock()
+    obj.properties = {
                 "name": "test",
                 "type": "library",
                 "status": "active",
                 "description": "test description",
-            }
-        }
-    ]
+    }
+
+    response.objects = [obj]
     client.collections.get.return_value.query.near_vector.return_value = response
     return client
 
@@ -56,5 +55,5 @@ async def test_search(mock_weaviate_client, mock_inference_engine):
 
             # Assertions to validate the expected behavior
             assert len(results) == 1  # Assert that one result is returned
-            assert results[0]["properties"]["name"] == "test"
+            assert results[0].properties["name"] == "test"
             mock_weaviate_client.connect.assert_called()

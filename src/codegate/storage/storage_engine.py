@@ -1,10 +1,11 @@
+import re
 from typing import List
 
 import structlog
 import weaviate
 import weaviate.classes as wvc
 from weaviate.classes.config import DataType
-from weaviate.classes.query import Filter, MetadataQuery
+from weaviate.classes.query import Filter, MetadataQuery, Sort
 from weaviate.embedded import EmbeddedOptions
 
 from codegate.config import Config
@@ -148,7 +149,7 @@ class StorageEngine:
         query: str = None,
         ecosystem: str = None,
         packages: List[str] = None,
-        limit: int = 5,
+        limit: int = 50,
         distance: float = 0.3,
     ) -> list[object]:
         """
@@ -175,10 +176,12 @@ class StorageEngine:
             response = None
             if packages and ecosystem and ecosystem in VALID_ECOSYSTEMS:
                 response = collection.query.fetch_objects(
-                    filters=wvc.query.Filter.all_of([
-                        wvc.query.Filter.by_property("name").contains_any(packages),
-                        wvc.query.Filter.by_property("type").equal(ecosystem)
-                    ]),
+                    filters=wvc.query.Filter.all_of(
+                        [
+                            wvc.query.Filter.by_property("name").contains_any(packages),
+                            wvc.query.Filter.by_property("type").equal(ecosystem),
+                        ]
+                    ),
                 )
                 response.objects = [
                     obj
@@ -188,26 +191,34 @@ class StorageEngine:
                 ]
             elif packages and not ecosystem:
                 response = collection.query.fetch_objects(
-                    filters=wvc.query.Filter.all_of([
-                        wvc.query.Filter.by_property("name").contains_any(packages),
-                    ]),
+                    filters=wvc.query.Filter.all_of(
+                        [
+                            wvc.query.Filter.by_property("name").contains_any(packages),
+                        ]
+                    ),
                 )
                 response.objects = [
-                    obj
-                    for obj in response.objects
-                    if obj.properties["name"].lower() in packages
+                    obj for obj in response.objects if obj.properties["name"].lower() in packages
                 ]
             elif query:
-                # Perform the vector search
                 # Generate the vector for the query
                 query_vector = await self.inference_engine.embed(self.model_path, [query])
 
+                # Perform the vector search
                 response = collection.query.near_vector(
                     query_vector[0],
                     limit=limit,
                     distance=distance,
                     return_metadata=MetadataQuery(distance=True),
                 )
+
+                # Only keep the objects that are explicitly in the query
+                response.objects = [
+                    obj
+                    for obj in response.objects
+                    if obj.properties["name"].lower()
+                    in re.sub(r"[^a-zA-Z0-9]", " ", query.lower()).split()
+                ]
 
             if not response:
                 return []
