@@ -40,9 +40,14 @@ class AnthropicProvider(BaseProvider):
         Sets up the /messages route for the provider as expected by the Anthropic
         API. Extracts the API key from the "x-api-key" header and passes it to the
         completion handler.
+
+        There are two routes:
+        - /messages: This is the route that is used by the Anthropic API with Continue.dev
+        - /v1/messages: This is the route that is used by the Anthropic API with Cline
         """
 
         @self.router.post(f"/{self.provider_route_name}/messages")
+        @self.router.post(f"/{self.provider_route_name}/v1/messages")
         async def create_message(
             request: Request,
             x_api_key: str = Header(None),

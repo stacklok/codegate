@@ -68,9 +68,7 @@ class CodegateContextRetriever(PipelineStep):
 
         # Vector search to find bad packages
         storage_engine = StorageEngine()
-        searched_objects = await storage_engine.search(
-            query=user_messages, distance=0.8, limit=100
-        )
+        searched_objects = await storage_engine.search(query=user_messages, distance=0.8, limit=100)
 
         logger.info(
             f"Found {len(searched_objects)} matches in the database",
