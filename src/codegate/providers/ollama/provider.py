@@ -69,12 +69,42 @@ class OllamaProvider(BaseProvider):
                 )
                 return response.json()
 
+        @self.router.get(f"/{self.provider_route_name}/api/tags")
+        async def get_tags(request: Request):
+            """
+            Special route for /api/tags that responds outside of the pipeline
+            Tags are used to get the list of models
+            https://github.com/ollama/ollama/blob/main/docs/api.md#list-local-models
+            """
+            async with httpx.AsyncClient() as client:
+                response = await client.get(f"{self.base_url}/api/tags")
+                return response.json()
+
+        @self.router.post(f"/{self.provider_route_name}/api/show")
+        async def show_model(request: Request):
+            """
+            route for /api/show that responds outside of the pipeline
+            /api/show displays model is used to get the model information
+            https://github.com/ollama/ollama/blob/main/docs/api.md#show-model-information
+            """
+            body = await request.body()
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{self.base_url}/api/show",
+                    content=body,
+                    headers={"Content-Type": "application/json"},
+                )
+                return response.json()
+
         # Native Ollama API routes
         @self.router.post(f"/{self.provider_route_name}/api/chat")
         @self.router.post(f"/{self.provider_route_name}/api/generate")
         # OpenAI-compatible routes for backward compatibility
         @self.router.post(f"/{self.provider_route_name}/chat/completions")
         @self.router.post(f"/{self.provider_route_name}/completions")
+        # Cline API routes
+        @self.router.post(f"/{self.provider_route_name}/v1/chat/completions")
+        @self.router.post(f"/{self.provider_route_name}/v1/generate")
         async def create_completion(request: Request):
             body = await request.body()
             data = json.loads(body)
@@ -90,7 +120,7 @@ class OllamaProvider(BaseProvider):
                 logger.error("Error in OllamaProvider completion", error=str(e))
                 raise HTTPException(status_code=503, detail="Ollama service is unavailable")
             except Exception as e:
-                #  check if we have an status code there
+                #  check if we have an status code there
                 if hasattr(e, "status_code"):
                     # log the exception
                     logger = structlog.get_logger("codegate")

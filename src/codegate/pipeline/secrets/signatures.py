@@ -2,7 +2,7 @@
 import re
 from pathlib import Path
 from threading import Lock
-from typing import ClassVar, Dict, List, NamedTuple, Optional
+from typing import ClassVar, Dict, List, NamedTuple, Optional, Union
 
 import structlog
 import yaml
@@ -215,16 +215,26 @@ class CodegateSignatures:
             raise
 
     @classmethod
-    def find_in_string(cls, text: str) -> List[Match]:
-        """Search for secrets in the provided string."""
+    def find_in_string(cls, text: Union[str, List[str]]) -> List[Match]:
+        """Search for secrets in the provided string or list of strings."""
         if not text:
             return []
 
         if not cls._yaml_path:
             raise RuntimeError("SecretFinder not initialized.")
 
+        # Convert list to string if necessary (needed for Cline, which sends a list of strings)
+        if isinstance(text, list):
+            text = "\n".join(str(line) for line in text)
+
         matches = []
-        lines = text.splitlines()
+
+        # Split text into lines for processing
+        try:
+            lines = text.splitlines()
+        except Exception as e:
+            logger.warning(f"Error splitting text into lines: {e}")
+            return []
 
         for line_num, line in enumerate(lines, start=1):
             for group in cls._signature_groups:
