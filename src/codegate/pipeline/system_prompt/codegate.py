@@ -51,12 +51,20 @@ class SystemPrompt(PipelineStep):
             # Add system message
             context.add_alert(self.name, trigger_string=json.dumps(self._system_message))
             new_request["messages"].insert(0, self._system_message)
-        elif "codegate" not in request_system_message["content"].lower():
+        # Addded Logic for Cline, which sends a list of strings
+        elif (
+            "content" not in request_system_message
+            or not isinstance(request_system_message["content"], str)
+            or "codegate" not in request_system_message["content"].lower()
+        ):
             # Prepend to the system message
+            original_content = request_system_message.get("content", "")
+            if not isinstance(original_content, str):
+                original_content = json.dumps(original_content)
             prepended_message = (
                 self._system_message["content"]
                 + "\n Here are additional instructions. \n "
-                + request_system_message["content"]
+                + original_content
             )
             context.add_alert(self.name, trigger_string=prepended_message)
             request_system_message["content"] = prepended_message
