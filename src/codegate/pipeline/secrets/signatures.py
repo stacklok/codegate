@@ -223,10 +223,6 @@ class CodegateSignatures:
         if not cls._yaml_path:
             raise RuntimeError("SecretFinder not initialized.")
 
-        # Convert list to string if necessary (needed for Cline, which sends a list of strings)
-        if isinstance(text, list):
-            text = "\n".join(str(line) for line in text)
-
         matches = []
 
         # Split text into lines for processing
