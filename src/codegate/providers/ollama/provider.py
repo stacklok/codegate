@@ -69,33 +69,6 @@ class OllamaProvider(BaseProvider):
                 )
                 return response.json()
 
-        @self.router.get(f"/{self.provider_route_name}/api/tags")
-        async def get_tags(request: Request):
-            """
-            Special route for /api/tags that responds outside of the pipeline
-            Tags are used to get the list of models
-            https://github.com/ollama/ollama/blob/main/docs/api.md#list-local-models
-            """
-            async with httpx.AsyncClient() as client:
-                response = await client.get(f"{self.base_url}/api/tags")
-                return response.json()
-
-        @self.router.post(f"/{self.provider_route_name}/api/show")
-        async def show_model(request: Request):
-            """
-            route for /api/show that responds outside of the pipeline
-            /api/show displays model is used to get the model information
-            https://github.com/ollama/ollama/blob/main/docs/api.md#show-model-information
-            """
-            body = await request.body()
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{self.base_url}/api/show",
-                    content=body,
-                    headers={"Content-Type": "application/json"},
-                )
-                return response.json()
-
         # Native Ollama API routes
         @self.router.post(f"/{self.provider_route_name}/api/chat")
         @self.router.post(f"/{self.provider_route_name}/api/generate")
@@ -114,6 +87,7 @@ class OllamaProvider(BaseProvider):
 
             is_fim_request = self._is_fim_request(request, data)
             try:
+                print("i create completion with data", data)
                 stream = await self.complete(data, api_key=None, is_fim_request=is_fim_request)
             except httpx.ConnectError as e:
                 logger = structlog.get_logger("codegate")
@@ -129,4 +103,6 @@ class OllamaProvider(BaseProvider):
                 else:
                     # just continue raising the exception
                     raise e
+            print("result is")
+            print(self._completion_handler.create_response(stream))
             return self._completion_handler.create_response(stream)
