@@ -8,3 +8,4 @@
 {"name":"malicious-go-dummy","type":"go","description":"Dummy malicious to test with simple package name on go"}
 {"name":"@prefix/malicious-crates-dummy","type":"crates","description":"Dummy malicious to test with encoded package name on crates"}
 {"name":"malicious-crates-dummy","type":"crates","description":"Dummy malicious to test with simple package name on crates"}
+{"name":"invokehttp","type":"pypi","description":"Invokehttp is a malicious package"}
