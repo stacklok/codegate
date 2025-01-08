@@ -1,4 +1,6 @@
-from typing import List
+from dataclasses import dataclass
+from enum import Enum
+from typing import List, Optional
 
 from pydantic import BaseModel, HttpUrl
 from pydantic_settings import BaseSettings
@@ -42,4 +44,27 @@ mappings = CoPilotMappings()
 # Convert routes to validated ProxyRoute objects
 VALIDATED_ROUTES: List[CopilotProxyRoute] = [
     CopilotProxyRoute(path=path, target=target) for path, target in mappings.PROXY_ROUTES
+]
+
+
+class PipelineType(Enum):
+    FIM = "fim"
+    CHAT = "chat"
+
+
+@dataclass
+class PipelineRoute:
+    path: str
+    pipeline_type: PipelineType
+    target_url: Optional[str] = None
+
+
+PIPELINE_ROUTES = [
+    PipelineRoute(
+        path="v1/chat/completions",
+        # target_url="https://api.openai.com/v1/chat/completions",
+        pipeline_type=PipelineType.CHAT,
+    ),
+    PipelineRoute(path="v1/engines/copilot-codex/completions", pipeline_type=PipelineType.FIM),
+    PipelineRoute(path="chat/completions", pipeline_type=PipelineType.CHAT),
 ]

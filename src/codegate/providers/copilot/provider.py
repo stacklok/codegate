@@ -15,7 +15,7 @@ from codegate.pipeline.base import PipelineContext
 from codegate.pipeline.factory import PipelineFactory
 from codegate.pipeline.output import OutputPipelineInstance
 from codegate.pipeline.secrets.manager import SecretsManager
-from codegate.providers.copilot.mapping import VALIDATED_ROUTES
+from codegate.providers.copilot.mapping import PIPELINE_ROUTES, VALIDATED_ROUTES, PipelineType
 from codegate.providers.copilot.pipeline import (
     CopilotChatPipeline,
     CopilotFimPipeline,
@@ -153,12 +153,18 @@ class CopilotProvider(asyncio.Protocol):
         self.context_tracking: Optional[PipelineContext] = None
 
     def _select_pipeline(self, method: str, path: str) -> Optional[CopilotPipeline]:
-        if method == "POST" and path == "v1/engines/copilot-codex/completions":
-            logger.debug("Selected CopilotFimStrategy")
-            return CopilotFimPipeline(self.pipeline_factory)
-        if method == "POST" and path == "chat/completions":
-            logger.debug("Selected CopilotChatStrategy")
-            return CopilotChatPipeline(self.pipeline_factory)
+        if method != "POST":
+            logger.debug("Not a POST request, no pipeline selected")
+            return None
+
+        for route in PIPELINE_ROUTES:
+            if path == route.path:
+                if route.pipeline_type == PipelineType.FIM:
+                    logger.debug("Selected FIM pipeline")
+                    return CopilotFimPipeline(self.pipeline_factory)
+                elif route.pipeline_type == PipelineType.CHAT:
+                    logger.debug("Selected CHAT pipeline")
+                    return CopilotChatPipeline(self.pipeline_factory)
 
         logger.debug("No pipeline selected")
         return None
