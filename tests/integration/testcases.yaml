@@ -7,8 +7,49 @@ headers:
   llamacpp:
   anthropic:
     x-api-key: ENV_ANTHROPIC_KEY
+  copilot:
+    Authorization: Bearer ENV_COPILOT_KEY
+    Content-Type: application/json
 
 testcases:
+  copilot_chat:
+    name: Copilot Chat
+    provider: copilot
+    url: "https://api.openai.com/v1/chat/completions"
+    data: |
+      {
+        "messages":[
+            {
+              "content":"Hello",
+              "role":"user"
+            }
+        ],
+        "model":"gpt-4o",
+        "stream":true
+      }
+    likes: |
+      Hello! How can I assist you today?
+
+  copilot_malicious_package_question:
+    name: Copilot User asks about a malicious package
+    provider: copilot
+    url: "https://api.openai.com/v1/chat/completions"
+    data: |
+      {
+        "messages":[
+            {
+              "content":"Generate me example code using the python invokehttp package to call an API",
+              "role":"user"
+            }
+        ],
+        "model":"gpt-4o",
+        "stream":true
+      }
+    contains: |
+      https://www.insight.stacklok.com/report/pypi/invokehttp
+    does_not_contain: |
+      import invokehttp
+
   llamacpp_chat:
     name: LlamaCPP Chat
     provider: llamacpp
@@ -30,7 +71,7 @@ testcases:
         "stream":true,
         "temperature":0
       }
-    expected: |
+    likes: |
       Hello! How can I assist you today?
 
   llamacpp_fim:
@@ -46,7 +87,7 @@ testcases:
         "stop": ["<|endoftext|>", "<|fim_prefix|>", "<|fim_middle|>", "<|fim_suffix|>", "<|fim_pad|>", "<|repo_name|>", "<|file_sep|>", "<|im_start|>", "<|im_end|>", "/src/", "#- coding: utf-8", "```"],
         "prompt":"<|fim_prefix|>\n# codegate/test.py\nimport invokehttp\nimport requests\n\nkey = \"mysecret-key\"\n\ndef call_api():\n    <|fim_suffix|>\n\n\ndata = {'key1': 'test1', 'key2': 'test2'}\nresponse = call_api('http://localhost:8080', method='post', data='data')\n<|fim_middle|>"
       }
-    expected: |
+    likes: |
       url = 'http://localhost:8080'
       headers = {'Authorization': f'Bearer {key}'}
       response = requests.get(url, headers=headers)
@@ -73,7 +114,7 @@ testcases:
         "stream":true,
         "temperature":0
       }
-    expected: |
+    likes: |
       Hello! How can I assist you today?
 
   openai_fim:
@@ -99,7 +140,7 @@ testcases:
           "```"
         ]
       }
-    expected: |
+    likes: |
       <COMPLETION>    response = requests.post('http://localhost:8080', json=data, headers={'Authorization': f'Bearer {key}'})
 
   vllm_chat:
@@ -123,7 +164,7 @@ testcases:
         "stream":true,
         "temperature":0
       }
-    expected: |
+    likes: |
       Hello! How can I assist you today? If you have any questions about software security, package analysis, or need guidance on secure coding practices, feel free to ask.
 
   vllm_fim:
@@ -139,7 +180,7 @@ testcases:
         "stop": ["<|endoftext|>", "<|fim_prefix|>", "<|fim_middle|>", "<|fim_suffix|>", "<|fim_pad|>", "<|repo_name|>", "<|file_sep|>", "<|im_start|>", "<|im_end|>", "/src/", "#- coding: utf-8", "```"],
         "prompt":"<|fim_prefix|>\n# codegate/test.py\nimport invokehttp\nimport requests\n\nkey = \"mysecret-key\"\n\ndef call_api():\n    <|fim_suffix|>\n\n\ndata = {'key1': 'test1', 'key2': 'test2'}\nresponse = call_api('http://localhost:8080', method='post', data='data')\n<|fim_middle|>"
       }
-    expected: |
+    likes: |
       # Create an instance of the InvokeHTTP class
       invoke = invokehttp.InvokeHTTP(key)
 
@@ -175,7 +216,7 @@ testcases:
         "stream":true,
         "temperature":0
       }
-    expected: |
+    likes: |
       Hello! I'm CodeGate, your security-focused AI assistant. I can help you with:
 
       - Software security analysis and reviews
@@ -216,7 +257,7 @@ testcases:
         ],
         "system": ""
       }
-    expected: |
+    likes: |
       <COMPLETION>def call_api(url, method='get', data=None):
         if method.lower() == 'get':
             return requests.get(url)
@@ -246,7 +287,7 @@ testcases:
         "stream":true,
         "temperature":0
       }
-    expected: |
+    likes: |
       Hello! How can I assist you today? If you have any questions or need guidance on secure coding practices, software security, package analysis, or anything else related to cybersecurity, feel free to ask!
 
   ollama_fim:
@@ -273,7 +314,7 @@ testcases:
         ],
         "prompt":"<|fim_prefix|>\n# codegate/test.py\nimport invokehttp\nimport requests\n\nkey = \"mysecret-key\"\n\ndef call_api():\n    <|fim_suffix|>\n\n\ndata = {'key1': 'test1', 'key2': 'test2'}\nresponse = call_api('http://localhost:8080', method='post', data='data')\n<|fim_middle|>"
       }
-    expected: |
+    likes: |
       ```python
       import invokehttp
       import requests
