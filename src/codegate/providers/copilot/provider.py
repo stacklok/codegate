@@ -356,8 +356,82 @@ class CopilotProvider(asyncio.Protocol):
                     pipeline_output = pipeline_output.reconstruct()
                 self.target_transport.write(pipeline_output)
 
+    def _has_complete_body(self) -> bool:
+        """
+        Check if we have received the complete request body based on Content-Length header.
+
+        We check the headers from the buffer instead of using self.request.headers on purpose
+        because with CONNECT requests, the whole request arrives in the data and is stored in
+        the buffer.
+        """
+        try:
+            # For the initial CONNECT request
+            if not self.headers_parsed and self.request and self.request.method == "CONNECT":
+                return True
+
+            # For subsequent requests or non-CONNECT requests, parse the method from the buffer
+            try:
+                first_line = self.buffer[: self.buffer.index(b"\r\n")].decode("utf-8")
+                method = first_line.split()[0]
+            except (ValueError, IndexError):
+                # Haven't received the complete request line yet
+                return False
+
+            if method != "POST":  # do we need to check for other methods? PUT?
+                return True
+
+            # Parse headers from the buffer instead of using self.request.headers
+            headers_dict = {}
+            try:
+                headers_end = self.buffer.index(b"\r\n\r\n")
+                if headers_end <= 0:  # Ensure we have a valid headers section
+                    return False
+
+                headers = self.buffer[:headers_end].split(b"\r\n")
+                if len(headers) <= 1:  # Ensure we have headers after the request line
+                    return False
+
+                for header in headers[1:]:  # Skip the request line
+                    if not header:  # Skip empty lines
+                        continue
+                    try:
+                        name, value = header.decode("utf-8").split(":", 1)
+                        headers_dict[name.strip().lower()] = value.strip()
+                    except ValueError:
+                        # Skip malformed headers
+                        continue
+            except ValueError:
+                # Haven't received the complete headers yet
+                return False
+
+            # TODO: Add proper support for chunked transfer encoding
+            # For now, just pass through and let the pipeline handle it
+            if "transfer-encoding" in headers_dict:
+                return True
+
+            try:
+                content_length = int(headers_dict.get("content-length"))
+            except (ValueError, TypeError):
+                # Content-Length header is required for POST requests without chunked encoding
+                logger.error("Missing or invalid Content-Length header in POST request")
+                return False
+
+            body_start = headers_end + 4  # Add safety check for buffer length
+            if body_start >= len(self.buffer):
+                return False
+
+            current_body_length = len(self.buffer) - body_start
+            return current_body_length >= content_length
+        except Exception as e:
+            logger.error(f"Error checking body completion: {e}")
+            return False
+
     def data_received(self, data: bytes) -> None:
-        """Handle received data from client"""
+        """
+        Handle received data from client. Since we need to process the complete body
+        through our pipeline before forwarding, we accumulate the entire request first.
+        """
+        logger.info(f"Received data from {self.peername}: {data}")
         try:
             if not self._check_buffer_size(data):
                 self.send_error_response(413, b"Request body too large")
@@ -370,10 +444,17 @@ class CopilotProvider(asyncio.Protocol):
                 if self.headers_parsed:
                     if self.request.method == "CONNECT":
                         self.handle_connect()
+                        self.buffer.clear()
                     else:
+                        # Only process the request once we have the complete body
                         asyncio.create_task(self.handle_http_request())
             else:
-                asyncio.create_task(self._forward_data_to_target(data))
+                if self._has_complete_body():
+                    # Process the complete request through the pipeline
+                    complete_request = bytes(self.buffer)
+                    logger.debug(f"Complete request: {complete_request}")
+                    self.buffer.clear()
+                    asyncio.create_task(self._forward_data_to_target(complete_request))
 
         except Exception as e:
             logger.error(f"Error processing received data: {e}")
