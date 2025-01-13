@@ -1,5 +1,6 @@
 import json
 
+import httpx
 import structlog
 from fastapi import Header, HTTPException, Request
 
@@ -35,6 +36,7 @@ class OpenAIProvider(BaseProvider):
 
         @self.router.post(f"/{self.provider_route_name}/chat/completions")
         @self.router.post(f"/{self.provider_route_name}/completions")
+        @self.router.post(f"/{self.provider_route_name}/v1/chat/completions")
         async def create_completion(
             request: Request,
             authorization: str = Header(..., description="Bearer token"),
@@ -45,7 +47,6 @@ class OpenAIProvider(BaseProvider):
             api_key = authorization.split(" ")[1]
             body = await request.body()
             data = json.loads(body)
-
             is_fim_request = self._is_fim_request(request, data)
             try:
                 stream = await self.complete(data, api_key, is_fim_request=is_fim_request)
