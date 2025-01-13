@@ -87,7 +87,6 @@ class OllamaProvider(BaseProvider):
 
             is_fim_request = self._is_fim_request(request, data)
             try:
-                print("i create completion with data", data)
                 stream = await self.complete(data, api_key=None, is_fim_request=is_fim_request)
             except httpx.ConnectError as e:
                 logger = structlog.get_logger("codegate")
@@ -103,6 +102,4 @@ class OllamaProvider(BaseProvider):
                 else:
                     # just continue raising the exception
                     raise e
-            print("result is")
-            print(self._completion_handler.create_response(stream))
             return self._completion_handler.create_response(stream)

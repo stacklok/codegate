@@ -18,6 +18,7 @@ async def ollama_stream_generator(
     try:
         async for chunk in stream:
             try:
+                yield f"{chunk.model_dump_json()}\n\n"
                 # TODO We should wire in the client info so we can respond with
                 # the correct format and start to handle multiple clients
                 # in a more robust way.
