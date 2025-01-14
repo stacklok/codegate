@@ -21,7 +21,7 @@ restore_backup() {
     fi
 }
 
-genrerate_certs() {
+generate_certs() {
     echo "Generating certificates..."
     python -m src.codegate.cli generate-certs --certs-out-dir "$CODEGATE_CERTS"
 }
@@ -61,7 +61,7 @@ echo "Initializing entrypoint script..."
 restore_backup
 
 # Step 2: Generate certificates
-genrerate_certs
+generate_certs
 
 # Step 3: Start the dashboard
 start_dashboard

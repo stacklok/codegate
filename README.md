@@ -67,7 +67,7 @@ With Continue, you can choose from several leading AI model providers:
 
 🔮 Many more on the way!
 
-- **[Aider](https://aider.chat)
+- **[Aider](https://aider.chat)**
 
 With Aider, you can choose from two leading AI model providers:
 
