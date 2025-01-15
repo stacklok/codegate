@@ -43,6 +43,7 @@ class Workspace(pydantic.BaseModel):
     name: str
     is_active: bool = False
 
+
 # Models for select queries
 
 
