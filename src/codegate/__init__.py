@@ -2,6 +2,7 @@
 
 import logging as python_logging
 from importlib import metadata
+import pkg_resources
 
 from codegate.codegate_logging import LogFormat, LogLevel, setup_logging
 from codegate.config import Config
@@ -14,7 +15,8 @@ except metadata.PackageNotFoundError:  # pragma: no cover
     __version__ = "unknown"
     __description__ = "codegate"
 
-__version__ = "0.1.7"
+# Get version from package metadata
+__version__ = pkg_resources.get_distribution("codegate").version
 __description__ = "A configurable service gateway"
 
 __all__ = ["Config", "ConfigurationError", "LogFormat", "LogLevel", "setup_logging"]
