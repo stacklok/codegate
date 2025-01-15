@@ -26,6 +26,7 @@ class Prompt(pydantic.BaseModel):
     provider: Optional[Any]
     request: Any
     type: Any
+    workspace_id: Optional[Any]
 
 
 class Setting(pydantic.BaseModel):
@@ -36,6 +37,11 @@ class Setting(pydantic.BaseModel):
     system_prompt: Optional[Any]
     other_settings: Optional[Any]
 
+
+class Workspace(pydantic.BaseModel):
+    id: Any
+    name: str
+    is_active: bool = False
 
 # Models for select queries
 

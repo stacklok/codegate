@@ -18,6 +18,7 @@ from codegate.db.models import (
     GetPromptWithOutputsRow,
     Output,
     Prompt,
+    Workspace,
 )
 from codegate.pipeline.base import PipelineContext
 
@@ -285,6 +286,18 @@ class DbReader(DbCodeGate):
         )
         prompts = await self._execute_select_pydantic_model(GetAlertsWithPromptAndOutputRow, sql)
         return prompts
+
+    async def get_workspaces(self) -> List[Workspace]:
+        sql = text(
+            """
+            SELECT
+                id, name, is_active
+            FROM workspaces
+            ORDER BY is_active DESC
+            """
+        )
+        workspaces = await self._execute_select_pydantic_model(Workspace, sql)
+        return workspaces
 
 
 def init_db_sync(db_path: Optional[str] = None):

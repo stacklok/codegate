@@ -14,6 +14,7 @@ from codegate.pipeline.secrets.secrets import (
 )
 from codegate.pipeline.system_prompt.codegate import SystemPrompt
 from codegate.pipeline.version.version import CodegateVersion
+from codegate.pipeline.workspace.workspace import CodegateWorkspace
 
 
 class PipelineFactory:
@@ -28,6 +29,7 @@ class PipelineFactory:
             # later steps
             CodegateSecrets(),
             CodegateVersion(),
+            CodegateWorkspace(),
             CodeSnippetExtractor(),
             CodegateContextRetriever(),
             SystemPrompt(Config.get_config().prompts.default_chat),
