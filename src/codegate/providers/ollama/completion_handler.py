@@ -1,3 +1,4 @@
+import json
 from typing import AsyncIterator, Optional, Union
 
 import structlog
@@ -11,18 +12,21 @@ logger = structlog.get_logger("codegate")
 
 
 async def ollama_stream_generator(
-    stream: AsyncIterator[ChatResponse],
+    stream: AsyncIterator[ChatResponse]
 ) -> AsyncIterator[str]:
     """OpenAI-style SSE format"""
     try:
         async for chunk in stream:
-            print(chunk)
             try:
-                yield f"{chunk.model_dump_json()}\n\n"
+                content = chunk.model_dump_json()
+                if content:
+                    yield f"{chunk.model_dump_json()}\n"
             except Exception as e:
-                yield f"{str(e)}\n\n"
+                if str(e):
+                    yield f"{str(e)}\n"
     except Exception as e:
-        yield f"{str(e)}\n\n"
+        if str(e):
+            yield f"{str(e)}\n"
 
 
 class OllamaShim(BaseCompletionHandler):
@@ -39,17 +43,17 @@ class OllamaShim(BaseCompletionHandler):
     ) -> Union[ChatResponse, GenerateResponse]:
         """Stream response directly from Ollama API."""
         if is_fim_request:
-            prompt = request["messages"][0]["content"]
+            prompt = request["messages"][0].get("content", "")
             response = await self.client.generate(
-                model=request["model"], prompt=prompt, stream=stream, options=request["options"]
+                model=request["model"], prompt=prompt, stream=stream, options=request["options"]  # type: ignore
             )
         else:
             response = await self.client.chat(
                 model=request["model"],
                 messages=request["messages"],
-                stream=stream,
-                options=request["options"],
-            )
+                stream=stream,  # type: ignore
+                options=request["options"],  # type: ignore
+            )  # type: ignore
         return response
 
     def _create_streaming_response(self, stream: AsyncIterator[ChatResponse]) -> StreamingResponse:
