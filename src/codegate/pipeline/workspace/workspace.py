@@ -23,12 +23,11 @@ class WorkspaceCommands:
         List all workspaces
         """
         workspaces = await self._db_recorder.get_workspaces()
-        print(workspaces)
         respond_str = ""
         for workspace in workspaces:
-            respond_str += f"{workspace.id} - {workspace.name}"
+            respond_str += f"- {workspace.name}"
             if workspace.is_active:
-                respond_str += " (active)"
+                respond_str += " **(active)**"
             respond_str += "\n"
         return respond_str
 
@@ -52,7 +51,7 @@ class WorkspaceCommands:
         Args:
             last_user_message (str): The last user message
         """
-        command_and_args = last_user_message.split("codegate-workspace ")[1]
+        command_and_args = last_user_message.lower().split("codegate-workspace ")[1]
         command, *args = command_and_args.split(" ")
         return await self.execute(command, *args)
 

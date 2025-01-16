@@ -24,7 +24,8 @@ def upgrade() -> None:
         CREATE TABLE workspaces (
             id TEXT PRIMARY KEY,  -- UUID stored as TEXT
             name TEXT NOT NULL,
-            is_active BOOLEAN NOT NULL DEFAULT 0
+            is_active BOOLEAN NOT NULL DEFAULT 0,
+            UNIQUE (name)
         );
         """
     )
@@ -37,4 +38,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    pass
+    # Drop the index for workspace_id
+    op.execute("DROP INDEX IF EXISTS idx_prompts_workspace_id;")
+    # Remove the workspace_id column from prompts table
+    op.execute("ALTER TABLE prompts DROP COLUMN workspace_id;")
+    # Drop the workspaces table
+    op.execute("DROP TABLE IF EXISTS workspaces;")
