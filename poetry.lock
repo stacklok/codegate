@@ -1241,12 +1241,12 @@ proxy = ["PyJWT (>=2.8.0,<3.0.0)", "apscheduler (>=3.10.4,<4.0.0)", "backoff", "
 
 [[package]]
 name = "llama-cpp-python"
-version = "0.3.6"
+version = "0.3.5"
 description = "Python bindings for the llama.cpp library"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "llama_cpp_python-0.3.6.tar.gz", hash = "sha256:86e35a8888274466958e24201b856cd71c8def0ea72e14312be13da96c15c7a4"},
+    {file = "llama_cpp_python-0.3.5.tar.gz", hash = "sha256:f5ce47499d53d3973e28ca5bdaf2dfe820163fa3fb67e3050f98e2e9b58d2cf6"},
 ]
 
 [package.dependencies]
@@ -3094,4 +3094,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.12,<4.0"
-content-hash = "cfc4a4a6768c0fc2dfe628317ee1ab95da3a21e02bd5180b3fc0381aa8fab2ab"
+content-hash = "e843018c33a2e3e4b1e8b2a5dab98db41b19fd783ca6618ec44fe58b0d7b8849"

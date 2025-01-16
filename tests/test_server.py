@@ -81,6 +81,21 @@ def test_health_check(test_client: TestClient) -> None:
     assert response.status_code == 200
     assert response.json() == {"status": "healthy"}
 
+def test_version_endpoint(test_client: TestClient) -> None:
+    """Test the version endpoint."""
+    response = test_client.get("/version")
+    assert response.status_code == 200
+
+    response_data = response.json()
+    assert "current_version" in response_data
+    assert isinstance(response_data["current_version"], str)
+
+    assert "latest_version" in response_data
+    assert isinstance(response_data["latest_version"], str)
+
+    assert "is_latest" in response_data
+    assert isinstance(response_data["is_latest"], bool)
+
 
 @patch("codegate.pipeline.secrets.manager.SecretsManager")
 @patch("codegate.server.ProviderRegistry")
