@@ -7,7 +7,7 @@ from typing import List, Optional, Type
 import structlog
 from alembic import command as alembic_command
 from alembic.config import Config as AlembicConfig
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from sqlalchemy import CursorResult, TextClause, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -233,7 +233,12 @@ class DbRecorder(DbCodeGate):
             logger.error(f"Failed to record context: {context}.", error=str(e))
 
     async def add_workspace(self, workspace_name: str) -> Optional[Workspace]:
-        workspace = Workspace(id=str(uuid.uuid4()), name=workspace_name)
+        try:
+            workspace = Workspace(id=str(uuid.uuid4()), name=workspace_name)
+        except ValidationError as e:
+            logger.error(f"Failed to create workspace with name: {workspace_name}: {str(e)}")
+            return None
+
         sql = text(
             """
             INSERT INTO workspaces (id, name)
@@ -365,7 +370,7 @@ class DbReader(DbCodeGate):
         )
         conditions = {"name": name}
         workspaces = await self._exec_select_conditions_to_pydantic(Workspace, sql, conditions)
-        return workspaces
+        return workspaces[0] if workspaces else None
 
     async def get_sessions(self) -> List[Session]:
         sql = text(

@@ -366,7 +366,7 @@ class SecretUnredactionStep(OutputPipelineStep):
         if match:
             # Found a complete marker, process it
             encrypted_value = match.group(1)
-            if encrypted_value.startswith('$'):
+            if encrypted_value.startswith("$"):
                 encrypted_value = encrypted_value[1:]
             original_value = input_context.sensitive.manager.get_original_value(
                 encrypted_value,

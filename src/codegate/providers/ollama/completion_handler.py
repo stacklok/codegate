@@ -1,4 +1,3 @@
-import json
 from typing import AsyncIterator, Optional, Union
 
 import structlog
@@ -11,9 +10,7 @@ from codegate.providers.base import BaseCompletionHandler
 logger = structlog.get_logger("codegate")
 
 
-async def ollama_stream_generator(
-    stream: AsyncIterator[ChatResponse]
-) -> AsyncIterator[str]:
+async def ollama_stream_generator(stream: AsyncIterator[ChatResponse]) -> AsyncIterator[str]:
     """OpenAI-style SSE format"""
     try:
         async for chunk in stream:

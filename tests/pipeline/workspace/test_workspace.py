@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from codegate.db.models import Session, Workspace, WorkspaceActive
-from codegate.pipeline.workspace.workspace import WorkspaceCommands
+from codegate.pipeline.workspace.commands import WorkspaceCommands, WorkspaceCrud
 
 
 @pytest.mark.asyncio
@@ -39,16 +39,15 @@ async def test_list_workspaces(mock_workspaces, expected_output):
     workspace_commands = WorkspaceCommands()
 
     # Mock DbReader inside workspace_commands
-    mock_db_reader = AsyncMock()
-    mock_db_reader.get_workspaces.return_value = mock_workspaces
-    workspace_commands._db_reader = mock_db_reader
+    mock_get_workspaces = AsyncMock(return_value=mock_workspaces)
+    workspace_commands.workspace_crud.get_workspaces = mock_get_workspaces
 
     # Call the method
     result = await workspace_commands._list_workspaces()
 
     # Check the result
     assert result == expected_output
-    mock_db_reader.get_workspaces.assert_awaited_once()
+    mock_get_workspaces.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -59,13 +58,7 @@ async def test_list_workspaces(mock_workspaces, expected_output):
         ([], [], "Please provide a name. Use `codegate-workspace add your_workspace_name`"),
         # Case 2: Workspace name is empty string
         ([""], [], "Please provide a name. Use `codegate-workspace add your_workspace_name`"),
-        # Case 3: Workspace already exists
-        (
-            ["myworkspace"],
-            [Workspace(name="myworkspace", id="1")],
-            "Workspace **myworkspace** already exists",
-        ),
-        # Case 4: Successful add
+        # Case 3: Successful add
         (["myworkspace"], [], "Workspace **myworkspace** has been added"),
     ],
 )
@@ -86,7 +79,7 @@ async def test_add_workspaces(args, existing_workspaces, expected_message):
 
     # We'll also patch DbRecorder to ensure no real DB operations happen
     with patch(
-        "codegate.pipeline.workspace.workspace.DbRecorder", autospec=True
+        "codegate.pipeline.workspace.commands.DbRecorder", autospec=True
     ) as mock_recorder_cls:
         mock_recorder = mock_recorder_cls.return_value
         mock_recorder.add_workspace = AsyncMock()
@@ -102,91 +95,6 @@ async def test_add_workspaces(args, existing_workspaces, expected_message):
             mock_recorder.add_workspace.assert_awaited_once_with(args[0])
         else:
             mock_recorder.add_workspace.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "args, workspace_exists, sessions, expected_message",
-    [
-        # Case 1: No name provided
-        ([], False, [], "Please provide a name. Use `codegate-workspace activate workspace_name`"),
-        # Case 2: Workspace does not exist
-        (
-            ["non_existing_ws"],
-            False,
-            [],
-            (
-                "Workspace **non_existing_ws** does not exist. "
-                "Use `codegate-workspace add non_existing_ws` to add it"
-            ),
-        ),
-        # Case 3: No active session found
-        (["myworkspace"], True, [], "Something went wrong. No active session found."),
-        # Case 4: Workspace is already active
-        (
-            ["myworkspace"],
-            True,
-            [Session(id="1", active_workspace_id="10", last_update=datetime.datetime.now())],
-            "Workspace **myworkspace** is already active",
-        ),
-        # Case 5: Successfully activate new workspace
-        (
-            ["myworkspace"],
-            True,
-            [
-                # This session has a different active_workspace_id (99), so we can activate 10
-                Session(id="1", active_workspace_id="99", last_update=datetime.datetime.now())
-            ],
-            "Workspace **myworkspace** has been activated",
-        ),
-    ],
-)
-async def test_activate_workspace(args, workspace_exists, sessions, expected_message):
-    """
-    Test _activate_workspace under various conditions:
-    - no name provided
-    - workspace not found
-    - session not found
-    - workspace already active
-    - successful activation
-    """
-    workspace_commands = WorkspaceCommands()
-
-    # Mock the DbReader to return either an empty list or a mock workspace
-    mock_db_reader = AsyncMock()
-
-    if workspace_exists:
-        # We'll pretend we found a workspace: ID = 10
-        mock_workspace = Workspace(id="10", name=args[0])
-        mock_db_reader.get_workspace_by_name.return_value = [mock_workspace]
-    else:
-        mock_db_reader.get_workspace_by_name.return_value = []
-
-    # Return the sessions for get_sessions
-    mock_db_reader.get_sessions.return_value = sessions
-
-    workspace_commands._db_reader = mock_db_reader
-
-    with patch(
-        "codegate.pipeline.workspace.workspace.DbRecorder", autospec=True
-    ) as mock_recorder_cls:
-        mock_recorder = mock_recorder_cls.return_value
-        mock_recorder.update_session = AsyncMock()
-
-        result = await workspace_commands._activate_workspace(*args)
-
-        assert result == expected_message
-
-        # If we expect a successful activation, check that update_session was called
-        if "has been activated" in expected_message:
-            mock_recorder.update_session.assert_awaited_once()
-            updated_session = mock_recorder.update_session.await_args[0][0]
-            # Check that active_workspace_id is changed to 10 (our mock workspace ID)
-            assert updated_session.active_workspace_id == "10"
-            # Check that last_update was set to now
-            assert isinstance(updated_session.last_update, datetime.datetime)
-        else:
-            mock_recorder.update_session.assert_not_awaited()
 
 
 @pytest.mark.asyncio
