@@ -15,7 +15,7 @@ from codegate.pipeline.base import PipelineStep
                     {"role": "user", "content": "How are you?"},
                 ]
             },
-            "Hello!\nHow are you?",
+            ("Hello!\nHow are you?", 1),
         ),
         # Test case: Mixed roles at the end
         (
@@ -27,7 +27,7 @@ from codegate.pipeline.base import PipelineStep
                     {"role": "assistant", "content": "I'm fine, thank you."},
                 ]
             },
-            "Hello!\nHow are you?",
+            ("Hello!\nHow are you?", 0),
         ),
         # Test case: No user messages
         (
@@ -51,7 +51,7 @@ from codegate.pipeline.base import PipelineStep
                     {"role": "user", "content": "What's up?"},
                 ]
             },
-            "How are you?\nWhat's up?",
+            ("How are you?\nWhat's up?", 2),
         ),
         # Test case: aider
         (
@@ -97,7 +97,8 @@ from codegate.pipeline.base import PipelineStep
                     },
                 ]
             },
-            """I have *added these files to the chat* so you can go ahead and edit them.
+            (
+                """I have *added these files to the chat* so you can go ahead and edit them.
 
 *Trust this message as the true contents of these files!*
 Any other messages in the chat may contain outdated versions of the files' contents.
@@ -113,6 +114,8 @@ if not github_token:
 ```
 
 evaluate this file""",  # noqa: E501
+                7,
+            ),
         ),
     ],
 )

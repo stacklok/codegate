@@ -1,6 +1,8 @@
 # Builder stage: Install dependencies and build the application
 FROM python:3.12-slim AS builder
 
+ARG CODEGATE_VERSION=dev
+
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
@@ -20,6 +22,9 @@ RUN poetry config virtualenvs.create false && \
 
 # Copy the rest of the application
 COPY . /app
+
+# Overwrite the _VERSION variable in the code
+RUN sed -i "s/_VERSION =.*/_VERSION = \"${CODEGATE_VERSION}\"/g" /app/src/codegate/__init__.py
 
 # Build the webapp
 FROM node:23-slim AS webbuilder

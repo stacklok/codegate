@@ -1,7 +1,6 @@
 ---
 - Amazon:
     - Access Key: (?:A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA|ABIA|ACCA)[A-Z0-9]{16}
-    - Secret Access Key: (?<![A-Za-z0-9/+])[A-Za-z0-9+=][A-Za-z0-9/+=]{38}[A-Za-z0-9+=](?![A-Za-z0-9/+=])
     # - Cognito User Pool ID: (?i)us-[a-z]{2,}-[a-z]{4,}-\d{1,}
     - RDS Password: (?i)(rds\-master\-password|db\-password)
     - SNS Confirmation URL: (?i)https:\/\/sns\.[a-z0-9-]+\.amazonaws\.com\/?Action=ConfirmSubscription&Token=[a-zA-Z0-9-=_]+
