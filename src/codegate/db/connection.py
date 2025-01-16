@@ -32,23 +32,33 @@ fim_cache = FimCache()
 
 
 class DbCodeGate:
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
 
     def __init__(self, sqlite_path: Optional[str] = None):
-        # Initialize SQLite database engine with proper async URL
-        if not sqlite_path:
-            current_dir = Path(__file__).parent
-            sqlite_path = (
-                current_dir.parent.parent.parent / "codegate_volume" / "db" / "codegate.db"
-            )  # type: ignore
-        self._db_path = Path(sqlite_path).absolute()  # type: ignore
-        self._db_path.parent.mkdir(parents=True, exist_ok=True)
-        logger.debug(f"Connecting to DB from path: {self._db_path}")
-        engine_dict = {
-            "url": f"sqlite+aiosqlite:///{self._db_path}",
-            "echo": False,  # Set to False in production
-            "isolation_level": "AUTOCOMMIT",  # Required for SQLite
-        }
-        self._async_db_engine = create_async_engine(**engine_dict)
+        if not hasattr(self, "_initialized"):
+            # Ensure __init__ is only executed once
+            self._initialized = True
+
+            # Initialize SQLite database engine with proper async URL
+            if not sqlite_path:
+                current_dir = Path(__file__).parent
+                sqlite_path = (
+                    current_dir.parent.parent.parent / "codegate_volume" / "db" / "codegate.db"
+                )
+            self._db_path = Path(sqlite_path).absolute()
+            self._db_path.parent.mkdir(parents=True, exist_ok=True)
+            logger.debug(f"Connecting to DB from path: {self._db_path}")
+            engine_dict = {
+                "url": f"sqlite+aiosqlite:///{self._db_path}",
+                "echo": False,  # Set to False in production
+                "isolation_level": "AUTOCOMMIT",  # Required for SQLite
+            }
+            self._async_db_engine = create_async_engine(**engine_dict)
 
     def does_db_exist(self):
         return self._db_path.is_file()
