@@ -312,8 +312,8 @@ class SecretUnredactionStep(OutputPipelineStep):
     """Pipeline step that unredacts protected content in the stream"""
 
     def __init__(self):
-        self.redacted_pattern = re.compile(r"REDACTED<\$([^>]+)>")
-        self.marker_start = "REDACTED<$"
+        self.redacted_pattern = re.compile(r"REDACTED<(\$?[^>]+)>")
+        self.marker_start = "REDACTED<"
         self.marker_end = ">"
 
     @property
@@ -365,6 +365,10 @@ class SecretUnredactionStep(OutputPipelineStep):
         if match:
             # Found a complete marker, process it
             encrypted_value = match.group(1)
+            # Strip the $ if it exists before trying to decrypt
+            if encrypted_value.startswith('$'):
+                encrypted_value = encrypted_value[1:]
+
             original_value = input_context.sensitive.manager.get_original_value(
                 encrypted_value,
                 input_context.sensitive.session_id,
