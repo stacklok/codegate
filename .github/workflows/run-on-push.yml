@@ -1,0 +1,12 @@
+# These set of workflows run on every push to the main branch
+name: Run - push_to_main
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+  openapi:
+    uses: ./.github/workflows/openapi.yml      

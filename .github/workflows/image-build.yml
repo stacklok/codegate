@@ -1,16 +1,13 @@
-# Attempt to build (but not push) the Docker image on Pull Requests
-name: Image build
+# This workflow build (but does not push) the OCI image
+name: OCI Image - Build
+
 on:
-  pull_request:
-    branches:
-      - main
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
-      - "static/**"
-      - "LICENSE"
+  workflow_call:
+  workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
   docker-image:
     name: Check docker image build

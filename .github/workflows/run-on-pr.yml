@@ -1,0 +1,15 @@
+# These set of workflows run on every pull request
+name: Run - pull_request
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+  image-build:
+    uses: ./.github/workflows/image-build.yml
+  integration-tests:
+    uses: ./.github/workflows/integration-tests.yml
+  

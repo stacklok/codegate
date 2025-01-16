@@ -1,0 +1,12 @@
+# These set of workflows run on every published release
+name: Run - release_published
+
+on:
+  workflow_dispatch:
+  release:
+    types:
+      - published
+
+jobs:
+  openapi:
+    uses: ./.github/workflows/image-publish.yml      
