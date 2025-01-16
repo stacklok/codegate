@@ -1,8 +1,7 @@
 import traceback
-from typing import AsyncGenerator
 
 import structlog
-from fastapi import APIRouter, Depends, FastAPI, Request
+from fastapi import APIRouter, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.errors import ServerErrorMiddleware
@@ -19,6 +18,7 @@ from codegate.providers.vllm.provider import VLLMProvider
 
 logger = structlog.get_logger("codegate")
 
+
 async def custom_error_handler(request, exc: Exception):
     """This is a Middleware to handle exceptions and log them."""
     # Capture the stack trace
@@ -26,6 +26,7 @@ async def custom_error_handler(request, exc: Exception):
     # Log only the last 3 items of the stack trace. 3 is an arbitrary number.
     logger.error(traceback.print_list(extracted_traceback[-3:]))
     return JSONResponse({"error": str(exc)}, status_code=500)
+
 
 def init_app(pipeline_factory: PipelineFactory) -> FastAPI:
     """Create the FastAPI application."""
