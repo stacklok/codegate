@@ -30,7 +30,6 @@ logger = structlog.get_logger("codegate")
 alert_queue = asyncio.Queue()
 fim_cache = FimCache()
 
-
 class DbCodeGate:
     _instance = None
 
@@ -256,7 +255,13 @@ class DbRecorder(DbCodeGate):
             RETURNING *
             """
         )
-        added_workspace = await self._execute_update_pydantic_model(workspace, sql)
+        try:
+            added_workspace = await self._execute_update_pydantic_model(
+                workspace, sql)
+        except Exception as e:
+            logger.error(f"Failed to add workspace: {workspace_name}.", error=str(e))
+            return None
+
         return added_workspace
 
     async def update_session(self, session: Session) -> Optional[Session]:
