@@ -100,12 +100,23 @@ def version_check(client: AsyncClient = Depends(get_http_client)):
             "error": None,
         }
     except HTTPException as e:
+        logger.error(f"HTTPException: {e.detail}")
         return {
             "current_version": __version__,
             "latest_version": "unknown",
             "is_latest": None,
-            "error": e.detail
+            "error": "Failed to fetch the latest version"
         }
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
+        return {
+            "current_version": __version__,
+            "latest_version": "unknown",
+            "is_latest": None,
+            "error": "An unexpected error occurred"
+        }
+    finally:
+        client.aclose()
 
 
 def generate_openapi():
