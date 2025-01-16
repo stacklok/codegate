@@ -3,7 +3,11 @@ name: OCI Image - Build
 
 on:
   workflow_call:
-  workflow_dispatch:
+    inputs:
+      artifact-name:
+        description: 'The name of the artifact to upload'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -12,15 +16,33 @@ jobs:
   docker-image:
     name: Check docker image build
     runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: stacklok/codegate
+      IMAGE_TAG: dev
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@6524bf65af31da8d45b59e8c27de4bd072b392f5 # v3
+      - name: Download artifact
+        id: download-artifact
+        uses: dawidd6/action-download-artifact@80620a5d27ce0ae443b965134db88467fc607b43 # v7
+        with:
+          github_token: ${{ github.token }}
+          workflow: ".github/workflows/import_packages.yml"
+          workflow_conclusion: success
+          name: sqlite_data
+          name_is_regexp: true
+          skip_unpack: false
+          if_no_artifact_found: ignore
       - name: Fetch latest release URL
         id: fetch_release_url
         run: |
           echo "LATEST_RELEASE=$(curl -s "https://api.github.com/repos/stacklok/codegate-ui/releases/latest" | jq -r '.zipball_url')" >> $GITHUB_ENV
+      - name: Download git lfs dependencies
+        run: |
+          git lfs install
+          git lfs pull
       - name: Test build on x86
         id: docker_build
         uses: docker/build-push-action@67a2d409c0a876cbe6b11854e3e25193efe4e62d # v5
@@ -34,3 +56,15 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             LATEST_RELEASE=${{ env.LATEST_RELEASE }}
+          tags: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+      - name: Save Docker image as a tarball
+        run: |
+          # List all images
+          docker images
+          # Save the image as a tarball
+          docker save -o image.tar ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: image.tar

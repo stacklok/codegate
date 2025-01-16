@@ -8,5 +8,6 @@ on:
       - published
 
 jobs:
-  openapi:
+  image-publish:
+    name: OCI Image - Publish
     uses: ./.github/workflows/image-publish.yml      
