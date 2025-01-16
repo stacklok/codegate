@@ -7,12 +7,19 @@ from codegate.codegate_logging import LogFormat, LogLevel, setup_logging
 from codegate.config import Config
 from codegate.exceptions import ConfigurationError
 
-try:
-    __version__ = metadata.version("codegate")
-    __description__ = metadata.metadata("codegate")["Summary"]
-except metadata.PackageNotFoundError:  # pragma: no cover
-    __version__ = "unknown"
-    __description__ = "codegate"
+_VERSION = "dev"
+_DESC = "CodeGate - A Generative AI security gateway."
+
+def __get_version_and_description() -> tuple[str, str]:
+    try:
+        version = metadata.version("codegate")
+        description = metadata.metadata("codegate")["Summary"]
+    except metadata.PackageNotFoundError:
+        version = _VERSION
+        description = _DESC
+    return version, description
+
+__version__, __description__ = __get_version_and_description()
 
 __all__ = ["Config", "ConfigurationError", "LogFormat", "LogLevel", "setup_logging"]
 
