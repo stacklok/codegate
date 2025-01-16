@@ -239,7 +239,7 @@ class PipelineStep(ABC):
     @staticmethod
     def get_last_user_message_block(
         request: ChatCompletionRequest,
-    ) -> Optional[str]:
+    ) -> Optional[tuple[str, int]]:
         """
         Get the last block of consecutive 'user' messages from the request.
 
@@ -247,28 +247,30 @@ class PipelineStep(ABC):
             request (ChatCompletionRequest): The chat completion request to process
 
         Returns:
-            Optional[str]: A string containing all consecutive user messages in the
+            Optional[str, int]: A string containing all consecutive user messages in the
                         last user message block, separated by newlines, or None if
                         no user message block is found.
+                        Index of the first message detected in the block.
         """
         if request.get("messages") is None:
             return None
 
         user_messages = []
         messages = request["messages"]
+        block_start_index = None
 
         # Iterate in reverse to find the last block of consecutive 'user' messages
         for i in reversed(range(len(messages))):
             if messages[i]["role"] == "user" or messages[i]["role"] == "assistant":
-                content_str = None
-                if "content" in messages[i]:
-                    content_str = messages[i]["content"]  # type: ignore
-                else:
+                content_str = messages[i].get("content")
+                if content_str is None:
                     continue
 
                 if messages[i]["role"] == "user":
                     user_messages.append(content_str)
-                # specifically for Aider, when "ok." block is found, stop
+                    block_start_index = i
+
+                # Specifically for Aider, when "Ok." block is found, stop
                 if content_str == "Ok." and messages[i]["role"] == "assistant":
                     break
             else:
@@ -277,8 +279,9 @@ class PipelineStep(ABC):
                     break
 
         # Reverse the collected user messages to preserve the original order
-        if user_messages:
-            return "\n".join(reversed(user_messages))
+        if user_messages and block_start_index is not None:
+            content = "\n".join(reversed(user_messages))
+            return content, block_start_index
 
         return None
 

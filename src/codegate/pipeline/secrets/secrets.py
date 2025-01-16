@@ -271,11 +271,12 @@ class CodegateSecrets(PipelineStep):
         new_request = request.copy()
         total_matches = []
 
-        # Process all messages
+        # get last user message block to get index for the first relevant user message
+        last_user_message = self.get_last_user_message_block(new_request)
         last_assistant_idx = -1
-        for i, message in enumerate(new_request["messages"]):
-            if message.get("role", "") == "assistant":
-                last_assistant_idx = i
+        if last_user_message:
+            _, user_idx = last_user_message
+            last_assistant_idx = user_idx - 1
 
         # Process all messages
         for i, message in enumerate(new_request["messages"]):

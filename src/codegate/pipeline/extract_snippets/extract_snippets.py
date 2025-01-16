@@ -141,9 +141,10 @@ class CodeSnippetExtractor(PipelineStep):
         request: ChatCompletionRequest,
         context: PipelineContext,
     ) -> PipelineResult:
-        msg_content = self.get_last_user_message_block(request)
-        if not msg_content:
+        last_message = self.get_last_user_message_block(request)
+        if not last_message:
             return PipelineResult(request=request, context=context)
+        msg_content, _ = last_message
         snippets = extract_snippets(msg_content)
 
         logger.info(f"Extracted {len(snippets)} code snippets from the user message")
