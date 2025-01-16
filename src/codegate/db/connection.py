@@ -289,7 +289,7 @@ class DbReader(DbCodeGate):
                 return None
 
     async def _exec_select_conditions_to_pydantic(
-            self, model_type: Type[BaseModel], sql_command: TextClause, conditions: dict
+        self, model_type: Type[BaseModel], sql_command: TextClause, conditions: dict
     ) -> Optional[List[BaseModel]]:
         async with self._async_db_engine.begin() as conn:
             try:
@@ -413,6 +413,7 @@ def init_db_sync(db_path: Optional[str] = None):
 
 def init_session_if_not_exists(db_path: Optional[str] = None):
     import datetime
+
     db_reader = DbReader(db_path)
     sessions = asyncio.run(db_reader.get_sessions())
     # If there are no sessions, create a new one
@@ -421,7 +422,7 @@ def init_session_if_not_exists(db_path: Optional[str] = None):
         session = Session(
             id=str(uuid.uuid4()),
             active_workspace_id="1",
-            last_update=datetime.datetime.now(datetime.timezone.utc)
+            last_update=datetime.datetime.now(datetime.timezone.utc),
         )
         db_recorder = DbRecorder(db_path)
         asyncio.run(db_recorder.update_session(session))
