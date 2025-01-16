@@ -313,8 +313,8 @@ class SecretUnredactionStep(OutputPipelineStep):
     """Pipeline step that unredacts protected content in the stream"""
 
     def __init__(self):
-        self.redacted_pattern = re.compile(r"REDACTED<\$([^>]+)>")
-        self.marker_start = "REDACTED<$"
+        self.redacted_pattern = re.compile(r"REDACTED<(\$?[^>]+)>")
+        self.marker_start = "REDACTED<"
         self.marker_end = ">"
 
     @property
@@ -366,6 +366,8 @@ class SecretUnredactionStep(OutputPipelineStep):
         if match:
             # Found a complete marker, process it
             encrypted_value = match.group(1)
+            if encrypted_value.startswith('$'):
+                encrypted_value = encrypted_value[1:]
             original_value = input_context.sensitive.manager.get_original_value(
                 encrypted_value,
                 input_context.sensitive.session_id,
@@ -400,7 +402,7 @@ class SecretUnredactionStep(OutputPipelineStep):
             return []
 
         if self._is_partial_marker_prefix(buffered_content):
-            context.prefix_buffer += buffered_content
+            context.prefix_buffer = buffered_content
             return []
 
         # No markers or partial markers, let pipeline handle the chunk normally
