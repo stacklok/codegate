@@ -24,23 +24,38 @@ def upgrade() -> None:
         CREATE TABLE workspaces (
             id TEXT PRIMARY KEY,  -- UUID stored as TEXT
             name TEXT NOT NULL,
-            is_active BOOLEAN NOT NULL DEFAULT 0,
             UNIQUE (name)
         );
         """
     )
-    op.execute("INSERT INTO workspaces (id, name, is_active) VALUES ('1', 'default', 1);")
+    op.execute("INSERT INTO workspaces (id, name) VALUES ('1', 'default');")
+    # Sessions table
+    op.execute(
+        """
+        CREATE TABLE sessions (
+            id TEXT PRIMARY KEY,  -- UUID stored as TEXT
+            active_workspace_id TEXT NOT NULL,
+            last_update DATETIME NOT NULL,
+            FOREIGN KEY (active_workspace_id) REFERENCES workspaces(id)
+        );
+        """
+    )
     # Alter table prompts
     op.execute("ALTER TABLE prompts ADD COLUMN workspace_id TEXT REFERENCES workspaces(id);")
     op.execute("UPDATE prompts SET workspace_id = '1';")
     # Create index for workspace_id
     op.execute("CREATE INDEX idx_prompts_workspace_id ON prompts (workspace_id);")
+    # Create index for session_id
+    op.execute("CREATE INDEX idx_sessions_workspace_id ON sessions (active_workspace_id);")
 
 
 def downgrade() -> None:
     # Drop the index for workspace_id
     op.execute("DROP INDEX IF EXISTS idx_prompts_workspace_id;")
+    op.execute("DROP INDEX IF EXISTS idx_sessions_workspace_id;")
     # Remove the workspace_id column from prompts table
     op.execute("ALTER TABLE prompts DROP COLUMN workspace_id;")
+    # Drop the sessions table
+    op.execute("DROP TABLE IF EXISTS sessions;")
     # Drop the workspaces table
     op.execute("DROP TABLE IF EXISTS workspaces;")

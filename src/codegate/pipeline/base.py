@@ -135,7 +135,7 @@ class PipelineContext:
                 provider=provider,
                 type="fim" if is_fim_request else "chat",
                 request=request_str,
-                workspace_id="1",  # TODO: This is a placeholder for now, using default workspace
+                workspace_id=None,
             )
             # Uncomment the below to debug the input
             # logger.debug(f"Added input request to context: {self.input_request}")

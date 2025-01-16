@@ -1,3 +1,4 @@
+import datetime
 from typing import Any, Optional
 
 import pydantic
@@ -26,7 +27,7 @@ class Prompt(pydantic.BaseModel):
     provider: Optional[Any]
     request: Any
     type: Any
-    workspace_id: Optional[Any]
+    workspace_id: Optional[str]
 
 
 class Setting(pydantic.BaseModel):
@@ -39,9 +40,14 @@ class Setting(pydantic.BaseModel):
 
 
 class Workspace(pydantic.BaseModel):
-    id: Any
+    id: str
     name: str
-    is_active: bool = False
+
+
+class Session(pydantic.BaseModel):
+    id: str
+    active_workspace_id: str
+    last_update: datetime.datetime
 
 
 # Models for select queries
@@ -73,3 +79,16 @@ class GetPromptWithOutputsRow(pydantic.BaseModel):
     output_id: Optional[Any]
     output: Optional[Any]
     output_timestamp: Optional[Any]
+
+
+class WorkspaceActive(pydantic.BaseModel):
+    id: str
+    name: str
+    active_workspace_id: Optional[str]
+
+
+class ActiveWorkspace(pydantic.BaseModel):
+    id: str
+    name: str
+    session_id: str
+    last_update: datetime.datetime
