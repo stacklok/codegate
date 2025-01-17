@@ -25,10 +25,8 @@ class OllamaInputNormalizer(ModelInputNormalizer):
                 {"content": normalized_data.pop("prompt"), "role": "user"}
             ]
 
-        # In Ollama force the stream to be True. Continue is not setting this parameter and
-        # most of our functionality is for streaming completions.
-        normalized_data["stream"] = True
-
+        # if we have the stream flag in data we set it, otherwise defaults to true
+        normalized_data["stream"] = data.get("stream", True)
         return ChatCompletionRequest(**normalized_data)
 
     def denormalize(self, data: ChatCompletionRequest) -> Dict:

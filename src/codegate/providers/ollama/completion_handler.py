@@ -60,7 +60,7 @@ class OllamaShim(BaseCompletionHandler):
         """
         return StreamingResponse(
             ollama_stream_generator(stream),
-            media_type="application/x-ndjson",
+            media_type="application/x-ndjson; charset=utf-8",
             headers={
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
@@ -70,4 +70,4 @@ class OllamaShim(BaseCompletionHandler):
     def _create_json_response(
         self, response: Union[GenerateResponse, ChatResponse]
     ) -> JSONResponse:
-        return JSONResponse(content=response.model_dump_json(), status_code=200)
+        return JSONResponse(status_code=200, content=response.model_dump())

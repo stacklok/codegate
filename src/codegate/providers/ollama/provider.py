@@ -65,7 +65,7 @@ class OllamaProvider(BaseProvider):
                 response = await client.post(
                     f"{self.base_url}/api/show",
                     content=body,
-                    headers={"Content-Type": "application/json"},
+                    headers={"Content-Type": "application/json; charset=utf-8"},
                 )
                 return response.json()
 
