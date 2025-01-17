@@ -32,10 +32,11 @@ async def codegate_cli(command):
     available_commands = {
         "version": Version().exec,
         "workspace": Workspace().exec,
-        "-h": lambda _: HELP_TEXT,
     }
     out_func = available_commands.get(command[0])
     if out_func is None:
+        if command[0] == "-h":
+            return HELP_TEXT
         return NOT_FOUND_TEXT
 
     return await out_func(command[1:])
