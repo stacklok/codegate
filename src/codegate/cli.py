@@ -14,7 +14,7 @@ from uvicorn.server import Server
 from codegate.ca.codegate_ca import CertificateAuthority
 from codegate.codegate_logging import LogFormat, LogLevel, setup_logging
 from codegate.config import Config, ConfigurationError
-from codegate.db.connection import init_db_sync
+from codegate.db.connection import init_db_sync, init_session_if_not_exists
 from codegate.pipeline.factory import PipelineFactory
 from codegate.pipeline.secrets.manager import SecretsManager
 from codegate.providers.copilot.provider import CopilotProvider
@@ -307,6 +307,7 @@ def serve(
         logger = structlog.get_logger("codegate").bind(origin="cli")
 
         init_db_sync(cfg.db_path)
+        init_session_if_not_exists(cfg.db_path)
 
         # Check certificates and create CA if necessary
         logger.info("Checking certificates and creating CA if needed")

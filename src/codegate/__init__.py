@@ -10,6 +10,7 @@ from codegate.exceptions import ConfigurationError
 _VERSION = "dev"
 _DESC = "CodeGate - A Generative AI security gateway."
 
+
 def __get_version_and_description() -> tuple[str, str]:
     try:
         version = metadata.version("codegate")
@@ -18,6 +19,7 @@ def __get_version_and_description() -> tuple[str, str]:
         version = _VERSION
         description = _DESC
     return version, description
+
 
 __version__, __description__ = __get_version_and_description()
 
