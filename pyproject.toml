@@ -29,6 +29,7 @@ tree-sitter-rust = "==0.23.2"
 sqlite-vec-sl-tmp = "==0.0.4"
 alembic = "==1.14.1"
 pygments = "==2.19.1"
+sqlite-vec = "^0.1.6"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "==8.3.4"

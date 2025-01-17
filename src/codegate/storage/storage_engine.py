@@ -4,7 +4,7 @@ import sqlite3
 from typing import List
 
 import numpy as np
-import sqlite_vec_sl_tmp
+import sqlite_vec
 import structlog
 
 from codegate.config import Config
@@ -69,7 +69,7 @@ class StorageEngine:
         try:
             conn = sqlite3.connect(self.db_path)
             conn.enable_load_extension(True)
-            sqlite_vec_sl_tmp.load(conn)
+            sqlite_vec.load(conn)
             conn.enable_load_extension(False)
             return conn
         except Exception as e:

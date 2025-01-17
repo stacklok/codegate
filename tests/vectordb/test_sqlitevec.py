@@ -10,7 +10,7 @@ from codegate.storage.storage_engine import StorageEngine
 
 @pytest.fixture(scope="module")
 def mock_sqlite_vec():
-    with patch("sqlite_vec_sl_tmp.load") as mock_load:
+    with patch("sqlite_vec.load") as mock_load:
         # Mock the vector similarity extension loading
         def setup_vector_similarity(conn):
             cursor = conn.cursor()
