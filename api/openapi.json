@@ -83,6 +83,25 @@
           }
         }
       }
+    },
+    "/dashboard/version": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Version Check",
+        "operationId": "version_check_dashboard_version_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
