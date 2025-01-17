@@ -1,7 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import List
 
+from pydantic import ValidationError
+
 from codegate import __version__
+from codegate.db.connection import AlreadyExistsError
 from codegate.workspaces.crud import WorkspaceCrud
 
 
@@ -69,13 +72,15 @@ class Workspace(CodegateCommand):
         if not new_workspace_name:
             return "Please provide a name. Use `codegate workspace add your_workspace_name`"
 
-        workspace_created = await self.workspace_crud.add_workspace(new_workspace_name)
-        if not workspace_created:
-            return (
-                "Something went wrong. Workspace could not be added.\n"
-                "1. Check if the name is alphanumeric and only contains dashes, and underscores.\n"
-                "2. Check if the workspace already exists."
-            )
+        try:
+            _ = await self.workspace_crud.add_workspace(new_workspace_name)
+        except ValidationError:
+            return "Invalid workspace name: It should be alphanumeric and dashes"
+        except AlreadyExistsError:
+            return f"Workspace **{new_workspace_name}** already exists"
+        except Exception:
+            return "An error occurred while adding the workspace"
+
         return f"Workspace **{new_workspace_name}** has been added"
 
     async def _activate_workspace(self, args: List[str]) -> str:

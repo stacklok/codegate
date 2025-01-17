@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Response
 from fastapi.exceptions import HTTPException
 from fastapi.routing import APIRoute
+from pydantic import ValidationError
 
 from codegate.api import v1_models
+from codegate.db.connection import AlreadyExistsError
 from codegate.workspaces.crud import WorkspaceCrud
 
 v1 = APIRouter()
@@ -52,13 +54,19 @@ async def activate_workspace(request: v1_models.ActivateWorkspaceRequest, status
 async def create_workspace(request: v1_models.CreateWorkspaceRequest):
     """Create a new workspace."""
     # Input validation is done in the model
-    created = await wscrud.add_workspace(request.name)
+    try:
+        created = await wscrud.add_workspace(request.name)
+    except AlreadyExistsError:
+        raise HTTPException(status_code=409, detail="Workspace already exists")
+    except ValidationError:
+        raise HTTPException(status_code=400,
+                            detail=("Invalid workspace name. "
+                                    "Please use only alphanumeric characters and dashes"))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
-    # TODO: refactor to use a more specific exception
-    if not created:
-        raise HTTPException(status_code=400, detail="Failed to create workspace")
-
-    return v1_models.Workspace(name=request.name)
+    if created:
+        return v1_models.Workspace(name=created.name)
 
 
 @v1.delete(

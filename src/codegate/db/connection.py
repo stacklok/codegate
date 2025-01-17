@@ -7,9 +7,9 @@ from typing import List, Optional, Type
 import structlog
 from alembic import command as alembic_command
 from alembic.config import Config as AlembicConfig
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 from sqlalchemy import CursorResult, TextClause, text
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from codegate.db.fim_cache import FimCache
@@ -30,6 +30,8 @@ logger = structlog.get_logger("codegate")
 alert_queue = asyncio.Queue()
 fim_cache = FimCache()
 
+class AlreadyExistsError(Exception):
+    pass
 
 class DbCodeGate:
     _instance = None
@@ -70,11 +72,11 @@ class DbRecorder(DbCodeGate):
         super().__init__(sqlite_path)
 
     async def _execute_update_pydantic_model(
-        self, model: BaseModel, sql_command: TextClause
+        self, model: BaseModel, sql_command: TextClause, should_raise: bool = False
     ) -> Optional[BaseModel]:
         """Execute an update or insert command for a Pydantic model."""
-        async with self._async_db_engine.begin() as conn:
-            try:
+        try:
+            async with self._async_db_engine.begin() as conn:
                 result = await conn.execute(sql_command, model.model_dump())
                 row = result.first()
                 if row is None:
@@ -83,9 +85,11 @@ class DbRecorder(DbCodeGate):
                 # Get the class of the Pydantic object to create a new object
                 model_class = model.__class__
                 return model_class(**row._asdict())
-            except Exception as e:
-                logger.error(f"Failed to update model: {model}.", error=str(e))
-                return None
+        except Exception as e:
+            logger.error(f"Failed to update model: {model}.", error=str(e))
+            if should_raise:
+                raise e
+            return None
 
     async def record_request(self, prompt_params: Optional[Prompt] = None) -> Optional[Prompt]:
         if prompt_params is None:
@@ -243,11 +247,14 @@ class DbRecorder(DbCodeGate):
             logger.error(f"Failed to record context: {context}.", error=str(e))
 
     async def add_workspace(self, workspace_name: str) -> Optional[Workspace]:
-        try:
-            workspace = Workspace(id=str(uuid.uuid4()), name=workspace_name)
-        except ValidationError as e:
-            logger.error(f"Failed to create workspace with name: {workspace_name}: {str(e)}")
-            return None
+        """Add a new workspace to the DB.
+
+        This handles validation and insertion of a new workspace.
+
+        It may raise a ValidationError if the workspace name is invalid.
+        or a AlreadyExistsError if the workspace already exists.
+        """
+        workspace = Workspace(id=str(uuid.uuid4()), name=workspace_name)
 
         sql = text(
             """
@@ -256,12 +263,13 @@ class DbRecorder(DbCodeGate):
             RETURNING *
             """
         )
-        try:
-            added_workspace = await self._execute_update_pydantic_model(workspace, sql)
-        except Exception as e:
-            logger.error(f"Failed to add workspace: {workspace_name}.", error=str(e))
-            return None
 
+        try:
+            added_workspace = await self._execute_update_pydantic_model(
+                workspace, sql, should_raise=True)
+        except IntegrityError as e:
+            logger.debug(f"Exception type: {type(e)}")
+            raise AlreadyExistsError(f"Workspace {workspace_name} already exists.")
         return added_workspace
 
     async def update_session(self, session: Session) -> Optional[Session]:
