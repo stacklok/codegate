@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.errors import ServerErrorMiddleware
 
 from codegate import __description__, __version__
+from codegate.api.v1 import v1
 from codegate.dashboard.dashboard import dashboard_router
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.anthropic.provider import AnthropicProvider
@@ -96,5 +97,8 @@ def init_app(pipeline_factory: PipelineFactory) -> FastAPI:
 
     app.include_router(system_router)
     app.include_router(dashboard_router)
+
+    # CodeGate API
+    app.include_router(v1, prefix="/api/v1", tags=["CodeGate API"])
 
     return app

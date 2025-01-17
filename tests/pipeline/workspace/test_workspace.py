@@ -1,10 +1,9 @@
-import datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from codegate.db.models import Session, Workspace, WorkspaceActive
-from codegate.pipeline.workspace.commands import WorkspaceCommands, WorkspaceCrud
+from codegate.db.models import WorkspaceActive
+from codegate.pipeline.workspace.commands import WorkspaceCommands
 
 
 @pytest.mark.asyncio
