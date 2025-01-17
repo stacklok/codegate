@@ -1,11 +1,10 @@
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
 import json
 from typing import AsyncGenerator, List, Optional
 
-from httpx import AsyncClient, HTTPStatusError
+import requests
 import structlog
-from fastapi import APIRouter, Depends, FastAPI, HTTPException
+from fastapi import APIRouter, Depends, FastAPI
 from fastapi.responses import StreamingResponse
 from codegate import __version__
 
@@ -27,24 +26,16 @@ def get_db_reader():
         db_reader = DbReader()
     return db_reader
 
-def get_http_client() -> AsyncClient:
-    return AsyncClient()
-
-async def fetch_latest_version(client: AsyncClient) -> str:
+def fetch_latest_version() -> str:
     url = "https://api.github.com/repos/stacklok/codegate/releases/latest"
     headers = {
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28"
     }
-    response = await client.get(url, headers=headers)
+    response = requests.get(url, headers=headers)
     response.raise_for_status()
     data = response.json()
     return data.get("tag_name", "unknown")
-
-def fetch_latest_version_sync(client: AsyncClient) -> str:
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    return loop.run_until_complete(fetch_latest_version(client))
 
 @dashboard_router.get("/dashboard/messages")
 def get_messages(db_reader: DbReader = Depends(get_db_reader)) -> List[Conversation]:
@@ -82,10 +73,9 @@ async def stream_sse():
     return StreamingResponse(generate_sse_events(), media_type="text/event-stream")
 
 @dashboard_router.get("/dashboard/version")
-def version_check(client: AsyncClient = Depends(get_http_client)):
+def version_check():
     try:
-        with ThreadPoolExecutor() as executor:
-            latest_version = executor.submit(fetch_latest_version_sync, client).result()
+        latest_version = fetch_latest_version()
 
         # normalize the versions as github will return them with a 'v' prefix
         current_version = __version__.lstrip('v')
@@ -99,13 +89,13 @@ def version_check(client: AsyncClient = Depends(get_http_client)):
             "is_latest": is_latest,
             "error": None,
         }
-    except HTTPException as e:
-        logger.error(f"HTTPException: {e.detail}")
+    except requests.RequestException as e:
+        logger.error(f"RequestException: {str(e)}")
         return {
             "current_version": __version__,
             "latest_version": "unknown",
             "is_latest": None,
-            "error": "Failed to fetch the latest version"
+            "error": "An error occurred while fetching the latest version"
         }
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}")
@@ -115,8 +105,6 @@ def version_check(client: AsyncClient = Depends(get_http_client)):
             "is_latest": None,
             "error": "An unexpected error occurred"
         }
-    finally:
-        client.aclose()
 
 
 def generate_openapi():
