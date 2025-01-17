@@ -3,10 +3,10 @@ from fastapi.exceptions import HTTPException
 from fastapi.routing import APIRoute
 
 from codegate.api import v1_models
-from codegate.pipeline.workspace import commands as wscmd
+from codegate.workspaces.crud import WorkspaceCrud
 
 v1 = APIRouter()
-wscrud = wscmd.WorkspaceCrud()
+wscrud = WorkspaceCrud()
 
 
 def uniq_name(route: APIRoute):
@@ -61,9 +61,12 @@ async def create_workspace(request: v1_models.CreateWorkspaceRequest):
     return v1_models.Workspace(name=request.name)
 
 
-
-@v1.delete("/workspaces/{workspace_name}", tags=["Workspaces"],
-           generate_unique_id_function=uniq_name, status_code=204)
+@v1.delete(
+    "/workspaces/{workspace_name}",
+    tags=["Workspaces"],
+    generate_unique_id_function=uniq_name,
+    status_code=204,
+)
 async def delete_workspace(workspace_name: str):
     """Delete a workspace by name."""
     raise NotImplementedError

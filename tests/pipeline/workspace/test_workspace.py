@@ -1,10 +1,9 @@
 from unittest.mock import AsyncMock, patch
 
-from codegate.workspaces.crud import WorkspaceCrud
 import pytest
 
 from codegate.db.models import WorkspaceActive
-from codegate.pipeline.workspace.commands import WorkspaceCommands
+from codegate.pipeline.cli.commands import Workspace
 
 
 @pytest.mark.asyncio
@@ -36,7 +35,7 @@ async def test_list_workspaces(mock_workspaces, expected_output):
     """
     Test _list_workspaces with different sets of returned workspaces.
     """
-    workspace_commands = WorkspaceCommands()
+    workspace_commands = Workspace()
 
     # Mock DbReader inside workspace_commands
     mock_get_workspaces = AsyncMock(return_value=mock_workspaces)
@@ -70,7 +69,7 @@ async def test_add_workspaces(args, existing_workspaces, expected_message):
     - workspace already exists
     - workspace successfully added
     """
-    workspace_commands = WorkspaceCommands()
+    workspace_commands = Workspace()
 
     # Mock the DbReader to return existing_workspaces
     mock_db_reader = AsyncMock()
@@ -79,13 +78,14 @@ async def test_add_workspaces(args, existing_workspaces, expected_message):
 
     # We'll also patch DbRecorder to ensure no real DB operations happen
     with patch(
-        "codegate.pipeline.workspace.commands.DbRecorder", autospec=True
+        "codegate.pipeline.cli.commands.WorkspaceCrud", autospec=True
     ) as mock_recorder_cls:
         mock_recorder = mock_recorder_cls.return_value
+        workspace_commands.workspace_crud = mock_recorder
         mock_recorder.add_workspace = AsyncMock()
 
         # Call the method
-        result = await workspace_commands._add_workspace(*args)
+        result = await workspace_commands._add_workspace(args)
 
         # Assertions
         assert result == expected_message
@@ -101,9 +101,9 @@ async def test_add_workspaces(args, existing_workspaces, expected_message):
 @pytest.mark.parametrize(
     "user_message, expected_command, expected_args, mocked_execute_response",
     [
-        ("codegate-workspace list", "list", [], "List workspaces output"),
-        ("codegate-workspace add myws", "add", ["myws"], "Added workspace"),
-        ("codegate-workspace activate myws", "activate", ["myws"], "Activated workspace"),
+        (["list"], "list", ["list"], "List workspaces output"),
+        (["add", "myws"], "add", ["add", "myws"], "Added workspace"),
+        (["activate", "myws"], "activate", ["activate", "myws"], "Activated workspace"),
     ],
 )
 async def test_parse_execute_cmd(
@@ -113,13 +113,13 @@ async def test_parse_execute_cmd(
     Test parse_execute_cmd to ensure it parses the user message
     and calls the correct command with the correct args.
     """
-    workspace_commands = WorkspaceCommands()
+    workspace_commands = Workspace()
 
     with patch.object(
-        workspace_commands, "execute", return_value=mocked_execute_response
-    ) as mock_execute:
-        result = await workspace_commands.parse_execute_cmd(user_message)
+        workspace_commands, "run", return_value=mocked_execute_response
+    ) as mock_run:
+        result = await workspace_commands.exec(user_message)
         assert result == mocked_execute_response
 
         # Verify 'execute' was called with the expected command and args
-        mock_execute.assert_awaited_once_with(expected_command, *expected_args)
+        mock_run.assert_awaited_once_with(expected_args)

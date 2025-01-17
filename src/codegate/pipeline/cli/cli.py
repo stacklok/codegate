@@ -21,6 +21,7 @@ Available commands:
 
 NOT_FOUND_TEXT = "Command not found. Use `codegate -h` to see available commands."
 
+
 async def codegate_cli(command):
     """
     Process the 'codegate' command.
@@ -38,6 +39,7 @@ async def codegate_cli(command):
         return NOT_FOUND_TEXT
 
     return await out_func(command[1:])
+
 
 class CodegateCli(PipelineStep):
     """Pipeline step that handles codegate cli."""

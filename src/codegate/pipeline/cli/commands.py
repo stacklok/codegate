@@ -45,7 +45,7 @@ class Workspace(CodegateCommand):
             "activate": self._activate_workspace,
         }
 
-    async def _list_workspaces(self, args: List[str]) -> str:
+    async def _list_workspaces(self, *args: List[str]) -> str:
         """
         List all workspaces
         """
@@ -106,7 +106,6 @@ class Workspace(CodegateCommand):
             return await command_to_execute(args[1:])
         else:
             return "Command not found. Use `codegate workspace -h` to see available commands"
-
 
     @property
     def help(self) -> str:
