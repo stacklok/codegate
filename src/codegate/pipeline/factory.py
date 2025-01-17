@@ -2,6 +2,7 @@ from typing import List
 
 from codegate.config import Config
 from codegate.pipeline.base import PipelineStep, SequentialPipelineProcessor
+from codegate.pipeline.cli.cli import CodegateCli
 from codegate.pipeline.codegate_context_retriever.codegate import CodegateContextRetriever
 from codegate.pipeline.extract_snippets.extract_snippets import CodeSnippetExtractor
 from codegate.pipeline.extract_snippets.output import CodeCommentStep
@@ -13,8 +14,6 @@ from codegate.pipeline.secrets.secrets import (
     SecretUnredactionStep,
 )
 from codegate.pipeline.system_prompt.codegate import SystemPrompt
-from codegate.pipeline.version.version import CodegateVersion
-from codegate.pipeline.workspace.workspace import CodegateWorkspace
 
 
 class PipelineFactory:
@@ -28,8 +27,7 @@ class PipelineFactory:
             # and without obfuscating the secrets, we'd leak the secrets during those
             # later steps
             CodegateSecrets(),
-            CodegateVersion(),
-            CodegateWorkspace(),
+            CodegateCli(),
             CodeSnippetExtractor(),
             CodegateContextRetriever(),
             SystemPrompt(Config.get_config().prompts.default_chat),

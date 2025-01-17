@@ -1,5 +1,6 @@
 from unittest.mock import AsyncMock, patch
 
+from codegate.workspaces.crud import WorkspaceCrud
 import pytest
 
 from codegate.db.models import WorkspaceActive
