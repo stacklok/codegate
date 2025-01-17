@@ -16,7 +16,7 @@ class ProviderRegistry:
         to the FastAPI app.
         """
         self.providers[name] = provider
-        self.app.include_router(provider.get_routes())
+        self.app.include_router(provider.get_routes(), include_in_schema=False)
 
     def get_provider(self, name: str) -> Optional[BaseProvider]:
         """
