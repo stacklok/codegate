@@ -43,12 +43,18 @@ class Setting(BaseModel):
 class Workspace(BaseModel):
     id: str
     name: str
+    system_prompt: Optional[str]
 
     @field_validator("name", mode="plain")
     @classmethod
-    def name_must_be_alphanumeric(cls, value):
+    def validate_name(cls, value):
         if not re.match(r"^[a-zA-Z0-9_-]+$", value):
             raise ValueError("name must be alphanumeric and can only contain _ and -")
+        # Avoid workspace names that are the same as commands that way we can do stuff like
+        # `codegate workspace list` and
+        # `codegate workspace my-ws system-prompt` without any conflicts
+        elif value in ["list", "add", "activate", "system-prompt"]:
+            raise ValueError("name cannot be the same as a command")
         return value
 
 

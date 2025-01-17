@@ -60,7 +60,7 @@ class WorkspaceCrud:
         sessions = await self._db_reader.get_sessions()
         # The current implementation expects only one active session
         if len(sessions) != 1:
-            raise RuntimeError("Something went wrong. No active session found.")
+            raise WorkspaceCrudError("Something went wrong. More than one session found.")
 
         session = sessions[0]
         return (session.active_workspace_id == selected_workspace.id, session, selected_workspace)
@@ -82,3 +82,20 @@ class WorkspaceCrud:
         db_recorder = DbRecorder()
         await db_recorder.update_session(session)
         return
+
+    async def update_workspace_system_prompt(
+            self, workspace_name: str, sys_prompt_lst: List[str]
+        ) -> Optional[Workspace]:
+        selected_workspace = await self._db_reader.get_workspace_by_name(workspace_name)
+        if not selected_workspace:
+            return None
+
+        system_prompt = " ".join(sys_prompt_lst)
+        workspace_update = Workspace(
+            id=selected_workspace.id,
+            name=selected_workspace.name,
+            system_prompt=system_prompt,
+        )
+        db_recorder = DbRecorder()
+        updated_workspace = await db_recorder.update_workspace(workspace_update)
+        return updated_workspace

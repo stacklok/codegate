@@ -275,6 +275,20 @@ class DbRecorder(DbCodeGate):
             raise AlreadyExistsError(f"Workspace {workspace_name} already exists.")
         return added_workspace
 
+    async def update_workspace(self, workspace: Workspace) -> Optional[Workspace]:
+        sql = text(
+            """
+            UPDATE workspaces SET
+            name = :name,
+            system_prompt = :system_prompt
+            WHERE id = :id
+            RETURNING *
+            """
+        )
+        # We only pass an object to respect the signature of the function
+        updated_workspace = await self._execute_update_pydantic_model(workspace, sql)
+        return updated_workspace
+
     async def update_session(self, session: Session) -> Optional[Session]:
         sql = text(
             """
@@ -392,11 +406,11 @@ class DbReader(DbCodeGate):
         workspaces = await self._execute_select_pydantic_model(WorkspaceActive, sql)
         return workspaces
 
-    async def get_workspace_by_name(self, name: str) -> List[Workspace]:
+    async def get_workspace_by_name(self, name: str) -> Optional[Workspace]:
         sql = text(
             """
             SELECT
-                id, name
+                id, name, system_prompt
             FROM workspaces
             WHERE name = :name
             """

@@ -104,6 +104,18 @@ class Workspace(CodegateCommand):
             return "An error occurred while activating the workspace"
         return f"Workspace **{workspace_name}** has been activated"
 
+    async def _add_system_prompt(self, workspace_name: str, sys_prompt_lst: List[str]):
+        updated_worksapce = await self.workspace_crud.update_workspace_system_prompt(workspace_name, sys_prompt_lst)
+        if not updated_worksapce:
+            return (
+                f"Workspace system prompt not updated. "
+                f"Check if the workspace **{workspace_name}** exists"
+            )
+        return (
+            f"Workspace **{updated_worksapce.name}** system prompt "
+            f"updated to:\n\n```{updated_worksapce.system_prompt}```"
+        )
+
     async def run(self, args: List[str]) -> str:
         if not args:
             return "Please provide a command. Use `codegate workspace -h` to see available commands"
@@ -112,6 +124,8 @@ class Workspace(CodegateCommand):
         if command_to_execute is not None:
             return await command_to_execute(args[1:])
         else:
+            if len(args) >= 2 and args[1] == "system-prompt":
+                return await self._add_system_prompt(args[0], args[2:])
             return "Command not found. Use `codegate workspace -h` to see available commands"
 
     @property
