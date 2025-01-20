@@ -53,9 +53,7 @@ class StorageEngine:
         self.inference_engine = LlamaCppInferenceEngine()
         conf = Config.get_config()
         if conf and conf.model_base_path and conf.embedding_model:
-            self.model_path = (
-                f"{conf.model_base_path}/{conf.embedding_model}"
-            )
+            self.model_path = f"{conf.model_base_path}/{conf.embedding_model}"
         else:
             self.model_path = ""
 

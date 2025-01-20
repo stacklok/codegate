@@ -20,7 +20,7 @@ DEFAULT_PROVIDER_URLS = {
     "anthropic": "https://api.anthropic.com/v1",
     "vllm": "http://localhost:8000",  # Base URL without /v1 path
     "ollama": "http://localhost:11434",  # Default Ollama server URL
-    "lm_studio": "http://localhost:1234"
+    "lm_studio": "http://localhost:1234",
 }
 
 

@@ -82,6 +82,16 @@ With Aider, you can choose from two leading AI model providers:
 - 💻 Local LLMs with [Ollama](https://ollama.com/)
 - 🧠 [OpenAI API](https://openai.com/api/)
 
+- **[Cline](https://github.com/cline/cline)**
+
+With Cline, you can choose between differnet leading AI model providers:
+
+- 🤖 [Anthropic API](https://www.anthropic.com/api)
+- 🧠 [OpenAI API](https://openai.com/api/)
+- 💻 [LM Studio](https://lmstudio.ai/)
+- 💻 Local LLMs with [Ollama](https://ollama.com/)
+
+
 ### Privacy first
 
 Unlike E.T., your code never phones home! 🛸 CodeGate is designed with privacy

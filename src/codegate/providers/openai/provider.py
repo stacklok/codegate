@@ -1,5 +1,6 @@
 import json
 
+from fastapi.responses import JSONResponse
 import httpx
 import structlog
 from fastapi import Header, HTTPException, Request
@@ -40,6 +41,12 @@ class OpenAIProvider(BaseProvider):
         passes it to the completion handler.
         """
 
+        @self.router.get(f"/{self.provider_route_name}/models")
+        @self.router.get(f"/{self.provider_route_name}/v1/models")
+        async def get_models():
+            # dummy method for lm studio
+            return JSONResponse(status_code=200, content=[])
+
         @self.router.post(f"/{self.provider_route_name}/chat/completions")
         @self.router.post(f"/{self.provider_route_name}/completions")
         @self.router.post(f"/{self.provider_route_name}/v1/chat/completions")
@@ -56,7 +63,7 @@ class OpenAIProvider(BaseProvider):
 
             # if model starts with lm_studio, propagate it
             if data.get("model", "").startswith("lm_studio"):
-                data["base_url"] = self.lm_studio_url+"/v1/"
+                data["base_url"] = self.lm_studio_url + "/v1/"
             is_fim_request = self._is_fim_request(request, data)
             try:
                 stream = await self.complete(data, api_key, is_fim_request=is_fim_request)
