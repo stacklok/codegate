@@ -1,13 +1,13 @@
-name: CI
+# This workflow builds, tests and lints the project
+name: Build, Test & Lint
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  workflow_call:
+  workflow_dispatch:
 
 jobs:
   test:
+    name: Run
     runs-on: ubuntu-latest
     strategy:
       matrix:

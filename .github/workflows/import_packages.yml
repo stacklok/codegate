@@ -1,3 +1,4 @@
+# This workflow syncs the vector database
 name: Sync vector DB
 
 on:

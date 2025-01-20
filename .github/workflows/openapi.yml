@@ -1,10 +1,9 @@
+# This workflow generates the OpenAPI docs
 name: Generate OpenAPI Documentation
 
 on:
+  workflow_call:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 jobs:
   generate_openapi:

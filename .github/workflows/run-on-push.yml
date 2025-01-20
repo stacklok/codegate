@@ -1,0 +1,19 @@
+# These set of workflows run on every push to the main branch
+name: Run - push_to_main
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  security:
+    name: Security Checks
+    uses: ./.github/workflows/security.yml
+  ci:
+    name: Build, Test & Lint
+    uses: ./.github/workflows/ci.yml
+  openapi:
+    name: Generate the OpenAPI docs
+    needs: [ci]
+    uses: ./.github/workflows/openapi.yml      
