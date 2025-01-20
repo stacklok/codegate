@@ -78,7 +78,7 @@ async def test_add_workspaces(args, existing_workspaces, expected_message):
 
     # We'll also patch DbRecorder to ensure no real DB operations happen
     with patch(
-        "codegate.pipeline.cli.commands.WorkspaceCrud", autospec=True
+        "codegate.workspaces.crud.WorkspaceCrud", autospec=True
     ) as mock_recorder_cls:
         mock_recorder = mock_recorder_cls.return_value
         workspace_commands.workspace_crud = mock_recorder
