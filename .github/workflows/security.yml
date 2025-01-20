@@ -1,14 +1,17 @@
 name: Security
 
 on:
-  workflow_call:
+  pull_request:
+  push:
+    branches:
+      - main
   schedule:
     - cron: '0 0 * * *'
 
 jobs:
   dependencies:
     runs-on: ubuntu-latest
-    name: Dependencies & Secrets Scan via Trivy
+    name: Dependencies & Secrets Scan
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2

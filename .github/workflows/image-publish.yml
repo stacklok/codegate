@@ -1,8 +1,8 @@
-# This workflow builds and publishes the OCI image
-name: OCI Image - Publish
-
+name: Publish Docker Image
 on:
-  workflow_call:
+  release:
+    types:
+      - published
   workflow_dispatch:
 
 jobs:

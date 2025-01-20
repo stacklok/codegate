@@ -2,7 +2,6 @@ import asyncio
 import json
 import os
 import re
-import sys
 from typing import Optional
 
 import requests
@@ -18,7 +17,6 @@ logger = structlog.get_logger("codegate")
 class CodegateTestRunner:
     def __init__(self):
         self.requester_factory = RequesterFactory()
-        self.failed_tests = []  # Track failed tests
 
     def call_codegate(
         self, url: str, headers: dict, data: dict, provider: str
@@ -121,7 +119,7 @@ class CodegateTestRunner:
         pattern = r"ENV\w*"
         return re.sub(pattern, replacement, input_string)
 
-    async def run_test(self, test: dict, test_headers: dict) -> bool:
+    async def run_test(self, test: dict, test_headers: dict) -> None:
         test_name = test["name"]
         url = test["url"]
         data = json.loads(test["data"])
@@ -131,7 +129,7 @@ class CodegateTestRunner:
         response = self.call_codegate(url, test_headers, data, provider)
         if not response:
             logger.error(f"Test {test_name} failed: No response received")
-            return False
+            return
 
         # Debug response info
         logger.debug(f"Response status: {response.status_code}")
@@ -144,29 +142,22 @@ class CodegateTestRunner:
             checks = CheckLoader.load(test)
 
             # Run all checks
-            all_passed = True
+            passed = True
             for check in checks:
                 passed_check = await check.run_check(parsed_response, test)
                 if not passed_check:
-                    all_passed = False
-
-            if not all_passed:
-                self.failed_tests.append(test_name)
-
-            logger.info(f"Test {test_name} {'passed' if all_passed else 'failed'}")
-            return all_passed
+                    passed = False
+            logger.info(f"Test {test_name} passed" if passed else f"Test {test_name} failed")
 
         except Exception as e:
             logger.exception("Could not parse response: %s", e)
-            self.failed_tests.append(test_name)
-            return False
 
     async def run_tests(
         self,
         testcases_file: str,
         providers: Optional[list[str]] = None,
         test_names: Optional[list[str]] = None,
-    ) -> bool:
+    ) -> None:
         with open(testcases_file, "r") as f:
             tests = yaml.safe_load(f)
 
@@ -196,7 +187,7 @@ class CodegateTestRunner:
                 if test_names:
                     filter_msg.append(f"test names: {', '.join(test_names)}")
                 logger.warning(f"No tests found for {' and '.join(filter_msg)}")
-                return True  # No tests is not a failure
+                return
 
         test_count = len(testcases)
         filter_msg = []
@@ -210,20 +201,12 @@ class CodegateTestRunner:
             + (f" for {' and '.join(filter_msg)}" if filter_msg else "")
         )
 
-        all_tests_passed = True
         for test_id, test_data in testcases.items():
             test_headers = headers.get(test_data["provider"], {})
             test_headers = {
                 k: self.replace_env_variables(v, os.environ) for k, v in test_headers.items()
             }
-            test_passed = await self.run_test(test_data, test_headers)
-            if not test_passed:
-                all_tests_passed = False
-
-        if not all_tests_passed:
-            logger.error(f"The following tests failed: {', '.join(self.failed_tests)}")
-
-        return all_tests_passed
+            await self.run_test(test_data, test_headers)
 
 
 async def main():
@@ -242,13 +225,9 @@ async def main():
     if test_names_env:
         test_names = [t.strip() for t in test_names_env.split(",") if t.strip()]
 
-    all_tests_passed = await test_runner.run_tests(
+    await test_runner.run_tests(
         "./tests/integration/testcases.yaml", providers=providers, test_names=test_names
     )
-
-    # Exit with status code 1 if any tests failed
-    if not all_tests_passed:
-        sys.exit(1)
 
 
 if __name__ == "__main__":

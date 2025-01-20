@@ -3,10 +3,8 @@
   <img alt="CodeGate logo" src="./static/codegate-logo-dark.svg" width="800px" style="max-width: 100%;">
 </picture>
 
----
-[![CI](https://github.com/stacklok/codegate/actions/workflows/run-on-push.yml/badge.svg)](https://github.com/stacklok/codegate/actions/workflows/run-on-push.yml) | [![License: Apache 2.0](https://img.shields.io/badge/License-Apache2.0-brightgreen.svg)](https://opensource.org/licenses/Apache-2.0) | [![](https://dcbadge.vercel.app/api/server/RkzVuTp3WK?logo=discord&label=Discord&color=5865&style=flat)](https://discord.gg/RkzVuTp3WK) 
+[![CI](https://github.com/stacklok/codegate/actions/workflows/ci.yml/badge.svg)](https://github.com/stacklok/codegate/actions/workflows/ci.yml) | [![](https://dcbadge.vercel.app/api/server/RkzVuTp3WK?logo=discord&label=Discord&color=5865&style=flat)](https://discord.gg/RkzVuTp3WK)
 
----
 ## Introduction
 
 <img src="./assets/codegate.gif" style="width: 70%; height: 70%;" />
