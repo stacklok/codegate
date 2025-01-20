@@ -32,7 +32,7 @@ class CodegateCommand(ABC):
         pass
 
     async def exec(self, args: List[str]) -> str:
-        if len(args) > 0 and args[0] == "-h":
+        if args and args[0] == "-h":
             return self.help
         return await self.run(args)
 
@@ -60,14 +60,25 @@ class CodegateCommandSubcommand(CodegateCommand):
     @property
     @abstractmethod
     def subcommands(self) -> Dict[str, Callable[[List[str]], Awaitable[str]]]:
+        """
+        List of subcommands that the command accepts.
+        """
         pass
 
     @property
     @abstractmethod
     def flags(self) -> List[str]:
+        """
+        List of flags that the command accepts.
+        Example: ["-w", "-f"]
+        """
         pass
 
     def _parse_flags_and_subocomand(self, args: List[str]) -> Tuple[Dict[str, str], List[str], str]:
+        """
+        Reads the flags and subcommand from the args
+        The flags are expected to be at the start of the args and are optional.
+        """
         i = 0
         read_flags = {}
         # Parse all recognized flags at the start
@@ -94,6 +105,9 @@ class CodegateCommandSubcommand(CodegateCommand):
         return read_flags, rest, subcommand
 
     async def run(self, args: List[str]) -> str:
+        """
+        Try to parse the flags and subcommand and execute the subcommand
+        """
         try:
             flags, rest, subcommand = self._parse_flags_and_subocomand(args)
         except NoFlagValueError:
@@ -128,6 +142,9 @@ class Workspace(CodegateCommandSubcommand):
 
     @property
     def flags(self) -> List[str]:
+        """
+        No flags for the workspace command
+        """
         return []
 
     @property
@@ -223,6 +240,10 @@ class SystemPrompt(CodegateCommandSubcommand):
 
     @property
     def flags(self) -> List[str]:
+        """
+        Flags for the system-prompt command.
+        -w: Workspace name
+        """
         return ["-w"]
 
     @property
@@ -233,6 +254,10 @@ class SystemPrompt(CodegateCommandSubcommand):
         }
 
     async def _set_system_prompt(self, flags: Dict[str, str], args: List[str]) -> str:
+        """
+        Set the system prompt of a workspace
+        If a workspace name is not provided, the active workspace is used
+        """
         if len(args) == 0:
             return (
                 "Please provide a workspace name and a system prompt. "
@@ -256,6 +281,10 @@ class SystemPrompt(CodegateCommandSubcommand):
         return f"Workspace `{updated_worksapce.name}` system prompt updated."
 
     async def _show_system_prompt(self, flags: Dict[str, str], args: List[str]) -> str:
+        """
+        Show the system prompt of a workspace
+        If a workspace name is not provided, the active workspace is used
+        """
         workspace_name = flags.get("-w")
         if not workspace_name:
             active_workspace = await self.workspace_crud.get_active_workspace()
@@ -273,6 +302,8 @@ class SystemPrompt(CodegateCommandSubcommand):
         return (
             "### CodeGate System Prompt\n"
             "Manage the system prompts of workspaces.\n\n"
+            "*Note*: If you want to update the system prompt using files please go to the "
+            "[dashboard](http://localhost:9090).\n\n"
             "**Usage**: `codegate system-prompt -w <workspace_name> <command>`\n\n"
             "*args*:\n"
             "- `workspace_name`: Optional workspace name. If not specified will use the "
