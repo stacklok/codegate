@@ -55,7 +55,7 @@ async def activate_workspace(request: v1_models.ActivateWorkspaceRequest, status
 
 
 @v1.post("/workspaces", tags=["Workspaces"], generate_unique_id_function=uniq_name, status_code=201)
-async def create_workspace(request: v1_models.CreateWorkspaceRequest):
+async def create_workspace(request: v1_models.CreateWorkspaceRequest) -> v1_models.Workspace:
     """Create a new workspace."""
     # Input validation is done in the model
     try:
@@ -69,7 +69,7 @@ async def create_workspace(request: v1_models.CreateWorkspaceRequest):
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
-    return v1_models.Workspace(name=request.name)
+    return v1_models.Workspace(name=request.name, is_active=False)
 
 
 @v1.delete(
