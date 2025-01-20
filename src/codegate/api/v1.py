@@ -79,8 +79,14 @@ async def create_workspace(request: v1_models.CreateWorkspaceRequest) -> v1_mode
     "/workspaces/{workspace_name}",
     tags=["Workspaces"],
     generate_unique_id_function=uniq_name,
-    status_code=204,
 )
 async def delete_workspace(workspace_name: str):
     """Delete a workspace by name."""
-    raise NotImplementedError
+    try:
+        _ = await wscrud.soft_delete_workspace(workspace_name)
+    except crud.WorkspaceDoesNotExistError:
+        return HTTPException(status_code=404, detail="Workspace does not exist")
+    except Exception:
+        return HTTPException(status_code=500, detail="Internal server error")
+
+    return Response(status_code=204)

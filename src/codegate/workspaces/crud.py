@@ -68,10 +68,6 @@ class WorkspaceCrud:
     async def activate_workspace(self, workspace_name: str):
         """
         Activate a workspace
-
-        Will return:
-        - True if the workspace was activated
-        - False if the workspace is already active or does not exist
         """
         is_active, session, workspace = await self._is_workspace_active(workspace_name)
         if is_active:
@@ -99,6 +95,31 @@ class WorkspaceCrud:
         db_recorder = DbRecorder()
         updated_workspace = await db_recorder.update_workspace(workspace_update)
         return updated_workspace
+
+    async def soft_delete_workspace(self, workspace_name: str):
+        """
+        Soft delete a workspace
+        """
+        if workspace_name == "":
+            raise WorkspaceCrudError("Workspace name cannot be empty.")
+        if workspace_name == "default":
+            raise WorkspaceCrudError("Cannot delete default workspace.")
+
+        selected_workspace = await self._db_reader.get_workspace_by_name(workspace_name)
+        if not selected_workspace:
+            raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
+
+        # Check if workspace is active, if it is, make the default workspace active
+        active_workspace = await self._db_reader.get_active_workspace()
+        if active_workspace and active_workspace.id == selected_workspace.id:
+            _ = await self.activate_workspace("default")
+
+        db_recorder = DbRecorder()
+        try:
+            _ = await db_recorder.soft_delete_workspace(selected_workspace)
+        except Exception:
+            raise WorkspaceCrudError(f"Error deleting workspace {workspace_name}")
+        return
 
     async def get_workspace_by_name(self, workspace_name: str) -> Workspace:
         workspace = await self._db_reader.get_workspace_by_name(workspace_name)

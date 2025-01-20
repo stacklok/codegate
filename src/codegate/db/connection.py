@@ -304,6 +304,20 @@ class DbRecorder(DbCodeGate):
         active_session = await self._execute_update_pydantic_model(session, sql, should_raise=True)
         return active_session
 
+    async def soft_delete_workspace(self, workspace: Workspace) -> Optional[Workspace]:
+        sql = text(
+            """
+            UPDATE workspaces
+            SET deleted_at = CURRENT_TIMESTAMP
+            WHERE id = :id
+            RETURNING *
+            """
+        )
+        deleted_workspace = await self._execute_update_pydantic_model(
+            workspace, sql, should_raise=True
+        )
+        return deleted_workspace
+
 
 class DbReader(DbCodeGate):
 
@@ -401,6 +415,7 @@ class DbReader(DbCodeGate):
                 w.id, w.name, s.active_workspace_id
             FROM workspaces w
             LEFT JOIN sessions s ON w.id = s.active_workspace_id
+            WHERE w.deleted_at IS NULL
             """
         )
         workspaces = await self._execute_select_pydantic_model(WorkspaceActive, sql)
@@ -412,7 +427,7 @@ class DbReader(DbCodeGate):
             SELECT
                 id, name, system_prompt
             FROM workspaces
-            WHERE name = :name
+            WHERE name = :name AND deleted_at IS NULL
             """
         )
         conditions = {"name": name}

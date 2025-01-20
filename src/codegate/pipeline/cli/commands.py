@@ -153,6 +153,7 @@ class Workspace(CodegateCommandSubcommand):
             "list": self._list_workspaces,
             "add": self._add_workspace,
             "activate": self._activate_workspace,
+            "remove": self._remove_workspace,
         }
 
     async def _list_workspaces(self, flags: Dict[str, str], args: List[str]) -> str:
@@ -210,6 +211,25 @@ class Workspace(CodegateCommandSubcommand):
         except Exception:
             return "An error occurred while activating the workspace"
         return f"Workspace **{workspace_name}** has been activated"
+
+    async def _remove_workspace(self, args: List[str]) -> str:
+        """
+        Remove a workspace
+        """
+        if args is None or len(args) == 0:
+            return "Please provide a name. Use `codegate workspace remove workspace_name`"
+
+        workspace_name = args[0]
+        if not workspace_name:
+            return "Please provide a name. Use `codegate workspace remove workspace_name`"
+
+        try:
+            await self.workspace_crud.soft_delete_workspace(workspace_name)
+        except crud.WorkspaceDoesNotExistError:
+            return f"Workspace **{workspace_name}** does not exist"
+        except Exception:
+            return "An error occurred while removing the workspace"
+        return f"Workspace **{workspace_name}** has been removed"
 
     @property
     def help(self) -> str:
