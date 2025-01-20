@@ -212,7 +212,7 @@ class Workspace(CodegateCommandSubcommand):
             return "An error occurred while activating the workspace"
         return f"Workspace **{workspace_name}** has been activated"
 
-    async def _remove_workspace(self, args: List[str]) -> str:
+    async def _remove_workspace(self, flags: Dict[str, str], args: List[str]) -> str:
         """
         Remove a workspace
         """
