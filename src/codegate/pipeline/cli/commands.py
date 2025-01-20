@@ -230,6 +230,7 @@ class SystemPrompt(CodegateCommandSubcommand):
     def subcommands(self) -> Dict[str, Callable[[List[str]], Awaitable[str]]]:
         return {
             "set": self._set_system_prompt,
+            "show": self._show_system_prompt,
         }
 
     async def _set_system_prompt(self, flags: Dict[str, str], args: List[str]) -> str:
@@ -253,10 +254,22 @@ class SystemPrompt(CodegateCommandSubcommand):
                 f"Workspace system prompt not updated. Workspace `{workspace_name}` doesn't exist"
             )
 
-        return (
-            f"Workspace `{updated_worksapce.name}` system prompt "
-            f"updated to:\n```\n{updated_worksapce.system_prompt}\n```"
-        )
+        return f"Workspace `{updated_worksapce.name}` system prompt updated."
+
+    async def _show_system_prompt(self, flags: Dict[str, str], args: List[str]) -> str:
+        workspace_name = flags.get("-w")
+        if not workspace_name:
+            active_workspace = await self.workspace_crud.get_active_workspace()
+            workspace_name = active_workspace.name
+
+        try:
+            workspace = await self.workspace_crud.get_workspace_by_name(workspace_name)
+        except crud.WorkspaceDoesNotExistError:
+            return (
+                f"Workspace `{workspace_name}` doesn't exist"
+            )
+
+        return f"Workspace **{workspace.name}** system prompt:\n\n{workspace.system_prompt}."
 
     @property
     def help(self) -> str:

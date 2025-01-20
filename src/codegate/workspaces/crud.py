@@ -99,3 +99,9 @@ class WorkspaceCrud:
         db_recorder = DbRecorder()
         updated_workspace = await db_recorder.update_workspace(workspace_update)
         return updated_workspace
+
+    async def get_workspace_by_name(self, workspace_name: str) -> Workspace:
+        workspace = await self._db_reader.get_workspace_by_name(workspace_name)
+        if not workspace:
+            raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
+        return workspace
