@@ -3,10 +3,12 @@ from fastapi.routing import APIRoute
 from pydantic import ValidationError
 
 from codegate.api import v1_models
+from codegate.api.dashboard.dashboard import dashboard_router
 from codegate.db.connection import AlreadyExistsError
 from codegate.workspaces import crud
 
 v1 = APIRouter()
+v1.include_router(dashboard_router)
 wscrud = crud.WorkspaceCrud()
 
 
