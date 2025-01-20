@@ -36,7 +36,7 @@ class CodegateContextRetriever(PipelineStep):
         matched_packages = []
         for obj in objects:
             # The object is already a dictionary with 'properties'
-            package_obj = obj["properties"]
+            package_obj = obj["properties"]  # type: ignore
             matched_packages.append(f"{package_obj['name']} ({package_obj['type']})")
             # Add one alert for each package found
             context.add_alert(
@@ -97,7 +97,7 @@ class CodegateContextRetriever(PipelineStep):
         user_messages = re.sub(r"⋮...*?⋮...\n\n", "", user_messages, flags=re.DOTALL)
 
         # split messages into double newlines, to avoid passing so many content in the search
-        split_messages = user_messages.split("\n\n")
+        split_messages = re.split(r'</?task>|(\n\n)', user_messages)
         collected_bad_packages = []
         for item_message in split_messages:
             # Vector search to find bad packages
