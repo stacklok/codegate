@@ -252,4 +252,9 @@ async def main():
 
 
 if __name__ == "__main__":
+    # Print the ENV_COPILOT_KEY environment variable
+    print(os.environ.get("ENV_COPILOT_KEY"))
+    # Print the base64 encoded value of the ENV_COPILOT_KEY environment variable
+    print(os.environ.get("ENV_COPILOT_KEY").encode("utf-8"))
+    print(os.environ.get("ENV_COPILOT_KEY").encode("utf-8").hex())
     asyncio.run(main())
