@@ -69,7 +69,6 @@ class DbCodeGate:
 
 
 class DbRecorder(DbCodeGate):
-
     def __init__(self, sqlite_path: Optional[str] = None):
         super().__init__(sqlite_path)
 
@@ -320,7 +319,6 @@ class DbRecorder(DbCodeGate):
 
 
 class DbReader(DbCodeGate):
-
     def __init__(self, sqlite_path: Optional[str] = None):
         super().__init__(sqlite_path)
 
@@ -366,6 +364,11 @@ class DbReader(DbCodeGate):
                 return None
 
     async def get_prompts_with_output(self) -> List[GetPromptWithOutputsRow]:
+        active_workspace = await self.get_active_workspace()
+
+        if active_workspace is None:
+            return []
+
         sql = text(
             """
             SELECT
@@ -375,13 +378,23 @@ class DbReader(DbCodeGate):
                 o.timestamp as output_timestamp
             FROM prompts p
             LEFT JOIN outputs o ON p.id = o.prompt_id
+            WHERE p.workspace_id = :active_workspace_id
             ORDER BY o.timestamp DESC
             """
         )
-        prompts = await self._execute_select_pydantic_model(GetPromptWithOutputsRow, sql)
+
+        conditions = {"active_workspace_id": active_workspace.id}
+        prompts = await self._exec_select_conditions_to_pydantic(
+            GetPromptWithOutputsRow, sql, conditions, should_raise=True
+        )
         return prompts
 
     async def get_alerts_with_prompt_and_output(self) -> List[GetAlertsWithPromptAndOutputRow]:
+        active_workspace = await self.get_active_workspace()
+
+        if active_workspace is None:
+            return []
+
         sql = text(
             """
             SELECT
@@ -402,11 +415,16 @@ class DbReader(DbCodeGate):
             FROM alerts a
             LEFT JOIN prompts p ON p.id = a.prompt_id
             LEFT JOIN outputs o ON p.id = o.prompt_id
+            WHERE p.workspace_id = :active_workspace_id
             ORDER BY a.timestamp DESC
             """
         )
-        prompts = await self._execute_select_pydantic_model(GetAlertsWithPromptAndOutputRow, sql)
-        return prompts
+
+        conditions = {"active_workspace_id": active_workspace.id}
+        alerts = await self._exec_select_conditions_to_pydantic(
+            GetAlertsWithPromptAndOutputRow, sql, conditions, should_raise=True
+        )
+        return alerts
 
     async def get_workspaces(self) -> List[WorkspaceActive]:
         sql = text(
