@@ -14,7 +14,7 @@ jobs:
         python-version: ["3.12"]
 
     steps:
-    - name: Checkout github repo
+    - name: Checkout
       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       with:
         lfs: true

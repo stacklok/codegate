@@ -29,6 +29,9 @@ jobs:
         with:
           lfs: true
 
+      - name: Checkout LFS objects
+        run: git lfs pull
+
       - name: Ensure file permissions for mounted volume
         run: |
           mkdir -p ./codegate_volume/certs ./codegate_volume/models ./codegate_volume/db
