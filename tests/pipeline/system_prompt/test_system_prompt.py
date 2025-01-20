@@ -1,4 +1,4 @@
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from litellm.types.llms.openai import ChatCompletionRequest
@@ -14,7 +14,7 @@ class TestSystemPrompt:
         """
         test_message = "Test system prompt"
         step = SystemPrompt(system_prompt=test_message)
-        assert step._system_message["content"] == test_message
+        assert step.codegate_system_prompt == test_message
 
     @pytest.mark.asyncio
     async def test_process_system_prompt_insertion(self):
@@ -29,6 +29,7 @@ class TestSystemPrompt:
         # Create system prompt step
         system_prompt = "Security analysis system prompt"
         step = SystemPrompt(system_prompt=system_prompt)
+        step._get_workspace_system_prompt = AsyncMock(return_value="")
 
         # Mock the get_last_user_message method
         step.get_last_user_message = Mock(return_value=(user_message, 0))
@@ -62,6 +63,7 @@ class TestSystemPrompt:
         # Create system prompt step
         system_prompt = "Security analysis system prompt"
         step = SystemPrompt(system_prompt=system_prompt)
+        step._get_workspace_system_prompt = AsyncMock(return_value="")
 
         # Mock the get_last_user_message method
         step.get_last_user_message = Mock(return_value=(user_message, 0))
@@ -74,7 +76,7 @@ class TestSystemPrompt:
         assert result.request["messages"][0]["role"] == "system"
         assert (
             result.request["messages"][0]["content"]
-            == system_prompt + "\n Here are additional instructions. \n " + request_system_message
+            == system_prompt + "\n\nHere are additional instructions:\n\n" + request_system_message
         )
         assert result.request["messages"][1]["role"] == "user"
         assert result.request["messages"][1]["content"] == user_message
@@ -96,6 +98,7 @@ class TestSystemPrompt:
 
         system_prompt = "Security edge case prompt"
         step = SystemPrompt(system_prompt=system_prompt)
+        step._get_workspace_system_prompt = AsyncMock(return_value="")
 
         # Mock get_last_user_message to return None
         step.get_last_user_message = Mock(return_value=None)

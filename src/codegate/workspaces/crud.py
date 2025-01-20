@@ -84,8 +84,8 @@ class WorkspaceCrud:
         return
 
     async def update_workspace_system_prompt(
-            self, workspace_name: str, sys_prompt_lst: List[str]
-        ) -> Optional[Workspace]:
+        self, workspace_name: str, sys_prompt_lst: List[str]
+    ) -> Optional[Workspace]:
         selected_workspace = await self._db_reader.get_workspace_by_name(workspace_name)
         if not selected_workspace:
             return None

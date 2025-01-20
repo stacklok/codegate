@@ -436,7 +436,7 @@ class DbReader(DbCodeGate):
         sql = text(
             """
             SELECT
-                w.id, w.name, s.id as session_id, s.last_update
+                w.id, w.name, w.system_prompt, s.id as session_id, s.last_update
             FROM sessions s
             INNER JOIN workspaces w ON w.id = s.active_workspace_id
             """
