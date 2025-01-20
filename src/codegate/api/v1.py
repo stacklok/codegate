@@ -59,7 +59,7 @@ async def create_workspace(request: v1_models.CreateWorkspaceRequest):
     """Create a new workspace."""
     # Input validation is done in the model
     try:
-        created = await wscrud.add_workspace(request.name)
+        _ = await wscrud.add_workspace(request.name)
     except AlreadyExistsError:
         raise HTTPException(status_code=409, detail="Workspace already exists")
     except ValidationError:
@@ -69,8 +69,7 @@ async def create_workspace(request: v1_models.CreateWorkspaceRequest):
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
-    if created:
-        return v1_models.Workspace(name=created.name)
+    return v1_models.Workspace(name=request.name)
 
 
 @v1.delete(
