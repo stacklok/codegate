@@ -256,8 +256,7 @@ class DbRecorder(DbCodeGate):
         It may raise a ValidationError if the workspace name is invalid.
         or a AlreadyExistsError if the workspace already exists.
         """
-        workspace = Workspace(id=str(uuid.uuid4()), name=workspace_name)
-
+        workspace = Workspace(id=str(uuid.uuid4()), name=workspace_name, system_prompt=None)
         sql = text(
             """
             INSERT INTO workspaces (id, name)
