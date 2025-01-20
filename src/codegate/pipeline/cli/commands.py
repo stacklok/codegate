@@ -156,11 +156,11 @@ class Workspace(CodegateCommandSubcommand):
         Add a workspace
         """
         if args is None or len(args) == 0:
-            return "Please provide a name. Use `codegate workspace add <workspace_name>`"
+            return "Please provide a name. Use `codegate workspace add your_workspace_name`"
 
         new_workspace_name = args[0]
         if not new_workspace_name:
-            return "Please provide a name. Use `codegate workspace add <workspace_name>`"
+            return "Please provide a name. Use `codegate workspace add your_workspace_name`"
 
         try:
             _ = await self.workspace_crud.add_workspace(new_workspace_name)
@@ -178,11 +178,11 @@ class Workspace(CodegateCommandSubcommand):
         Activate a workspace
         """
         if args is None or len(args) == 0:
-            return "Please provide a name. Use `codegate workspace activate <workspace_name>`"
+            return "Please provide a name. Use `codegate workspace activate workspace_name`"
 
         workspace_name = args[0]
         if not workspace_name:
-            return "Please provide a name. Use `codegate workspace activate <workspace_name>`"
+            return "Please provide a name. Use `codegate workspace activate workspace_name`"
 
         try:
             await self.workspace_crud.activate_workspace(workspace_name)
