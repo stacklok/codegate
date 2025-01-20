@@ -27,7 +27,7 @@ tree-sitter-javascript = "==0.23.1"
 tree-sitter-python = "==0.23.6"
 tree-sitter-rust = "==0.23.2"
 sqlite-vec-sl-tmp = "==0.0.4"
-alembic = "==1.14.0"
+alembic = "==1.14.1"
 pygments = "==2.19.1"
 
 [tool.poetry.group.dev.dependencies]
