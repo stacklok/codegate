@@ -112,7 +112,7 @@ class WorkspaceCrud:
         # Check if workspace is active, if it is, make the default workspace active
         active_workspace = await self._db_reader.get_active_workspace()
         if active_workspace and active_workspace.id == selected_workspace.id:
-            _ = await self.activate_workspace("default")
+            raise WorkspaceCrudError("Cannot delete active workspace.")
 
         db_recorder = DbRecorder()
         try:
