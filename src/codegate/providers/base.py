@@ -199,7 +199,8 @@ class BaseProvider(ABC):
                     context.sensitive.secure_cleanup()
 
     async def complete(
-        self, data: Dict, api_key: Optional[str], is_fim_request: bool) -> Union[ModelResponse, AsyncIterator[ModelResponse]]:
+        self, data: Dict, api_key: Optional[str], is_fim_request: bool
+    ) -> Union[ModelResponse, AsyncIterator[ModelResponse]]:
         """
         Main completion flow with pipeline integration
 

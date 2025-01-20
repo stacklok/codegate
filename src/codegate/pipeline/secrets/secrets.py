@@ -452,7 +452,8 @@ class SecretRedactionNotifier(OutputPipelineStep):
             return [chunk]
 
         is_cline_client = any(
-            "Cline" in str(message.trigger_string or "") for message in input_context.alerts_raised or []
+            "Cline" in str(message.trigger_string or "")
+            for message in input_context.alerts_raised or []
         )
 
         # Check if this is the first chunk (delta role will be present, others will not)
