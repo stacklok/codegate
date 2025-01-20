@@ -244,14 +244,15 @@ class SystemPrompt(CodegateCommandSubcommand):
             active_workspace = await self.workspace_crud.get_active_workspace()
             workspace_name = active_workspace.name
 
-        updated_worksapce = await self.workspace_crud.update_workspace_system_prompt(
-            workspace_name, args
-        )
-        if not updated_worksapce:
-            return (
-                f"Workspace system prompt not updated. "
-                f"Check if the workspace `{workspace_name}` exists"
+        try:
+            updated_worksapce = await self.workspace_crud.update_workspace_system_prompt(
+                workspace_name, args
             )
+        except crud.WorkspaceDoesNotExistError:
+            return (
+                f"Workspace system prompt not updated. Workspace `{workspace_name}` doesn't exist"
+            )
+
         return (
             f"Workspace `{updated_worksapce.name}` system prompt "
             f"updated to:\n```\n{updated_worksapce.system_prompt}\n```"

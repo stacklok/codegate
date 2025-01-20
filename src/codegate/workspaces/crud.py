@@ -85,10 +85,10 @@ class WorkspaceCrud:
 
     async def update_workspace_system_prompt(
         self, workspace_name: str, sys_prompt_lst: List[str]
-    ) -> Optional[Workspace]:
+    ) -> Workspace:
         selected_workspace = await self._db_reader.get_workspace_by_name(workspace_name)
         if not selected_workspace:
-            return None
+            raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
 
         system_prompt = " ".join(sys_prompt_lst)
         workspace_update = Workspace(

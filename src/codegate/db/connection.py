@@ -248,7 +248,7 @@ class DbRecorder(DbCodeGate):
         except Exception as e:
             logger.error(f"Failed to record context: {context}.", error=str(e))
 
-    async def add_workspace(self, workspace_name: str) -> Optional[Workspace]:
+    async def add_workspace(self, workspace_name: str) -> Workspace:
         """Add a new workspace to the DB.
 
         This handles validation and insertion of a new workspace.
@@ -274,7 +274,7 @@ class DbRecorder(DbCodeGate):
             raise AlreadyExistsError(f"Workspace {workspace_name} already exists.")
         return added_workspace
 
-    async def update_workspace(self, workspace: Workspace) -> Optional[Workspace]:
+    async def update_workspace(self, workspace: Workspace) -> Workspace:
         sql = text(
             """
             UPDATE workspaces SET
@@ -284,8 +284,7 @@ class DbRecorder(DbCodeGate):
             RETURNING *
             """
         )
-        # We only pass an object to respect the signature of the function
-        updated_workspace = await self._execute_update_pydantic_model(workspace, sql)
+        updated_workspace = await self._execute_update_pydantic_model(workspace, sql, should_raise=True)
         return updated_workspace
 
     async def update_session(self, session: Session) -> Optional[Session]:
