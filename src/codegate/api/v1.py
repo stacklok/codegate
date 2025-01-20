@@ -85,8 +85,8 @@ async def delete_workspace(workspace_name: str):
     try:
         _ = await wscrud.soft_delete_workspace(workspace_name)
     except crud.WorkspaceDoesNotExistError:
-        return HTTPException(status_code=404, detail="Workspace does not exist")
+        raise HTTPException(status_code=404, detail="Workspace does not exist")
     except Exception:
-        return HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
     return Response(status_code=204)
