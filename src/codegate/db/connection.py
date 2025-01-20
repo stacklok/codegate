@@ -284,7 +284,9 @@ class DbRecorder(DbCodeGate):
             RETURNING *
             """
         )
-        updated_workspace = await self._execute_update_pydantic_model(workspace, sql, should_raise=True)
+        updated_workspace = await self._execute_update_pydantic_model(
+            workspace, sql, should_raise=True
+        )
         return updated_workspace
 
     async def update_session(self, session: Session) -> Optional[Session]:

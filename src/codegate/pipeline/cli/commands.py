@@ -11,8 +11,10 @@ from codegate.workspaces import crud
 class NoFlagValueError(Exception):
     pass
 
+
 class NoSubcommandError(Exception):
     pass
+
 
 class CodegateCommand(ABC):
     @abstractmethod
@@ -46,10 +48,10 @@ class Version(CodegateCommand):
     @property
     def help(self) -> str:
         return (
-            "### CodeGate Version\n"
+            "### CodeGate Version\n\n"
             "Prints the version of CodeGate.\n\n"
-            "*args*: None\n\n"
             "**Usage**: `codegate version`\n\n"
+            "*args*: None"
         )
 
 
@@ -74,7 +76,7 @@ class CodegateCommandSubcommand(CodegateCommand):
                 flag_name = args[i]
                 if i + 1 >= len(args):
                     raise NoFlagValueError(f"Flag {flag_name} needs a value, but none provided.")
-                read_flags[flag_name] = args[i+1]
+                read_flags[flag_name] = args[i + 1]
                 i += 2
             else:
                 # Once we encounter something that's not a recognized flag,
@@ -165,11 +167,11 @@ class Workspace(CodegateCommandSubcommand):
         except ValidationError:
             return "Invalid workspace name: It should be alphanumeric and dashes"
         except AlreadyExistsError:
-            return f"Workspace `{new_workspace_name}` already exists"
+            return f"Workspace **{new_workspace_name}** already exists"
         except Exception:
             return "An error occurred while adding the workspace"
 
-        return f"Workspace `{new_workspace_name}` has been added"
+        return f"Workspace **{new_workspace_name}** has been added"
 
     async def _activate_workspace(self, flags: Dict[str, str], args: List[str]) -> str:
         """
@@ -195,21 +197,18 @@ class Workspace(CodegateCommandSubcommand):
     @property
     def help(self) -> str:
         return (
-            "### CodeGate Workspace\n"
+            "### CodeGate Workspace\n\n"
             "Manage workspaces.\n\n"
             "**Usage**: `codegate workspace <command> [args]`\n\n"
-            "Available commands:\n"
-            "- `list`: List all workspaces\n"
-            "  - *args*: None\n"
-            "  - **Usage**: `codegate workspace list`\n"
-            "- `add`: Add a workspace\n"
-            "  - *args*:\n"
-            "    - `workspace_name`\n"
-            "  - **Usage**: `codegate workspace add <workspace_name>`\n"
-            "- `activate`: Activate a workspace\n"
-            "  - *args*:\n"
-            "    - `workspace_name`\n"
-            "  - **Usage**: `codegate workspace activate <workspace_name>`\n"
+            "Available commands:\n\n"
+            "- `list`: List all workspaces\n\n"
+            "  - *args*: None\n\n"
+            "- `add`: Add a workspace\n\n"
+            "  - *args*:\n\n"
+            "    - `workspace_name`\n\n"
+            "- `activate`: Activate a workspace\n\n"
+            "  - *args*:\n\n"
+            "    - `workspace_name`"
         )
 
 
@@ -265,9 +264,7 @@ class SystemPrompt(CodegateCommandSubcommand):
         try:
             workspace = await self.workspace_crud.get_workspace_by_name(workspace_name)
         except crud.WorkspaceDoesNotExistError:
-            return (
-                f"Workspace `{workspace_name}` doesn't exist"
-            )
+            return f"Workspace `{workspace_name}` doesn't exist"
 
         return f"Workspace **{workspace.name}** system prompt:\n\n{workspace.system_prompt}."
 

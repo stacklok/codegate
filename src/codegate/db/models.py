@@ -47,7 +47,7 @@ class Workspace(BaseModel):
 
     @field_validator("name", mode="plain")
     @classmethod
-    def validate_name(cls, value):
+    def name_must_be_alphanumeric(cls, value):
         if not re.match(r"^[a-zA-Z0-9_-]+$", value):
             raise ValueError("name must be alphanumeric and can only contain _ and -")
         return value
