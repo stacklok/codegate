@@ -8,6 +8,12 @@ from codegate.db.models import ActiveWorkspace, Session, Workspace, WorkspaceAct
 class WorkspaceCrudError(Exception):
     pass
 
+class WorkspaceDoesNotExistError(WorkspaceCrudError):
+    pass
+
+class WorkspaceAlreadyActiveError(WorkspaceCrudError):
+    pass
+
 class WorkspaceCrud:
 
     def __init__(self):
@@ -36,19 +42,17 @@ class WorkspaceCrud:
         """
         return await self._db_reader.get_active_workspace()
 
-    async def _is_workspace_active_or_not_exist(
+    async def _is_workspace_active(
         self, workspace_name: str
     ) -> Tuple[bool, Optional[Session], Optional[Workspace]]:
         """
-        Check if the workspace is active
-
-        Will return:
-        - True if the workspace was activated
-        - False if the workspace is already active or does not exist
+        Check if the workspace is active alongside the session and workspace objects
         """
+        # TODO: All of this should be done within a transaction.
+
         selected_workspace = await self._db_reader.get_workspace_by_name(workspace_name)
         if not selected_workspace:
-            return True, None, None
+            raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
 
         sessions = await self._db_reader.get_sessions()
         # The current implementation expects only one active session
@@ -56,11 +60,10 @@ class WorkspaceCrud:
             raise RuntimeError("Something went wrong. No active session found.")
 
         session = sessions[0]
-        if session.active_workspace_id == selected_workspace.id:
-            return True, None, None
-        return False, session, selected_workspace
+        return (session.active_workspace_id == selected_workspace.id,
+                session, selected_workspace)
 
-    async def activate_workspace(self, workspace_name: str) -> bool:
+    async def activate_workspace(self, workspace_name: str):
         """
         Activate a workspace
 
@@ -68,12 +71,12 @@ class WorkspaceCrud:
         - True if the workspace was activated
         - False if the workspace is already active or does not exist
         """
-        is_active, session, workspace = await self._is_workspace_active_or_not_exist(workspace_name)
+        is_active, session, workspace = await self._is_workspace_active(workspace_name)
         if is_active:
-            return False
+            raise WorkspaceAlreadyActiveError(f"Workspace {workspace_name} is already active.")
 
         session.active_workspace_id = workspace.id
         session.last_update = datetime.datetime.now(datetime.timezone.utc)
         db_recorder = DbRecorder()
         await db_recorder.update_session(session)
-        return True
+        return

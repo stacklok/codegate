@@ -284,7 +284,7 @@ class DbRecorder(DbCodeGate):
             """
         )
         # We only pass an object to respect the signature of the function
-        active_session = await self._execute_update_pydantic_model(session, sql)
+        active_session = await self._execute_update_pydantic_model(session, sql, should_raise=True)
         return active_session
 
 
@@ -317,7 +317,8 @@ class DbReader(DbCodeGate):
                 return None
 
     async def _exec_select_conditions_to_pydantic(
-        self, model_type: Type[BaseModel], sql_command: TextClause, conditions: dict
+        self, model_type: Type[BaseModel], sql_command: TextClause, conditions: dict,
+        should_raise: bool = False
     ) -> Optional[List[BaseModel]]:
         async with self._async_db_engine.begin() as conn:
             try:
@@ -325,6 +326,9 @@ class DbReader(DbCodeGate):
                 return await self._dump_result_to_pydantic_model(model_type, result)
             except Exception as e:
                 logger.error(f"Failed to select model with conditions: {model_type}.", error=str(e))
+                # Exposes errors to the caller
+                if should_raise:
+                    raise e
                 return None
 
     async def get_prompts_with_output(self) -> List[GetPromptWithOutputsRow]:
@@ -392,7 +396,8 @@ class DbReader(DbCodeGate):
             """
         )
         conditions = {"name": name}
-        workspaces = await self._exec_select_conditions_to_pydantic(Workspace, sql, conditions)
+        workspaces = await self._exec_select_conditions_to_pydantic(
+            Workspace, sql, conditions, should_raise=True)
         return workspaces[0] if workspaces else None
 
     async def get_sessions(self) -> List[Session]:
@@ -453,7 +458,11 @@ def init_session_if_not_exists(db_path: Optional[str] = None):
             last_update=datetime.datetime.now(datetime.timezone.utc),
         )
         db_recorder = DbRecorder(db_path)
-        asyncio.run(db_recorder.update_session(session))
+        try:
+            asyncio.run(db_recorder.update_session(session))
+        except Exception as e:
+            logger.error(f"Failed to initialize session in DB: {e}")
+            return
         logger.info("Session in DB initialized successfully.")
 
 

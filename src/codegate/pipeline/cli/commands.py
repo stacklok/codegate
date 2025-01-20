@@ -5,7 +5,7 @@ from pydantic import ValidationError
 
 from codegate import __version__
 from codegate.db.connection import AlreadyExistsError
-from codegate.workspaces.crud import WorkspaceCrud
+from codegate.workspaces import crud
 
 
 class CodegateCommand(ABC):
@@ -41,7 +41,7 @@ class Version(CodegateCommand):
 class Workspace(CodegateCommand):
 
     def __init__(self):
-        self.workspace_crud = WorkspaceCrud()
+        self.workspace_crud = crud.WorkspaceCrud()
         self.commands = {
             "list": self._list_workspaces,
             "add": self._add_workspace,
@@ -94,12 +94,14 @@ class Workspace(CodegateCommand):
         if not workspace_name:
             return "Please provide a name. Use `codegate workspace activate workspace_name`"
 
-        was_activated = await self.workspace_crud.activate_workspace(workspace_name)
-        if not was_activated:
-            return (
-                f"Workspace **{workspace_name}** does not exist or was already active. "
-                f"Use `codegate workspace add {workspace_name}` to add it"
-            )
+        try:
+            await self.workspace_crud.activate_workspace(workspace_name)
+        except crud.WorkspaceAlreadyActiveError:
+            return f"Workspace **{workspace_name}** is already active"
+        except crud.WorkspaceDoesNotExistError:
+            return f"Workspace **{workspace_name}** does not exist"
+        except Exception:
+            return "An error occurred while activating the workspace"
         return f"Workspace **{workspace_name}** has been activated"
 
     async def run(self, args: List[str]) -> str:

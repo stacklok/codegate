@@ -1,17 +1,13 @@
-from fastapi import APIRouter, Response
-from fastapi.exceptions import HTTPException
+from fastapi import APIRouter, HTTPException, Response
 from fastapi.routing import APIRoute
 from pydantic import ValidationError
 
 from codegate.api import v1_models
 from codegate.db.connection import AlreadyExistsError
-from codegate.workspaces.crud import WorkspaceCrud
-from codegate.api.dashboard.dashboard import dashboard_router
+from codegate.workspaces import crud
 
 v1 = APIRouter()
-v1.include_router(dashboard_router)
-
-wscrud = WorkspaceCrud()
+wscrud = crud.WorkspaceCrud()
 
 
 def uniq_name(route: APIRoute):
@@ -44,11 +40,14 @@ async def list_active_workspaces() -> v1_models.ListActiveWorkspacesResponse:
 @v1.post("/workspaces/active", tags=["Workspaces"], generate_unique_id_function=uniq_name)
 async def activate_workspace(request: v1_models.ActivateWorkspaceRequest, status_code=204):
     """Activate a workspace by name."""
-    activated = await wscrud.activate_workspace(request.name)
-
-    # TODO: Refactor
-    if not activated:
+    try:
+        await wscrud.activate_workspace(request.name)
+    except crud.WorkspaceAlreadyActiveError:
         return HTTPException(status_code=409, detail="Workspace already active")
+    except crud.WorkspaceDoesNotExistError:
+        return HTTPException(status_code=404, detail="Workspace does not exist")
+    except Exception:
+        return HTTPException(status_code=500, detail="Internal server error")
 
     return Response(status_code=204)
 
