@@ -63,7 +63,6 @@ async def ollama_stream_generator(
                     for field in optional_fields:
                         if field in chunk_dict:
                             response[field] = chunk_dict[field]
-
                     yield f"data: {json.dumps(response)}\n"
             except Exception as e:
                 logger.error(f"Error in stream generator: {str(e)}")
