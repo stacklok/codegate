@@ -199,8 +199,7 @@ class BaseProvider(ABC):
                     context.sensitive.secure_cleanup()
 
     async def complete(
-        self, data: Dict, api_key: Optional[str], is_fim_request: bool
-    ) -> Union[ModelResponse, AsyncIterator[ModelResponse]]:
+        self, data: Dict, api_key: Optional[str], is_fim_request: bool) -> Union[ModelResponse, AsyncIterator[ModelResponse]]:
         """
         Main completion flow with pipeline integration
 
@@ -220,20 +219,21 @@ class BaseProvider(ABC):
             data.get("base_url"),
             is_fim_request,
         )
-        if input_pipeline_result.response:
+        if input_pipeline_result.response and input_pipeline_result.context:
             return await self._pipeline_response_formatter.handle_pipeline_response(
                 input_pipeline_result.response, streaming, context=input_pipeline_result.context
             )
 
-        provider_request = self._input_normalizer.denormalize(input_pipeline_result.request)
+        if input_pipeline_result.request:
+            provider_request = self._input_normalizer.denormalize(input_pipeline_result.request)
         if is_fim_request:
-            provider_request = self._fim_normalizer.denormalize(provider_request)
+            provider_request = self._fim_normalizer.denormalize(provider_request)  # type: ignore
 
         # Execute the completion and translate the response
         # This gives us either a single response or a stream of responses
         # based on the streaming flag
         model_response = await self._completion_handler.execute_completion(
-            provider_request, api_key=api_key, stream=streaming, is_fim_request=is_fim_request
+            provider_request, api_key=api_key, stream=streaming, is_fim_request=is_fim_request  # type: ignore
         )
         if not streaming:
             normalized_response = self._output_normalizer.normalize(model_response)
@@ -242,9 +242,9 @@ class BaseProvider(ABC):
             return self._output_normalizer.denormalize(pipeline_output)
 
         pipeline_output_stream = await self._run_output_stream_pipeline(
-            input_pipeline_result.context, model_response, is_fim_request=is_fim_request
+            input_pipeline_result.context, model_response, is_fim_request=is_fim_request  # type: ignore
         )
-        return self._cleanup_after_streaming(pipeline_output_stream, input_pipeline_result.context)
+        return self._cleanup_after_streaming(pipeline_output_stream, input_pipeline_result.context)  # type: ignore
 
     def get_routes(self) -> APIRouter:
         return self.router

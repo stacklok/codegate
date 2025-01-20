@@ -451,17 +451,30 @@ class SecretRedactionNotifier(OutputPipelineStep):
         ):
             return [chunk]
 
+        is_cline_client = any(
+            "Cline" in str(message.trigger_string or "") for message in input_context.alerts_raised or []
+        )
+
         # Check if this is the first chunk (delta role will be present, others will not)
         if len(chunk.choices) > 0 and chunk.choices[0].delta.role:
             redacted_count = input_context.metadata["redacted_secrets_count"]
             secret_text = "secret" if redacted_count == 1 else "secrets"
             # Create notification chunk
-            notification_chunk = self._create_chunk(
-                chunk,
-                f"\n🛡️ [CodeGate prevented {redacted_count} {secret_text}]"
-                f"(http://localhost:9090/?search=codegate-secrets) from being leaked "
-                f"by redacting them.\n\n",
-            )
+            if is_cline_client:
+                notification_chunk = self._create_chunk(
+                    chunk,
+                    f"<thinking>\n🛡️ [CodeGate prevented {redacted_count} {secret_text}]"
+                    f"(http://localhost:9090/?search=codegate-secrets) from being leaked "
+                    f"by redacting them.</thinking>\n\n",
+                )
+                notification_chunk.choices[0].delta.role = "assistant"
+            else:
+                notification_chunk = self._create_chunk(
+                    chunk,
+                    f"\n🛡️ [CodeGate prevented {redacted_count} {secret_text}]"
+                    f"(http://localhost:9090/?search=codegate-secrets) from being leaked "
+                    f"by redacting them.\n\n",
+                )
 
             # Reset the counter
             input_context.metadata["redacted_secrets_count"] = 0

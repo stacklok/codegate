@@ -321,8 +321,7 @@ class PipelineStep(ABC):
 
 class InputPipelineInstance:
     def __init__(
-        self, pipeline_steps: List[PipelineStep], secret_manager: SecretsManager, is_fim: bool
-    ):
+        self, pipeline_steps: List[PipelineStep], secret_manager: SecretsManager, is_fim: bool):
         self.pipeline_steps = pipeline_steps
         self.secret_manager = secret_manager
         self.is_fim = is_fim
@@ -385,8 +384,7 @@ class InputPipelineInstance:
 
 class SequentialPipelineProcessor:
     def __init__(
-        self, pipeline_steps: List[PipelineStep], secret_manager: SecretsManager, is_fim: bool
-    ):
+        self, pipeline_steps: List[PipelineStep], secret_manager: SecretsManager, is_fim: bool):
         self.pipeline_steps = pipeline_steps
         self.secret_manager = secret_manager
         self.is_fim = is_fim
