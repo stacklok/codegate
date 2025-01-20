@@ -63,9 +63,12 @@ async def create_workspace(request: v1_models.CreateWorkspaceRequest) -> v1_mode
     except AlreadyExistsError:
         raise HTTPException(status_code=409, detail="Workspace already exists")
     except ValidationError:
-        raise HTTPException(status_code=400,
-                            detail=("Invalid workspace name. "
-                                    "Please use only alphanumeric characters and dashes"))
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Invalid workspace name. " "Please use only alphanumeric characters and dashes"
+            ),
+        )
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 

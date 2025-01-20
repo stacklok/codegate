@@ -30,8 +30,10 @@ logger = structlog.get_logger("codegate")
 alert_queue = asyncio.Queue()
 fim_cache = FimCache()
 
+
 class AlreadyExistsError(Exception):
     pass
+
 
 class DbCodeGate:
     _instance = None
@@ -266,7 +268,8 @@ class DbRecorder(DbCodeGate):
 
         try:
             added_workspace = await self._execute_update_pydantic_model(
-                workspace, sql, should_raise=True)
+                workspace, sql, should_raise=True
+            )
         except IntegrityError as e:
             logger.debug(f"Exception type: {type(e)}")
             raise AlreadyExistsError(f"Workspace {workspace_name} already exists.")
@@ -317,8 +320,11 @@ class DbReader(DbCodeGate):
                 return None
 
     async def _exec_select_conditions_to_pydantic(
-        self, model_type: Type[BaseModel], sql_command: TextClause, conditions: dict,
-        should_raise: bool = False
+        self,
+        model_type: Type[BaseModel],
+        sql_command: TextClause,
+        conditions: dict,
+        should_raise: bool = False,
     ) -> Optional[List[BaseModel]]:
         async with self._async_db_engine.begin() as conn:
             try:
@@ -397,7 +403,8 @@ class DbReader(DbCodeGate):
         )
         conditions = {"name": name}
         workspaces = await self._exec_select_conditions_to_pydantic(
-            Workspace, sql, conditions, should_raise=True)
+            Workspace, sql, conditions, should_raise=True
+        )
         return workspaces[0] if workspaces else None
 
     async def get_sessions(self) -> List[Session]:

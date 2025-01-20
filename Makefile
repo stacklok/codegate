@@ -19,6 +19,7 @@ format:
 	poetry run ruff check --fix .
 
 lint:
+	poetry run black --check .
 	poetry run ruff check .
 
 test:

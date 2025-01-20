@@ -47,9 +47,6 @@ jobs:
     - name: Run linting
       run: make lint
 
-    - name: Run formatting
-      run: make format
-
     - name: Run tests
       run: make test
 

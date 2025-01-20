@@ -8,11 +8,14 @@ from codegate.db.models import ActiveWorkspace, Session, Workspace, WorkspaceAct
 class WorkspaceCrudError(Exception):
     pass
 
+
 class WorkspaceDoesNotExistError(WorkspaceCrudError):
     pass
 
+
 class WorkspaceAlreadyActiveError(WorkspaceCrudError):
     pass
+
 
 class WorkspaceCrud:
 
@@ -30,7 +33,7 @@ class WorkspaceCrud:
         workspace_created = await db_recorder.add_workspace(new_workspace_name)
         return workspace_created
 
-    async def get_workspaces(self)-> List[WorkspaceActive]:
+    async def get_workspaces(self) -> List[WorkspaceActive]:
         """
         Get all workspaces
         """
@@ -60,8 +63,7 @@ class WorkspaceCrud:
             raise RuntimeError("Something went wrong. No active session found.")
 
         session = sessions[0]
-        return (session.active_workspace_id == selected_workspace.id,
-                session, selected_workspace)
+        return (session.active_workspace_id == selected_workspace.id, session, selected_workspace)
 
     async def activate_workspace(self, workspace_name: str):
         """

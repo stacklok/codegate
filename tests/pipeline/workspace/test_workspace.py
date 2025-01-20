@@ -77,9 +77,7 @@ async def test_add_workspaces(args, existing_workspaces, expected_message):
     workspace_commands._db_reader = mock_db_reader
 
     # We'll also patch DbRecorder to ensure no real DB operations happen
-    with patch(
-        "codegate.workspaces.crud.WorkspaceCrud", autospec=True
-    ) as mock_recorder_cls:
+    with patch("codegate.workspaces.crud.WorkspaceCrud", autospec=True) as mock_recorder_cls:
         mock_recorder = mock_recorder_cls.return_value
         workspace_commands.workspace_crud = mock_recorder
         mock_recorder.add_workspace = AsyncMock()
@@ -115,9 +113,7 @@ async def test_parse_execute_cmd(
     """
     workspace_commands = Workspace()
 
-    with patch.object(
-        workspace_commands, "run", return_value=mocked_execute_response
-    ) as mock_run:
+    with patch.object(workspace_commands, "run", return_value=mocked_execute_response) as mock_run:
         result = await workspace_commands.exec(user_message)
         assert result == mocked_execute_response
 
