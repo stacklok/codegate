@@ -5,7 +5,7 @@ import os
 import sqlite3
 
 import numpy as np
-import sqlite_vec
+import sqlite_vec_sl_tmp
 
 from codegate.inference.inference_engine import LlamaCppInferenceEngine
 from codegate.utils.utils import generate_vector_string
@@ -27,7 +27,7 @@ class PackageImporter:
     def _get_connection(self):
         conn = sqlite3.connect(self.vec_db_path)
         conn.enable_load_extension(True)
-        sqlite_vec.load(conn)
+        sqlite_vec_sl_tmp.load(conn)
         conn.enable_load_extension(False)
         return conn
 
