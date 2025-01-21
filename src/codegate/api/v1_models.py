@@ -10,6 +10,10 @@ class Workspace(pydantic.BaseModel):
     is_active: bool
 
 
+class SystemPrompt(pydantic.BaseModel):
+    prompt: str
+
+
 class ActiveWorkspace(Workspace):
     # TODO: use a more specific type for last_updated
     last_updated: Any

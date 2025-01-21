@@ -142,3 +142,59 @@ async def get_workspace_messages(workspace_name: str) -> List[Conversation]:
         return await dashboard.parse_messages_in_conversations(prompts_outputs)
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@v1.get(
+    "/workspaces/{workspace_name}/system-prompt",
+    tags=["Workspaces"],
+    generate_unique_id_function=uniq_name,
+)
+async def get_workspace_system_prompt(workspace_name: str) -> v1_models.SystemPrompt:
+    """Get the system prompt for a workspace."""
+    try:
+        ws = await wscrud.get_workspace_by_name(workspace_name)
+    except crud.WorkspaceDoesNotExistError:
+        raise HTTPException(status_code=404, detail="Workspace does not exist")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    if ws.system_prompt is None:
+        return v1_models.SystemPrompt(prompt="")
+
+    return v1_models.SystemPrompt(prompt=ws.system_prompt)
+
+
+@v1.put(
+    "/workspaces/{workspace_name}/system-prompt",
+    tags=["Workspaces"],
+    generate_unique_id_function=uniq_name,
+    status_code=204,
+)
+async def set_workspace_system_prompt(workspace_name: str, request: v1_models.SystemPrompt):
+    try:
+        # This already checks if the workspace exists
+        await wscrud.update_workspace_system_prompt(workspace_name, [request.prompt])
+    except crud.WorkspaceDoesNotExistError:
+        raise HTTPException(status_code=404, detail="Workspace does not exist")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    return Response(status_code=204)
+
+
+@v1.delete(
+    "/workspaces/{workspace_name}/system-prompt",
+    tags=["Workspaces"],
+    generate_unique_id_function=uniq_name,
+    status_code=204,
+)
+async def delete_workspace_system_prompt(workspace_name: str):
+    try:
+        # This already checks if the workspace exists
+        await wscrud.update_workspace_system_prompt(workspace_name, [])
+    except crud.WorkspaceDoesNotExistError:
+        raise HTTPException(status_code=404, detail="Workspace does not exist")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    return Response(status_code=204)
