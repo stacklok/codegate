@@ -34,7 +34,7 @@ build: clean test
 image-build:
 	DOCKER_BUILDKIT=1 $(CONTAINER_BUILD) \
 		-f Dockerfile \
-		--build-arg LATEST_RELEASE=$(curl -s "https://api.github.com/repos/stacklok/codegate-ui/releases/latest" | grep '"zipball_url":' | cut -d '"' -f 4) \
+		--build-arg LATEST_RELEASE=$(shell curl -s "https://api.github.com/repos/stacklok/codegate-ui/releases/latest" | grep '"zipball_url":' | cut -d '"' -f 4) \
 		--build-arg CODEGATE_VERSION="$(shell git describe --tags --abbrev=0)-$(shell git rev-parse --short HEAD)-dev" \
 		-t codegate \
 		. \
