@@ -306,6 +306,108 @@
         }
       }
     },
+    "/api/v1/workspaces/archive": {
+      "get": {
+        "tags": [
+          "CodeGate API",
+          "Workspaces"
+        ],
+        "summary": "List Archived Workspaces",
+        "description": "List all archived workspaces.",
+        "operationId": "v1_list_archived_workspaces",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListWorkspacesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/archive/{workspace_name}/recover": {
+      "post": {
+        "tags": [
+          "CodeGate API",
+          "Workspaces"
+        ],
+        "summary": "Recover Workspace",
+        "description": "Recover an archived workspace by name.",
+        "operationId": "v1_recover_workspace",
+        "parameters": [
+          {
+            "name": "workspace_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Name"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/archive/{workspace_name}": {
+      "delete": {
+        "tags": [
+          "CodeGate API",
+          "Workspaces"
+        ],
+        "summary": "Hard Delete Workspace",
+        "description": "Hard delete an archived workspace by name.",
+        "operationId": "v1_hard_delete_workspace",
+        "parameters": [
+          {
+            "name": "workspace_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces/{workspace_name}/alerts": {
       "get": {
         "tags": [
