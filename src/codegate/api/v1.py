@@ -61,8 +61,18 @@ async def activate_workspace(request: v1_models.ActivateWorkspaceRequest, status
 
 
 @v1.post("/workspaces", tags=["Workspaces"], generate_unique_id_function=uniq_name, status_code=201)
-async def create_workspace(request: v1_models.CreateWorkspaceRequest) -> v1_models.Workspace:
+async def create_workspace(
+    request: v1_models.CreateOrRenameWorkspaceRequest,
+) -> v1_models.Workspace:
     """Create a new workspace."""
+    if request.rename_to is not None:
+        return await rename_workspace(request)
+    return await create_new_workspace(request)
+
+
+async def create_new_workspace(
+    request: v1_models.CreateOrRenameWorkspaceRequest,
+) -> v1_models.Workspace:
     # Input validation is done in the model
     try:
         _ = await wscrud.add_workspace(request.name)
@@ -81,6 +91,30 @@ async def create_workspace(request: v1_models.CreateWorkspaceRequest) -> v1_mode
         raise HTTPException(status_code=500, detail="Internal server error")
 
     return v1_models.Workspace(name=request.name, is_active=False)
+
+
+async def rename_workspace(
+    request: v1_models.CreateOrRenameWorkspaceRequest,
+) -> v1_models.Workspace:
+    try:
+        _ = await wscrud.rename_workspace(request.name, request.rename_to)
+    except crud.WorkspaceDoesNotExistError:
+        raise HTTPException(status_code=404, detail="Workspace does not exist")
+    except AlreadyExistsError:
+        raise HTTPException(status_code=409, detail="Workspace already exists")
+    except ValidationError:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Invalid workspace name. " "Please use only alphanumeric characters and dashes"
+            ),
+        )
+    except crud.WorkspaceCrudError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    return v1_models.Workspace(name=request.rename_to, is_active=False)
 
 
 @v1.delete(
