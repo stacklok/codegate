@@ -161,7 +161,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateWorkspaceRequest"
+                "$ref": "#/components/schemas/CreateOrRenameWorkspaceRequest"
               }
             }
           },
@@ -750,18 +750,29 @@
         "title": "Conversation",
         "description": "Represents a conversation."
       },
-      "CreateWorkspaceRequest": {
+      "CreateOrRenameWorkspaceRequest": {
         "properties": {
           "name": {
             "type": "string",
             "title": "Name"
+          },
+          "rename_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rename To"
           }
         },
         "type": "object",
         "required": [
           "name"
         ],
-        "title": "CreateWorkspaceRequest"
+        "title": "CreateOrRenameWorkspaceRequest"
       },
       "HTTPValidationError": {
         "properties": {
