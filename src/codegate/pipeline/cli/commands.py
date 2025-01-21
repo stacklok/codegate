@@ -186,6 +186,8 @@ class Workspace(CodegateCommandSubcommand):
             return "Invalid workspace name: It should be alphanumeric and dashes"
         except AlreadyExistsError:
             return f"Workspace **{new_workspace_name}** already exists"
+        except crud.WorkspaceCrudError:
+            return "An error occurred while adding the workspace"
         except Exception:
             return "An error occurred while adding the workspace"
 

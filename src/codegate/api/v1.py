@@ -69,6 +69,8 @@ async def create_workspace(request: v1_models.CreateWorkspaceRequest) -> v1_mode
                 "Invalid workspace name. " "Please use only alphanumeric characters and dashes"
             ),
         )
+    except crud.WorkspaceCrudError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 

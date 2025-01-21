@@ -17,6 +17,12 @@ class WorkspaceAlreadyActiveError(WorkspaceCrudError):
     pass
 
 
+DEFAULT_WORKSPACE_NAME = "default"
+
+# These are reserved keywords that cannot be used for workspaces
+RESERVED_WORKSPACE_KEYWORDS = [DEFAULT_WORKSPACE_NAME, "active"]
+
+
 class WorkspaceCrud:
 
     def __init__(self):
@@ -29,6 +35,10 @@ class WorkspaceCrud:
         Args:
             name (str): The name of the workspace
         """
+        if new_workspace_name == "":
+            raise WorkspaceCrudError("Workspace name cannot be empty.")
+        if new_workspace_name in RESERVED_WORKSPACE_KEYWORDS:
+            raise WorkspaceCrudError(f"Workspace name {new_workspace_name} is reserved.")
         db_recorder = DbRecorder()
         workspace_created = await db_recorder.add_workspace(new_workspace_name)
         return workspace_created
@@ -102,7 +112,7 @@ class WorkspaceCrud:
         """
         if workspace_name == "":
             raise WorkspaceCrudError("Workspace name cannot be empty.")
-        if workspace_name == "default":
+        if workspace_name == DEFAULT_WORKSPACE_NAME:
             raise WorkspaceCrudError("Cannot delete default workspace.")
 
         selected_workspace = await self._db_reader.get_workspace_by_name(workspace_name)
