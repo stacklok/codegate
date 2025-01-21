@@ -93,15 +93,19 @@ class CopilotPipeline(ABC):
         """Common processing logic for all strategies"""
         try:
             normalized_body = self.normalizer.normalize(body)
+        except Exception as e:
+            logger.error(f"Pipeline processing error: {e}")
+            return body, None
 
-            headers_dict = {}
-            for header in headers:
-                try:
-                    name, value = header.split(":", 1)
-                    headers_dict[name.strip().lower()] = value.strip()
-                except ValueError:
-                    continue
+        headers_dict = {}
+        for header in headers:
+            try:
+                name, value = header.split(":", 1)
+                headers_dict[name.strip().lower()] = value.strip()
+            except ValueError:
+                continue
 
+        try:
             result = await self.instance.process_request(
                 request=normalized_body,
                 provider=self.provider_name,
@@ -111,25 +115,33 @@ class CopilotPipeline(ABC):
                 extra_headers=CopilotPipeline._get_copilot_headers(headers_dict),
                 is_copilot=True,
             )
+        except Exception as e:
+            logger.error(f"Pipeline processing error: {e}")
+            return body, None
 
-            if result.context.shortcut_response:
+        if result.context.shortcut_response:
+            try:
                 # Return shortcut response to the user
                 body = CopilotPipeline._create_shortcut_response(
                     result, normalized_body.get("model", "gpt-4o-mini")
                 )
                 logger.info(f"Pipeline created shortcut response: {body}")
+            except Exception as e:
+                logger.error(f"Pipeline processing error: {e}")
+                return body, None
 
-            elif result.request:
+        elif result.request:
+            try:
                 # the pipeline did modify the request, return to the user
                 # in the original LLM format
                 body = self.normalizer.denormalize(result.request)
                 # Uncomment the below to debug the request
                 # logger.debug(f"Pipeline processed request: {body}")
 
-            return body, result.context
-        except Exception as e:
-            logger.error(f"Pipeline processing error: {e}")
-            return body, None
+                return body, result.context
+            except Exception as e:
+                logger.error(f"Pipeline processing error: {e}")
+                return body, None
 
 
 class CopilotFimNormalizer:
