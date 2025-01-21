@@ -1,8 +1,8 @@
-name: Publish Docker Image
+# This workflow builds and publishes the OCI image
+name: OCI Image - Publish
+
 on:
-  release:
-    types:
-      - published
+  workflow_call:
   workflow_dispatch:
 
 jobs:
@@ -76,19 +76,20 @@ jobs:
           git lfs pull
       - name: Build and Push Image
         id: image-build
-        uses: docker/build-push-action@b32b51a8eda65d6793cd0494a773d4f6bcef32dc # v6
+        uses: docker/build-push-action@67a2d409c0a876cbe6b11854e3e25193efe4e62d # v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
+          provenance: mode=max
+          sbom: true
           tags: ${{ steps.docker-metadata.outputs.tags }}
           labels: ${{ steps.docker-metadata.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          secrets: |
-            gh_token=${{ secrets.GH_CI_TOKEN }}
           build-args: |
             LATEST_RELEASE=${{ env.LATEST_RELEASE }}
+            CODEGATE_VERSION=${{ steps.version-string.outputs.tag }}
       - name: Capture Image Digest
         id: image-digest
         run: |

@@ -6,7 +6,7 @@ from typing import List, Optional, Union
 
 import structlog
 
-from codegate.dashboard.request_models import (
+from codegate.api.dashboard.request_models import (
     AlertConversation,
     ChatMessage,
     Conversation,

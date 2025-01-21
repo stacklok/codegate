@@ -30,7 +30,7 @@ class PackageExtractor:
                         source: (string) @import_name)
                     (call_expression
                         function: (identifier) @require
-                        arguments: (arguments (string) @require_source)
+                        arguments: (arguments (string) @import_name)
                         (#eq? @require "require")
                     )
                 """,

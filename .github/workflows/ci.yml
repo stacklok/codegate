@@ -1,20 +1,20 @@
-name: CI
+# This workflow builds, tests and lints the project
+name: Build, Test & Lint
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  workflow_call:
+  workflow_dispatch:
 
 jobs:
   test:
+    name: Run
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.12"]
 
     steps:
-    - name: Checkout github repo
+    - name: Checkout
       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       with:
         lfs: true
@@ -46,9 +46,6 @@ jobs:
 
     - name: Run linting
       run: make lint
-
-    - name: Run formatting
-      run: make format
 
     - name: Run tests
       run: make test

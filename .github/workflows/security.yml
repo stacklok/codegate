@@ -1,0 +1,27 @@
+name: Security
+
+on:
+  workflow_call:
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  dependencies:
+    runs-on: ubuntu-latest
+    name: Dependencies & Secrets Scan via Trivy
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Code Security Scan
+        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.29.0
+        with:
+          scan-type: 'fs'
+          scanners: vuln,secret
+          trivy-config: .trivy.yml
+          exit-code: 1
+          ignore-unfixed: true
+        env:
+          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}

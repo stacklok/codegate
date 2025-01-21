@@ -1,13 +1,15 @@
+import json
 import traceback
+from unittest.mock import Mock
 
 import structlog
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.errors import ServerErrorMiddleware
 
 from codegate import __description__, __version__
-from codegate.dashboard.dashboard import dashboard_router
+from codegate.api.v1 import v1
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.anthropic.provider import AnthropicProvider
 from codegate.providers.llamacpp.provider import LlamaCppProvider
@@ -35,6 +37,15 @@ def init_app(pipeline_factory: PipelineFactory) -> FastAPI:
         description=__description__,
         version=__version__,
     )
+
+    @app.middleware("http")
+    async def log_user_agent(request: Request, call_next):
+        user_agent = request.headers.get("user-agent")
+        client_host = request.client.host if request.client else "unknown"
+        logger.debug(f"User-Agent header received: {user_agent} from {client_host}")
+        response = await call_next(request)
+        return response
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -86,6 +97,19 @@ def init_app(pipeline_factory: PipelineFactory) -> FastAPI:
         return {"status": "healthy"}
 
     app.include_router(system_router)
-    app.include_router(dashboard_router)
+
+    # CodeGate API
+    app.include_router(v1, prefix="/api/v1", tags=["CodeGate API"])
 
     return app
+
+
+def generate_openapi():
+    app = init_app(Mock(spec=PipelineFactory))
+
+    # Generate OpenAPI JSON
+    openapi_schema = app.openapi()
+
+    # Convert the schema to JSON string for easier handling or storage
+    openapi_json = json.dumps(openapi_schema, indent=2)
+    print(openapi_json)

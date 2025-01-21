@@ -135,6 +135,7 @@ class PipelineContext:
                 provider=provider,
                 type="fim" if is_fim_request else "chat",
                 request=request_str,
+                workspace_id=None,
             )
             # Uncomment the below to debug the input
             # logger.debug(f"Added input request to context: {self.input_request}")
@@ -231,8 +232,57 @@ class PipelineStep(ABC):
             return None
         for i in reversed(range(len(request["messages"]))):
             if request["messages"][i]["role"] == "user":
-                content = request["messages"][i]["content"]
-                return content, i
+                content = request["messages"][i]["content"]  # type: ignore
+                return str(content), i
+
+        return None
+
+    @staticmethod
+    def get_last_user_message_block(
+        request: ChatCompletionRequest,
+    ) -> Optional[tuple[str, int]]:
+        """
+        Get the last block of consecutive 'user' messages from the request.
+
+        Args:
+            request (ChatCompletionRequest): The chat completion request to process
+
+        Returns:
+            Optional[str, int]: A string containing all consecutive user messages in the
+                        last user message block, separated by newlines, or None if
+                        no user message block is found.
+                        Index of the first message detected in the block.
+        """
+        if request.get("messages") is None:
+            return None
+
+        user_messages = []
+        messages = request["messages"]
+        block_start_index = None
+
+        # Iterate in reverse to find the last block of consecutive 'user' messages
+        for i in reversed(range(len(messages))):
+            if messages[i]["role"] == "user" or messages[i]["role"] == "assistant":
+                content_str = messages[i].get("content")
+                if content_str is None:
+                    continue
+
+                if messages[i]["role"] == "user":
+                    user_messages.append(content_str)
+                    block_start_index = i
+
+                # Specifically for Aider, when "Ok." block is found, stop
+                if content_str == "Ok." and messages[i]["role"] == "assistant":
+                    break
+            else:
+                # Stop when a message with a different role is encountered
+                if user_messages:
+                    break
+
+        # Reverse the collected user messages to preserve the original order
+        if user_messages and block_start_index is not None:
+            content = "\n".join(reversed(user_messages))
+            return content, block_start_index
 
         return None
 

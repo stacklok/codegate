@@ -1,7 +1,7 @@
 {"name":"@prefix/malicious-npm-dummy","type":"npm","description":"Dummy malicious to test with encoded package name on npm"}
 {"name":"malicious-npm-dummy","type":"npm","description":"Dummy malicious to test with simple package name on npm"}
 {"name":"@prefix/malicious-pypi-dummy","type":"pypi","description":"Dummy malicious to test with encoded package name on pypi"}
-{"name":"malicious-pypi-dummy","type":"pypi","description":"Dummy malicious to test with simple package name on pypi"}
+{"name":"malicious_pypi_dummy","type":"pypi","description":"Dummy malicious to test with simple package name on pypi"}
 {"name":"@prefix/malicious-maven-dummy","type":"maven","description":"Dummy malicious to test with encoded package name on maven"}
 {"name":"malicious-maven-dummy","type":"maven","description":"Dummy malicious to test with simple package name on maven"}
 {"name":"github.com/malicious-go-dummy","type":"go","description":"Dummy malicious to test with encoded package name on go"}

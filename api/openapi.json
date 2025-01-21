@@ -1,18 +1,39 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "FastAPI",
-    "version": "0.1.0"
+    "title": "CodeGate",
+    "description": "Generative AI CodeGen security gateway",
+    "version": "0.1.7"
   },
   "paths": {
-    "/dashboard/messages": {
+    "/health": {
       "get": {
         "tags": [
+          "System"
+        ],
+        "summary": "Health Check",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/messages": {
+      "get": {
+        "tags": [
+          "CodeGate API",
           "Dashboard"
         ],
         "summary": "Get Messages",
         "description": "Get all the messages from the database and return them as a list of conversations.",
-        "operationId": "get_messages_dashboard_messages_get",
+        "operationId": "v1_get_messages",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -23,7 +44,7 @@
                     "$ref": "#/components/schemas/Conversation"
                   },
                   "type": "array",
-                  "title": "Response Get Messages Dashboard Messages Get"
+                  "title": "Response V1 Get Messages"
                 }
               }
             }
@@ -31,14 +52,15 @@
         }
       }
     },
-    "/dashboard/alerts": {
+    "/api/v1/dashboard/alerts": {
       "get": {
         "tags": [
+          "CodeGate API",
           "Dashboard"
         ],
         "summary": "Get Alerts",
         "description": "Get all the messages from the database and return them as a list of conversations.",
-        "operationId": "get_alerts_dashboard_alerts_get",
+        "operationId": "v1_get_alerts",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -56,7 +78,7 @@
                     ]
                   },
                   "type": "array",
-                  "title": "Response Get Alerts Dashboard Alerts Get"
+                  "title": "Response V1 Get Alerts"
                 }
               }
             }
@@ -64,14 +86,15 @@
         }
       }
     },
-    "/dashboard/alerts_notification": {
+    "/api/v1/dashboard/alerts_notification": {
       "get": {
         "tags": [
+          "CodeGate API",
           "Dashboard"
         ],
         "summary": "Stream Sse",
         "description": "Send alerts event",
-        "operationId": "stream_sse_dashboard_alerts_notification_get",
+        "operationId": "v1_stream_sse",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -83,10 +106,469 @@
           }
         }
       }
+    },
+    "/api/v1/dashboard/version": {
+      "get": {
+        "tags": [
+          "CodeGate API",
+          "Dashboard"
+        ],
+        "summary": "Version Check",
+        "operationId": "v1_version_check",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces": {
+      "get": {
+        "tags": [
+          "CodeGate API",
+          "Workspaces"
+        ],
+        "summary": "List Workspaces",
+        "description": "List all workspaces.",
+        "operationId": "v1_list_workspaces",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListWorkspacesResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "CodeGate API",
+          "Workspaces"
+        ],
+        "summary": "Create Workspace",
+        "description": "Create a new workspace.",
+        "operationId": "v1_create_workspace",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrRenameWorkspaceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workspace"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/active": {
+      "get": {
+        "tags": [
+          "CodeGate API",
+          "Workspaces"
+        ],
+        "summary": "List Active Workspaces",
+        "description": "List all active workspaces.\n\nIn it's current form, this function will only return one workspace. That is,\nthe globally active workspace.",
+        "operationId": "v1_list_active_workspaces",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListActiveWorkspacesResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "CodeGate API",
+          "Workspaces"
+        ],
+        "summary": "Activate Workspace",
+        "description": "Activate a workspace by name.",
+        "operationId": "v1_activate_workspace",
+        "parameters": [
+          {
+            "name": "status_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 204,
+              "title": "Status Code"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActivateWorkspaceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspace_name}": {
+      "delete": {
+        "tags": [
+          "CodeGate API",
+          "Workspaces"
+        ],
+        "summary": "Delete Workspace",
+        "description": "Delete a workspace by name.",
+        "operationId": "v1_delete_workspace",
+        "parameters": [
+          {
+            "name": "workspace_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspace_name}/alerts": {
+      "get": {
+        "tags": [
+          "CodeGate API",
+          "Workspaces"
+        ],
+        "summary": "Get Workspace Alerts",
+        "description": "Get alerts for a workspace.",
+        "operationId": "v1_get_workspace_alerts",
+        "parameters": [
+          {
+            "name": "workspace_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/AlertConversation"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "title": "Response V1 Get Workspace Alerts"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspace_name}/messages": {
+      "get": {
+        "tags": [
+          "CodeGate API",
+          "Workspaces"
+        ],
+        "summary": "Get Workspace Messages",
+        "description": "Get messages for a workspace.",
+        "operationId": "v1_get_workspace_messages",
+        "parameters": [
+          {
+            "name": "workspace_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Conversation"
+                  },
+                  "title": "Response V1 Get Workspace Messages"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspace_name}/system-prompt": {
+      "get": {
+        "tags": [
+          "CodeGate API",
+          "Workspaces"
+        ],
+        "summary": "Get Workspace System Prompt",
+        "description": "Get the system prompt for a workspace.",
+        "operationId": "v1_get_workspace_system_prompt",
+        "parameters": [
+          {
+            "name": "workspace_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemPrompt"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "CodeGate API",
+          "Workspaces"
+        ],
+        "summary": "Set Workspace System Prompt",
+        "operationId": "v1_set_workspace_system_prompt",
+        "parameters": [
+          {
+            "name": "workspace_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SystemPrompt"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "CodeGate API",
+          "Workspaces"
+        ],
+        "summary": "Delete Workspace System Prompt",
+        "operationId": "v1_delete_workspace_system_prompt",
+        "parameters": [
+          {
+            "name": "workspace_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Name"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "ActivateWorkspaceRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ActivateWorkspaceRequest"
+      },
+      "ActiveWorkspace": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "last_updated": {
+            "title": "Last Updated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "is_active",
+          "last_updated"
+        ],
+        "title": "ActiveWorkspace"
+      },
       "AlertConversation": {
         "properties": {
           "conversation": {
@@ -268,6 +750,75 @@
         "title": "Conversation",
         "description": "Represents a conversation."
       },
+      "CreateOrRenameWorkspaceRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "rename_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rename To"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "CreateOrRenameWorkspaceRequest"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ListActiveWorkspacesResponse": {
+        "properties": {
+          "workspaces": {
+            "items": {
+              "$ref": "#/components/schemas/ActiveWorkspace"
+            },
+            "type": "array",
+            "title": "Workspaces"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspaces"
+        ],
+        "title": "ListActiveWorkspacesResponse"
+      },
+      "ListWorkspacesResponse": {
+        "properties": {
+          "workspaces": {
+            "items": {
+              "$ref": "#/components/schemas/Workspace"
+            },
+            "type": "array",
+            "title": "Workspaces"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspaces"
+        ],
+        "title": "ListWorkspacesResponse"
+      },
       "QuestionAnswer": {
         "properties": {
           "question": {
@@ -291,6 +842,70 @@
         ],
         "title": "QuestionAnswer",
         "description": "Represents a question and answer pair."
+      },
+      "SystemPrompt": {
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt"
+        ],
+        "title": "SystemPrompt"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "Workspace": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "is_active"
+        ],
+        "title": "Workspace"
       }
     }
   }

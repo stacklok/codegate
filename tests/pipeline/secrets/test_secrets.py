@@ -97,9 +97,9 @@ class TestSecretsEncryptor:
     def test_obfuscate(self):
         # Test text with a secret
         text = "API_KEY=AKIAIOSFODNN7EXAMPLE\nOther text"
-        protected, count = self.encryptor.obfuscate(text)
+        protected, matched_secrets = self.encryptor.obfuscate(text)
 
-        assert count == 1
+        assert len(matched_secrets) == 1
         assert "REDACTED<$" in protected
         assert "AKIAIOSFODNN7EXAMPLE" not in protected
         assert "Other text" in protected
@@ -128,9 +128,9 @@ class TestSecretsObfuscator:
     def test_obfuscate(self):
         # Test text with multiple secrets
         text = "API_KEY=AKIAIOSFODNN7EXAMPLE\nPASSWORD=AKIAIOSFODNN7EXAMPLE"
-        protected, count = self.obfuscator.obfuscate(text)
+        protected, matched_secrets = self.obfuscator.obfuscate(text)
 
-        assert count == 2
+        assert len(matched_secrets) == 2
         assert "AKIAIOSFODNN7EXAMPLE" not in protected
         assert "*" * 32 in protected
 
@@ -140,9 +140,9 @@ class TestSecretsObfuscator:
 
     def test_obfuscate_no_secrets(self):
         text = "Regular text without secrets"
-        protected, count = self.obfuscator.obfuscate(text)
+        protected, matched_secrets = self.obfuscator.obfuscate(text)
 
-        assert count == 0
+        assert len(matched_secrets) == 0
         assert protected == text
 
 

@@ -243,6 +243,8 @@ class CopilotProvider(asyncio.Protocol):
                 try:
                     name, value = header.decode("utf-8").split(":", 1)
                     headers_dict[name.strip().lower()] = value.strip()
+                    if name == "user-agent":
+                        logger.debug(f"User-Agent header received: {value} from {self.peername}")
                 except ValueError:
                     continue
 

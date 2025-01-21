@@ -58,11 +58,14 @@ class OllamaProvider(BaseProvider):
             https://github.com/ollama/ollama/blob/main/docs/api.md#show-model-information
             """
             body = await request.body()
+            body_json = json.loads(body)
+            if "name" not in body_json:
+                raise HTTPException(status_code=400, detail="model is required in the request body")
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     f"{self.base_url}/api/show",
                     content=body,
-                    headers={"Content-Type": "application/json"},
+                    headers={"Content-Type": "application/json; charset=utf-8"},
                 )
                 return response.json()
 

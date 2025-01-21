@@ -1,7 +1,7 @@
 {"name":"@prefix/deprecated-npm-dummy","type":"npm","description":"Dummy deprecated to test with encoded package name on npm"}
 {"name":"deprecated-npm-dummy","type":"npm","description":"Dummy deprecated to test with simple package name on npm"}
 {"name":"@prefix/deprecated-pypi-dummy","type":"pypi","description":"Dummy deprecated to test with encoded package name on pypi"}
-{"name":"deprecated-pypi-dummy","type":"pypi","description":"Dummy deprecated to test with simple package name on pypi"}
+{"name":"deprecated_pypi_dummy","type":"pypi","description":"Dummy deprecated to test with simple package name on pypi"}
 {"name":"@prefix/deprecated-maven-dummy","type":"maven","description":"Dummy deprecated to test with encoded package name on maven"}
 {"name":"deprecated-maven-dummy","type":"maven","description":"Dummy deprecated to test with simple package name on maven"}
 {"name":"github.com/deprecated-go-dummy","type":"npm","description":"Dummy deprecated to test with encoded package name on go"}

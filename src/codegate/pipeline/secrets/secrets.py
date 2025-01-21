@@ -106,10 +106,10 @@ class SecretsModifier:
         end_line = min(secret_line + surrounding_lines, len(lines))
         return "\n".join(lines[start_line:end_line])
 
-    def obfuscate(self, text: str) -> tuple[str, int]:
+    def obfuscate(self, text: str) -> tuple[str, List[Match]]:
         matches = CodegateSignatures.find_in_string(text)
         if not matches:
-            return text, 0
+            return text, []
 
         logger.debug(f"Found {len(matches)} secrets in the user message")
 
@@ -133,16 +133,16 @@ class SecretsModifier:
         protected_text = list(text)
 
         # Store matches for logging
-        found_secrets = 0
+        found_secrets = []
 
         # First pass. Replace each match with its encrypted value
-        logger.info("\nFound secrets:")
+        logger.info(f"\nFound {len(absolute_matches)} secrets:")
         for start, end, match in absolute_matches:
             hidden_secret = self._hide_secret(match)
 
             # Replace the secret in the text
             protected_text[start:end] = hidden_secret
-            found_secrets += 1
+            found_secrets.append(match)
             # Log the findings
             logger.info(
                 f"\nService: {match.service}"
@@ -228,7 +228,7 @@ class CodegateSecrets(PipelineStep):
 
     def _redact_text(
         self, text: str, secrets_manager: SecretsManager, session_id: str, context: PipelineContext
-    ) -> tuple[str, int]:
+    ) -> tuple[str, List[Match]]:
         """
         Find and encrypt secrets in the given text.
 
@@ -269,27 +269,31 @@ class CodegateSecrets(PipelineStep):
             raise ValueError("Session ID not found in context")
 
         new_request = request.copy()
-        total_redacted = 0
+        total_matches = []
 
-        # Process all messages
+        # get last user message block to get index for the first relevant user message
+        last_user_message = self.get_last_user_message_block(new_request)
         last_assistant_idx = -1
-        for i, message in enumerate(new_request["messages"]):
-            if message.get("role", "") == "assistant":
-                last_assistant_idx = i
+        if last_user_message:
+            _, user_idx = last_user_message
+            last_assistant_idx = user_idx - 1
 
         # Process all messages
         for i, message in enumerate(new_request["messages"]):
             if "content" in message and message["content"]:
                 # Protect the text
-                protected_string, redacted_count = self._redact_text(
+                protected_string, secrets_matched = self._redact_text(
                     str(message["content"]), secrets_manager, session_id, context
                 )
                 new_request["messages"][i]["content"] = protected_string
 
-                # Sum redacted count for messages after the last assistant message
+                # Append the matches for messages after the last assistant message
                 if i > last_assistant_idx:
-                    total_redacted += redacted_count
+                    total_matches += secrets_matched
 
+        # Not count repeated secret matches
+        set_secrets_value = set(match.value for match in total_matches)
+        total_redacted = len(set_secrets_value)
         context.secrets_found = total_redacted > 0
         logger.info(f"Total secrets redacted since last assistant message: {total_redacted}")
 
@@ -309,8 +313,8 @@ class SecretUnredactionStep(OutputPipelineStep):
     """Pipeline step that unredacts protected content in the stream"""
 
     def __init__(self):
-        self.redacted_pattern = re.compile(r"REDACTED<\$([^>]+)>")
-        self.marker_start = "REDACTED<$"
+        self.redacted_pattern = re.compile(r"REDACTED<(\$?[^>]+)>")
+        self.marker_start = "REDACTED<"
         self.marker_end = ">"
 
     @property
@@ -362,7 +366,8 @@ class SecretUnredactionStep(OutputPipelineStep):
         if match:
             # Found a complete marker, process it
             encrypted_value = match.group(1)
-            print("----> encrypted_value: ", encrypted_value)
+            if encrypted_value.startswith("$"):
+                encrypted_value = encrypted_value[1:]
             original_value = input_context.sensitive.manager.get_original_value(
                 encrypted_value,
                 input_context.sensitive.session_id,
@@ -371,8 +376,6 @@ class SecretUnredactionStep(OutputPipelineStep):
             if original_value is None:
                 # If value not found, leave as is
                 original_value = match.group(0)  # Keep the REDACTED marker
-            else:
-                print("----> original_value: ", original_value)
 
             # Post an alert with the redacted content
             input_context.add_alert(self.name, trigger_string=encrypted_value)
@@ -399,7 +402,7 @@ class SecretUnredactionStep(OutputPipelineStep):
             return []
 
         if self._is_partial_marker_prefix(buffered_content):
-            context.prefix_buffer += buffered_content
+            context.prefix_buffer = buffered_content
             return []
 
         # No markers or partial markers, let pipeline handle the chunk normally

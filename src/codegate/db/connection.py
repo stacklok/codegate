@@ -1,20 +1,28 @@
 import asyncio
 import json
+import uuid
 from pathlib import Path
 from typing import List, Optional, Type
 
 import structlog
+from alembic import command as alembic_command
+from alembic.config import Config as AlembicConfig
 from pydantic import BaseModel
-from sqlalchemy import TextClause, text
+from sqlalchemy import CursorResult, TextClause, text
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from codegate.db.fim_cache import FimCache
 from codegate.db.models import (
+    ActiveWorkspace,
     Alert,
     GetAlertsWithPromptAndOutputRow,
     GetPromptWithOutputsRow,
     Output,
     Prompt,
+    Session,
+    Workspace,
+    WorkspaceActive,
 )
 from codegate.pipeline.base import PipelineContext
 
@@ -23,24 +31,38 @@ alert_queue = asyncio.Queue()
 fim_cache = FimCache()
 
 
+class AlreadyExistsError(Exception):
+    pass
+
+
 class DbCodeGate:
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
 
     def __init__(self, sqlite_path: Optional[str] = None):
-        # Initialize SQLite database engine with proper async URL
-        if not sqlite_path:
-            current_dir = Path(__file__).parent
-            sqlite_path = (
-                current_dir.parent.parent.parent / "codegate_volume" / "db" / "codegate.db"
-            )  # type: ignore
-        self._db_path = Path(sqlite_path).absolute()  # type: ignore
-        self._db_path.parent.mkdir(parents=True, exist_ok=True)
-        logger.debug(f"Initializing DB from path: {self._db_path}")
-        engine_dict = {
-            "url": f"sqlite+aiosqlite:///{self._db_path}",
-            "echo": False,  # Set to False in production
-            "isolation_level": "AUTOCOMMIT",  # Required for SQLite
-        }
-        self._async_db_engine = create_async_engine(**engine_dict)
+        if not hasattr(self, "_initialized"):
+            # Ensure __init__ is only executed once
+            self._initialized = True
+
+            # Initialize SQLite database engine with proper async URL
+            if not sqlite_path:
+                current_dir = Path(__file__).parent
+                sqlite_path = (
+                    current_dir.parent.parent.parent / "codegate_volume" / "db" / "codegate.db"
+                )
+            self._db_path = Path(sqlite_path).absolute()
+            self._db_path.parent.mkdir(parents=True, exist_ok=True)
+            # logger.debug(f"Connecting to DB from path: {self._db_path}")
+            engine_dict = {
+                "url": f"sqlite+aiosqlite:///{self._db_path}",
+                "echo": False,  # Set to False in production
+                "isolation_level": "AUTOCOMMIT",  # Required for SQLite
+            }
+            self._async_db_engine = create_async_engine(**engine_dict)
 
     def does_db_exist(self):
         return self._db_path.is_file()
@@ -51,44 +73,12 @@ class DbRecorder(DbCodeGate):
     def __init__(self, sqlite_path: Optional[str] = None):
         super().__init__(sqlite_path)
 
-        if not self.does_db_exist():
-            logger.info(f"Database does not exist at {self._db_path}. Creating..")
-            asyncio.run(self.init_db())
-
-    async def init_db(self):
-        """Initialize the database with the schema."""
-        if self.does_db_exist():
-            logger.info("Database already exists. Skipping initialization.")
-            return
-
-        # Get the absolute path to the schema file
-        current_dir = Path(__file__).parent
-        schema_path = current_dir.parent.parent.parent / "sql" / "schema" / "schema.sql"
-
-        if not schema_path.exists():
-            raise FileNotFoundError(f"Schema file not found at {schema_path}")
-
-        # Read the schema
-        with open(schema_path, "r") as f:
-            schema = f.read()
-
-        try:
-            # Execute the schema
-            async with self._async_db_engine.begin() as conn:
-                # Split the schema into individual statements and execute each one
-                statements = [stmt.strip() for stmt in schema.split(";") if stmt.strip()]
-                for statement in statements:
-                    # Use SQLAlchemy text() to create executable SQL statements
-                    await conn.execute(text(statement))
-        finally:
-            await self._async_db_engine.dispose()
-
     async def _execute_update_pydantic_model(
-        self, model: BaseModel, sql_command: TextClause
+        self, model: BaseModel, sql_command: TextClause, should_raise: bool = False
     ) -> Optional[BaseModel]:
         """Execute an update or insert command for a Pydantic model."""
-        async with self._async_db_engine.begin() as conn:
-            try:
+        try:
+            async with self._async_db_engine.begin() as conn:
                 result = await conn.execute(sql_command, model.model_dump())
                 row = result.first()
                 if row is None:
@@ -97,17 +87,23 @@ class DbRecorder(DbCodeGate):
                 # Get the class of the Pydantic object to create a new object
                 model_class = model.__class__
                 return model_class(**row._asdict())
-            except Exception as e:
-                logger.error(f"Failed to update model: {model}.", error=str(e))
-                return None
+        except Exception as e:
+            logger.error(f"Failed to update model: {model}.", error=str(e))
+            if should_raise:
+                raise e
+            return None
 
     async def record_request(self, prompt_params: Optional[Prompt] = None) -> Optional[Prompt]:
         if prompt_params is None:
             return None
+        # Get the active workspace to store the request
+        active_workspace = await DbReader().get_active_workspace()
+        workspace_id = active_workspace.id if active_workspace else "1"
+        prompt_params.workspace_id = workspace_id
         sql = text(
             """
-                INSERT INTO prompts (id, timestamp, provider, request, type)
-                VALUES (:id, :timestamp, :provider, :request, :type)
+                INSERT INTO prompts (id, timestamp, provider, request, type, workspace_id)
+                VALUES (:id, :timestamp, :provider, :request, :type, :workspace_id)
                 RETURNING *
                 """
         )
@@ -252,27 +248,124 @@ class DbRecorder(DbCodeGate):
         except Exception as e:
             logger.error(f"Failed to record context: {context}.", error=str(e))
 
+    async def add_workspace(self, workspace_name: str) -> Workspace:
+        """Add a new workspace to the DB.
+
+        This handles validation and insertion of a new workspace.
+
+        It may raise a ValidationError if the workspace name is invalid.
+        or a AlreadyExistsError if the workspace already exists.
+        """
+        workspace = Workspace(id=str(uuid.uuid4()), name=workspace_name, system_prompt=None)
+        sql = text(
+            """
+            INSERT INTO workspaces (id, name)
+            VALUES (:id, :name)
+            RETURNING *
+            """
+        )
+
+        try:
+            added_workspace = await self._execute_update_pydantic_model(
+                workspace, sql, should_raise=True
+            )
+        except IntegrityError as e:
+            logger.debug(f"Exception type: {type(e)}")
+            raise AlreadyExistsError(f"Workspace {workspace_name} already exists.")
+        return added_workspace
+
+    async def update_workspace(self, workspace: Workspace) -> Workspace:
+        sql = text(
+            """
+            UPDATE workspaces SET
+            name = :name,
+            system_prompt = :system_prompt
+            WHERE id = :id
+            RETURNING *
+            """
+        )
+        updated_workspace = await self._execute_update_pydantic_model(
+            workspace, sql, should_raise=True
+        )
+        return updated_workspace
+
+    async def update_session(self, session: Session) -> Optional[Session]:
+        sql = text(
+            """
+            INSERT INTO sessions (id, active_workspace_id, last_update)
+            VALUES (:id, :active_workspace_id, :last_update)
+            ON CONFLICT (id) DO UPDATE SET
+            active_workspace_id = excluded.active_workspace_id, last_update = excluded.last_update
+            WHERE id = excluded.id
+            RETURNING *
+            """
+        )
+        # We only pass an object to respect the signature of the function
+        active_session = await self._execute_update_pydantic_model(session, sql, should_raise=True)
+        return active_session
+
+    async def soft_delete_workspace(self, workspace: Workspace) -> Optional[Workspace]:
+        sql = text(
+            """
+            UPDATE workspaces
+            SET deleted_at = CURRENT_TIMESTAMP
+            WHERE id = :id
+            RETURNING *
+            """
+        )
+        deleted_workspace = await self._execute_update_pydantic_model(
+            workspace, sql, should_raise=True
+        )
+        return deleted_workspace
+
 
 class DbReader(DbCodeGate):
 
     def __init__(self, sqlite_path: Optional[str] = None):
         super().__init__(sqlite_path)
 
+    async def _dump_result_to_pydantic_model(
+        self, model_type: Type[BaseModel], result: CursorResult
+    ) -> Optional[List[BaseModel]]:
+        try:
+            if not result:
+                return None
+            rows = [model_type(**row._asdict()) for row in result.fetchall() if row]
+            return rows
+        except Exception as e:
+            logger.error(f"Failed to dump to pydantic model: {model_type}.", error=str(e))
+            return None
+
     async def _execute_select_pydantic_model(
         self, model_type: Type[BaseModel], sql_command: TextClause
-    ) -> Optional[BaseModel]:
+    ) -> Optional[List[BaseModel]]:
         async with self._async_db_engine.begin() as conn:
             try:
                 result = await conn.execute(sql_command)
-                if not result:
-                    return None
-                rows = [model_type(**row._asdict()) for row in result.fetchall() if row]
-                return rows
+                return await self._dump_result_to_pydantic_model(model_type, result)
             except Exception as e:
                 logger.error(f"Failed to select model: {model_type}.", error=str(e))
                 return None
 
-    async def get_prompts_with_output(self) -> List[GetPromptWithOutputsRow]:
+    async def _exec_select_conditions_to_pydantic(
+        self,
+        model_type: Type[BaseModel],
+        sql_command: TextClause,
+        conditions: dict,
+        should_raise: bool = False,
+    ) -> Optional[List[BaseModel]]:
+        async with self._async_db_engine.begin() as conn:
+            try:
+                result = await conn.execute(sql_command, conditions)
+                return await self._dump_result_to_pydantic_model(model_type, result)
+            except Exception as e:
+                logger.error(f"Failed to select model with conditions: {model_type}.", error=str(e))
+                # Exposes errors to the caller
+                if should_raise:
+                    raise e
+                return None
+
+    async def get_prompts_with_output(self, workpace_id: str) -> List[GetPromptWithOutputsRow]:
         sql = text(
             """
             SELECT
@@ -282,13 +375,19 @@ class DbReader(DbCodeGate):
                 o.timestamp as output_timestamp
             FROM prompts p
             LEFT JOIN outputs o ON p.id = o.prompt_id
+            WHERE p.workspace_id = :workspace_id
             ORDER BY o.timestamp DESC
             """
         )
-        prompts = await self._execute_select_pydantic_model(GetPromptWithOutputsRow, sql)
+        conditions = {"workspace_id": workpace_id}
+        prompts = await self._exec_select_conditions_to_pydantic(
+            GetPromptWithOutputsRow, sql, conditions, should_raise=True
+        )
         return prompts
 
-    async def get_alerts_with_prompt_and_output(self) -> List[GetAlertsWithPromptAndOutputRow]:
+    async def get_alerts_with_prompt_and_output(
+        self, workspace_id: str
+    ) -> List[GetAlertsWithPromptAndOutputRow]:
         sql = text(
             """
             SELECT
@@ -309,17 +408,108 @@ class DbReader(DbCodeGate):
             FROM alerts a
             LEFT JOIN prompts p ON p.id = a.prompt_id
             LEFT JOIN outputs o ON p.id = o.prompt_id
+            WHERE p.workspace_id = :workspace_id
             ORDER BY a.timestamp DESC
             """
         )
-        prompts = await self._execute_select_pydantic_model(GetAlertsWithPromptAndOutputRow, sql)
+        conditions = {"workspace_id": workspace_id}
+        prompts = await self._exec_select_conditions_to_pydantic(
+            GetAlertsWithPromptAndOutputRow, sql, conditions, should_raise=True
+        )
         return prompts
+
+    async def get_workspaces(self) -> List[WorkspaceActive]:
+        sql = text(
+            """
+            SELECT
+                w.id, w.name, s.active_workspace_id
+            FROM workspaces w
+            LEFT JOIN sessions s ON w.id = s.active_workspace_id
+            WHERE w.deleted_at IS NULL
+            """
+        )
+        workspaces = await self._execute_select_pydantic_model(WorkspaceActive, sql)
+        return workspaces
+
+    async def get_workspace_by_name(self, name: str) -> Optional[Workspace]:
+        sql = text(
+            """
+            SELECT
+                id, name, system_prompt
+            FROM workspaces
+            WHERE name = :name AND deleted_at IS NULL
+            """
+        )
+        conditions = {"name": name}
+        workspaces = await self._exec_select_conditions_to_pydantic(
+            Workspace, sql, conditions, should_raise=True
+        )
+        return workspaces[0] if workspaces else None
+
+    async def get_sessions(self) -> List[Session]:
+        sql = text(
+            """
+            SELECT
+                id, active_workspace_id, last_update
+            FROM sessions
+            """
+        )
+        sessions = await self._execute_select_pydantic_model(Session, sql)
+        return sessions
+
+    async def get_active_workspace(self) -> Optional[ActiveWorkspace]:
+        sql = text(
+            """
+            SELECT
+                w.id, w.name, w.system_prompt, s.id as session_id, s.last_update
+            FROM sessions s
+            INNER JOIN workspaces w ON w.id = s.active_workspace_id
+            """
+        )
+        active_workspace = await self._execute_select_pydantic_model(ActiveWorkspace, sql)
+        return active_workspace[0] if active_workspace else None
 
 
 def init_db_sync(db_path: Optional[str] = None):
     """DB will be initialized in the constructor in case it doesn't exist."""
-    db = DbRecorder(db_path)
-    asyncio.run(db.init_db())
+    current_dir = Path(__file__).parent
+    alembic_ini_path = current_dir.parent.parent.parent / "alembic.ini"
+    alembic_cfg = AlembicConfig(alembic_ini_path)
+    # Only set the db path if it's provided. Otherwise use the one in alembic.ini
+    if db_path:
+        alembic_cfg.set_main_option("sqlalchemy.url", f"sqlite:///{db_path}")
+
+    try:
+        alembic_command.upgrade(alembic_cfg, "head")
+    except OperationalError:
+        # An OperationalError is expected if the DB already exists, i.e. it was created before
+        # migrations were introduced. In this case, we need to stamp the DB with the initial
+        # revision and then upgrade it to the latest revision.
+        alembic_command.stamp(alembic_cfg, "30d0144e1a50")
+        alembic_command.upgrade(alembic_cfg, "head")
+    logger.info("DB initialized successfully.")
+
+
+def init_session_if_not_exists(db_path: Optional[str] = None):
+    import datetime
+
+    db_reader = DbReader(db_path)
+    sessions = asyncio.run(db_reader.get_sessions())
+    # If there are no sessions, create a new one
+    # TODO: For the moment there's a single session. If it already exists, we don't create a new one
+    if not sessions:
+        session = Session(
+            id=str(uuid.uuid4()),
+            active_workspace_id="1",
+            last_update=datetime.datetime.now(datetime.timezone.utc),
+        )
+        db_recorder = DbRecorder(db_path)
+        try:
+            asyncio.run(db_recorder.update_session(session))
+        except Exception as e:
+            logger.error(f"Failed to initialize session in DB: {e}")
+            return
+        logger.info("Session in DB initialized successfully.")
 
 
 if __name__ == "__main__":
