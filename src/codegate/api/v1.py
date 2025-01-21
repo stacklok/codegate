@@ -136,6 +136,25 @@ async def delete_workspace(workspace_name: str):
     return Response(status_code=204)
 
 
+@v1.delete(
+    "/workspaces/del/{workspace_name}",
+    tags=["Workspaces"],
+    generate_unique_id_function=uniq_name,
+)
+async def delete_workspace_permanent(workspace_name: str):
+    """Delete a workspace by name."""
+    try:
+        _ = await wscrud.hard_delete_workspace(workspace_name)
+    except crud.WorkspaceDoesNotExistError:
+        raise HTTPException(status_code=404, detail="Workspace does not exist")
+    except crud.WorkspaceCrudError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    return Response(status_code=204)
+
+
 @v1.get(
     "/workspaces/{workspace_name}/alerts",
     tags=["Workspaces"],
