@@ -8,7 +8,8 @@ import structlog
 from alembic import command as alembic_command
 from alembic.config import Config as AlembicConfig
 from pydantic import BaseModel
-from sqlalchemy import CursorResult, TextClause, text
+from sqlalchemy import CursorResult, TextClause, event, text
+from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import create_async_engine
 
@@ -33,6 +34,21 @@ fim_cache = FimCache()
 
 class AlreadyExistsError(Exception):
     pass
+
+
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    """
+    Ensures that foreign keys are enabled for the SQLite database at every connection.
+
+    SQLite does not enforce foreign keys by default, so we need to enable them manually.
+    [SQLAlchemy docs](https://docs.sqlalchemy.org/en/20/dialects/sqlite.html#foreign-key-support)
+    [SQLite docs](https://www.sqlite.org/foreignkeys.html)
+    [SO](https://stackoverflow.com/questions/2614984/sqlite-sqlalchemy-how-to-enforce-foreign-keys)
+    """
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
 
 
 class DbCodeGate:
