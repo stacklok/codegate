@@ -20,6 +20,7 @@ jobs:
     with:
       artifact-name: "codegate-image"
   integration-tests:
+    if: github.event.pull_request.head.repo.full_name == 'stacklok/codegate'
     name: Integration Tests
     needs: [ci, image-build] # We need the image available in order to run the integration tests
     uses: ./.github/workflows/integration-tests.yml
