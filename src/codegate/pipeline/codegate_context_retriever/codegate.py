@@ -140,8 +140,10 @@ class CodegateContextRetriever(PipelineStep):
                     task_start, task_content, task_end, rest_of_message = match.groups()
 
                 # Embed the context into the task block
-                updated_task_content = f"{task_start}Context: {context_str}\n" + \
-                    f"Query: {task_content.strip()}</details>{task_end}"
+                updated_task_content = (
+                    f"{task_start}Context: {context_str}\n"
+                    + f"Query: {task_content.strip()}</details>{task_end}"
+                )
 
                 # Combine the updated task block with the rest of the message
                 context_msg = updated_task_content + rest_of_message
