@@ -318,6 +318,33 @@ class DbRecorder(DbCodeGate):
         )
         return deleted_workspace
 
+    async def hard_delete_workspace(self, workspace: Workspace) -> Optional[Workspace]:
+        sql = text(
+            """
+            DELETE FROM workspaces
+            WHERE id = :id
+            RETURNING *
+            """
+        )
+        deleted_workspace = await self._execute_update_pydantic_model(
+            workspace, sql, should_raise=True
+        )
+        return deleted_workspace
+
+    async def recover_workspace(self, workspace: Workspace) -> Optional[Workspace]:
+        sql = text(
+            """
+            UPDATE workspaces
+            SET deleted_at = NULL
+            WHERE id = :id
+            RETURNING *
+            """
+        )
+        recovered_workspace = await self._execute_update_pydantic_model(
+            workspace, sql, should_raise=True
+        )
+        return recovered_workspace
+
 
 class DbReader(DbCodeGate):
 
@@ -431,6 +458,19 @@ class DbReader(DbCodeGate):
         workspaces = await self._execute_select_pydantic_model(WorkspaceActive, sql)
         return workspaces
 
+    async def get_archived_workspaces(self) -> List[Workspace]:
+        sql = text(
+            """
+            SELECT
+                id, name, system_prompt
+            FROM workspaces
+            WHERE deleted_at IS NOT NULL
+            ORDER BY deleted_at DESC
+            """
+        )
+        workspaces = await self._execute_select_pydantic_model(Workspace, sql)
+        return workspaces
+
     async def get_workspace_by_name(self, name: str) -> Optional[Workspace]:
         sql = text(
             """
@@ -438,6 +478,21 @@ class DbReader(DbCodeGate):
                 id, name, system_prompt
             FROM workspaces
             WHERE name = :name AND deleted_at IS NULL
+            """
+        )
+        conditions = {"name": name}
+        workspaces = await self._exec_select_conditions_to_pydantic(
+            Workspace, sql, conditions, should_raise=True
+        )
+        return workspaces[0] if workspaces else None
+
+    async def get_archived_workspace_by_name(self, name: str) -> Optional[Workspace]:
+        sql = text(
+            """
+            SELECT
+                id, name, system_prompt
+            FROM workspaces
+            WHERE name = :name AND deleted_at IS NOT NULL
             """
         )
         conditions = {"name": name}

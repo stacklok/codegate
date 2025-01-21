@@ -20,7 +20,7 @@ class WorkspaceAlreadyActiveError(WorkspaceCrudError):
 DEFAULT_WORKSPACE_NAME = "default"
 
 # These are reserved keywords that cannot be used for workspaces
-RESERVED_WORKSPACE_KEYWORDS = [DEFAULT_WORKSPACE_NAME, "active"]
+RESERVED_WORKSPACE_KEYWORDS = [DEFAULT_WORKSPACE_NAME, "active", "archived"]
 
 
 class WorkspaceCrud:
@@ -75,6 +75,12 @@ class WorkspaceCrud:
         """
         return await self._db_reader.get_workspaces()
 
+    async def get_archived_workspaces(self) -> List[Workspace]:
+        """
+        Get all archived workspaces
+        """
+        return await self._db_reader.get_archived_workspaces()
+
     async def get_active_workspace(self) -> Optional[ActiveWorkspace]:
         """
         Get the active workspace
@@ -115,6 +121,18 @@ class WorkspaceCrud:
         await db_recorder.update_session(session)
         return
 
+    async def recover_workspace(self, workspace_name: str):
+        """
+        Recover an archived workspace
+        """
+        selected_workspace = await self._db_reader.get_archived_workspace_by_name(workspace_name)
+        if not selected_workspace:
+            raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
+
+        db_recorder = DbRecorder()
+        await db_recorder.recover_workspace(selected_workspace)
+        return
+
     async def update_workspace_system_prompt(
         self, workspace_name: str, sys_prompt_lst: List[str]
     ) -> Workspace:
@@ -153,6 +171,24 @@ class WorkspaceCrud:
         db_recorder = DbRecorder()
         try:
             _ = await db_recorder.soft_delete_workspace(selected_workspace)
+        except Exception:
+            raise WorkspaceCrudError(f"Error deleting workspace {workspace_name}")
+        return
+
+    async def hard_delete_workspace(self, workspace_name: str):
+        """
+        Hard delete a workspace
+        """
+        if workspace_name == "":
+            raise WorkspaceCrudError("Workspace name cannot be empty.")
+
+        selected_workspace = await self._db_reader.get_archived_workspace_by_name(workspace_name)
+        if not selected_workspace:
+            raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
+
+        db_recorder = DbRecorder()
+        try:
+            _ = await db_recorder.hard_delete_workspace(selected_workspace)
         except Exception:
             raise WorkspaceCrudError(f"Error deleting workspace {workspace_name}")
         return

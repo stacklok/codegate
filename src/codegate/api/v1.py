@@ -27,7 +27,7 @@ async def list_workspaces() -> v1_models.ListWorkspacesResponse:
     """List all workspaces."""
     wslist = await wscrud.get_workspaces()
 
-    resp = v1_models.ListWorkspacesResponse.from_db_workspaces(wslist)
+    resp = v1_models.ListWorkspacesResponse.from_db_workspaces_active(wslist)
 
     return resp
 
@@ -126,6 +126,55 @@ async def delete_workspace(workspace_name: str):
     """Delete a workspace by name."""
     try:
         _ = await wscrud.soft_delete_workspace(workspace_name)
+    except crud.WorkspaceDoesNotExistError:
+        raise HTTPException(status_code=404, detail="Workspace does not exist")
+    except crud.WorkspaceCrudError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    return Response(status_code=204)
+
+
+@v1.get("/workspaces/archive", tags=["Workspaces"], generate_unique_id_function=uniq_name)
+async def list_archived_workspaces() -> v1_models.ListWorkspacesResponse:
+    """List all archived workspaces."""
+    wslist = await wscrud.get_archived_workspaces()
+
+    resp = v1_models.ListWorkspacesResponse.from_db_workspaces(wslist)
+
+    return resp
+
+
+@v1.post(
+    "/workspaces/archive/{workspace_name}/recover",
+    tags=["Workspaces"],
+    generate_unique_id_function=uniq_name,
+    status_code=204,
+)
+async def recover_workspace(workspace_name: str):
+    """Recover an archived workspace by name."""
+    try:
+        _ = await wscrud.recover_workspace(workspace_name)
+    except crud.WorkspaceDoesNotExistError:
+        raise HTTPException(status_code=404, detail="Workspace does not exist")
+    except crud.WorkspaceCrudError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    return Response(status_code=204)
+
+
+@v1.delete(
+    "/workspaces/archive/{workspace_name}",
+    tags=["Workspaces"],
+    generate_unique_id_function=uniq_name,
+)
+async def hard_delete_workspace(workspace_name: str):
+    """Hard delete an archived workspace by name."""
+    try:
+        _ = await wscrud.hard_delete_workspace(workspace_name)
     except crud.WorkspaceDoesNotExistError:
         raise HTTPException(status_code=404, detail="Workspace does not exist")
     except crud.WorkspaceCrudError as e:
