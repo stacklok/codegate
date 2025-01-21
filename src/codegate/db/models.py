@@ -44,6 +44,7 @@ class Workspace(BaseModel):
     id: str
     name: str
     system_prompt: Optional[str]
+    deleted_at: Optional[datetime.datetime] = None
 
     @field_validator("name", mode="plain")
     @classmethod

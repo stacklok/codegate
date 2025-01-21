@@ -89,7 +89,7 @@ class WorkspaceCrud:
         """
         # TODO: All of this should be done within a transaction.
 
-        selected_workspace = await self._db_reader.get_workspace_by_name(workspace_name)
+        selected_workspace = await self._db_reader.get_non_deleted_workspace_by_name(workspace_name)
         if not selected_workspace:
             raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
 
@@ -118,7 +118,7 @@ class WorkspaceCrud:
     async def update_workspace_system_prompt(
         self, workspace_name: str, sys_prompt_lst: List[str]
     ) -> Workspace:
-        selected_workspace = await self._db_reader.get_workspace_by_name(workspace_name)
+        selected_workspace = await self._db_reader.get_non_deleted_workspace_by_name(workspace_name)
         if not selected_workspace:
             raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
 
@@ -132,7 +132,7 @@ class WorkspaceCrud:
         updated_workspace = await db_recorder.update_workspace(workspace_update)
         return updated_workspace
 
-    async def soft_delete_workspace(self, workspace_name: str):
+    async def soft_delete_workspace(self, workspace_name: str) -> None:
         """
         Soft delete a workspace
         """
@@ -141,11 +141,11 @@ class WorkspaceCrud:
         if workspace_name == DEFAULT_WORKSPACE_NAME:
             raise WorkspaceCrudError("Cannot delete default workspace.")
 
-        selected_workspace = await self._db_reader.get_workspace_by_name(workspace_name)
+        selected_workspace = await self._db_reader.get_non_deleted_workspace_by_name(workspace_name)
         if not selected_workspace:
             raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
 
-        # Check if workspace is active, if it is, make the default workspace active
+        # Check if workspace is active, if it is, avoid deleting it
         active_workspace = await self._db_reader.get_active_workspace()
         if active_workspace and active_workspace.id == selected_workspace.id:
             raise WorkspaceCrudError("Cannot delete active workspace.")
@@ -157,8 +157,30 @@ class WorkspaceCrud:
             raise WorkspaceCrudError(f"Error deleting workspace {workspace_name}")
         return
 
+    async def hard_delete_workspace(self, workspace_name: str) -> None:
+        """
+        Soft delete a workspace
+        """
+        if workspace_name == "":
+            raise WorkspaceCrudError("Workspace name cannot be empty.")
+
+        selected_workspace = await self._db_reader.get_workspace_by_name(workspace_name)
+        if not selected_workspace:
+            raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
+
+        # Check if workspace is soft deleted, if it is not, don't delete it
+        if not selected_workspace.deleted_at:
+            raise WorkspaceCrudError("Cannot delete workspace that is not soft-deleted.")
+
+        db_recorder = DbRecorder()
+        try:
+            _ = await db_recorder.hard_delete_workspace(selected_workspace)
+        except Exception:
+            raise WorkspaceCrudError(f"Error deleting workspace {workspace_name}")
+        return
+
     async def get_workspace_by_name(self, workspace_name: str) -> Workspace:
-        workspace = await self._db_reader.get_workspace_by_name(workspace_name)
+        workspace = await self._db_reader.get_non_deleted_workspace_by_name(workspace_name)
         if not workspace:
             raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
         return workspace

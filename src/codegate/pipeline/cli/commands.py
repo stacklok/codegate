@@ -154,6 +154,7 @@ class Workspace(CodegateCommandSubcommand):
             "add": self._add_workspace,
             "activate": self._activate_workspace,
             "remove": self._remove_workspace,
+            "delete": self._delete_workspace,
             "rename": self._rename_workspace,
         }
 
@@ -267,6 +268,27 @@ class Workspace(CodegateCommandSubcommand):
             return "An error occurred while removing the workspace"
         return f"Workspace **{workspace_name}** has been removed"
 
+    async def _delete_workspace(self, flags: Dict[str, str], args: List[str]) -> str:
+        """
+        Remove a workspace
+        """
+        if args is None or len(args) == 0:
+            return "Please provide a name. Use `codegate workspace delete workspace_name`"
+
+        workspace_name = args[0]
+        if not workspace_name:
+            return "Please provide a name. Use `codegate workspace delete workspace_name`"
+
+        try:
+            await self.workspace_crud.hard_delete_workspace(workspace_name)
+        except crud.WorkspaceDoesNotExistError:
+            return f"Workspace **{workspace_name}** does not exist"
+        except crud.WorkspaceCrudError as e:
+            return str(e)
+        except Exception:
+            return "An error occurred while deleting the workspace"
+        return f"Workspace **{workspace_name}** has been deleted permanently"
+
     @property
     def help(self) -> str:
         return (
@@ -282,13 +304,17 @@ class Workspace(CodegateCommandSubcommand):
             "- `activate`: Activate a workspace\n\n"
             "  - *args*:\n\n"
             "    - `workspace_name`\n\n"
-            "- `remove`: Remove a workspace\n\n"
-            "  - *args*:\n\n"
-            "    - `workspace_name`\n\n"
             "- `rename`: Rename a workspace\n\n"
             "  - *args*:\n\n"
             "    - `workspace_name`\n"
             "    - `new_workspace_name`\n\n"
+            "- `remove`: Remove a workspace. It can be recovered later.\n\n"
+            "  - *args*:\n\n"
+            "    - `workspace_name`"
+            "- `delete`: Delete permanently a workspace and its' associated info. The workspace "
+            "first needs to be `remove`.\n\n"
+            "  - *args*:\n\n"
+            "    - `workspace_name`"
         )
 
 

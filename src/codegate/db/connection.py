@@ -318,6 +318,19 @@ class DbRecorder(DbCodeGate):
         )
         return deleted_workspace
 
+    async def hard_delete_workspace(self, workspace: Workspace) -> Optional[Workspace]:
+        sql = text(
+            """
+            DELETE FROM workspaces
+            WHERE id = :id
+            RETURNING *
+            """
+        )
+        deleted_workspace = await self._execute_update_pydantic_model(
+            workspace, sql, should_raise=True
+        )
+        return deleted_workspace
+
 
 class DbReader(DbCodeGate):
 
@@ -431,13 +444,28 @@ class DbReader(DbCodeGate):
         workspaces = await self._execute_select_pydantic_model(WorkspaceActive, sql)
         return workspaces
 
-    async def get_workspace_by_name(self, name: str) -> Optional[Workspace]:
+    async def get_non_deleted_workspace_by_name(self, name: str) -> Optional[Workspace]:
         sql = text(
             """
             SELECT
                 id, name, system_prompt
             FROM workspaces
             WHERE name = :name AND deleted_at IS NULL
+            """
+        )
+        conditions = {"name": name}
+        workspaces = await self._exec_select_conditions_to_pydantic(
+            Workspace, sql, conditions, should_raise=True
+        )
+        return workspaces[0] if workspaces else None
+
+    async def get_workspace_by_name(self, name: str) -> Optional[Workspace]:
+        sql = text(
+            """
+            SELECT
+                id, name, system_prompt, deleted_at
+            FROM workspaces
+            WHERE name = :name
             """
         )
         conditions = {"name": name}
