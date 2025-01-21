@@ -155,6 +155,9 @@ class Workspace(CodegateCommandSubcommand):
             "activate": self._activate_workspace,
             "remove": self._remove_workspace,
             "rename": self._rename_workspace,
+            "list-archived": self._list_archived_workspaces,
+            "restore": self._restore_workspace,
+            "delete-archived": self._delete_archived_workspace,
         }
 
     async def _list_workspaces(self, flags: Dict[str, str], args: List[str]) -> str:
@@ -267,6 +270,58 @@ class Workspace(CodegateCommandSubcommand):
             return "An error occurred while removing the workspace"
         return f"Workspace **{workspace_name}** has been removed"
 
+    async def _list_archived_workspaces(self, flags: Dict[str, str], args: List[str]) -> str:
+        """
+        List all archived workspaces
+        """
+        workspaces = await self.workspace_crud.get_archived_workspaces()
+        respond_str = ""
+        for workspace in workspaces:
+            respond_str += f"- {workspace.name}\n"
+        return respond_str
+
+    async def _restore_workspace(self, flags: Dict[str, str], args: List[str]) -> str:
+        """
+        Restore an archived workspace
+        """
+        if args is None or len(args) == 0:
+            return "Please provide a name. Use `codegate workspace restore workspace_name`"
+
+        workspace_name = args[0]
+        if not workspace_name:
+            return "Please provide a name. Use `codegate workspace restore workspace_name`"
+
+        try:
+            await self.workspace_crud.recover_workspace(workspace_name)
+        except crud.WorkspaceDoesNotExistError:
+            return f"Workspace **{workspace_name}** does not exist"
+        except crud.WorkspaceCrudError as e:
+            return str(e)
+        except Exception:
+            return "An error occurred while restoring the workspace"
+        return f"Workspace **{workspace_name}** has been restored"
+
+    async def _delete_archived_workspace(self, flags: Dict[str, str], args: List[str]) -> str:
+        """
+        Hard delete an archived workspace
+        """
+        if args is None or len(args) == 0:
+            return "Please provide a name. Use `codegate workspace delete-archived workspace_name`"
+
+        workspace_name = args[0]
+        if not workspace_name:
+            return "Please provide a name. Use `codegate workspace delete-archived workspace_name`"
+
+        try:
+            await self.workspace_crud.hard_delete_workspace(workspace_name)
+        except crud.WorkspaceDoesNotExistError:
+            return f"Workspace **{workspace_name}** does not exist"
+        except crud.WorkspaceCrudError as e:
+            return str(e)
+        except Exception:
+            return "An error occurred while deleting the workspace"
+        return f"Workspace **{workspace_name}** has been deleted"
+
     @property
     def help(self) -> str:
         return (
@@ -289,6 +344,14 @@ class Workspace(CodegateCommandSubcommand):
             "  - *args*:\n\n"
             "    - `workspace_name`\n"
             "    - `new_workspace_name`\n\n"
+            "- `list-archived`: List all archived workspaces\n\n"
+            "  - *args*: None\n\n"
+            "- `restore`: Restore an archived workspace\n\n"
+            "  - *args*:\n\n"
+            "    - `workspace_name`\n\n"
+            "- `delete-archived`: Hard delete an archived workspace\n\n"
+            "  - *args*:\n\n"
+            "    - `workspace_name`\n\n"
         )
 
 

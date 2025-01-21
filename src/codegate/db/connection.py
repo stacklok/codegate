@@ -8,7 +8,8 @@ import structlog
 from alembic import command as alembic_command
 from alembic.config import Config as AlembicConfig
 from pydantic import BaseModel
-from sqlalchemy import CursorResult, TextClause, text
+from sqlalchemy import CursorResult, TextClause, event, text
+from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import create_async_engine
 
@@ -33,6 +34,20 @@ fim_cache = FimCache()
 
 class AlreadyExistsError(Exception):
     pass
+
+
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    """
+    Ensures that foreign keys are enabled for the SQLite database at every connection.
+    SQLite does not enforce foreign keys by default, so we need to enable them manually.
+    [SQLAlchemy docs](https://docs.sqlalchemy.org/en/20/dialects/sqlite.html#foreign-key-support)
+    [SQLite docs](https://www.sqlite.org/foreignkeys.html)
+    [SO](https://stackoverflow.com/questions/2614984/sqlite-sqlalchemy-how-to-enforce-foreign-keys)
+    """
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
 
 
 class DbCodeGate:
@@ -318,6 +333,33 @@ class DbRecorder(DbCodeGate):
         )
         return deleted_workspace
 
+    async def hard_delete_workspace(self, workspace: Workspace) -> Optional[Workspace]:
+        sql = text(
+            """
+            DELETE FROM workspaces
+            WHERE id = :id
+            RETURNING *
+            """
+        )
+        deleted_workspace = await self._execute_update_pydantic_model(
+            workspace, sql, should_raise=True
+        )
+        return deleted_workspace
+
+    async def recover_workspace(self, workspace: Workspace) -> Optional[Workspace]:
+        sql = text(
+            """
+            UPDATE workspaces
+            SET deleted_at = NULL
+            WHERE id = :id
+            RETURNING *
+            """
+        )
+        recovered_workspace = await self._execute_update_pydantic_model(
+            workspace, sql, should_raise=True
+        )
+        return recovered_workspace
+
 
 class DbReader(DbCodeGate):
 
@@ -431,6 +473,19 @@ class DbReader(DbCodeGate):
         workspaces = await self._execute_select_pydantic_model(WorkspaceActive, sql)
         return workspaces
 
+    async def get_archived_workspaces(self) -> List[Workspace]:
+        sql = text(
+            """
+            SELECT
+                id, name, system_prompt
+            FROM workspaces
+            WHERE deleted_at IS NOT NULL
+            ORDER BY deleted_at DESC
+            """
+        )
+        workspaces = await self._execute_select_pydantic_model(Workspace, sql)
+        return workspaces
+
     async def get_workspace_by_name(self, name: str) -> Optional[Workspace]:
         sql = text(
             """
@@ -438,6 +493,21 @@ class DbReader(DbCodeGate):
                 id, name, system_prompt
             FROM workspaces
             WHERE name = :name AND deleted_at IS NULL
+            """
+        )
+        conditions = {"name": name}
+        workspaces = await self._exec_select_conditions_to_pydantic(
+            Workspace, sql, conditions, should_raise=True
+        )
+        return workspaces[0] if workspaces else None
+
+    async def get_archived_workspace_by_name(self, name: str) -> Optional[Workspace]:
+        sql = text(
+            """
+            SELECT
+                id, name, system_prompt
+            FROM workspaces
+            WHERE name = :name AND deleted_at IS NOT NULL
             """
         )
         conditions = {"name": name}
