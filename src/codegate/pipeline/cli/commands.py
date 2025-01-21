@@ -227,6 +227,8 @@ class Workspace(CodegateCommandSubcommand):
             await self.workspace_crud.soft_delete_workspace(workspace_name)
         except crud.WorkspaceDoesNotExistError:
             return f"Workspace **{workspace_name}** does not exist"
+        except crud.WorkspaceCrudError as e:
+            return str(e)
         except Exception:
             return "An error occurred while removing the workspace"
         return f"Workspace **{workspace_name}** has been removed"
