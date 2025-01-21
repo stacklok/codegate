@@ -3,7 +3,7 @@ from typing import AsyncGenerator, List, Optional
 
 import requests
 import structlog
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.routing import APIRoute
 
@@ -14,11 +14,14 @@ from codegate.api.dashboard.post_processing import (
 )
 from codegate.api.dashboard.request_models import AlertConversation, Conversation
 from codegate.db.connection import DbReader, alert_queue
+from codegate.workspaces import crud
 
 logger = structlog.get_logger("codegate")
 
 dashboard_router = APIRouter()
 db_reader = None
+
+wscrud = crud.WorkspaceCrud()
 
 
 def uniq_name(route: APIRoute):
@@ -48,9 +51,14 @@ def get_messages(db_reader: DbReader = Depends(get_db_reader)) -> List[Conversat
     """
     Get all the messages from the database and return them as a list of conversations.
     """
-    prompts_outputs = asyncio.run(db_reader.get_prompts_with_output())
+    try:
+        active_ws = asyncio.run(wscrud.get_active_workspace())
+        prompts_outputs = asyncio.run(db_reader.get_prompts_with_output(active_ws.id))
 
-    return asyncio.run(parse_messages_in_conversations(prompts_outputs))
+        return asyncio.run(parse_messages_in_conversations(prompts_outputs))
+    except Exception as e:
+        logger.error(f"Error getting messages: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @dashboard_router.get(
@@ -60,8 +68,15 @@ def get_alerts(db_reader: DbReader = Depends(get_db_reader)) -> List[Optional[Al
     """
     Get all the messages from the database and return them as a list of conversations.
     """
-    alerts_prompt_output = asyncio.run(db_reader.get_alerts_with_prompt_and_output())
-    return asyncio.run(parse_get_alert_conversation(alerts_prompt_output))
+    try:
+        active_ws = asyncio.run(wscrud.get_active_workspace())
+        alerts_prompt_output = asyncio.run(
+            db_reader.get_alerts_with_prompt_and_output(active_ws.id)
+        )
+        return asyncio.run(parse_get_alert_conversation(alerts_prompt_output))
+    except Exception as e:
+        logger.error(f"Error getting alerts: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 async def generate_sse_events() -> AsyncGenerator[str, None]:

@@ -365,7 +365,7 @@ class DbReader(DbCodeGate):
                     raise e
                 return None
 
-    async def get_prompts_with_output(self) -> List[GetPromptWithOutputsRow]:
+    async def get_prompts_with_output(self, workpace_id: str) -> List[GetPromptWithOutputsRow]:
         sql = text(
             """
             SELECT
@@ -375,13 +375,19 @@ class DbReader(DbCodeGate):
                 o.timestamp as output_timestamp
             FROM prompts p
             LEFT JOIN outputs o ON p.id = o.prompt_id
+            WHERE p.workspace_id = :workspace_id
             ORDER BY o.timestamp DESC
             """
         )
-        prompts = await self._execute_select_pydantic_model(GetPromptWithOutputsRow, sql)
+        conditions = {"workspace_id": workpace_id}
+        prompts = await self._exec_select_conditions_to_pydantic(
+            GetPromptWithOutputsRow, sql, conditions, should_raise=True
+        )
         return prompts
 
-    async def get_alerts_with_prompt_and_output(self) -> List[GetAlertsWithPromptAndOutputRow]:
+    async def get_alerts_with_prompt_and_output(
+        self, workspace_id: str
+    ) -> List[GetAlertsWithPromptAndOutputRow]:
         sql = text(
             """
             SELECT
@@ -402,10 +408,14 @@ class DbReader(DbCodeGate):
             FROM alerts a
             LEFT JOIN prompts p ON p.id = a.prompt_id
             LEFT JOIN outputs o ON p.id = o.prompt_id
+            WHERE p.workspace_id = :workspace_id
             ORDER BY a.timestamp DESC
             """
         )
-        prompts = await self._execute_select_pydantic_model(GetAlertsWithPromptAndOutputRow, sql)
+        conditions = {"workspace_id": workspace_id}
+        prompts = await self._exec_select_conditions_to_pydantic(
+            GetAlertsWithPromptAndOutputRow, sql, conditions, should_raise=True
+        )
         return prompts
 
     async def get_workspaces(self) -> List[WorkspaceActive]:

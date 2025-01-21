@@ -1,15 +1,21 @@
+from typing import List, Optional
+
 from fastapi import APIRouter, HTTPException, Response
 from fastapi.routing import APIRoute
 from pydantic import ValidationError
 
 from codegate.api import v1_models
-from codegate.api.dashboard.dashboard import dashboard_router
-from codegate.db.connection import AlreadyExistsError
+from codegate.api.dashboard import dashboard
+from codegate.api.dashboard.request_models import AlertConversation, Conversation
+from codegate.db.connection import AlreadyExistsError, DbReader
 from codegate.workspaces import crud
 
 v1 = APIRouter()
-v1.include_router(dashboard_router)
+v1.include_router(dashboard.dashboard_router)
 wscrud = crud.WorkspaceCrud()
+
+# This is a singleton object
+dbreader = DbReader()
 
 
 def uniq_name(route: APIRoute):
@@ -92,3 +98,45 @@ async def delete_workspace(workspace_name: str):
         raise HTTPException(status_code=500, detail="Internal server error")
 
     return Response(status_code=204)
+
+
+@v1.get(
+    "/workspaces/{workspace_name}/alerts",
+    tags=["Workspaces"],
+    generate_unique_id_function=uniq_name,
+)
+async def get_workspace_alerts(workspace_name: str) -> List[Optional[AlertConversation]]:
+    """Get alerts for a workspace."""
+    try:
+        ws = await wscrud.get_workspace_by_name(workspace_name)
+    except crud.WorkspaceDoesNotExistError:
+        raise HTTPException(status_code=404, detail="Workspace does not exist")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    try:
+        alerts = await dbreader.get_alerts_with_prompt_and_output(ws.id)
+        return await dashboard.parse_get_alert_conversation(alerts)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@v1.get(
+    "/workspaces/{workspace_name}/messages",
+    tags=["Workspaces"],
+    generate_unique_id_function=uniq_name,
+)
+async def get_workspace_messages(workspace_name: str) -> List[Conversation]:
+    """Get messages for a workspace."""
+    try:
+        ws = await wscrud.get_workspace_by_name(workspace_name)
+    except crud.WorkspaceDoesNotExistError:
+        raise HTTPException(status_code=404, detail="Workspace does not exist")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    try:
+        prompts_outputs = await dbreader.get_prompts_with_output(ws.id)
+        return await dashboard.parse_messages_in_conversations(prompts_outputs)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
