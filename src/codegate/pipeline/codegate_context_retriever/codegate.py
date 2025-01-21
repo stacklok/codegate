@@ -36,7 +36,7 @@ class CodegateContextRetriever(PipelineStep):
         matched_packages = []
         for obj in objects:
             # The object is already a dictionary with 'properties'
-            package_obj = obj["properties"]
+            package_obj = obj["properties"]  # type: ignore
             matched_packages.append(f"{package_obj['name']} ({package_obj['type']})")
             # Add one alert for each package found
             context.add_alert(
@@ -91,13 +91,16 @@ class CodegateContextRetriever(PipelineStep):
             )  # type: ignore
             logger.info(f"Found {len(bad_snippet_packages)} bad packages in code snippets.")
 
-        # Remove code snippets from the user messages and search for bad packages
+        # Remove code snippets and file listing from the user messages and search for bad packages
         # in the rest of the user query/messsages
         user_messages = re.sub(r"```.*?```", "", user_message, flags=re.DOTALL)
         user_messages = re.sub(r"⋮...*?⋮...\n\n", "", user_messages, flags=re.DOTALL)
+        user_messages = re.sub(
+            r"<environment_details>.*?</environment_details>", "", user_messages, flags=re.DOTALL
+        )
 
         # split messages into double newlines, to avoid passing so many content in the search
-        split_messages = user_messages.split("\n\n")
+        split_messages = re.split(r"</?task>|(\n\n)", user_messages)
         collected_bad_packages = []
         for item_message in split_messages:
             # Vector search to find bad packages
@@ -126,10 +129,26 @@ class CodegateContextRetriever(PipelineStep):
             # Make a copy of the request
             new_request = request.copy()
 
-            # Add the context to the last user message
             # Format: "Context: {context_str} \n Query: {last user message content}"
             message = new_request["messages"][last_user_idx]
-            context_msg = f'Context: {context_str} \n\n Query: {message["content"]}'  # type: ignore
+            message_str = str(message["content"])  # type: ignore
+            # Add the context to the last user message
+            if message_str.strip().startswith("<task>"):
+                # formatting of cline
+                match = re.match(r"(<task>)(.*?)(</task>)(.*)", message_str, re.DOTALL)
+                if match:
+                    task_start, task_content, task_end, rest_of_message = match.groups()
+
+                # Embed the context into the task block
+                updated_task_content = (
+                    f"{task_start}Context: {context_str}\n"
+                    + f"Query: {task_content.strip()}</details>{task_end}"
+                )
+
+                # Combine the updated task block with the rest of the message
+                context_msg = updated_task_content + rest_of_message
+            else:
+                context_msg = f"Context: {context_str} \n\n Query: {message_str}"  # type: ignore
             message["content"] = context_msg
 
             logger.debug("Final context message", context_message=context_msg)
