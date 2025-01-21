@@ -43,6 +43,32 @@ class WorkspaceCrud:
         workspace_created = await db_recorder.add_workspace(new_workspace_name)
         return workspace_created
 
+    async def rename_workspace(self, old_workspace_name: str, new_workspace_name: str) -> Workspace:
+        """
+        Rename a workspace
+
+        Args:
+            old_name (str): The old name of the workspace
+            new_name (str): The new name of the workspace
+        """
+        if new_workspace_name == "":
+            raise WorkspaceCrudError("Workspace name cannot be empty.")
+        if old_workspace_name == "":
+            raise WorkspaceCrudError("Workspace name cannot be empty.")
+        if old_workspace_name in DEFAULT_WORKSPACE_NAME:
+            raise WorkspaceCrudError("Cannot rename default workspace.")
+        if new_workspace_name in RESERVED_WORKSPACE_KEYWORDS:
+            raise WorkspaceCrudError(f"Workspace name {new_workspace_name} is reserved.")
+        if old_workspace_name == new_workspace_name:
+            raise WorkspaceCrudError("Old and new workspace names are the same.")
+        ws = await self._db_reader.get_workspace_by_name(old_workspace_name)
+        if not ws:
+            raise WorkspaceDoesNotExistError(f"Workspace {old_workspace_name} does not exist.")
+        db_recorder = DbRecorder()
+        new_ws = Workspace(id=ws.id, name=new_workspace_name, system_prompt=ws.system_prompt)
+        workspace_renamed = await db_recorder.update_workspace(new_ws)
+        return workspace_renamed
+
     async def get_workspaces(self) -> List[WorkspaceActive]:
         """
         Get all workspaces

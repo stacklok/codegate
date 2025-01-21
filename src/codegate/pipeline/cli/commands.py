@@ -154,6 +154,7 @@ class Workspace(CodegateCommandSubcommand):
             "add": self._add_workspace,
             "activate": self._activate_workspace,
             "remove": self._remove_workspace,
+            "rename": self._rename_workspace,
         }
 
     async def _list_workspaces(self, flags: Dict[str, str], args: List[str]) -> str:
@@ -192,6 +193,37 @@ class Workspace(CodegateCommandSubcommand):
             return "An error occurred while adding the workspace"
 
         return f"Workspace **{new_workspace_name}** has been added"
+
+    async def _rename_workspace(self, flags: Dict[str, str], args: List[str]) -> str:
+        """
+        Rename a workspace
+        """
+        if args is None or len(args) < 2:
+            return (
+                "Please provide a name and a new name. "
+                "Use `codegate workspace rename workspace_name new_workspace_name`"
+            )
+
+        old_workspace_name = args[0]
+        new_workspace_name = args[1]
+        if not old_workspace_name or not new_workspace_name:
+            return (
+                "Please provide a name and a new name. "
+                "Use `codegate workspace rename workspace_name new_workspace_name`"
+            )
+
+        try:
+            await self.workspace_crud.rename_workspace(old_workspace_name, new_workspace_name)
+        except crud.WorkspaceDoesNotExistError:
+            return f"Workspace **{old_workspace_name}** does not exist"
+        except AlreadyExistsError:
+            return f"Workspace **{new_workspace_name}** already exists"
+        except crud.WorkspaceCrudError:
+            return "An error occurred while renaming the workspace"
+        except Exception:
+            return "An error occurred while renaming the workspace"
+
+        return f"Workspace **{old_workspace_name}** has been renamed to **{new_workspace_name}**"
 
     async def _activate_workspace(self, flags: Dict[str, str], args: List[str]) -> str:
         """
@@ -249,7 +281,14 @@ class Workspace(CodegateCommandSubcommand):
             "    - `workspace_name`\n\n"
             "- `activate`: Activate a workspace\n\n"
             "  - *args*:\n\n"
-            "    - `workspace_name`"
+            "    - `workspace_name`\n\n"
+            "- `remove`: Remove a workspace\n\n"
+            "  - *args*:\n\n"
+            "    - `workspace_name`\n\n"
+            "- `rename`: Rename a workspace\n\n"
+            "  - *args*:\n\n"
+            "    - `workspace_name`\n"
+            "    - `new_workspace_name`\n\n"
         )
 
 
