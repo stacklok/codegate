@@ -45,11 +45,11 @@ async def activate_workspace(request: v1_models.ActivateWorkspaceRequest, status
     try:
         await wscrud.activate_workspace(request.name)
     except crud.WorkspaceAlreadyActiveError:
-        return HTTPException(status_code=409, detail="Workspace already active")
+        raise HTTPException(status_code=409, detail="Workspace already active")
     except crud.WorkspaceDoesNotExistError:
-        return HTTPException(status_code=404, detail="Workspace does not exist")
+        raise HTTPException(status_code=404, detail="Workspace does not exist")
     except Exception:
-        return HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
     return Response(status_code=204)
 
