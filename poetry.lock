@@ -2150,7 +2150,7 @@ name = "referencing"
 version = "0.36.1"
 description = "JSON Referencing + Python"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 groups = ["main", "dev"]
 files = [
     {file = "referencing-0.36.1-py3-none-any.whl", hash = "sha256:363d9c65f080d0d70bc41c721dce3c7f3e77fc09f269cd5c8813da18069a6794"},
@@ -2685,6 +2685,21 @@ files = [
 ]
 
 [[package]]
+name = "sqlite-vec-sl-tmp"
+version = "0.0.4"
+description = ""
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "sqlite_vec_sl_tmp-0.0.4-py3-none-macosx_10_6_x86_64.whl", hash = "sha256:5ff08375a51d9d8284b4e14a6a2ccb8faabc5fe8e82953b8a8861302ef2ab147"},
+    {file = "sqlite_vec_sl_tmp-0.0.4-py3-none-macosx_11_0_arm64.whl", hash = "sha256:0a8ad2980e95067560670c24afc6a6ba43227387f8c38e833ae8c7d9382080f2"},
+    {file = "sqlite_vec_sl_tmp-0.0.4-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:f6e42acd915e7c54f57b57c2fa7dae08e4e456ca94d3d3bddaa1a178c99e4ece"},
+    {file = "sqlite_vec_sl_tmp-0.0.4-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux1_x86_64.whl", hash = "sha256:4acd5d16770f29f625398ce35e4d71bbbf5e66ae659d06c0a42dcd6289071daa"},
+    {file = "sqlite_vec_sl_tmp-0.0.4-py3-none-win_amd64.whl", hash = "sha256:737a3924cb903d5bf81de17bfef8f24ac9c97c0ffd3fbc88b42d9b1747e3939a"},
+]
+
+[[package]]
 name = "starlette"
 version = "0.41.3"
 description = "The little ASGI library that shines."
@@ -3182,4 +3197,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<4.0"
-content-hash = "ef1e93781cca25233726ffb4b27ac9fb148452fc9e368ed8732c3fc2001fb808"
+content-hash = "69d8b46213426a0a2405eac4ee23b00042671bb79519a02e8be144f7c1d9a202"
