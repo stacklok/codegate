@@ -18,6 +18,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # Temporarily disable foreign key constraints
+    op.execute("PRAGMA foreign_keys=OFF;")
     # To add ON DELETE CASCADE to the foreign key constraint, we need to
     # rename the table, create a new table with the constraint, and copy
     # the data over.
@@ -97,6 +99,8 @@ def upgrade() -> None:
     op.execute("CREATE INDEX idx_prompts_workspace_id ON prompts (workspace_id);")
     op.execute("CREATE INDEX idx_sessions_workspace_id ON sessions (active_workspace_id);")
 
+    # Re-enable foreign key constraints
+    op.execute("PRAGMA foreign_keys=ON;")
 
 def downgrade() -> None:
     # Settings table
