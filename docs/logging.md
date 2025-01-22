@@ -123,7 +123,7 @@ The logging system can be configured through:
 1. CLI arguments:
 
    ```bash
-   codegate serve --log-level DEBUG --log-format TEXT --enable-litellm
+   codegate serve --log-level DEBUG --log-format TEXT --enable-litellm # to enable LiteLLM debug
    ```
 
 2. Environment variables:

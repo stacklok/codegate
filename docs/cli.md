@@ -47,58 +47,100 @@ codegate serve [OPTIONS]
 - `--prompts FILE`: Path to YAML prompts file
   - Optional
   - Must be a valid YAML file
+  - Overrides default prompts and configuration file prompts
 
-- `--vllm-url TEXT`: vLLM provider URL
+- `--vllm-url TEXT`: vLLM provider URL (default: `http://localhost:8000`)
   - Optional
-  - Default: http://localhost:8000/v1
+  - Base URL for vLLM provider (/v1 path is added automatically)
+  - Overrides configuration file and environment variables
 
-- `--openai-url TEXT`: OpenAI provider URL
+- `--openai-url TEXT`: OpenAI provider URL (default:
+  `https://api.openai.com/v1`)
   - Optional
-  - Default: https://api.openai.com/v1
+  - Base URL for OpenAI provider
+  - Overrides configuration file and environment variables
 
-- `--anthropic-url TEXT`: Anthropic provider URL
+- `--anthropic-url TEXT`: Anthropic provider URL (default:
+  `https://api.anthropic.com/v1`)
   - Optional
-  - Default: https://api.anthropic.com/v1
+  - Base URL for Anthropic provider
+  - Overrides configuration file and environment variables
 
-- `--ollama-url TEXT`: Ollama provider URL
+- `--ollama-url TEXT`: Ollama provider URL (default: `http://localhost:11434`)
   - Optional
-  - Default: http://localhost:11434/api
+  - Base URL for Ollama provider (/api path is added automatically)
+  - Overrides configuration file and environment variables
 
-- `--model-base-path TEXT`: Path to model base directory
+- `--model-base-path TEXT`: Base path for loading models needed for the system
   - Optional
-  - Default: ./codegate_volume/models
 
-- `--embedding-model TEXT`: Name of embedding model
+- `--embedding-model TEXT`: Name of the model used for embeddings
   - Optional
-  - Default: all-minilm-L6-v2-q5_k_m.gguf
 
-- `--certs-dir TEXT`: Directory for certificate files
+- `--db-path TEXT`: Path to a SQLite DB. Will be created if it doesn't exist.
+  (default: `./codegate_volume/db/codegate.db`)
   - Optional
-  - Default: ./certs
+  - Overrides configuration file and environment variables
 
-- `--ca-cert TEXT`: CA certificate file name
-  - Optional
-  - Default: ca.crt
+### `show-prompts`
 
-- `--ca-key TEXT`: CA key file name
-  - Optional
-  - Default: ca.key
+Display the loaded system prompts:
 
-- `--server-cert TEXT`: Server certificate file name
-  - Optional
-  - Default: server.crt
+```bash
+codegate show-prompts [OPTIONS]
+```
 
-- `--server-key TEXT`: Server key file name
-  - Optional
-  - Default: server.key
+#### Options
 
-- `--db-path TEXT`: Path to main SQLite database file
+- `--prompts FILE`: Path to YAML prompts file
   - Optional
-  - Default: ./codegate_volume/db/codegate.db
+  - Must be a valid YAML file
+  - If not provided, shows default prompts from `prompts/default.yaml`
 
-- `--vec-db-path TEXT`: Path to vector SQLite database file
+### `generate_certs`
+
+Generate certificates for the CodeGate server.
+
+```bash
+codegate generate-certs [OPTIONS]
+```
+
+#### Options
+
+- `--certs-out-dir PATH`: Directory path where the certificates are generated
+  (default: ./codegate_volume/certs)
   - Optional
-  - Default: ./sqlite_data/vectordb.db
+  - Overrides configuration file and environment variables
+
+- `--ca-cert-name TEXT`: Name that will be given to the created CA certificate
+  (default: ca.crt)
+  - Optional
+  - Overrides configuration file and environment variables
+
+- `--ca-key-name TEXT`: Name that will be given to the created CA key (default:
+  ca.key)
+  - Optional
+  - Overrides configuration file and environment variables
+
+- `--server-cert-name TEXT`: Name that will be given to the created server
+  certificate (default: server.crt)
+  - Optional
+  - Overrides configuration file and environment variables
+
+- `--server-key-name TEXT`: Name that will be given to the created server key
+  (default: server.key)
+  - Optional
+  - Overrides configuration file and environment variables
+
+- `--log-level [ERROR|WARNING|INFO|DEBUG]`: Set the log level (default: INFO)
+  - Optional
+  - Case-insensitive
+  - Overrides configuration file and environment variables
+
+- `--log-format [JSON|TEXT]`: Set the log format (default: JSON)
+  - Optional
+  - Case-insensitive
+  - Overrides configuration file and environment variables
 
 - `--enable-litellm`: Enable LiteLLM logging
   - Optional flag
@@ -137,12 +179,6 @@ Start server with custom logging:
 
 ```bash
 codegate serve --log-level DEBUG --log-format TEXT
-```
-
-Start server with LiteLLM logging enabled:
-
-```bash
-codegate serve --enable-litellm --log-level DEBUG
 ```
 
 Start server with configuration file:
