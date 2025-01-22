@@ -3,7 +3,7 @@ import logging
 import sys
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import structlog
 
@@ -49,16 +49,12 @@ class LogFormat(str, Enum):
 
 
 # Define all LiteLLM logger names
-LITELLM_LOGGERS = [
-    "LiteLLM Proxy",
-    "LiteLLM Router",
-    "LiteLLM"
-]
+LITELLM_LOGGERS = ["LiteLLM Proxy", "LiteLLM Router", "LiteLLM"]
 
 
 def configure_litellm_logging(enabled: bool = False, level: LogLevel = LogLevel.INFO) -> None:
     """Configure LiteLLM logging.
-    
+
     Args:
         enabled: Whether to enable LiteLLM logging
         level: Log level to use if enabled
@@ -103,9 +99,9 @@ def add_origin(logger, log_method, event_dict):
 
 
 def setup_logging(
-    log_level: Optional[LogLevel] = None, 
+    log_level: Optional[LogLevel] = None,
     log_format: Optional[LogFormat] = None,
-    external_loggers: Optional[Dict[str, bool]] = None
+    external_loggers: Optional[Dict[str, bool]] = None,
 ) -> logging.Logger:
     """Configure the logging system.
 
@@ -126,16 +122,13 @@ def setup_logging(
     if external_loggers is None:
         external_loggers = {
             "litellm": False,
-            "sqlalchemy": False, 
+            "sqlalchemy": False,
             "uvicorn.error": False,
-            "aiosqlite": False
+            "aiosqlite": False,
         }
 
     # Configure LiteLLM logging based on external_loggers setting
-    configure_litellm_logging(
-        enabled=external_loggers.get("litellm", False),
-        level=log_level
-    )
+    configure_litellm_logging(enabled=external_loggers.get("litellm", False), level=log_level)
 
     # The configuration was taken from structlog documentation
     # https://www.structlog.org/en/stable/standard-library.html

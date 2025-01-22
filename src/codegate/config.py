@@ -39,12 +39,14 @@ class Config:
     prompts: PromptConfig = field(default_factory=PromptConfig)
 
     # External logger configuration
-    external_loggers: Dict[str, bool] = field(default_factory=lambda: {
-        "litellm": False,
-        "sqlalchemy": False,
-        "uvicorn.error": False,
-        "aiosqlite": False
-    })
+    external_loggers: Dict[str, bool] = field(
+        default_factory=lambda: {
+            "litellm": False,
+            "sqlalchemy": False,
+            "uvicorn.error": False,
+            "aiosqlite": False,
+        }
+    )
 
     model_base_path: str = "./codegate_volume/models"
     chat_model_n_ctx: int = 32768
@@ -142,7 +144,7 @@ class Config:
                 "litellm": False,
                 "sqlalchemy": False,
                 "uvicorn.error": False,
-                "aiosqlite": False
+                "aiosqlite": False,
             }
 
             return cls(

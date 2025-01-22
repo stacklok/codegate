@@ -1,5 +1,4 @@
 import logging
-import sys
 from io import StringIO
 
 import structlog
@@ -42,9 +41,7 @@ def test_logging_stream_output():
 def test_external_logger_configuration():
     # Test enabling litellm logging
     setup_logging(
-        log_level=LogLevel.DEBUG,
-        log_format=LogFormat.TEXT,
-        external_loggers={"litellm": True}
+        log_level=LogLevel.DEBUG, log_format=LogFormat.TEXT, external_loggers={"litellm": True}
     )
     litellm_logger = logging.getLogger("litellm")
     assert not litellm_logger.disabled
@@ -52,9 +49,7 @@ def test_external_logger_configuration():
 
     # Test disabling litellm logging
     setup_logging(
-        log_level=LogLevel.DEBUG,
-        log_format=LogFormat.TEXT,
-        external_loggers={"litellm": False}
+        log_level=LogLevel.DEBUG, log_format=LogFormat.TEXT, external_loggers={"litellm": False}
     )
     litellm_logger = logging.getLogger("litellm")
     assert litellm_logger.disabled
@@ -64,7 +59,7 @@ def test_external_logger_configuration():
 def test_external_logger_defaults():
     # Test default behavior (all external loggers disabled)
     setup_logging(log_level=LogLevel.DEBUG, log_format=LogFormat.TEXT)
-    
+
     # Check all external loggers are disabled by default
     litellm_logger = logging.getLogger("litellm")
     sqlalchemy_logger = logging.getLogger("sqlalchemy")

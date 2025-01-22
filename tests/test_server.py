@@ -220,9 +220,9 @@ def test_serve_default_options(cli_runner):
 
         # Check if the logging setup was called with expected defaults
         mock_setup_logging.assert_called_once_with(
-            LogLevel.INFO, 
+            LogLevel.INFO,
             LogFormat.JSON,
-            {"litellm": False, "sqlalchemy": False, "uvicorn.error": False, "aiosqlite": False}
+            {"litellm": False, "sqlalchemy": False, "uvicorn.error": False, "aiosqlite": False},
         )
 
         # Validate run_servers was called once
@@ -267,9 +267,9 @@ def test_serve_custom_options(cli_runner):
 
         # Assert logging setup was called with the provided log level and format
         mock_setup_logging.assert_called_once_with(
-            LogLevel.DEBUG, 
+            LogLevel.DEBUG,
             LogFormat.TEXT,
-            {"litellm": True, "sqlalchemy": False, "uvicorn.error": False, "aiosqlite": False}
+            {"litellm": True, "sqlalchemy": False, "uvicorn.error": False, "aiosqlite": False},
         )
 
         # Validate run_servers was called once
@@ -338,9 +338,9 @@ def test_serve_with_config_file(cli_runner, temp_config_file):
         # Assertions to ensure the CLI ran successfully
         assert result.exit_code == 0
         mock_setup_logging.assert_called_once_with(
-            LogLevel.DEBUG, 
+            LogLevel.DEBUG,
             LogFormat.JSON,
-            {"litellm": False, "sqlalchemy": False, "uvicorn.error": False, "aiosqlite": False}
+            {"litellm": False, "sqlalchemy": False, "uvicorn.error": False, "aiosqlite": False},
         )
 
         # Validate that run_servers was called with the expected configuration
@@ -411,9 +411,9 @@ def test_serve_priority_resolution(cli_runner: CliRunner, temp_config_file: Path
 
         # Ensure logging setup was called with the highest priority settings (CLI arguments)
         mock_setup_logging.assert_called_once_with(
-            LogLevel.ERROR, 
+            LogLevel.ERROR,
             LogFormat.TEXT,
-            {"litellm": False, "sqlalchemy": False, "uvicorn.error": False, "aiosqlite": False}
+            {"litellm": False, "sqlalchemy": False, "uvicorn.error": False, "aiosqlite": False},
         )
 
         # Verify that the run_servers was called with the overridden settings
@@ -467,9 +467,9 @@ def test_serve_certificate_options(cli_runner: CliRunner) -> None:
 
         # Ensure logging setup was called with expected arguments
         mock_setup_logging.assert_called_once_with(
-            LogLevel.INFO, 
+            LogLevel.INFO,
             LogFormat.JSON,
-            {"litellm": False, "sqlalchemy": False, "uvicorn.error": False, "aiosqlite": False}
+            {"litellm": False, "sqlalchemy": False, "uvicorn.error": False, "aiosqlite": False},
         )
 
         # Verify that run_servers was called with the provided certificate options
