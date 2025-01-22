@@ -55,9 +55,9 @@ async def test_list_workspaces(mock_workspaces, expected_output):
     "args, existing_workspaces, expected_message",
     [
         # Case 1: No workspace name provided
-        ([], [], "Please provide a name. Use `codegate workspace add your_workspace_name`"),
+        ([], [], "Please provide a name. Use `codegate workspace add <workspace_name>`"),
         # Case 2: Workspace name is empty string
-        ([""], [], "Please provide a name. Use `codegate workspace add your_workspace_name`"),
+        ([""], [], "Please provide a name. Use `codegate workspace add <workspace_name>`"),
         # Case 3: Successful add
         (["myworkspace"], [], "Workspace **myworkspace** has been added"),
     ],
