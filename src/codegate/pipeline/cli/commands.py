@@ -476,4 +476,10 @@ class CustomInstructions(CodegateCommandSubcommand):
             "  - *args*:\n"
             "    - `instructions`: The custom instructions to set\n"
             "  - **Usage**: `codegate custom-instructions -w <workspace_name> set <instructions>`\n"
+            "- `show`: Show custom instructions of the workspace\n"
+            "  - *args*: None\n"
+            "  - **Usage**: `codegate custom-instructions -w <workspace_name> show`\n"
+            "- `reset`: Reset the custom instructions of the workspace\n"
+            "  - *args*: None\n"
+            "  - **Usage**: `codegate custom-instructions -w <workspace_name> reset`\n"
         )
