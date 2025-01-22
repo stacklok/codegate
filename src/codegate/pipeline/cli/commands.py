@@ -187,7 +187,7 @@ class Workspace(CodegateCommandSubcommand):
         try:
             ws = await self.workspace_crud.add_workspace(new_workspace_name)
         except ValidationError:
-            return "Invalid workspace name: It should be alphanumeric and dashes"
+            return "Invalid workspace name: It should be alphanumeric with hyphens or underscores"
         except AlreadyExistsError:
             return f"Workspace **{new_workspace_name}** already exists"
         except crud.WorkspaceCrudError:

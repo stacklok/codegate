@@ -82,7 +82,7 @@ async def create_new_workspace(
         raise HTTPException(
             status_code=400,
             detail=(
-                "Invalid workspace name. " "Please use only alphanumeric characters and dashes"
+                "Invalid workspace name. " "Please use only alphanumeric characters, hyphens, or underscores."
             ),
         )
     except crud.WorkspaceCrudError as e:
@@ -106,7 +106,7 @@ async def rename_workspace(
         raise HTTPException(
             status_code=400,
             detail=(
-                "Invalid workspace name. " "Please use only alphanumeric characters and dashes"
+                "Invalid workspace name. " "Please use only alphanumeric characters, hyphens, or underscores."
             ),
         )
     except crud.WorkspaceCrudError as e:
