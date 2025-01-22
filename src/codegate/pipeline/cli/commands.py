@@ -377,6 +377,7 @@ class SystemPrompt(CodegateCommandSubcommand):
         return {
             "set": self._set_system_prompt,
             "show": self._show_system_prompt,
+            "reset": self._reset_system_prompt,
         }
 
     async def _set_system_prompt(self, flags: Dict[str, str], args: List[str]) -> str:
@@ -421,7 +422,30 @@ class SystemPrompt(CodegateCommandSubcommand):
         except crud.WorkspaceDoesNotExistError:
             return f"Workspace `{workspace_name}` doesn't exist"
 
-        return f"Workspace **{workspace.name}** system prompt:\n\n{workspace.system_prompt}."
+        sysprompt = workspace.system_prompt
+        if not sysprompt:
+            return f"Workspace **{workspace.name}** system prompt is unset."
+
+        return f"Workspace **{workspace.name}** system prompt:\n\n{sysprompt}."
+
+    async def _reset_system_prompt(self, flags: Dict[str, str], args: List[str]) -> str:
+        """
+        Reset the system prompt of a workspace
+        If a workspace name is not provided, the active workspace is used
+        """
+        workspace_name = flags.get("-w")
+        if not workspace_name:
+            active_workspace = await self.workspace_crud.get_active_workspace()
+            workspace_name = active_workspace.name
+
+        try:
+            updated_worksapce = await self.workspace_crud.update_workspace_system_prompt(
+                workspace_name, [""]
+            )
+        except crud.WorkspaceDoesNotExistError:
+            return f"Workspace `{workspace_name}` doesn't exist"
+
+        return f"Workspace `{updated_worksapce.name}` system prompt reset."
 
     @property
     def help(self) -> str:
