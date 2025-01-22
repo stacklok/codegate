@@ -178,11 +178,11 @@ class Workspace(CodegateCommandSubcommand):
         Add a workspace
         """
         if args is None or len(args) == 0:
-            return "Please provide a name. Use `codegate workspace add your_workspace_name`"
+            return "Please provide a name. Use `codegate workspace add <workspace_name>`"
 
         new_workspace_name = args[0]
         if not new_workspace_name:
-            return "Please provide a name. Use `codegate workspace add your_workspace_name`"
+            return "Please provide a name. Use `codegate workspace add <workspace_name>`"
 
         try:
             ws = await self.workspace_crud.add_workspace(new_workspace_name)
@@ -204,7 +204,7 @@ class Workspace(CodegateCommandSubcommand):
         if args is None or len(args) < 2:
             return (
                 "Please provide a name and a new name. "
-                "Use `codegate workspace rename workspace_name new_workspace_name`"
+                "Use `codegate workspace rename <workspace_name> <new_workspace_name>`"
             )
 
         old_workspace_name = args[0]
@@ -212,7 +212,7 @@ class Workspace(CodegateCommandSubcommand):
         if not old_workspace_name or not new_workspace_name:
             return (
                 "Please provide a name and a new name. "
-                "Use `codegate workspace rename workspace_name new_workspace_name`"
+                "Use `codegate workspace rename <workspace_name> <new_workspace_name>`"
             )
 
         try:
@@ -233,11 +233,11 @@ class Workspace(CodegateCommandSubcommand):
         Activate a workspace
         """
         if args is None or len(args) == 0:
-            return "Please provide a name. Use `codegate workspace activate workspace_name`"
+            return "Please provide a name. Use `codegate workspace activate <workspace_name>`"
 
         workspace_name = args[0]
         if not workspace_name:
-            return "Please provide a name. Use `codegate workspace activate workspace_name`"
+            return "Please provide a name. Use `codegate workspace activate <workspace_name>`"
 
         try:
             await self.workspace_crud.activate_workspace(workspace_name)
@@ -254,11 +254,11 @@ class Workspace(CodegateCommandSubcommand):
         Remove a workspace
         """
         if args is None or len(args) == 0:
-            return "Please provide a name. Use `codegate workspace archive workspace_name`"
+            return "Please provide a name. Use `codegate workspace archive <workspace_name>`"
 
         workspace_name = args[0]
         if not workspace_name:
-            return "Please provide a name. Use `codegate workspace archive workspace_name`"
+            return "Please provide a name. Use `codegate workspace archive <workspace_name>`"
 
         try:
             await self.workspace_crud.soft_delete_workspace(workspace_name)
@@ -285,11 +285,11 @@ class Workspace(CodegateCommandSubcommand):
         Restore an archived workspace
         """
         if args is None or len(args) == 0:
-            return "Please provide a name. Use `codegate workspace restore workspace_name`"
+            return "Please provide a name. Use `codegate workspace restore <workspace_name>`"
 
         workspace_name = args[0]
         if not workspace_name:
-            return "Please provide a name. Use `codegate workspace restore workspace_name`"
+            return "Please provide a name. Use `codegate workspace restore <workspace_name>`"
 
         try:
             await self.workspace_crud.recover_workspace(workspace_name)
@@ -306,11 +306,15 @@ class Workspace(CodegateCommandSubcommand):
         Hard delete an archived workspace
         """
         if args is None or len(args) == 0:
-            return "Please provide a name. Use `codegate workspace delete-archived workspace_name`"
+            return (
+                "Please provide a name. Use `codegate workspace delete-archived <workspace_name>`"
+            )
 
         workspace_name = args[0]
         if not workspace_name:
-            return "Please provide a name. Use `codegate workspace delete-archived workspace_name`"
+            return (
+                "Please provide a name. Use `codegate workspace delete-archived <workspace_name>`"
+            )
 
         try:
             await self.workspace_crud.hard_delete_workspace(workspace_name)
@@ -328,30 +332,38 @@ class Workspace(CodegateCommandSubcommand):
             "### CodeGate Workspace\n\n"
             "Manage workspaces.\n\n"
             "**Usage**: `codegate workspace <command> [args]`\n\n"
-            "Available commands:\n\n"
-            "- `list`: List all workspaces\n\n"
-            "  - *args*: None\n\n"
-            "- `add`: Add a workspace\n\n"
-            "  - *args*:\n\n"
-            "    - `workspace_name`\n\n"
-            "- `activate`: Activate a workspace\n\n"
-            "  - *args*:\n\n"
-            "    - `workspace_name`\n\n"
-            "- `archive`: Archive a workspace\n\n"
-            "  - *args*:\n\n"
-            "    - `workspace_name`\n\n"
-            "- `rename`: Rename a workspace\n\n"
-            "  - *args*:\n\n"
+            "Available commands:\n"
+            "- `list`: List all workspaces\n"
+            "  - *args*: None\n"
+            "  - **Usage**: `codegate workspace list`\n"
+            "- `add`: Add a workspace\n"
+            "  - *args*:\n"
             "    - `workspace_name`\n"
-            "    - `new_workspace_name`\n\n"
-            "- `list-archived`: List all archived workspaces\n\n"
-            "  - *args*: None\n\n"
-            "- `restore`: Restore an archived workspace\n\n"
-            "  - *args*:\n\n"
-            "    - `workspace_name`\n\n"
-            "- `delete-archived`: Hard delete an archived workspace\n\n"
-            "  - *args*:\n\n"
-            "    - `workspace_name`\n\n"
+            "  - **Usage**: `codegate workspace add <workspace_name>`\n"
+            "- `activate`: Activate a workspace\n"
+            "  - *args*:\n"
+            "    - `workspace_name`\n"
+            "  - **Usage**: `codegate workspace activate <workspace_name>`\n"
+            "- `archive`: Archive a workspace\n"
+            "  - *args*:\n"
+            "    - `workspace_name`\n"
+            "  - **Usage**: `codegate workspace archive <workspace_name>`\n"
+            "- `rename`: Rename a workspace\n"
+            "  - *args*:\n"
+            "    - `workspace_name`\n"
+            "    - `new_workspace_name`\n"
+            "  - **Usage**: `codegate workspace rename <workspace_name> <new_workspace_name>`\n"
+            "- `list-archived`: List all archived workspaces\n"
+            "  - *args*: None\n"
+            "  - **Usage**: `codegate workspace list-archived`\n"
+            "- `restore`: Restore an archived workspace\n"
+            "  - *args*:\n"
+            "    - `workspace_name`\n"
+            "  - **Usage**: `codegate workspace restore <workspace_name>`\n"
+            "- `delete-archived`: Hard delete an archived workspace\n"
+            "  - *args*:\n"
+            "    - `workspace_name`\n"
+            "  - **Usage**: `codegate workspace delete-archived <workspace_name>`\n"
         )
 
 
@@ -403,10 +415,10 @@ class CustomInstructions(CodegateCommandSubcommand):
         except crud.WorkspaceDoesNotExistError:
             return (
                 f"Workspace custom instructions not updated. "
-                f"Workspace `{workspace_name}` doesn't exist"
+                f"Workspace **{workspace_name}** doesn't exist"
             )
 
-        return f"Workspace `{updated_worksapce.name}` custom instructions updated."
+        return f"Workspace **{updated_worksapce.name}** custom instructions updated."
 
     async def _show_custom_instructions(self, flags: Dict[str, str], args: List[str]) -> str:
         """
@@ -421,7 +433,7 @@ class CustomInstructions(CodegateCommandSubcommand):
         try:
             workspace = await self.workspace_crud.get_workspace_by_name(workspace_name)
         except crud.WorkspaceDoesNotExistError:
-            return f"Workspace `{workspace_name}` doesn't exist"
+            return f"Workspace **{workspace_name}** doesn't exist"
 
         sysprompt = workspace.custom_instructions
         if not sysprompt:
@@ -444,9 +456,9 @@ class CustomInstructions(CodegateCommandSubcommand):
                 workspace_name, [""]
             )
         except crud.WorkspaceDoesNotExistError:
-            return f"Workspace `{workspace_name}` doesn't exist"
+            return f"Workspace **{workspace_name}** doesn't exist"
 
-        return f"Workspace `{updated_worksapce.name}` custom instructions reset."
+        return f"Workspace **{updated_worksapce.name}** custom instructions reset."
 
     @property
     def help(self) -> str:
@@ -455,7 +467,7 @@ class CustomInstructions(CodegateCommandSubcommand):
             "Manage the custom instructionss of workspaces.\n\n"
             "*Note*: If you want to update the custom instructions using files please go to the "
             "[dashboard](http://localhost:9090).\n\n"
-            "**Usage**: `codegate custom-instructions -w <workspace_name> <command>`\n\n"
+            "**Usage**: `codegate custom-instructions -w <workspace_name> <command> [args]`\n\n"
             "*args*:\n"
             "- `workspace_name`: Optional workspace name. If not specified will use the "
             "active workspace\n\n"

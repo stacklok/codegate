@@ -17,6 +17,7 @@ Check the help of each command by running `codegate <command> -h`\n
 Available commands:
 - `version`: Show the version of CodeGate
 - `workspace`: Perform different operations on workspaces
+- `custom-instructions`: Set custom instructions for the workspace
 """
 
 NOT_FOUND_TEXT = "Command not found. Use `codegate -h` to see available commands."

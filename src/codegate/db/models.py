@@ -30,15 +30,6 @@ class Prompt(BaseModel):
     workspace_id: Optional[str]
 
 
-class Setting(BaseModel):
-    id: Any
-    ip: Optional[Any]
-    port: Optional[Any]
-    llm_model: Optional[Any]
-    system_prompt: Optional[Any]
-    other_settings: Optional[Any]
-
-
 WorskpaceNameStr = Annotated[
     str,
     StringConstraints(
