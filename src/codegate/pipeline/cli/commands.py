@@ -355,19 +355,19 @@ class Workspace(CodegateCommandSubcommand):
         )
 
 
-class SystemPrompt(CodegateCommandSubcommand):
+class CustomInstructions(CodegateCommandSubcommand):
 
     def __init__(self):
         self.workspace_crud = crud.WorkspaceCrud()
 
     @property
     def command_name(self) -> str:
-        return "system-prompt"
+        return "custom-instructions"
 
     @property
     def flags(self) -> List[str]:
         """
-        Flags for the system-prompt command.
+        Flags for the custom-instructions command.
         -w: Workspace name
         """
         return ["-w"]
@@ -375,20 +375,20 @@ class SystemPrompt(CodegateCommandSubcommand):
     @property
     def subcommands(self) -> Dict[str, Callable[[List[str]], Awaitable[str]]]:
         return {
-            "set": self._set_system_prompt,
-            "show": self._show_system_prompt,
-            "reset": self._reset_system_prompt,
+            "set": self._set_custom_instructions,
+            "show": self._show_custom_instructions,
+            "reset": self._reset_custom_instructions,
         }
 
-    async def _set_system_prompt(self, flags: Dict[str, str], args: List[str]) -> str:
+    async def _set_custom_instructions(self, flags: Dict[str, str], args: List[str]) -> str:
         """
-        Set the system prompt of a workspace
+        Set the custom instructions of a workspace
         If a workspace name is not provided, the active workspace is used
         """
         if len(args) == 0:
             return (
-                "Please provide a workspace name and a system prompt. "
-                "Use `codegate workspace system-prompt -w <workspace_name> <system_prompt>`"
+                "Please provide a workspace name and custom instructions to use. "
+                "Use `codegate workspace custom-instructions -w <workspace_name> <instructions>`"
             )
 
         workspace_name = flags.get("-w")
@@ -397,19 +397,20 @@ class SystemPrompt(CodegateCommandSubcommand):
             workspace_name = active_workspace.name
 
         try:
-            updated_worksapce = await self.workspace_crud.update_workspace_system_prompt(
+            updated_worksapce = await self.workspace_crud.update_workspace_instructions(
                 workspace_name, args
             )
         except crud.WorkspaceDoesNotExistError:
             return (
-                f"Workspace system prompt not updated. Workspace `{workspace_name}` doesn't exist"
+                f"Workspace custom instructions not updated. "
+                f"Workspace `{workspace_name}` doesn't exist"
             )
 
-        return f"Workspace `{updated_worksapce.name}` system prompt updated."
+        return f"Workspace `{updated_worksapce.name}` custom instructions updated."
 
-    async def _show_system_prompt(self, flags: Dict[str, str], args: List[str]) -> str:
+    async def _show_custom_instructions(self, flags: Dict[str, str], args: List[str]) -> str:
         """
-        Show the system prompt of a workspace
+        Show the custom instructions of a workspace
         If a workspace name is not provided, the active workspace is used
         """
         workspace_name = flags.get("-w")
@@ -422,15 +423,15 @@ class SystemPrompt(CodegateCommandSubcommand):
         except crud.WorkspaceDoesNotExistError:
             return f"Workspace `{workspace_name}` doesn't exist"
 
-        sysprompt = workspace.system_prompt
+        sysprompt = workspace.custom_instructions
         if not sysprompt:
-            return f"Workspace **{workspace.name}** system prompt is unset."
+            return f"Workspace **{workspace.name}** custom instructions is unset."
 
-        return f"Workspace **{workspace.name}** system prompt:\n\n{sysprompt}."
+        return f"Workspace **{workspace.name}** custom instructions:\n\n{sysprompt}."
 
-    async def _reset_system_prompt(self, flags: Dict[str, str], args: List[str]) -> str:
+    async def _reset_custom_instructions(self, flags: Dict[str, str], args: List[str]) -> str:
         """
-        Reset the system prompt of a workspace
+        Reset the custom instructions of a workspace
         If a workspace name is not provided, the active workspace is used
         """
         workspace_name = flags.get("-w")
@@ -439,28 +440,28 @@ class SystemPrompt(CodegateCommandSubcommand):
             workspace_name = active_workspace.name
 
         try:
-            updated_worksapce = await self.workspace_crud.update_workspace_system_prompt(
+            updated_worksapce = await self.workspace_crud.update_workspace_custom_instructions(
                 workspace_name, [""]
             )
         except crud.WorkspaceDoesNotExistError:
             return f"Workspace `{workspace_name}` doesn't exist"
 
-        return f"Workspace `{updated_worksapce.name}` system prompt reset."
+        return f"Workspace `{updated_worksapce.name}` custom instructions reset."
 
     @property
     def help(self) -> str:
         return (
-            "### CodeGate System Prompt\n"
-            "Manage the system prompts of workspaces.\n\n"
-            "*Note*: If you want to update the system prompt using files please go to the "
+            "### CodeGate Custom Instructions\n"
+            "Manage the custom instructionss of workspaces.\n\n"
+            "*Note*: If you want to update the custom instructions using files please go to the "
             "[dashboard](http://localhost:9090).\n\n"
-            "**Usage**: `codegate system-prompt -w <workspace_name> <command>`\n\n"
+            "**Usage**: `codegate custom-instructions -w <workspace_name> <command>`\n\n"
             "*args*:\n"
             "- `workspace_name`: Optional workspace name. If not specified will use the "
             "active workspace\n\n"
             "Available commands:\n"
-            "- `set`: Set the system prompt of the workspace\n"
+            "- `set`: Set the custom instructions of the workspace\n"
             "  - *args*:\n"
-            "    - `system_prompt`: The system prompt to set\n"
-            "  - **Usage**: `codegate system-prompt -w <workspace_name> set <system_prompt>`\n"
+            "    - `instructions`: The custom instructions to set\n"
+            "  - **Usage**: `codegate custom-instructions -w <workspace_name> set <instructions>`\n"
         )

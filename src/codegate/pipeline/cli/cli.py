@@ -8,7 +8,7 @@ from codegate.pipeline.base import (
     PipelineResult,
     PipelineStep,
 )
-from codegate.pipeline.cli.commands import SystemPrompt, Version, Workspace
+from codegate.pipeline.cli.commands import CustomInstructions, Version, Workspace
 
 HELP_TEXT = """
 ## CodeGate CLI\n
@@ -32,7 +32,7 @@ async def codegate_cli(command):
     available_commands = {
         "version": Version().exec,
         "workspace": Workspace().exec,
-        "system-prompt": SystemPrompt().exec,
+        "custom-instructions": CustomInstructions().exec,
     }
     out_func = available_commands.get(command[0])
     if out_func is None:

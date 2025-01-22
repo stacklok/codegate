@@ -271,7 +271,7 @@ class DbRecorder(DbCodeGate):
         It may raise a ValidationError if the workspace name is invalid.
         or a AlreadyExistsError if the workspace already exists.
         """
-        workspace = Workspace(id=str(uuid.uuid4()), name=workspace_name, system_prompt=None)
+        workspace = Workspace(id=str(uuid.uuid4()), name=workspace_name, custom_instructions=None)
         sql = text(
             """
             INSERT INTO workspaces (id, name)
@@ -294,7 +294,7 @@ class DbRecorder(DbCodeGate):
             """
             UPDATE workspaces SET
             name = :name,
-            system_prompt = :system_prompt
+            custom_instructions = :custom_instructions
             WHERE id = :id
             RETURNING *
             """
@@ -477,7 +477,7 @@ class DbReader(DbCodeGate):
         sql = text(
             """
             SELECT
-                id, name, system_prompt
+                id, name, custom_instructions
             FROM workspaces
             WHERE deleted_at IS NOT NULL
             ORDER BY deleted_at DESC
@@ -490,7 +490,7 @@ class DbReader(DbCodeGate):
         sql = text(
             """
             SELECT
-                id, name, system_prompt
+                id, name, custom_instructions
             FROM workspaces
             WHERE name = :name AND deleted_at IS NULL
             """
@@ -505,7 +505,7 @@ class DbReader(DbCodeGate):
         sql = text(
             """
             SELECT
-                id, name, system_prompt
+                id, name, custom_instructions
             FROM workspaces
             WHERE name = :name AND deleted_at IS NOT NULL
             """
@@ -531,7 +531,7 @@ class DbReader(DbCodeGate):
         sql = text(
             """
             SELECT
-                w.id, w.name, w.system_prompt, s.id as session_id, s.last_update
+                w.id, w.name, w.custom_instructions, s.id as session_id, s.last_update
             FROM sessions s
             INNER JOIN workspaces w ON w.id = s.active_workspace_id
             """

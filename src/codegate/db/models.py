@@ -47,10 +47,18 @@ WorskpaceNameStr = Annotated[
 ]
 
 
+WorskpaceNameStr = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True, to_lower=True, pattern=r"^[a-zA-Z0-9_-]+$", strict=True
+    ),
+]
+
+
 class Workspace(BaseModel):
     id: str
     name: WorskpaceNameStr
-    system_prompt: Optional[str]
+    custom_instructions: Optional[str]
 
 
 class Session(BaseModel):
@@ -99,6 +107,6 @@ class WorkspaceActive(BaseModel):
 class ActiveWorkspace(BaseModel):
     id: str
     name: str
-    system_prompt: Optional[str]
+    custom_instructions: Optional[str]
     session_id: str
     last_update: datetime.datetime
