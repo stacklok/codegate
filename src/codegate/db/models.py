@@ -47,14 +47,6 @@ WorskpaceNameStr = Annotated[
 ]
 
 
-WorskpaceNameStr = Annotated[
-    str,
-    StringConstraints(
-        strip_whitespace=True, to_lower=True, pattern=r"^[a-zA-Z0-9_-]+$", strict=True
-    ),
-]
-
-
 class Workspace(BaseModel):
     id: str
     name: WorskpaceNameStr
