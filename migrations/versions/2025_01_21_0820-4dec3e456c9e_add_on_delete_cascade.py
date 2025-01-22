@@ -18,6 +18,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # Turn off foreign key constraints for this migration
+    op.execute("PRAGMA foreign_keys=off;")
+
     # Begin transaction
     op.execute("BEGIN TRANSACTION;")
 
@@ -106,6 +109,10 @@ def upgrade() -> None:
 
     # Finish transaction
     op.execute("COMMIT;")
+
+    # Turn on foreign key constraints after the migration. Just to be sure. This shouldn't
+    # be necessary, since it should be specified at the beginning of every connection, doesn't hurt.
+    op.execute("PRAGMA foreign_keys=on;")
 
 
 def downgrade() -> None:
