@@ -173,6 +173,11 @@ ENV_VLLM_KEY=<YOUR_KEY>
 ENV_ANTHROPIC_KEY=<YOUR_KEY>
 ```
 
+Then run import_packages to ensure integration test data is created: 
+```bash
+python scripts/import_packages.py
+```
+
 Then the integration tests can be executed by running:
 ```bash
 python tests/integration/integration_tests.py
