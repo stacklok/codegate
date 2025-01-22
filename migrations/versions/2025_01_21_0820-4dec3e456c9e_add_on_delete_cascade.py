@@ -18,9 +18,16 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # Turn off foreign key constraints for this migration
+    op.execute("PRAGMA foreign_keys=off;")
+
+    # Begin transaction
+    op.execute("BEGIN TRANSACTION;")
+
     # To add ON DELETE CASCADE to the foreign key constraint, we need to
     # rename the table, create a new table with the constraint, and copy
     # the data over.
+    op.execute("DROP TABLE IF EXISTS _prompts_old;")
     op.execute("ALTER TABLE prompts RENAME TO _prompts_old;")
     op.execute(
         """
@@ -39,6 +46,7 @@ def upgrade() -> None:
     op.execute("DROP TABLE _prompts_old;")
 
     # Doing the same for the sessions table
+    op.execute("DROP TABLE IF EXISTS _sessions_old;")
     op.execute("ALTER TABLE sessions RENAME TO _sessions_old;")
     op.execute(
         """
@@ -54,6 +62,7 @@ def upgrade() -> None:
     op.execute("DROP TABLE _sessions_old;")
 
     # Doing the same for the output table
+    op.execute("DROP TABLE IF EXISTS _outputs_old;")
     op.execute("ALTER TABLE outputs RENAME TO _outputs_old;")
     op.execute(
         """
@@ -70,6 +79,7 @@ def upgrade() -> None:
     op.execute("DROP TABLE _outputs_old;")
 
     # Doing the same for the alerts table
+    op.execute("DROP TABLE IF EXISTS _alerts_old;")
     op.execute("ALTER TABLE alerts RENAME TO _alerts_old;")
     op.execute(
         """
@@ -89,13 +99,20 @@ def upgrade() -> None:
     op.execute("DROP TABLE _alerts_old;")
 
     # Dropping unused table
-    op.execute("DROP TABLE settings;")
+    op.execute("DROP TABLE IF EXISTS settings;")
 
     # Create indexes for foreign keys
     op.execute("CREATE INDEX idx_outputs_prompt_id ON outputs(prompt_id);")
     op.execute("CREATE INDEX idx_alerts_prompt_id ON alerts(prompt_id);")
     op.execute("CREATE INDEX idx_prompts_workspace_id ON prompts (workspace_id);")
     op.execute("CREATE INDEX idx_sessions_workspace_id ON sessions (active_workspace_id);")
+
+    # Finish transaction
+    op.execute("COMMIT;")
+
+    # Turn on foreign key constraints after the migration. Just to be sure. This shouldn't
+    # be necessary, since it should be specified at the beginning of every connection, doesn't hurt.
+    op.execute("PRAGMA foreign_keys=on;")
 
 
 def downgrade() -> None:

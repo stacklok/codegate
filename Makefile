@@ -32,6 +32,9 @@ build: clean test
 	poetry build
 
 image-build:
+	@echo "Fetching tags to get right version number..."
+	@git fetch -t
+	@echo "Building container..."
 	DOCKER_BUILDKIT=1 $(CONTAINER_BUILD) \
 		-f Dockerfile \
 		--build-arg LATEST_RELEASE=$(shell curl -s "https://api.github.com/repos/stacklok/codegate-ui/releases/latest" | grep '"zipball_url":' | cut -d '"' -f 4) \
