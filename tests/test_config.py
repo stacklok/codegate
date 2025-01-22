@@ -240,3 +240,84 @@ def test_env_var_priority(config_file_with_format: Path) -> None:
         assert config.log_format == LogFormat.JSON  # env var overrides file
     finally:
         del os.environ["CODEGATE_LOG_FORMAT"]
+
+
+def test_external_loggers_from_env() -> None:
+    """Test loading external logger configuration from environment variables."""
+    os.environ.update(
+        {
+            "CODEGATE_ENABLE_LITELLM": "true",
+            "CODEGATE_ENABLE_SQLALCHEMY": "true",
+            "CODEGATE_ENABLE_UVICORN_ERROR": "false",
+            "CODEGATE_ENABLE_AIOSQLITE": "false",
+        }
+    )
+    try:
+        config = Config.from_env()
+        assert config.external_loggers["litellm"] is True
+        assert config.external_loggers["sqlalchemy"] is True
+        assert config.external_loggers["uvicorn.error"] is False
+        assert config.external_loggers["aiosqlite"] is False
+    finally:
+        for key in [
+            "CODEGATE_ENABLE_LITELLM",
+            "CODEGATE_ENABLE_SQLALCHEMY",
+            "CODEGATE_ENABLE_UVICORN_ERROR",
+            "CODEGATE_ENABLE_AIOSQLITE",
+        ]:
+            os.environ.pop(key, None)
+
+
+def test_external_loggers_from_config_file(tmp_path: Path) -> None:
+    """Test loading external logger configuration from config file."""
+    config_file = tmp_path / "config.yaml"
+    config_data = {
+        "external_loggers": {
+            "litellm": True,
+            "sqlalchemy": False,
+            "uvicorn.error": True,
+            "aiosqlite": False,
+        }
+    }
+    with open(config_file, "w") as f:
+        yaml.dump(config_data, f)
+
+    config = Config.from_file(config_file)
+    assert config.external_loggers["litellm"] is True
+    assert config.external_loggers["sqlalchemy"] is False
+    assert config.external_loggers["uvicorn.error"] is True
+    assert config.external_loggers["aiosqlite"] is False
+
+
+def test_external_loggers_defaults() -> None:
+    """Test default values for external loggers."""
+    config = Config()
+    assert config.external_loggers["litellm"] is False
+    assert config.external_loggers["sqlalchemy"] is False
+    assert config.external_loggers["uvicorn.error"] is False
+    assert config.external_loggers["aiosqlite"] is False
+
+
+def test_external_loggers_env_override_config(tmp_path: Path) -> None:
+    """Test environment variables override config file for external loggers."""
+    config_file = tmp_path / "config.yaml"
+    config_data = {
+        "external_loggers": {
+            "litellm": False,
+            "sqlalchemy": False,
+            "uvicorn.error": False,
+            "aiosqlite": False,
+        }
+    }
+    with open(config_file, "w") as f:
+        yaml.dump(config_data, f)
+
+    os.environ["CODEGATE_ENABLE_LITELLM"] = "true"
+    try:
+        config = Config.load(config_path=config_file)
+        assert config.external_loggers["litellm"] is True  # env var overrides file
+        assert config.external_loggers["sqlalchemy"] is False  # from file
+        assert config.external_loggers["uvicorn.error"] is False  # from file
+        assert config.external_loggers["aiosqlite"] is False  # from file
+    finally:
+        del os.environ["CODEGATE_ENABLE_LITELLM"]

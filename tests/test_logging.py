@@ -1,4 +1,5 @@
 import logging
+import sys
 from io import StringIO
 
 import structlog
@@ -36,3 +37,41 @@ def test_logging_stream_output():
     log_output.seek(0)
     formatted_log = log_output.getvalue().strip()
     assert "Debug message" in formatted_log
+
+
+def test_external_logger_configuration():
+    # Test enabling litellm logging
+    setup_logging(
+        log_level=LogLevel.DEBUG,
+        log_format=LogFormat.TEXT,
+        external_loggers={"litellm": True}
+    )
+    litellm_logger = logging.getLogger("litellm")
+    assert not litellm_logger.disabled
+    assert litellm_logger.level == logging.DEBUG
+
+    # Test disabling litellm logging
+    setup_logging(
+        log_level=LogLevel.DEBUG,
+        log_format=LogFormat.TEXT,
+        external_loggers={"litellm": False}
+    )
+    litellm_logger = logging.getLogger("litellm")
+    assert litellm_logger.disabled
+    assert litellm_logger.level > logging.CRITICAL
+
+
+def test_external_logger_defaults():
+    # Test default behavior (all external loggers disabled)
+    setup_logging(log_level=LogLevel.DEBUG, log_format=LogFormat.TEXT)
+    
+    # Check all external loggers are disabled by default
+    litellm_logger = logging.getLogger("litellm")
+    sqlalchemy_logger = logging.getLogger("sqlalchemy")
+    uvicorn_logger = logging.getLogger("uvicorn.error")
+    aiosqlite_logger = logging.getLogger("aiosqlite")
+
+    assert litellm_logger.disabled
+    assert sqlalchemy_logger.disabled
+    assert uvicorn_logger.disabled
+    assert aiosqlite_logger.disabled

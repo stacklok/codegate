@@ -63,12 +63,34 @@ def configure_litellm_logging(enabled: bool = False, level: LogLevel = LogLevel.
         enabled: Whether to enable LiteLLM logging
         level: Log level to use if enabled
     """
+    # Configure the main litellm logger
+    logger = logging.getLogger("litellm")
+    logger.disabled = not enabled
+    if not enabled:
+        logger.setLevel(logging.CRITICAL + 1)  # Effectively disables all logging
+    else:
+        logger.setLevel(getattr(logging, level.value))
+        logger.propagate = False
+        # Clear any existing handlers
+        logger.handlers.clear()
+        # Add a handler to ensure logs are properly routed
+        handler = logging.StreamHandler()
+        handler.setLevel(getattr(logging, level.value))
+        logger.addHandler(handler)
+
+    # Also configure the specific LiteLLM loggers
     for logger_name in LITELLM_LOGGERS:
         logger = logging.getLogger(logger_name)
+        logger.disabled = not enabled
         if not enabled:
-            logger.setLevel(logging.CRITICAL + 1)  # Effectively disables all logging
+            logger.setLevel(logging.CRITICAL + 1)
         else:
             logger.setLevel(getattr(logging, level.value))
+            logger.propagate = False
+            logger.handlers.clear()
+            handler = logging.StreamHandler()
+            handler.setLevel(getattr(logging, level.value))
+            logger.addHandler(handler)
 
 
 def add_origin(logger, log_method, event_dict):

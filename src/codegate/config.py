@@ -137,6 +137,14 @@ class Config:
             if "provider_urls" in config_data:
                 provider_urls.update(config_data.pop("provider_urls"))
 
+            # Get default external loggers
+            default_external_loggers = {
+                "litellm": False,
+                "sqlalchemy": False,
+                "uvicorn.error": False,
+                "aiosqlite": False
+            }
+
             return cls(
                 port=config_data.get("port", cls.port),
                 proxy_port=config_data.get("proxy_port", cls.proxy_port),
@@ -159,6 +167,7 @@ class Config:
                 force_certs=config_data.get("force_certs", cls.force_certs),
                 prompts=prompts_config,
                 provider_urls=provider_urls,
+                external_loggers=config_data.get("external_loggers", default_external_loggers),
             )
         except yaml.YAMLError as e:
             raise ConfigurationError(f"Failed to parse config file: {e}")
@@ -170,12 +179,15 @@ class Config:
         """Load configuration from environment variables.
 
         Returns:
-            Config: Configuration instance
+            Config: Configuration instance with values from environment variables.
+
+        Raises:
+            ConfigurationError: If an environment variable has an invalid value.
         """
         try:
-            # Start with default prompts
-            config = cls(prompts=cls._load_default_prompts())
+            config = cls()
 
+            # Load basic configuration
             if "CODEGATE_APP_PORT" in os.environ:
                 config.port = int(os.environ["CODEGATE_APP_PORT"])
             if "CODEGATE_APP_PROXY_PORT" in os.environ:
@@ -183,15 +195,15 @@ class Config:
             if "CODEGATE_APP_HOST" in os.environ:
                 config.host = os.environ["CODEGATE_APP_HOST"]
             if "CODEGATE_APP_LOG_LEVEL" in os.environ:
-                config.log_level = LogLevel(os.environ["CODEGATE_APP_LOG_LEVEL"])
+                config.log_level = LogLevel(os.environ["CODEGATE_APP_LOG_LEVEL"].upper())
             if "CODEGATE_LOG_FORMAT" in os.environ:
-                config.log_format = LogFormat(os.environ["CODEGATE_LOG_FORMAT"])
+                config.log_format = LogFormat(os.environ["CODEGATE_LOG_FORMAT"].upper())
             if "CODEGATE_PROMPTS_FILE" in os.environ:
-                config.prompts = PromptConfig.from_file(
-                    os.environ["CODEGATE_PROMPTS_FILE"]
-                )  # noqa: E501
-
-            # Load certificate configuration from environment
+                config.prompts = PromptConfig.from_file(os.environ["CODEGATE_PROMPTS_FILE"])
+            if "CODEGATE_MODEL_BASE_PATH" in os.environ:
+                config.model_base_path = os.environ["CODEGATE_MODEL_BASE_PATH"]
+            if "CODEGATE_EMBEDDING_MODEL" in os.environ:
+                config.embedding_model = os.environ["CODEGATE_EMBEDDING_MODEL"]
             if "CODEGATE_CERTS_DIR" in os.environ:
                 config.certs_dir = os.environ["CODEGATE_CERTS_DIR"]
             if "CODEGATE_CA_CERT" in os.environ:
@@ -214,6 +226,12 @@ class Config:
                 env_var = f"CODEGATE_PROVIDER_{provider.upper()}_URL"
                 if env_var in os.environ:
                     config.provider_urls[provider] = os.environ[env_var]
+
+            # Load external logger configuration from environment variables
+            for logger_name in config.external_loggers.keys():
+                env_var = f"CODEGATE_ENABLE_{logger_name.upper().replace('.', '_')}"
+                if env_var in os.environ:
+                    config.external_loggers[logger_name] = os.environ[env_var].lower() == "true"
 
             return config
         except ValueError as e:
@@ -316,8 +334,6 @@ class Config:
             config.server_cert = env_config.server_cert
         if "CODEGATE_SERVER_KEY" in os.environ:
             config.server_key = env_config.server_key
-        if "CODEGATE_FORCE_CERTS" in os.environ:
-            config.force_certs = env_config.force_certs
         if "CODEGATE_DB_PATH" in os.environ:
             config.db_path = env_config.db_path
         if "CODEGATE_VEC_DB_PATH" in os.environ:
