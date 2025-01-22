@@ -153,7 +153,7 @@ class Workspace(CodegateCommandSubcommand):
             "list": self._list_workspaces,
             "add": self._add_workspace,
             "activate": self._activate_workspace,
-            "remove": self._remove_workspace,
+            "archive": self._archive_workspace,
             "rename": self._rename_workspace,
             "list-archived": self._list_archived_workspaces,
             "restore": self._restore_workspace,
@@ -249,16 +249,16 @@ class Workspace(CodegateCommandSubcommand):
             return "An error occurred while activating the workspace"
         return f"Workspace **{workspace_name}** has been activated"
 
-    async def _remove_workspace(self, flags: Dict[str, str], args: List[str]) -> str:
+    async def _archive_workspace(self, flags: Dict[str, str], args: List[str]) -> str:
         """
         Remove a workspace
         """
         if args is None or len(args) == 0:
-            return "Please provide a name. Use `codegate workspace remove workspace_name`"
+            return "Please provide a name. Use `codegate workspace archive workspace_name`"
 
         workspace_name = args[0]
         if not workspace_name:
-            return "Please provide a name. Use `codegate workspace remove workspace_name`"
+            return "Please provide a name. Use `codegate workspace archive workspace_name`"
 
         try:
             await self.workspace_crud.soft_delete_workspace(workspace_name)
@@ -267,8 +267,8 @@ class Workspace(CodegateCommandSubcommand):
         except crud.WorkspaceCrudError as e:
             return str(e)
         except Exception:
-            return "An error occurred while removing the workspace"
-        return f"Workspace **{workspace_name}** has been removed"
+            return "An error occurred while archiving the workspace"
+        return f"Workspace **{workspace_name}** has been archived"
 
     async def _list_archived_workspaces(self, flags: Dict[str, str], args: List[str]) -> str:
         """
@@ -337,7 +337,7 @@ class Workspace(CodegateCommandSubcommand):
             "- `activate`: Activate a workspace\n\n"
             "  - *args*:\n\n"
             "    - `workspace_name`\n\n"
-            "- `remove`: Remove a workspace\n\n"
+            "- `archive`: Archive a workspace\n\n"
             "  - *args*:\n\n"
             "    - `workspace_name`\n\n"
             "- `rename`: Rename a workspace\n\n"
