@@ -16,6 +16,7 @@ class AnthropicCompletion(LiteLLmShim):
         api_key: Optional[str],
         stream: bool = False,
         is_fim_request: bool = False,
+        base_tool: Optional[str] = "",
     ) -> Union[ModelResponse, AsyncIterator[ModelResponse]]:
         """
         Ensures the model name is prefixed with 'anthropic/' to explicitly route to Anthropic's API.

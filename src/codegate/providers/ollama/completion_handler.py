@@ -12,17 +12,16 @@ logger = structlog.get_logger("codegate")
 
 
 async def ollama_stream_generator(
-    stream: AsyncIterator[ChatResponse], is_cline_client: bool
+    stream: AsyncIterator[ChatResponse], base_tool: str
 ) -> AsyncIterator[str]:
     """OpenAI-style SSE format"""
     try:
         async for chunk in stream:
             try:
-                yield f"{chunk.model_dump_json()}\n\n"
                 # TODO We should wire in the client info so we can respond with
                 # the correct format and start to handle multiple clients
                 # in a more robust way.
-                if not is_cline_client:
+                if base_tool != "cline":
                     yield f"{chunk.model_dump_json()}\n"
                 else:
                     # First get the raw dict from the chunk
@@ -63,6 +62,9 @@ async def ollama_stream_generator(
                     for field in optional_fields:
                         if field in chunk_dict:
                             response[field] = chunk_dict[field]
+
+                    print("in cline")
+                    print(json.dumps(response))
                     yield f"data: {json.dumps(response)}\n"
             except Exception as e:
                 logger.error(f"Error in stream generator: {str(e)}")
@@ -76,7 +78,7 @@ class OllamaShim(BaseCompletionHandler):
 
     def __init__(self, base_url):
         self.client = AsyncClient(host=base_url, timeout=300)
-        self.is_cline_client = False
+        self.base_tool = ""
 
     async def execute_completion(
         self,
@@ -84,18 +86,10 @@ class OllamaShim(BaseCompletionHandler):
         api_key: Optional[str],
         stream: bool = False,
         is_fim_request: bool = False,
-        is_cline_client: bool = False,
+        base_tool: Optional[str] = "",
     ) -> Union[ChatResponse, GenerateResponse]:
         """Stream response directly from Ollama API."""
-
-        # TODO: I don't like this, but it's a quick fix for now until we start
-        # passing through the client info so we can respond with the correct
-        # format.
-        # Determine if the client is a Cline client
-        self.is_cline_client = any(
-            "Cline" in str(message.get("content", "")) for message in request.get("messages", [])
-        )
-
+        self.base_tool = base_tool
         if is_fim_request:
             prompt = request["messages"][0].get("content", "")
             response = await self.client.generate(
@@ -116,7 +110,7 @@ class OllamaShim(BaseCompletionHandler):
         is the format that FastAPI expects for streaming responses.
         """
         return StreamingResponse(
-            ollama_stream_generator(stream, self.is_cline_client),
+            ollama_stream_generator(stream, self.base_tool or ""),
             media_type="application/x-ndjson; charset=utf-8",
             headers={
                 "Cache-Control": "no-cache",

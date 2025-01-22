@@ -80,8 +80,6 @@ class OllamaProvider(BaseProvider):
         @self.router.post(f"/{self.provider_route_name}/v1/generate")
         async def create_completion(request: Request):
             body = await request.body()
-            print("i request")
-            print(body)
             data = json.loads(body)
             # `base_url` is used in the providers pipeline to do the packages lookup.
             # Force it to be the one that comes in the configuration.
