@@ -10,6 +10,39 @@ Logs are automatically routed based on their level:
 - **stdout**: INFO and DEBUG messages
 - **stderr**: ERROR, CRITICAL, and WARNING messages
 
+## External Logger Configuration
+
+CodeGate provides control over external loggers through configuration:
+
+### LiteLLM Logging
+
+LiteLLM logging can be controlled through:
+
+1. CLI flag:
+   ```bash
+   codegate serve --enable-litellm
+   ```
+
+2. Environment variable:
+   ```bash
+   export CODEGATE_ENABLE_LITELLM=true
+   ```
+
+3. Configuration file:
+   ```yaml
+   external_loggers:
+     litellm: true      # Enable/disable LiteLLM logging (includes LiteLLM Proxy, Router, and core)
+     sqlalchemy: false  # Enable/disable SQLAlchemy logging
+     uvicorn.error: false # Enable/disable Uvicorn error logging
+     aiosqlite: false   # Enable/disable aiosqlite logging
+   ```
+
+The configuration follows the priority order:
+1. CLI arguments (highest priority)
+2. Environment variables
+3. Config file
+4. Default values (lowest priority)
+
 ## Log formats
 
 ### JSON format
@@ -45,6 +78,7 @@ YYYY-MM-DDThh:mm:ss.mmmZ - LEVEL - NAME - MESSAGE
 - **Exception support**: full exception and stack trace integration
 - **Dual output**: separate handlers for error and non-error logs
 - **Configurable levels**: support for ERROR, WARNING, INFO, and DEBUG levels
+- **External logger control**: fine-grained control over third-party logging
 
 ## Usage examples
 
@@ -89,14 +123,15 @@ The logging system can be configured through:
 1. CLI arguments:
 
    ```bash
-   codegate serve --log-level DEBUG --log-format TEXT
+   codegate serve --log-level DEBUG --log-format TEXT --enable-litellm
    ```
 
 2. Environment variables:
 
    ```bash
-   export APP_LOG_LEVEL=DEBUG
+   export CODEGATE_APP_LOG_LEVEL=DEBUG
    export CODEGATE_LOG_FORMAT=TEXT
+   export CODEGATE_ENABLE_LITELLM=true
    ```
 
 3. Configuration file:
@@ -104,6 +139,8 @@ The logging system can be configured through:
    ```yaml
    log_level: DEBUG
    log_format: TEXT
+   external_loggers:
+     litellm: true
    ```
 
 ## Best practices
@@ -129,3 +166,7 @@ The logging system can be configured through:
    better log aggregation and analysis.
 
 4. Enable `DEBUG` level logging during development for maximum visibility.
+
+5. Configure external loggers based on your needs:
+   - Enable LiteLLM logging when debugging LLM-related issues
+   - Keep external loggers disabled in production unless needed for troubleshooting

@@ -246,6 +246,12 @@ def show_prompts(prompts: Optional[Path]) -> None:
     default=None,
     help="Path to the vector SQLite database file (default: ./sqlite_data/vectordb.db)",
 )
+@click.option(
+    "--enable-litellm",
+    is_flag=True,
+    default=False,
+    help="Enable LiteLLM logging (includes LiteLLM Proxy, Router, and core)",
+)
 def serve(
     port: Optional[int],
     proxy_port: Optional[int],
@@ -267,11 +273,12 @@ def serve(
     ca_key: Optional[str],
     server_cert: Optional[str],
     server_key: Optional[str],
+    enable_litellm: bool,
 ) -> None:
     """Start the codegate server."""
     try:
-        # Create provider URLs dict from CLI options
-        cli_provider_urls: Dict[str, str] = {}
+        # Create provider URLs dictionary from CLI arguments
+        cli_provider_urls = {}
         if vllm_url:
             cli_provider_urls["vllm"] = vllm_url
         if openai_url:
@@ -280,6 +287,9 @@ def serve(
             cli_provider_urls["anthropic"] = anthropic_url
         if ollama_url:
             cli_provider_urls["ollama"] = ollama_url
+
+        # Create external loggers dictionary from CLI arguments
+        cli_external_loggers = {"litellm": enable_litellm}
 
         # Load configuration with priority resolution
         cfg = Config.load(
@@ -290,7 +300,8 @@ def serve(
             cli_host=host,
             cli_log_level=log_level,
             cli_log_format=log_format,
-            cli_provider_urls=cli_provider_urls,
+            cli_provider_urls=cli_provider_urls if cli_provider_urls else None,
+            cli_external_loggers=cli_external_loggers,
             model_base_path=model_base_path,
             embedding_model=embedding_model,
             certs_dir=certs_dir,
@@ -302,8 +313,8 @@ def serve(
             vec_db_path=vec_db_path,
         )
 
-        # Set up logging first
-        setup_logging(cfg.log_level, cfg.log_format)
+        # Initialize logging
+        setup_logging(cfg.log_level, cfg.log_format, cfg.external_loggers)
         logger = structlog.get_logger("codegate").bind(origin="cli")
 
         init_db_sync(cfg.db_path)
@@ -505,7 +516,7 @@ def generate_certs(
         cli_log_level=log_level,
         cli_log_format=log_format,
     )
-    setup_logging(cfg.log_level, cfg.log_format)
+    setup_logging(cfg.log_level, cfg.log_format, cfg.external_loggers)
     logger = structlog.get_logger("codegate").bind(origin="cli")
 
     ca = CertificateAuthority.get_instance()

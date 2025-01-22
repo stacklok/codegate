@@ -62,3 +62,21 @@ chat_model_n_ctx: 32768
 
 # Number of layers to offload to GPU. If -1, all layers are offloaded.
 chat_model_n_gpu_layers: -1
+
+# External logger configuration
+external_loggers:
+  litellm: false      # Enable/disable LiteLLM logging (includes LiteLLM Proxy, Router, and core)
+  sqlalchemy: false   # Enable/disable SQLAlchemy logging
+  uvicorn.error: false # Enable/disable Uvicorn error logging
+  aiosqlite: false    # Enable/disable aiosqlite logging
+
+# Note: External logger configuration can be overridden by:
+# 1. Environment variables:
+#    CODEGATE_ENABLE_LITELLM=true     # Controls all LiteLLM loggers
+#    CODEGATE_ENABLE_SQLALCHEMY=true
+#    CODEGATE_ENABLE_UVICORN_ERROR=true
+#    CODEGATE_ENABLE_AIOSQLITE=true
+# 2. CLI arguments:
+#    --enable-litellm    # Enables LiteLLM logging
+#    --enable-sqlalchemy # Enables SQLAlchemy logging
+#    etc.

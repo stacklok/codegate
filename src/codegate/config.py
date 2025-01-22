@@ -38,6 +38,14 @@ class Config:
     log_format: LogFormat = LogFormat.JSON
     prompts: PromptConfig = field(default_factory=PromptConfig)
 
+    # External logger configuration
+    external_loggers: Dict[str, bool] = field(default_factory=lambda: {
+        "litellm": False,
+        "sqlalchemy": False,
+        "uvicorn.error": False,
+        "aiosqlite": False
+    })
+
     model_base_path: str = "./codegate_volume/models"
     chat_model_n_ctx: int = 32768
     chat_model_n_gpu_layers: int = -1
@@ -222,6 +230,7 @@ class Config:
         cli_log_level: Optional[str] = None,
         cli_log_format: Optional[str] = None,
         cli_provider_urls: Optional[Dict[str, str]] = None,
+        cli_external_loggers: Optional[Dict[str, bool]] = None,
         model_base_path: Optional[str] = None,
         embedding_model: Optional[str] = None,
         certs_dir: Optional[str] = None,
@@ -250,6 +259,7 @@ class Config:
             cli_log_level: Optional CLI log level override
             cli_log_format: Optional CLI log format override
             cli_provider_urls: Optional dict of provider URLs from CLI
+            cli_external_loggers: Optional dict of external logger configuration from CLI
             model_base_path: Optional path to model base directory
             embedding_model: Optional name of the model to use for embeddings
             certs_dir: Optional path to certificates directory
@@ -317,6 +327,12 @@ class Config:
         for provider, url in env_config.provider_urls.items():
             config.provider_urls[provider] = url
 
+        # Override external logger configuration from environment
+        for logger_name, enabled in env_config.external_loggers.items():
+            env_var = f"CODEGATE_ENABLE_{logger_name.upper().replace('.', '_')}"
+            if env_var in os.environ:
+                config.external_loggers[logger_name] = enabled
+
         # Override with CLI arguments
         if cli_port is not None:
             config.port = cli_port
@@ -352,6 +368,8 @@ class Config:
             config.vec_db_path = vec_db_path
         if force_certs is not None:
             config.force_certs = force_certs
+        if cli_external_loggers is not None:
+            config.external_loggers.update(cli_external_loggers)
 
         # Set the __config class attribute
         Config.__config = config

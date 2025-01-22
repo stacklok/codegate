@@ -1,74 +1,67 @@
-# Configuration system
+# Configuration
 
-The configuration system in CodeGate is managed through the `Config` class in
-`config.py`. It supports multiple configuration sources with a clear priority
-order.
-
-## Configuration priority
-
-Configuration sources are evaluated in the following order, from highest to
-lowest priority:
-
-1. CLI arguments
-2. Environment variables
-3. Configuration file (YAML)
-4. Default values (including default prompts from `prompts/default.yaml`)
-
-Values from higher-priority sources take precedence over lower-priority values.
-
-## Default configuration values
-
-- Port: `8989`
-- Proxy port: `8990`
-- Host: `"localhost"`
-- Log level: `"INFO"`
-- Log format: `"JSON"`
-- Prompts: default prompts from `prompts/default.yaml`
-- Provider URLs:
-  - vLLM: `"http://localhost:8000"`
-  - OpenAI: `"https://api.openai.com/v1"`
-  - Anthropic: `"https://api.anthropic.com/v1"`
-  - Ollama: `"http://localhost:11434"`
-- Certificate configuration:
-  - Certs directory: `"./certs"`
-  - CA certificate: `"ca.crt"`
-  - CA private key: `"ca.key"`
-  - Server certificate: `"server.crt"`
-  - Server private key: `"server.key"`
+CodeGate's configuration system provides flexible configuration through multiple
+methods with clear priority resolution.
 
 ## Configuration methods
 
-### Configuration file
+Configuration can be set through:
 
-Load configuration from a YAML file:
+1. CLI arguments (highest priority)
+2. Environment variables
+3. Configuration file
+4. Default values (lowest priority)
 
-```python
-config = Config.from_file("config.yaml")
-```
+## Configuration file
 
-Example config.yaml:
+The configuration file uses YAML format:
 
 ```yaml
+# Network settings
 port: 8989
 proxy_port: 8990
-host: localhost
-log_level: INFO
-log_format: JSON
-provider_urls:
-  vllm: "https://vllm.example.com"
-  openai: "https://api.openai.com/v1"
-  anthropic: "https://api.anthropic.com/v1"
-  ollama: "http://localhost:11434"
-certs_dir: "./certs"
+host: "localhost"
+
+# Logging configuration
+log_level: INFO  # ERROR, WARNING, INFO, or DEBUG
+log_format: JSON # JSON or TEXT
+
+# External logger configuration
+external_loggers:
+  litellm: false      # Enable/disable LiteLLM logging (includes LiteLLM Proxy, Router, and core)
+  sqlalchemy: false   # Enable/disable SQLAlchemy logging
+  uvicorn.error: false # Enable/disable Uvicorn error logging
+  aiosqlite: false    # Enable/disable aiosqlite logging
+
+# Model configuration
+model_base_path: "./codegate_volume/models"
+chat_model_n_ctx: 32768
+chat_model_n_gpu_layers: -1
+embedding_model: "all-minilm-L6-v2-q5_k_m.gguf"
+
+# Database configuration
+db_path: "./codegate_volume/db/codegate.db"
+vec_db_path: "./sqlite_data/vectordb.db"
+
+# Certificate configuration
+certs_dir: "./codegate_volume/certs"
 ca_cert: "ca.crt"
 ca_key: "ca.key"
 server_cert: "server.crt"
 server_key: "server.key"
+force_certs: false
+
+# Provider URLs
+provider_urls:
+  vllm: "http://localhost:8000"
+  openai: "https://api.openai.com/v1"
+  anthropic: "https://api.anthropic.com/v1"
+  ollama: "http://localhost:11434"
 ```
 
-### Environment variables
+## Environment variables
 
-Environment variables are automatically loaded with these mappings:
+Environment variables follow the pattern `CODEGATE_*`:
 
 - `CODEGATE_APP_PORT`: server port
 - `CODEGATE_APP_PROXY_PORT`: server proxy port
@@ -85,6 +78,10 @@ Environment variables are automatically loaded with these mappings:
 - `CODEGATE_CA_KEY`: CA key file name
 - `CODEGATE_SERVER_CERT`: server certificate file name
 - `CODEGATE_SERVER_KEY`: server key file name
+- `CODEGATE_ENABLE_LITELLM`: enable LiteLLM logging
+- `CODEGATE_ENABLE_SQLALCHEMY`: enable SQLAlchemy logging
+- `CODEGATE_ENABLE_UVICORN_ERROR`: enable Uvicorn error logging
+- `CODEGATE_ENABLE_AIOSQLITE`: enable aiosqlite logging
 
 ```python
 config = Config.from_env()
@@ -118,24 +115,54 @@ Network settings can be configured in several ways:
    codegate serve --port 8989 --proxy-port 8990 --host localhost
    ```
 
-### Provider URLs
+### Logging configuration
 
-Provider URLs can be configured in several ways:
+Logging can be configured through:
 
 1. Configuration file:
 
    ```yaml
-   provider_urls:
-     vllm: "https://vllm.example.com" # /v1 path is added automatically
-     openai: "https://api.openai.com/v1"
-     anthropic: "https://api.anthropic.com/v1"
-     ollama: "http://localhost:11434" # /api path is added automatically
+   log_level: DEBUG
+   log_format: TEXT
+   external_loggers:
+     litellm: true
+     sqlalchemy: false
+     uvicorn.error: false
+     aiosqlite: false
    ```
 
 2. Environment variables:
 
    ```bash
-   export CODEGATE_PROVIDER_VLLM_URL=https://vllm.example.com
+   export CODEGATE_APP_LOG_LEVEL=DEBUG
+   export CODEGATE_LOG_FORMAT=TEXT
+   export CODEGATE_ENABLE_LITELLM=true
+   ```
+
+3. CLI flags:
+
+   ```bash
+   codegate serve --log-level DEBUG --log-format TEXT --enable-litellm
+   ```
+
+### Provider URLs
+
+Provider URLs can be configured through:
+
+1. Configuration file:
+
+   ```yaml
+   provider_urls:
+     vllm: "http://localhost:8000"
+     openai: "https://api.openai.com/v1"
+     anthropic: "https://api.anthropic.com/v1"
+     ollama: "http://localhost:11434"
+   ```
+
+2. Environment variables:
+
+   ```bash
+   export CODEGATE_PROVIDER_VLLM_URL=http://localhost:8000
    export CODEGATE_PROVIDER_OPENAI_URL=https://api.openai.com/v1
    export CODEGATE_PROVIDER_ANTHROPIC_URL=https://api.anthropic.com/v1
    export CODEGATE_PROVIDER_OLLAMA_URL=http://localhost:11434
@@ -144,19 +171,12 @@ Provider URLs can be configured in several ways:
 3. CLI flags:
 
    ```bash
-   codegate serve --vllm-url https://vllm.example.com --ollama-url http://localhost:11434
+   codegate serve --vllm-url http://localhost:8000 --openai-url https://api.openai.com/v1
    ```
-
-Note:
-
-- For the vLLM provider, the `/v1` path is automatically appended to the base
-  URL if not present.
-- For the Ollama provider, the `/api` path is automatically appended to the base
-  URL if not present.
 
 ### Certificate configuration
 
-Certificate files can be configured in several ways:
+Certificate settings can be configured through:
 
 1. Configuration file:
 
@@ -199,6 +219,32 @@ Available log formats (case-insensitive):
 
 - `JSON`
 - `TEXT`
+
+### External loggers
+
+External logger configuration controls logging for third-party components:
+
+1. Configuration file:
+   ```yaml
+   external_loggers:
+     litellm: false      # LiteLLM logging (Proxy, Router, core)
+     sqlalchemy: false   # SQLAlchemy logging
+     uvicorn.error: false # Uvicorn error logging
+     aiosqlite: false    # aiosqlite logging
+   ```
+
+2. Environment variables:
+   ```bash
+   export CODEGATE_ENABLE_LITELLM=true
+   export CODEGATE_ENABLE_SQLALCHEMY=true
+   export CODEGATE_ENABLE_UVICORN_ERROR=true
+   export CODEGATE_ENABLE_AIOSQLITE=true
+   ```
+
+3. CLI flags:
+   ```bash
+   codegate serve --enable-litellm
+   ```
 
 ### Prompts configuration
 
