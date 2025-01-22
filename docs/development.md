@@ -38,14 +38,7 @@ from potential AI-related security risks. Key features include:
 2. Install Poetry following the
    [official installation guide](https://python-poetry.org/docs/#installation)
 
-3. Set up virtual environment
-
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-4. Install project dependencies:
+3. Install project dependencies:
 
    ```bash
    poetry install --with dev
@@ -173,19 +166,24 @@ ENV_VLLM_KEY=<YOUR_KEY>
 ENV_ANTHROPIC_KEY=<YOUR_KEY>
 ```
 
-Then run import_packages to ensure integration test data is created: 
+Next, run import_packages to ensure integration test data is created: 
 ```bash
-python scripts/import_packages.py
+poetry run python scripts/import_packages.py
+```
+
+Next, start the CodeGate server:
+```bash
+poetry run codegate serve --log-level DEBUG --log-format TEXT
 ```
 
 Then the integration tests can be executed by running:
 ```bash
-python tests/integration/integration_tests.py
+poetry run python tests/integration/integration_tests.py
 ```
 
 You can include additional properties to specify test scope and other information. For instance, to execute the tests for Copilot providers, for instance, run:
 ```bash
-CODEGATE_PROVIDERS=copilot CA_CERT_FILE=./codegate_volume/certs/ca.crt python tests/integration/integration_tests.py
+CODEGATE_PROVIDERS=copilot CA_CERT_FILE=./codegate_volume/certs/ca.crt poetry run python tests/integration/integration_tests.py
 ```
 
 ### 4. Make commands
