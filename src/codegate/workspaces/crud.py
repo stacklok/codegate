@@ -65,7 +65,9 @@ class WorkspaceCrud:
         if not ws:
             raise WorkspaceDoesNotExistError(f"Workspace {old_workspace_name} does not exist.")
         db_recorder = DbRecorder()
-        new_ws = Workspace(id=ws.id, name=new_workspace_name, system_prompt=ws.system_prompt)
+        new_ws = Workspace(
+            id=ws.id, name=new_workspace_name, custom_instructions=ws.custom_instructions
+        )
         workspace_renamed = await db_recorder.update_workspace(new_ws)
         return workspace_renamed
 
@@ -133,18 +135,18 @@ class WorkspaceCrud:
         await db_recorder.recover_workspace(selected_workspace)
         return
 
-    async def update_workspace_system_prompt(
-        self, workspace_name: str, sys_prompt_lst: List[str]
+    async def update_workspace_custom_instructions(
+        self, workspace_name: str, custom_instr_lst: List[str]
     ) -> Workspace:
         selected_workspace = await self._db_reader.get_workspace_by_name(workspace_name)
         if not selected_workspace:
             raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
 
-        system_prompt = " ".join(sys_prompt_lst)
+        custom_instructions = " ".join(custom_instr_lst)
         workspace_update = Workspace(
             id=selected_workspace.id,
             name=selected_workspace.name,
-            system_prompt=system_prompt,
+            custom_instructions=custom_instructions,
         )
         db_recorder = DbRecorder()
         updated_workspace = await db_recorder.update_workspace(workspace_update)

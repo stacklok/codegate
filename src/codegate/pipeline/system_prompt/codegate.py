@@ -26,17 +26,17 @@ class SystemPrompt(PipelineStep):
         """
         return "system-prompt"
 
-    async def _get_workspace_system_prompt(self) -> str:
+    async def _get_workspace_custom_instructions(self) -> str:
         wksp_crud = WorkspaceCrud()
         workspace = await wksp_crud.get_active_workspace()
         if not workspace:
             return ""
 
-        return workspace.system_prompt
+        return workspace.custom_instructions
 
     async def _construct_system_prompt(
         self,
-        wrksp_sys_prompt: str,
+        wrksp_custom_instr: str,
         req_sys_prompt: Optional[str],
         should_add_codegate_sys_prompt: bool,
     ) -> ChatCompletionSystemMessage:
@@ -52,8 +52,8 @@ class SystemPrompt(PipelineStep):
             system_prompt = _start_or_append(system_prompt, self.codegate_system_prompt)
 
         # Add workspace system prompt if present
-        if wrksp_sys_prompt:
-            system_prompt = _start_or_append(system_prompt, wrksp_sys_prompt)
+        if wrksp_custom_instr:
+            system_prompt = _start_or_append(system_prompt, wrksp_custom_instr)
 
         # Add request system prompt if present
         if req_sys_prompt and "codegate" not in req_sys_prompt.lower():
@@ -72,12 +72,12 @@ class SystemPrompt(PipelineStep):
         to the existing system prompt
         """
 
-        wrksp_sys_prompt = await self._get_workspace_system_prompt()
+        wrksp_custom_instructions = await self._get_workspace_custom_instructions()
         should_add_codegate_sys_prompt = await self._should_add_codegate_system_prompt(context)
 
         # Nothing to do if no secrets or bad_packages are found and we don't have a workspace
         # system prompt
-        if not should_add_codegate_sys_prompt and not wrksp_sys_prompt:
+        if not should_add_codegate_sys_prompt and not wrksp_custom_instructions:
             return PipelineResult(request=request, context=context)
 
         new_request = request.copy()
@@ -92,7 +92,7 @@ class SystemPrompt(PipelineStep):
         req_sys_prompt = request_system_message.get("content")
 
         system_prompt = await self._construct_system_prompt(
-            wrksp_sys_prompt, req_sys_prompt, should_add_codegate_sys_prompt
+            wrksp_custom_instructions, req_sys_prompt, should_add_codegate_sys_prompt
         )
         context.add_alert(self.name, trigger_string=system_prompt)
         if not request_system_message:

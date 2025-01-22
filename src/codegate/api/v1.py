@@ -228,12 +228,12 @@ async def get_workspace_messages(workspace_name: str) -> List[Conversation]:
 
 
 @v1.get(
-    "/workspaces/{workspace_name}/system-prompt",
+    "/workspaces/{workspace_name}/custom-instructions",
     tags=["Workspaces"],
     generate_unique_id_function=uniq_name,
 )
-async def get_workspace_system_prompt(workspace_name: str) -> v1_models.SystemPrompt:
-    """Get the system prompt for a workspace."""
+async def get_workspace_custom_instructions(workspace_name: str) -> v1_models.CustomInstructions:
+    """Get the custom instructions of a workspace."""
     try:
         ws = await wscrud.get_workspace_by_name(workspace_name)
     except crud.WorkspaceDoesNotExistError:
@@ -241,22 +241,24 @@ async def get_workspace_system_prompt(workspace_name: str) -> v1_models.SystemPr
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
-    if ws.system_prompt is None:
-        return v1_models.SystemPrompt(prompt="")
+    if ws.custom_instructions is None:
+        return v1_models.CustomInstructions(prompt="")
 
-    return v1_models.SystemPrompt(prompt=ws.system_prompt)
+    return v1_models.CustomInstructions(prompt=ws.custom_instructions)
 
 
 @v1.put(
-    "/workspaces/{workspace_name}/system-prompt",
+    "/workspaces/{workspace_name}/custom-instructions",
     tags=["Workspaces"],
     generate_unique_id_function=uniq_name,
     status_code=204,
 )
-async def set_workspace_system_prompt(workspace_name: str, request: v1_models.SystemPrompt):
+async def set_workspace_custom_instructions(
+    workspace_name: str, request: v1_models.CustomInstructions
+):
     try:
         # This already checks if the workspace exists
-        await wscrud.update_workspace_system_prompt(workspace_name, [request.prompt])
+        await wscrud.update_workspace_custom_instructions(workspace_name, [request.prompt])
     except crud.WorkspaceDoesNotExistError:
         raise HTTPException(status_code=404, detail="Workspace does not exist")
     except Exception:
@@ -266,15 +268,15 @@ async def set_workspace_system_prompt(workspace_name: str, request: v1_models.Sy
 
 
 @v1.delete(
-    "/workspaces/{workspace_name}/system-prompt",
+    "/workspaces/{workspace_name}/custom-instructions",
     tags=["Workspaces"],
     generate_unique_id_function=uniq_name,
     status_code=204,
 )
-async def delete_workspace_system_prompt(workspace_name: str):
+async def delete_workspace_custom_instructions(workspace_name: str):
     try:
         # This already checks if the workspace exists
-        await wscrud.update_workspace_system_prompt(workspace_name, [])
+        await wscrud.update_workspace_custom_instructions(workspace_name, [])
     except crud.WorkspaceDoesNotExistError:
         raise HTTPException(status_code=404, detail="Workspace does not exist")
     except Exception:

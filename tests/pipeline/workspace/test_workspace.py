@@ -81,7 +81,7 @@ async def test_add_workspaces(args, existing_workspaces, expected_message):
     with patch("codegate.workspaces.crud.WorkspaceCrud", autospec=True) as mock_recorder_cls:
         mock_recorder = mock_recorder_cls.return_value
         workspace_commands.workspace_crud = mock_recorder
-        created_workspace = WorkspaceModel(id="1", name="myworkspace", system_prompt=None)
+        created_workspace = WorkspaceModel(id="1", name="myworkspace", custom_instructions=None)
         mock_recorder.add_workspace = AsyncMock(return_value=created_workspace)
 
         # Call the method

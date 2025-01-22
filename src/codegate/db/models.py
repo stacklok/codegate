@@ -50,7 +50,7 @@ WorskpaceNameStr = Annotated[
 class Workspace(BaseModel):
     id: str
     name: WorskpaceNameStr
-    system_prompt: Optional[str]
+    custom_instructions: Optional[str]
 
 
 class Session(BaseModel):
@@ -99,6 +99,6 @@ class WorkspaceActive(BaseModel):
 class ActiveWorkspace(BaseModel):
     id: str
     name: str
-    system_prompt: Optional[str]
+    custom_instructions: Optional[str]
     session_id: str
     last_update: datetime.datetime

@@ -29,7 +29,7 @@ class TestSystemPrompt:
         # Create system prompt step
         system_prompt = "Security analysis system prompt"
         step = SystemPrompt(system_prompt=system_prompt)
-        step._get_workspace_system_prompt = AsyncMock(return_value="")
+        step._get_workspace_custom_instructions = AsyncMock(return_value="")
 
         # Mock the get_last_user_message method
         step.get_last_user_message = Mock(return_value=(user_message, 0))
@@ -63,7 +63,7 @@ class TestSystemPrompt:
         # Create system prompt step
         system_prompt = "Security analysis system prompt"
         step = SystemPrompt(system_prompt=system_prompt)
-        step._get_workspace_system_prompt = AsyncMock(return_value="")
+        step._get_workspace_custom_instructions = AsyncMock(return_value="")
 
         # Mock the get_last_user_message method
         step.get_last_user_message = Mock(return_value=(user_message, 0))
@@ -98,7 +98,7 @@ class TestSystemPrompt:
 
         system_prompt = "Security edge case prompt"
         step = SystemPrompt(system_prompt=system_prompt)
-        step._get_workspace_system_prompt = AsyncMock(return_value="")
+        step._get_workspace_custom_instructions = AsyncMock(return_value="")
 
         # Mock get_last_user_message to return None
         step.get_last_user_message = Mock(return_value=None)

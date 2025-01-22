@@ -10,7 +10,7 @@ class Workspace(pydantic.BaseModel):
     is_active: bool
 
 
-class SystemPrompt(pydantic.BaseModel):
+class CustomInstructions(pydantic.BaseModel):
     prompt: str
 
 
