@@ -46,7 +46,7 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
     [SO](https://stackoverflow.com/questions/2614984/sqlite-sqlalchemy-how-to-enforce-foreign-keys)
     """
     # Only enable foreign keys if the connection record has the flag set to True
-    if connection_record.info.get('enable_fks', False):
+    if connection_record.info.get("enable_fks", False):
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
@@ -80,7 +80,7 @@ class DbCodeGate:
                 "isolation_level": "AUTOCOMMIT",  # Required for SQLite
             }
             self._async_db_engine = create_async_engine(**engine_dict)
-            self._async_db_engine.connect().connection.connection_record.info['enable_fks'] = True
+            self._async_db_engine.connect().connection.connection_record.info["enable_fks"] = True
 
     def does_db_exist(self):
         return self._db_path.is_file()
