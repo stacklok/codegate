@@ -1,8 +1,7 @@
 import datetime
-import re
-from typing import Any, Optional
+from typing import Annotated, Any, Optional
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, StringConstraints
 
 
 class Alert(BaseModel):
@@ -40,17 +39,18 @@ class Setting(BaseModel):
     other_settings: Optional[Any]
 
 
+WorskpaceNameStr = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True, to_lower=True, pattern=r"^[a-zA-Z0-9_-]+$", strict=True
+    ),
+]
+
+
 class Workspace(BaseModel):
     id: str
-    name: str
+    name: WorskpaceNameStr
     system_prompt: Optional[str]
-
-    @field_validator("name", mode="plain")
-    @classmethod
-    def name_must_be_alphanumeric(cls, value):
-        if not re.match(r"^[a-zA-Z0-9_-]+$", value):
-            raise ValueError("name must be alphanumeric and can only contain _ and -")
-        return value
 
 
 class Session(BaseModel):
