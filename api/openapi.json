@@ -511,15 +511,15 @@
         }
       }
     },
-    "/api/v1/workspaces/{workspace_name}/system-prompt": {
+    "/api/v1/workspaces/{workspace_name}/custom-instructions": {
       "get": {
         "tags": [
           "CodeGate API",
           "Workspaces"
         ],
-        "summary": "Get Workspace System Prompt",
-        "description": "Get the system prompt for a workspace.",
-        "operationId": "v1_get_workspace_system_prompt",
+        "summary": "Get Workspace Custom Instructions",
+        "description": "Get the custom instructions of a workspace.",
+        "operationId": "v1_get_workspace_custom_instructions",
         "parameters": [
           {
             "name": "workspace_name",
@@ -537,7 +537,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SystemPrompt"
+                  "$ref": "#/components/schemas/CustomInstructions"
                 }
               }
             }
@@ -559,8 +559,8 @@
           "CodeGate API",
           "Workspaces"
         ],
-        "summary": "Set Workspace System Prompt",
-        "operationId": "v1_set_workspace_system_prompt",
+        "summary": "Set Workspace Custom Instructions",
+        "operationId": "v1_set_workspace_custom_instructions",
         "parameters": [
           {
             "name": "workspace_name",
@@ -577,7 +577,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SystemPrompt"
+                "$ref": "#/components/schemas/CustomInstructions"
               }
             }
           }
@@ -603,8 +603,8 @@
           "CodeGate API",
           "Workspaces"
         ],
-        "summary": "Delete Workspace System Prompt",
-        "operationId": "v1_delete_workspace_system_prompt",
+        "summary": "Delete Workspace Custom Instructions",
+        "operationId": "v1_delete_workspace_custom_instructions",
         "parameters": [
           {
             "name": "workspace_name",
@@ -876,6 +876,19 @@
         ],
         "title": "CreateOrRenameWorkspaceRequest"
       },
+      "CustomInstructions": {
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt"
+        ],
+        "title": "CustomInstructions"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -944,19 +957,6 @@
         ],
         "title": "QuestionAnswer",
         "description": "Represents a question and answer pair."
-      },
-      "SystemPrompt": {
-        "properties": {
-          "prompt": {
-            "type": "string",
-            "title": "Prompt"
-          }
-        },
-        "type": "object",
-        "required": [
-          "prompt"
-        ],
-        "title": "SystemPrompt"
       },
       "ValidationError": {
         "properties": {
