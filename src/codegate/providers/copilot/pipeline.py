@@ -126,6 +126,7 @@ class CopilotPipeline(ABC):
                     result, normalized_body.get("model", "gpt-4o-mini")
                 )
                 logger.info(f"Pipeline created shortcut response: {body}")
+                return body, result.context
             except Exception as e:
                 logger.error(f"Pipeline processing error: {e}")
                 return body, None
