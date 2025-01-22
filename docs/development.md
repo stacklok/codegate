@@ -38,7 +38,14 @@ from potential AI-related security risks. Key features include:
 2. Install Poetry following the
    [official installation guide](https://python-poetry.org/docs/#installation)
 
-3. Install project dependencies:
+3. Set up virtual environment
+
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+4. Install project dependencies:
 
    ```bash
    poetry install --with dev
@@ -147,7 +154,8 @@ The project uses several tools to maintain code quality:
 
 ### 3. Testing
 
-Run the test suite with coverage:
+#### Unit Tests
+To run the unit test suite with coverage:
 
 ```bash
 poetry run pytest
@@ -155,6 +163,25 @@ poetry run pytest
 
 Tests are located in the `tests/` directory and follow the same structure as the
 source code.
+
+#### Integration Tests
+To run the integration tests, create a `.env` file in the repo root directory and add the
+following properties to it:
+```
+ENV_OPENAI_KEY=<YOUR_KEY>
+ENV_VLLM_KEY=<YOUR_KEY>
+ENV_ANTHROPIC_KEY=<YOUR_KEY>
+```
+
+Then the integration tests can be executed by running:
+```bash
+python tests/integration/integration_tests.py
+```
+
+You can include additional properties to specify test scope and other information. For instance, to execute the tests for Copilot providers, for instance, run:
+```bash
+CODEGATE_PROVIDERS=copilot CA_CERT_FILE=./codegate_volume/certs/ca.crt python tests/integration/integration_tests.py
+```
 
 ### 4. Make commands
 
@@ -167,6 +194,49 @@ The project includes a Makefile for common development tasks:
 - `make security`: run security checks
 - `make build`: build distribution packages
 - `make all`: run all checks and build (recommended before committing)
+
+## 🐳 Docker deployment
+
+### Build the image
+
+```bash
+make image-build
+```
+
+### Run the container
+
+```bash
+# Basic usage with local image
+docker run -p 8989:8989 -p 9090:9090 codegate:latest
+
+# With pre-built pulled image
+docker pull ghcr.io/stacklok/codegate:latest
+docker run --name codegate -d -p 8989:8989 -p 9090:9090 ghcr.io/stacklok/codegate:latest
+
+# It will mount a volume to /app/codegate_volume
+# The directory supports storing Llama CPP models under subdirectory /models
+# A sqlite DB with the messages and alerts is stored under the subdirectory /db
+docker run --name codegate -d -v /path/to/volume:/app/codegate_volume -p 8989:8989 -p 9090:9090 ghcr.io/stacklok/codegate:latest
+```
+
+### Exposed parameters
+
+- CODEGATE_VLLM_URL: URL for the inference engine (defaults to
+  [https://inference.codegate.ai](https://inference.codegate.ai))
+- CODEGATE_OPENAI_URL: URL for OpenAI inference engine (defaults to
+  [https://api.openai.com/v1](https://api.openai.com/v1))
+- CODEGATE_ANTHROPIC_URL: URL for Anthropic inference engine (defaults to
+  [https://api.anthropic.com/v1](https://api.anthropic.com/v1))
+- CODEGATE_OLLAMA_URL: URL for OLlama inference engine (defaults to
+  [http://localhost:11434/api](http://localhost:11434/api))
+- CODEGATE_APP_LOG_LEVEL: Level of debug desired when running the codegate
+  server (defaults to WARNING, can be ERROR/WARNING/INFO/DEBUG)
+- CODEGATE_LOG_FORMAT: Type of log formatting desired when running the codegate
+  server (default to TEXT, can be JSON/TEXT)
+
+```bash
+docker run -p 8989:8989 -p 9090:9090 -e CODEGATE_OLLAMA_URL=http://1.2.3.4:11434/api ghcr.io/stacklok/codegate:latest
+```
 
 ## Configuration system
 
