@@ -185,7 +185,7 @@ class Workspace(CodegateCommandSubcommand):
             return "Please provide a name. Use `codegate workspace add your_workspace_name`"
 
         try:
-            _ = await self.workspace_crud.add_workspace(new_workspace_name)
+            ws = await self.workspace_crud.add_workspace(new_workspace_name)
         except ValidationError:
             return "Invalid workspace name: It should be alphanumeric and dashes"
         except AlreadyExistsError:
@@ -195,7 +195,7 @@ class Workspace(CodegateCommandSubcommand):
         except Exception:
             return "An error occurred while adding the workspace"
 
-        return f"Workspace **{new_workspace_name}** has been added"
+        return f"Workspace **{ws.name}** has been added"
 
     async def _rename_workspace(self, flags: Dict[str, str], args: List[str]) -> str:
         """
