@@ -4,12 +4,18 @@
 </picture>
 
 ---
-[![CI](https://github.com/stacklok/codegate/actions/workflows/run-on-push.yml/badge.svg)](https://github.com/stacklok/codegate/actions/workflows/run-on-push.yml) | [![License: Apache 2.0](https://img.shields.io/badge/License-Apache2.0-brightgreen.svg)](https://opensource.org/licenses/Apache-2.0) | [![](https://dcbadge.vercel.app/api/server/RkzVuTp3WK?logo=discord&label=Discord&color=5865&style=flat)](https://discord.gg/RkzVuTp3WK) 
+
+[![CI](https://github.com/stacklok/codegate/actions/workflows/run-on-push.yml/badge.svg)](https://github.com/stacklok/codegate/actions/workflows/run-on-push.yml)
+|
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache2.0-brightgreen.svg)](https://opensource.org/licenses/Apache-2.0)
+|
+[![Discord](https://dcbadge.vercel.app/api/server/RkzVuTp3WK?logo=discord&label=Discord&color=5865&style=flat)](https://discord.gg/RkzVuTp3WK)
 
 ---
+
 ## Introduction
 
-<img src="./assets/codegate.gif" style="width: 70%; height: 70%;" />
+<img src="./assets/codegate.gif" style="width: 70%; height: 70%;" alt="Animated gif of CodeGate detecting a malicious package in a Continue AI chat" />
 
 CodeGate is a local gateway that makes AI coding assistants safer. CodeGate
 ensures AI-generated recommendations adhere to best practices, while
@@ -76,7 +82,6 @@ With Aider, you can choose from two leading AI model providers:
 - 💻 Local LLMs with [Ollama](https://ollama.com/)
 - 🧠 [OpenAI API](https://openai.com/api/)
 
-
 ### Privacy first
 
 Unlike E.T., your code never phones home! 🛸 CodeGate is designed with privacy
@@ -93,7 +98,6 @@ Check out the quickstart guides to get up and running quickly!
 
 - [Quickstart guide for GitHub Copilot with VS Code](https://docs.codegate.ai/quickstart)
 - [Quickstart guide for Continue with VS Code and Ollama](https://docs.codegate.ai/quickstart-continue)
-
 
 ## 🎯 Usage
 
@@ -139,19 +143,22 @@ pip install -e ".[dev]"
 ### Testing
 
 To run the unit tests, execute this command:
+
 ```bash
 pytest
 ```
 
-To run the integration tests, create a `.env` file in the repo root directory and add the
-following properties to it:
-```
+To run the integration tests, create a `.env` file in the repo root directory
+and add the following properties to it:
+
+```plain
 ENV_OPENAI_KEY=<YOUR_KEY>
 ENV_VLLM_KEY=<YOUR_KEY>
 ENV_ANTHROPIC_KEY=<YOUR_KEY>
 ```
 
 Then the integration tests can be executed by running:
+
 ```bash
 python tests/integration/integration_tests.py
 ```
