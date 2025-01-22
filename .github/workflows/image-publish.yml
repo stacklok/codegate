@@ -89,7 +89,7 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             LATEST_RELEASE=${{ env.LATEST_RELEASE }}
-            CODEGATE_VERSION=${{ steps.version-string.outputs.tag }}
+            CODEGATE_VERSION=${{ github.ref_name }}
       - name: Capture Image Digest
         id: image-digest
         run: |
