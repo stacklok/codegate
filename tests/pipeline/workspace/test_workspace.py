@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from codegate.db.models import Workspace as WorkspaceModel
 from codegate.db.models import WorkspaceActive
 from codegate.pipeline.cli.commands import Workspace
 
@@ -80,7 +81,8 @@ async def test_add_workspaces(args, existing_workspaces, expected_message):
     with patch("codegate.workspaces.crud.WorkspaceCrud", autospec=True) as mock_recorder_cls:
         mock_recorder = mock_recorder_cls.return_value
         workspace_commands.workspace_crud = mock_recorder
-        mock_recorder.add_workspace = AsyncMock()
+        created_workspace = WorkspaceModel(id="1", name="myworkspace", system_prompt=None)
+        mock_recorder.add_workspace = AsyncMock(return_value=created_workspace)
 
         # Call the method
         result = await workspace_commands._add_workspace(None, args)
