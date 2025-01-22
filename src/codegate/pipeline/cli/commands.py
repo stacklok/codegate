@@ -397,7 +397,7 @@ class CustomInstructions(CodegateCommandSubcommand):
             workspace_name = active_workspace.name
 
         try:
-            updated_worksapce = await self.workspace_crud.update_workspace_instructions(
+            updated_worksapce = await self.workspace_crud.update_workspace_custom_instructions(
                 workspace_name, args
             )
         except crud.WorkspaceDoesNotExistError:
