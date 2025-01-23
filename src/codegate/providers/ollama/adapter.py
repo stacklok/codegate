@@ -2,11 +2,15 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, AsyncIterator, Dict, Union
 
-from litellm import ChatCompletionRequest, ModelResponse
-from litellm.types.utils import Delta, StreamingChoices
 from ollama import ChatResponse, Message
 
 from codegate.providers.normalizer.base import ModelInputNormalizer, ModelOutputNormalizer
+from codegate.types.common import (
+    ChatCompletionRequest,
+    Delta,
+    ModelResponse,
+    StreamingChoices,
+)
 
 
 class OllamaInputNormalizer(ModelInputNormalizer):
