@@ -1,8 +1,8 @@
 from typing import Any, Dict, List
 
-from litellm import AllMessageValues, ChatCompletionRequest, OpenAIMessageContent
-
 from codegate.providers.normalizer.base import ModelInputNormalizer, ModelOutputNormalizer
+from codegate.types.common import AllMessageValues, ChatCompletionRequest
+from codegate.types.openai import OpenAIMessageContent
 
 
 class ChatMlInputNormalizer(ModelInputNormalizer):
