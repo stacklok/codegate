@@ -1,11 +1,10 @@
 import pytest
-from litellm import ModelResponse
-from litellm.types.utils import Delta, StreamingChoices
 from llama_cpp.llama_types import CreateChatCompletionStreamResponse
 
 from codegate.providers.llamacpp.normalizer import (
     LLamaCppOutputNormalizer,
 )
+from codegate.types.common import ModelResponse, Delta, StreamingChoices
 
 
 class TestLLamaCppStreamNormalizer:

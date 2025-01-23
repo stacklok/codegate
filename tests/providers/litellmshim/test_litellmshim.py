@@ -3,9 +3,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.responses import StreamingResponse
-from litellm import ChatCompletionRequest, ModelResponse
 
-from codegate.providers.litellmshim import BaseAdapter, LiteLLmShim, sse_stream_generator
+from codegate.providers.litellmshim import BaseAdapter, LiteLLmShim
+from codegate.types.generators import sse_stream_generator
+from codegate.types.common import ChatCompletionRequest, ModelResponse
 
 
 class MockAdapter(BaseAdapter):

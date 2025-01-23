@@ -3,8 +3,6 @@ from abc import abstractmethod
 from typing import List, Optional, Tuple
 
 import structlog
-from litellm import ChatCompletionRequest, ChatCompletionSystemMessage, ModelResponse
-from litellm.types.utils import Delta, StreamingChoices
 
 from codegate.config import Config
 from codegate.db.models import AlertSeverity
@@ -19,6 +17,13 @@ from codegate.pipeline.output import OutputPipelineContext, OutputPipelineStep
 from codegate.pipeline.secrets.manager import SecretsManager
 from codegate.pipeline.secrets.signatures import CodegateSignatures, Match
 from codegate.pipeline.systemmsg import add_or_update_system_message
+from codegate.types.common import (
+    ChatCompletionRequest,
+    ChatCompletionSystemMessage,
+    Delta,
+    ModelResponse,
+    StreamingChoices,
+)
 
 logger = structlog.get_logger("codegate")
 
