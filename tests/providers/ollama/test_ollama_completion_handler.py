@@ -1,10 +1,10 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from litellm import ChatCompletionRequest
 from ollama import ChatResponse, GenerateResponse, Message
 
 from codegate.providers.ollama.completion_handler import OllamaShim
+from codegate.types.common import ChatCompletionRequest
 
 
 @pytest.fixture

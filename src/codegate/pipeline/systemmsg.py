@@ -1,9 +1,8 @@
 import json
 from typing import Optional
 
-from litellm import ChatCompletionRequest, ChatCompletionSystemMessage
-
 from codegate.pipeline.base import PipelineContext
+from codegate.types.common import ChatCompletionRequest, ChatCompletionSystemMessage
 
 
 def get_existing_system_message(request: ChatCompletionRequest) -> Optional[dict]:

@@ -2,7 +2,6 @@ import json
 
 import regex as re
 import structlog
-from litellm import ChatCompletionRequest
 
 from codegate.clients.clients import ClientType
 from codegate.db.models import AlertSeverity
@@ -13,6 +12,7 @@ from codegate.pipeline.base import (
     PipelineStep,
 )
 from codegate.storage.storage_engine import StorageEngine
+from codegate.types.common import ChatCompletionRequest
 from codegate.utils.package_extractor import PackageExtractor
 from codegate.utils.utils import generate_vector_string
 

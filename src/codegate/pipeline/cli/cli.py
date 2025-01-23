@@ -2,7 +2,6 @@ import shlex
 from typing import Optional
 
 import regex as re
-from litellm import ChatCompletionRequest
 
 from codegate.clients.clients import ClientType
 from codegate.pipeline.base import (
@@ -12,6 +11,7 @@ from codegate.pipeline.base import (
     PipelineStep,
 )
 from codegate.pipeline.cli.commands import CustomInstructions, Version, Workspace
+from codegate.types.common import ChatCompletionRequest
 
 codegate_regex = re.compile(r"^codegate(?:\s+(.*))?", re.IGNORECASE)
 
