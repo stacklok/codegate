@@ -9,7 +9,6 @@ from urllib.parse import unquote, urljoin, urlparse
 
 import regex as re
 import structlog
-from litellm.types.utils import Delta, ModelResponse, StreamingChoices
 
 from codegate.ca.codegate_ca import CertificateAuthority, TLSCertDomainManager
 from codegate.codegate_logging import setup_logging
@@ -25,6 +24,7 @@ from codegate.providers.copilot.pipeline import (
     CopilotPipeline,
 )
 from codegate.providers.copilot.streaming import SSEProcessor
+from codegate.types.openai import StreamingChatCompletion
 
 setup_logging()
 logger = structlog.get_logger("codegate").bind(origin="copilot_proxy")
@@ -234,7 +234,7 @@ class CopilotProvider(asyncio.Protocol):
         path: str,
         headers: list[str],
         body: bytes,
-    ) -> Tuple[bytes, PipelineContext]:
+    ) -> Tuple[bytes, PipelineContext | None]:
         strategy = self._select_pipeline(method, path)
         if len(body) == 0 or strategy is None:
             # if we didn't select any strategy that would change the request
@@ -834,7 +834,7 @@ class CopilotProxyTargetProtocol(asyncio.Protocol):
         self.headers_sent = False
         self.sse_processor: Optional[SSEProcessor] = None
         self.output_pipeline_instance: Optional[OutputPipelineInstance] = None
-        self.stream_queue: Optional[asyncio.Queue] = None
+        self.stream_queue: Optional[asyncio.Queue[StreamingChatCompletion]] = None
         self.processing_task: Optional[asyncio.Task] = None
 
         self.finish_stream = False
@@ -878,46 +878,16 @@ class CopilotProxyTargetProtocol(asyncio.Protocol):
             async def stream_iterator():
                 while not self.stream_queue.empty():
                     incoming_record = await self.stream_queue.get()
-
-                    record_content = incoming_record.get("content", {})
-
-                    streaming_choices = []
-                    for choice in record_content.get("choices", []):
-                        is_fim = self.proxy.context_tracking.metadata.get("is_fim", False)
-                        if is_fim:
-                            content = choice.get("text", "")
-                        else:
-                            content = choice.get("delta", {}).get("content")
-
-                        if choice.get("finish_reason", None) == "stop":
+                    for choice in incoming_record.choices:
+                        if choice.finish_reason and choice.finish_reason is not None:
                             self.finish_stream = True
-
-                        streaming_choices.append(
-                            StreamingChoices(
-                                finish_reason=choice.get("finish_reason", None),
-                                index=choice.get("index", 0),
-                                delta=Delta(content=content, role="assistant"),
-                                logprobs=choice.get("logprobs", None),
-                                p=choice.get("p", None),
-                            )
-                        )
-
-                    # Convert record to ModelResponse
-                    mr = ModelResponse(
-                        id=record_content.get("id", ""),
-                        choices=streaming_choices,
-                        created=record_content.get("created", 0),
-                        model=record_content.get("model", ""),
-                        object="chat.completion.chunk",
-                        stream=True,
-                    )
-                    yield mr
+                    yield incoming_record
 
             # needs to be set as the flag gets reset on finish_data
             finish_stream_flag = any(
-                choice.get("finish_reason") == "stop"
+                choice.finish_reason is not None
                 for record in list(self.stream_queue._queue)
-                for choice in record.get("content", {}).get("choices", [])
+                for choice in record.choices
             )
             async for record in self.output_pipeline_instance.process_stream(
                 stream_iterator(),

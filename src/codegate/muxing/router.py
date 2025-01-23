@@ -1,16 +1,34 @@
-import json
-from typing import Optional
+from typing import Callable, Optional
 
+import pydantic
 import structlog
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import StreamingResponse
 
 from codegate.clients.detector import DetectClient
+from codegate.db.models import ProviderType
 from codegate.muxing import models as mux_models
 from codegate.muxing import rulematcher
 from codegate.muxing.adapter import BodyAdapter, ResponseAdapter
 from codegate.providers.fim_analyzer import FIMAnalyzer
 from codegate.providers.registry import ProviderRegistry
+from codegate.types import anthropic, ollama, openai
 from codegate.workspaces.crud import WorkspaceCrud
+
+from .anthropic_mappers import (
+    anthropic_from_openai,
+    anthropic_from_legacy_openai,
+    anthropic_to_openai,
+    anthropic_to_legacy_openai,
+)
+from .ollama_mappers import (
+    ollama_chat_from_openai,
+    ollama_generate_from_openai,
+    ollama_chat_stream_to_openai_stream,
+    ollama_generate_stream_to_openai_stream,
+    openai_chunk_from_ollama_chat,
+    openai_chunk_from_ollama_generate,
+)
 
 logger = structlog.get_logger("codegate")
 
@@ -75,12 +93,19 @@ class MuxRouter:
             """
 
             body = await request.body()
-            data = json.loads(body)
-            is_fim_request = FIMAnalyzer.is_fim_request(rest_of_path, data)
+            parsed = None
+            match rest_of_path:
+                case "chat/completions":
+                    parsed = openai.ChatCompletionRequest.model_validate_json(body)
+                case "completions":
+                    parsed = openai.LegacyCompletionRequest.model_validate_json(body)
+                case _:
+                    raise ValueError(f"unknown rest of path: {rest_of_path}")
+            is_fim_request = FIMAnalyzer.is_fim_request(rest_of_path, parsed)
 
             # 1. Get destination provider from DB and active workspace.
             thing_to_match = mux_models.ThingToMatchMux(
-                body=data,
+                body=parsed,
                 url_request_path=rest_of_path,
                 is_fim_request=is_fim_request,
                 client_type=request.state.detected_client,
@@ -101,16 +126,111 @@ class MuxRouter:
 
             # 2. Map the request body to the destination provider format.
             rest_of_path = self._ensure_path_starts_with_slash(rest_of_path)
-            new_data = self._body_adapter.set_destination_info(model_route, data)
+            model, base_url = self._body_adapter.get_destination_info(model_route)
 
             # 3. Run pipeline. Selecting the correct destination provider.
             provider = self._provider_registry.get_provider(model_route.endpoint.provider_type)
             api_key = model_route.auth_material.auth_blob
+
+            completion_function = default_completion_function
+            from_openai = default_from_openai
+            to_openai = default_to_openai
+            # TODO this should be improved
+            match model_route.endpoint.provider_type:
+                case ProviderType.anthropic:
+                    if is_fim_request:
+                        completion_function = anthropic.acompletion
+                        from_openai = anthropic_from_legacy_openai
+                        to_openai = anthropic_to_legacy_openai
+                    else:
+                        completion_function = anthropic.acompletion
+                        from_openai = anthropic_from_openai
+                        to_openai = anthropic_to_openai
+                case ProviderType.ollama:
+                    if is_fim_request:
+                        completion_function = ollama.generate_streaming
+                        from_openai = ollama_generate_from_openai
+                        to_openai = ollama_generate_stream_to_openai_stream
+                    else:
+                        completion_function = ollama.chat_streaming
+                        from_openai = ollama_chat_from_openai
+                        to_openai = ollama_chat_stream_to_openai_stream
+                case ProviderType.openai:
+                    completion_function = openai.completions_streaming
+                    from_openai = lambda x: x
+                    to_openai = lambda x: x
+                case ProviderType.openrouter:
+                    completion_function = openai.completions_streaming
+                    from_openai = lambda x: x
+                    to_openai = lambda x: x
+                case ProviderType.vllm:
+                    completion_function = openai.completions_streaming
+                    from_openai = lambda x: x
+                    to_openai = lambda x: x
+
             response = await provider.process_request(
-                new_data, api_key, is_fim_request, request.state.detected_client
+                parsed,
+                api_key,
+                base_url,
+                is_fim_request,
+                request.state.detected_client,
+                completion_handler=inout_transformer(
+                    from_openai,
+                    to_openai,
+                    completion_function,
+                    model,
+                ),
+                stream_generator=openai.stream_generator,
             )
 
             # 4. Transmit the response back to the client in OpenAI format.
-            return self._response_adapter.format_response_to_client(
-                response, model_route.endpoint.provider_type, is_fim_request=is_fim_request
+            return StreamingResponse(
+                response.body_iterator,
+                status_code=response.status_code,
+                headers=response.headers,
+                background=response.background,
+                media_type=response.media_type,
             )
+
+
+def default_completion_function(*args, **kwargs):
+    raise NotImplementedError
+
+
+def default_from_openai(*args, **kwargs):
+    raise NotImplementedError
+
+
+def default_to_openai(*args, **kwargs):
+    raise NotImplementedError
+
+
+def inout_transformer(
+    from_openai: Callable,
+    to_openai: Callable,
+    completion_handler: Callable,
+    model: str,
+):
+    async def _inner(
+            request,
+            base_url,
+            api_key,
+            stream=None,
+            is_fim_request=None,
+    ):
+        # Map request from OpenAI
+        new_request = from_openai(request)
+        new_request.model = model
+
+        # Wrap with an async generator that maps from
+        # e.g. Anthropic types to OpenAI's.
+        return to_openai(
+            # Execute e.g. acompletion from Anthropic types
+            completion_handler(
+                new_request,
+                api_key,
+                base_url,
+            ),
+        )
+
+    return _inner
