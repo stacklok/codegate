@@ -1,8 +1,8 @@
-import datetime
 from abc import ABC, abstractmethod
 from typing import Awaitable, Callable, Dict, List, Optional, Tuple
 
-from pydantic import BaseModel, ValidationError
+from cachetools import TTLCache
+from pydantic import ValidationError
 
 from codegate import __version__
 from codegate.db.connection import AlreadyExistsError
@@ -17,13 +17,9 @@ class NoSubcommandError(Exception):
     pass
 
 
-class ExecCommand(BaseModel):
-
-    cmd_out: str
-    exec_time: datetime.datetime
-
-
-command_cache: Dict[str, ExecCommand] = {}
+# 1 second cache. 1 second is to be short enough to not affect UX but long enough to
+# reply the same to concurrent requests. Needed for Copilot.
+command_cache = TTLCache(maxsize=10, ttl=1)
 
 
 class CodegateCommand(ABC):
@@ -53,9 +49,7 @@ class CodegateCommand(ABC):
         Record the command in the cache.
         """
         full_command = await self._get_full_command(args)
-        command_cache[full_command] = ExecCommand(
-            cmd_out=cmd_out, exec_time=datetime.datetime.now(datetime.timezone.utc)
-        )
+        command_cache[full_command] = cmd_out
 
     async def _cache_lookup(self, args: List[str]) -> Optional[str]:
         """
@@ -63,16 +57,8 @@ class CodegateCommand(ABC):
         return the cached output.
         """
         full_command = await self._get_full_command(args)
-        if full_command in command_cache:
-            exec_command = command_cache[full_command]
-            time_since_last_exec = (
-                datetime.datetime.now(datetime.timezone.utc) - exec_command.exec_time
-            )
-            # 1 second cache. 1 second is to be short enough to not affect UX but long enough to
-            # reply the same to concurrent requests. Needed for Copilot.
-            if time_since_last_exec.total_seconds() < 1:
-                return exec_command.cmd_out
-        return None
+        cmd_out = command_cache.get(full_command)
+        return cmd_out
 
     async def exec(self, args: List[str]) -> str:
         """
