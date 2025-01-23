@@ -20,7 +20,7 @@ class BaseCompletionHandler(ABC):
         api_key: Optional[str],
         stream: bool = False,  # TODO: remove this param?
         is_fim_request: bool = False,
-        is_cline_client: bool = False,
+        base_tool: Optional[str] = "",
     ) -> Union[ModelResponse, AsyncIterator[ModelResponse]]:
         """Execute the completion request"""
         pass

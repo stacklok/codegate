@@ -63,15 +63,13 @@ async def ollama_stream_generator(
                         if field in chunk_dict:
                             response[field] = chunk_dict[field]
 
-                    print("in cline")
-                    print(json.dumps(response))
-                    yield f"data: {json.dumps(response)}\n"
+                    yield f"\ndata: {json.dumps(response)}\n"
             except Exception as e:
                 logger.error(f"Error in stream generator: {str(e)}")
-                yield f"data: {json.dumps({'error': str(e), 'type': 'error', 'choices': []})}\n"
+                yield f"\ndata: {json.dumps({'error': str(e), 'type': 'error', 'choices': []})}\n"
     except Exception as e:
         logger.error(f"Stream error: {str(e)}")
-        yield f"data: {json.dumps({'error': str(e), 'type': 'error', 'choices': []})}\n"
+        yield f"\ndata: {json.dumps({'error': str(e), 'type': 'error', 'choices': []})}\n"
 
 
 class OllamaShim(BaseCompletionHandler):
@@ -115,7 +113,9 @@ class OllamaShim(BaseCompletionHandler):
             headers={
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
+                "Transfer-Encoding": "chunked",
             },
+            status_code=200,
         )
 
     def _create_json_response(
