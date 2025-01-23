@@ -17,7 +17,6 @@ from codegate.db.fim_cache import FimCache
 from codegate.db.models import (
     ActiveWorkspace,
     Alert,
-    GetAlertsWithPromptAndOutputRow,
     GetPromptWithOutputsRow,
     GetWorkspaceByNameConditions,
     Output,
@@ -430,9 +429,7 @@ class DbReader(DbCodeGate):
         )
         return prompts
 
-    async def get_alerts_with_prompt_and_output(
-        self, workspace_id: str
-    ) -> List[GetAlertsWithPromptAndOutputRow]:
+    async def get_alerts_by_workspace(self, workspace_id: str) -> List[Alert]:
         sql = text(
             """
             SELECT
@@ -442,24 +439,16 @@ class DbReader(DbCodeGate):
                 a.trigger_string,
                 a.trigger_type,
                 a.trigger_category,
-                a.timestamp,
-                p.timestamp as prompt_timestamp,
-                p.provider,
-                p.request,
-                p.type,
-                o.id as output_id,
-                o.output,
-                o.timestamp as output_timestamp
+                a.timestamp
             FROM alerts a
-            LEFT JOIN prompts p ON p.id = a.prompt_id
-            LEFT JOIN outputs o ON p.id = o.prompt_id
+            INNER JOIN prompts p ON p.id = a.prompt_id
             WHERE p.workspace_id = :workspace_id
             ORDER BY a.timestamp DESC
             """
         )
         conditions = {"workspace_id": workspace_id}
         prompts = await self._exec_select_conditions_to_pydantic(
-            GetAlertsWithPromptAndOutputRow, sql, conditions, should_raise=True
+            Alert, sql, conditions, should_raise=True
         )
         return prompts
 

@@ -67,23 +67,6 @@ class Session(BaseModel):
 # Models for select queries
 
 
-class GetAlertsWithPromptAndOutputRow(BaseModel):
-    id: Any
-    prompt_id: Any
-    code_snippet: Optional[Any]
-    trigger_string: Optional[Any]
-    trigger_type: Any
-    trigger_category: Optional[Any]
-    timestamp: Any
-    prompt_timestamp: Optional[Any]
-    provider: Optional[Any]
-    request: Optional[Any]
-    type: Optional[Any]
-    output_id: Optional[Any]
-    output: Optional[Any]
-    output_timestamp: Optional[Any]
-
-
 class GetPromptWithOutputsRow(BaseModel):
     id: Any
     timestamp: Any

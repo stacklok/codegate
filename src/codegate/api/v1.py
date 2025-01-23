@@ -206,7 +206,8 @@ async def get_workspace_alerts(workspace_name: str) -> List[Optional[v1_models.A
 
     try:
         alerts = await dbreader.get_alerts_with_prompt_and_output(ws.id)
-        return await v1_processing.parse_get_alert_conversation(alerts)
+        prompts_outputs = await dbreader.get_prompts_with_output(ws.id)
+        return await v1_processing.parse_get_alert_conversation(alerts, prompts_outputs)
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -227,7 +228,8 @@ async def get_workspace_messages(workspace_name: str) -> List[v1_models.Conversa
 
     try:
         prompts_outputs = await dbreader.get_prompts_with_output(ws.id)
-        return await v1_processing.parse_messages_in_conversations(prompts_outputs)
+        conversations, _ = await v1_processing.parse_messages_in_conversations(prompts_outputs)
+        return conversations
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
