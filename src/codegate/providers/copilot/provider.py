@@ -9,7 +9,6 @@ from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import unquote, urljoin, urlparse
 
 import structlog
-from litellm.types.utils import Delta, ModelResponse, StreamingChoices
 
 from codegate.ca.codegate_ca import CertificateAuthority, TLSCertDomainManager
 from codegate.codegate_logging import setup_logging
@@ -25,6 +24,11 @@ from codegate.providers.copilot.pipeline import (
     CopilotPipeline,
 )
 from codegate.providers.copilot.streaming import SSEProcessor
+from codegate.types.common import (
+    Delta,
+    ModelResponse,
+    StreamingChoices,
+)
 
 setup_logging()
 logger = structlog.get_logger("codegate").bind(origin="copilot_proxy")

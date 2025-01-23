@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, AsyncIterable, AsyncIterator, Dict, Iterable, Iterator, Union
 
-from litellm import ChatCompletionRequest, ModelResponse
+from codegate.types.common import ChatCompletionRequest, ModelResponse
 
 
 class ModelInputNormalizer(ABC):

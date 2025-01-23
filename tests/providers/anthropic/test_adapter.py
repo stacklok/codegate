@@ -1,19 +1,17 @@
 from typing import List, Union
 
 import pytest
-from litellm import ModelResponse
-from litellm.adapters.anthropic_adapter import AnthropicStreamWrapper
-from litellm.types.llms.anthropic import (
+
+from codegate.providers.anthropic.adapter import AnthropicInputNormalizer, AnthropicOutputNormalizer
+from codegate.types.common import Delta, ModelResponse, StreamingChoices
+from codegate.types.anthropic import (
+    AnthropicStreamWrapper,
     ContentBlockDelta,
     ContentBlockStart,
     ContentTextBlockDelta,
     MessageChunk,
     MessageStartBlock,
 )
-from litellm.types.utils import Delta, StreamingChoices
-
-from codegate.providers.anthropic.adapter import AnthropicInputNormalizer, AnthropicOutputNormalizer
-
 
 @pytest.fixture
 def input_normalizer():

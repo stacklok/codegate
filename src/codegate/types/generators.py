@@ -1,6 +1,7 @@
 import json
 from typing import Any, AsyncIterator
 
+from litellm import acompletion, atext_completion
 from pydantic import BaseModel
 
 # Since different providers typically use one of these formats for streaming

@@ -1,18 +1,15 @@
 from typing import Optional
 
-import litellm
-from litellm import ChatCompletionRequest
-from litellm.adapters.anthropic_adapter import (
-    AnthropicAdapter as LitellmAnthropicAdapter,
-)
-from litellm.types.llms.anthropic import (
-    AnthropicMessagesRequest,
-)
-
 from codegate.providers.litellmshim.adapter import (
     LiteLLMAdapterInputNormalizer,
     LiteLLMAdapterOutputNormalizer,
 )
+from codegate.types.anthropic import (
+    AnthropicExperimentalPassThroughConfig,
+    AnthropicMessagesRequest,
+    LitellmAnthropicAdapter,
+)
+from codegate.types.common import ChatCompletionRequest
 
 
 class AnthropicAdapter(LitellmAnthropicAdapter):
@@ -24,7 +21,7 @@ class AnthropicAdapter(LitellmAnthropicAdapter):
         if not request_body.get("system"):
             request_body["system"] = "System prompt"
         translated_body = (
-            litellm.AnthropicExperimentalPassThroughConfig().translate_anthropic_to_openai(
+            AnthropicExperimentalPassThroughConfig().translate_anthropic_to_openai(
                 anthropic_message_request=request_body
             )
         )

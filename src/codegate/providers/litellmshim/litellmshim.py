@@ -3,14 +3,14 @@ from typing import Any, AsyncIterator, Callable, Optional, Union
 import litellm
 import structlog
 from fastapi.responses import JSONResponse, StreamingResponse
-from litellm import (
-    ChatCompletionRequest,
-    ModelResponse,
-    acompletion,
-)
 
 from codegate.clients.clients import ClientType
 from codegate.providers.base import BaseCompletionHandler, StreamGenerator
+from codegate.types.common import (
+    ChatCompletionRequest,
+    ModelResponse,
+)
+from codegate.types.generators import acompletion
 
 logger = structlog.get_logger("codegate")
 

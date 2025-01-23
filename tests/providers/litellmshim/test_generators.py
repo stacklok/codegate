@@ -1,12 +1,12 @@
 from typing import AsyncIterator
 
 import pytest
-from litellm import ModelResponse
 
-from codegate.providers.litellmshim import (
+from codegate.types.generators import (
     anthropic_stream_generator,
     sse_stream_generator,
 )
+from codegate.types.common import ModelResponse
 
 
 @pytest.mark.asyncio

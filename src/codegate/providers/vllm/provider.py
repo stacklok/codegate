@@ -5,15 +5,15 @@ from urllib.parse import urljoin
 import httpx
 import structlog
 from fastapi import Header, HTTPException, Request
-from litellm import atext_completion
 
 from codegate.clients.clients import ClientType
 from codegate.clients.detector import DetectClient
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.fim_analyzer import FIMAnalyzer
-from codegate.providers.litellmshim import LiteLLmShim, sse_stream_generator
+from codegate.providers.litellmshim import LiteLLmShim
 from codegate.providers.vllm.adapter import VLLMInputNormalizer, VLLMOutputNormalizer
+from codegate.types.generators import atext_completion, sse_stream_generator
 
 
 class VLLMProvider(BaseProvider):

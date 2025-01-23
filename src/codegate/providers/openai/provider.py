@@ -10,8 +10,9 @@ from codegate.clients.detector import DetectClient
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.fim_analyzer import FIMAnalyzer
-from codegate.providers.litellmshim import LiteLLmShim, sse_stream_generator
+from codegate.providers.litellmshim import LiteLLmShim
 from codegate.providers.openai.adapter import OpenAIInputNormalizer, OpenAIOutputNormalizer
+from codegate.types.generators import sse_stream_generator
 
 
 class OpenAIProvider(BaseProvider):

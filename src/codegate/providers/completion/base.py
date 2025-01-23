@@ -4,7 +4,8 @@ from collections.abc import Iterator
 from typing import Any, AsyncIterator, Optional, Union
 
 from fastapi.responses import JSONResponse, StreamingResponse
-from litellm import ChatCompletionRequest, ModelResponse
+
+from codegate.types.common import ChatCompletionRequest, ModelResponse
 
 from codegate.clients.clients import ClientType
 

@@ -1,8 +1,7 @@
 from typing import AsyncIterator, Optional, Union
 
-from litellm import ChatCompletionRequest, ModelResponse
-
 from codegate.providers.litellmshim import LiteLLmShim
+from codegate.types.common import ChatCompletionRequest, ModelResponse
 
 
 class AnthropicCompletion(LiteLLmShim):

@@ -2,8 +2,6 @@ import os
 import tempfile
 
 import pytest
-from litellm import ModelResponse
-from litellm.types.utils import Delta, StreamingChoices
 
 from codegate.pipeline.base import PipelineContext, PipelineSensitiveData
 from codegate.pipeline.output import OutputPipelineContext
@@ -14,6 +12,7 @@ from codegate.pipeline.secrets.secrets import (
     SecretUnredactionStep,
 )
 from codegate.pipeline.secrets.signatures import CodegateSignatures, Match
+from codegate.types.common import Delta, ModelResponse, StreamingChoices
 
 
 class TestSecretsModifier:

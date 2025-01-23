@@ -4,14 +4,13 @@ from abc import ABC, abstractmethod
 from typing import Dict, Tuple
 
 import structlog
-from litellm import ModelResponse
-from litellm.types.llms.openai import ChatCompletionRequest
-from litellm.types.utils import Delta, StreamingChoices
 
 from codegate.clients.clients import ClientType
 from codegate.pipeline.base import PipelineContext, PipelineResult, SequentialPipelineProcessor
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.normalizer.completion import CompletionNormalizer
+from codegate.types.common import Delta, ModelResponse, StreamingChoices
+from codegate.types.openai import ChatCompletionRequest
 
 logger = structlog.get_logger("codegate")
 

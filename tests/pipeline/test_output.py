@@ -2,8 +2,6 @@ from typing import List
 from unittest.mock import AsyncMock
 
 import pytest
-from litellm import ModelResponse
-from litellm.types.utils import Delta, StreamingChoices
 
 from codegate.pipeline.base import PipelineContext
 from codegate.pipeline.output import (
@@ -11,6 +9,7 @@ from codegate.pipeline.output import (
     OutputPipelineInstance,
     OutputPipelineStep,
 )
+from codegate.types.common import Delta, ModelResponse, StreamingChoices
 
 
 class MockOutputPipelineStep(OutputPipelineStep):

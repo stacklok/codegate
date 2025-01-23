@@ -2,8 +2,6 @@ from typing import Optional
 from urllib.parse import quote
 
 import structlog
-from litellm import ModelResponse
-from litellm.types.utils import Delta, StreamingChoices
 
 from codegate.db.models import AlertSeverity
 from codegate.extract_snippets.message_extractor import (
@@ -14,6 +12,7 @@ from codegate.pipeline.base import PipelineContext
 from codegate.pipeline.output import OutputPipelineContext, OutputPipelineStep
 from codegate.storage import StorageEngine
 from codegate.utils.package_extractor import PackageExtractor
+from codegate.types.common import ModelResponse, Delta, StreamingChoices
 
 logger = structlog.get_logger("codegate")
 

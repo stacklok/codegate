@@ -1,10 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import Any, AsyncIterable, AsyncIterator, Dict, Iterable, Iterator, Optional, Union
 
-from litellm import ChatCompletionRequest, ModelResponse
-
 from codegate.providers.base import StreamGenerator
 from codegate.providers.normalizer.base import ModelInputNormalizer, ModelOutputNormalizer
+from codegate.types.common import ChatCompletionRequest, ModelResponse
 
 
 class BaseAdapter(ABC):

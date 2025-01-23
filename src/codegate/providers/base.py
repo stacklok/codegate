@@ -7,8 +7,6 @@ from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Union
 
 import structlog
 from fastapi import APIRouter
-from litellm import ModelResponse
-from litellm.types.llms.openai import ChatCompletionRequest
 
 from codegate.clients.clients import ClientType
 from codegate.codegate_logging import setup_logging
@@ -24,6 +22,8 @@ from codegate.providers.completion.base import BaseCompletionHandler
 from codegate.providers.formatting.input_pipeline import PipelineResponseFormatter
 from codegate.providers.normalizer.base import ModelInputNormalizer, ModelOutputNormalizer
 from codegate.providers.normalizer.completion import CompletionNormalizer
+from codegate.types.common import ModelResponse
+from codegate.types.openai import ChatCompletionRequest
 
 setup_logging()
 logger = structlog.get_logger("codegate")

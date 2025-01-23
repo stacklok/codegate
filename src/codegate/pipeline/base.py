@@ -6,13 +6,13 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 import structlog
-from litellm import ChatCompletionRequest, ModelResponse
 from pydantic import BaseModel
 
 from codegate.clients.clients import ClientType
 from codegate.db.models import Alert, AlertSeverity, Output, Prompt
 from codegate.extract_snippets.message_extractor import CodeSnippet
 from codegate.pipeline.secrets.manager import SecretsManager
+from codegate.types.common import ChatCompletionRequest, ModelResponse
 
 logger = structlog.get_logger("codegate")
 
