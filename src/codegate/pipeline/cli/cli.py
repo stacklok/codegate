@@ -1,3 +1,4 @@
+import re
 import shlex
 
 from litellm import ChatCompletionRequest
@@ -76,12 +77,19 @@ class CodegateCli(PipelineStep):
 
         if last_user_message is not None:
             last_user_message_str, _ = last_user_message
-            splitted_message = last_user_message_str.lower().split(" ")
+            cleaned_message_str = re.sub(r"<.*?>", "", last_user_message_str).strip()
+            splitted_message = cleaned_message_str.lower().split(" ")
             # We expect codegate as the first word in the message
             if splitted_message[0] == "codegate":
                 context.shortcut_response = True
-                args = shlex.split(last_user_message_str)
+                args = shlex.split(cleaned_message_str)
                 cmd_out = await codegate_cli(args[1:])
+
+                if cleaned_message_str != last_user_message_str:
+                    # it came from Cline, need to wrap into tags
+                    cmd_out = (
+                        f"<attempt_completion><result>{cmd_out}</result></attempt_completion>\n"
+                    )
                 return PipelineResult(
                     response=PipelineResponse(
                         step_name=self.name,

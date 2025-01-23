@@ -1,7 +1,7 @@
 import os
 import re
 import sqlite3
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 import sqlite_vec_sl_tmp
@@ -51,9 +51,11 @@ class StorageEngine:
         )
 
         self.inference_engine = LlamaCppInferenceEngine()
-        self.model_path = (
-            f"{Config.get_config().model_base_path}/{Config.get_config().embedding_model}"
-        )
+        conf = Config.get_config()
+        if conf and conf.model_base_path and conf.embedding_model:
+            self.model_path = f"{conf.model_base_path}/{conf.embedding_model}"
+        else:
+            self.model_path = ""
 
         self.conn = self._get_connection()
         self._setup_schema()
@@ -131,10 +133,10 @@ class StorageEngine:
 
     async def search(
         self,
-        query: str = None,
-        language: str = None,
-        ecosystem: str = None,
-        packages: List[str] = None,
+        query: Optional[str] = None,
+        language: Optional[str] = None,
+        ecosystem: Optional[str] = None,
+        packages: Optional[List[str]] = None,
         limit: int = 50,
         distance: float = 0.3,
     ) -> list[object]:

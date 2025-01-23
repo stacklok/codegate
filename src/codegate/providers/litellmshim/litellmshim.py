@@ -43,6 +43,7 @@ class LiteLLmShim(BaseCompletionHandler):
         api_key: Optional[str],
         stream: bool = False,
         is_fim_request: bool = False,
+        base_tool: Optional[str] = "",
     ) -> Union[ModelResponse, AsyncIterator[ModelResponse]]:
         """
         Execute the completion request with LiteLLM's API

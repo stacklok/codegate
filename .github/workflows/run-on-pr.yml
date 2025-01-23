@@ -28,3 +28,4 @@ jobs:
       artifact-name: "codegate-image"
     secrets:
       copilot-key: ${{ secrets.INTEGRATION_TESTS_COPILOT_KEY }}
+      anthropic-key: ${{ secrets.INTEGRATION_TESTS_ANTHROPIC_KEY }}

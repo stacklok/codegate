@@ -75,6 +75,9 @@ class OllamaProvider(BaseProvider):
         # OpenAI-compatible routes for backward compatibility
         @self.router.post(f"/{self.provider_route_name}/chat/completions")
         @self.router.post(f"/{self.provider_route_name}/completions")
+        # Cline API routes
+        @self.router.post(f"/{self.provider_route_name}/v1/chat/completions")
+        @self.router.post(f"/{self.provider_route_name}/v1/generate")
         async def create_completion(request: Request):
             body = await request.body()
             data = json.loads(body)
@@ -90,7 +93,7 @@ class OllamaProvider(BaseProvider):
                 logger.error("Error in OllamaProvider completion", error=str(e))
                 raise HTTPException(status_code=503, detail="Ollama service is unavailable")
             except Exception as e:
-                #  check if we have an status code there
+                #  check if we have an status code there
                 if hasattr(e, "status_code"):
                     # log the exception
                     logger = structlog.get_logger("codegate")
