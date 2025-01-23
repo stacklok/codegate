@@ -1,9 +1,8 @@
 import asyncio
 import json
-from typing import Any, AsyncIterator, Iterator, Optional, Union
+from typing import Any, AsyncIterator, Iterator, Optional, Union, Callable
 
 from fastapi.responses import JSONResponse, StreamingResponse
-from litellm import ChatCompletionRequest, ModelResponse
 from llama_cpp.llama_types import (
     CreateChatCompletionStreamResponse,
 )
@@ -12,35 +11,46 @@ from codegate.clients.clients import ClientType
 from codegate.config import Config
 from codegate.inference.inference_engine import LlamaCppInferenceEngine
 from codegate.providers.base import BaseCompletionHandler
+from codegate.types.openai import (
+    stream_generator as openai_stream_generator,
+    LegacyCompletion,
+    StreamingChatCompletion,
+)
 
 
-async def llamacpp_stream_generator(
-    stream: AsyncIterator[CreateChatCompletionStreamResponse],
-) -> AsyncIterator[str]:
-    """OpenAI-style SSE format"""
-    try:
-        async for chunk in stream:
-            chunk = json.dumps(chunk)
-            try:
-                yield f"data:{chunk}\n\n"
-            except Exception as e:
-                yield f"data:{str(e)}\n\n"
-    except Exception as e:
-        yield f"data: {str(e)}\n\n"
-    finally:
-        yield "data: [DONE]\n\n"
+# async def llamacpp_stream_generator(
+#     stream: AsyncIterator[CreateChatCompletionStreamResponse],
+# ) -> AsyncIterator[str]:
+#     """OpenAI-style SSE format"""
+#     try:
+#         async for chunk in stream:
+#             chunk = json.dumps(chunk)
+#             try:
+#                 yield f"data:{chunk}\n\n"
+#             except Exception as e:
+#                 yield f"data:{str(e)}\n\n"
+#     except Exception as e:
+#         yield f"data: {str(e)}\n\n"
+#     finally:
+#         yield "data: [DONE]\n\n"
 
 
-async def convert_to_async_iterator(
-    sync_iterator: Iterator[CreateChatCompletionStreamResponse],
-) -> AsyncIterator[CreateChatCompletionStreamResponse]:
+async def completion_to_async_iterator(
+    sync_iterator: Iterator[dict],
+) -> AsyncIterator[LegacyCompletion]:
     """
     Convert a synchronous iterator to an asynchronous iterator. This makes the logic easier
     because both the pipeline and the completion handler can use async iterators.
     """
     for item in sync_iterator:
-        yield item
-        await asyncio.sleep(0)
+        yield LegacyCompletion(**item)
+
+
+async def chat_to_async_iterator(
+        sync_iterator: Iterator[dict],
+) -> AsyncIterator[StreamingChatCompletion]:
+    for item in sync_iterator:
+        yield StreamingChatCompletion(**item)
 
 
 class LlamaCppCompletionHandler(BaseCompletionHandler):
@@ -49,34 +59,58 @@ class LlamaCppCompletionHandler(BaseCompletionHandler):
 
     async def execute_completion(
         self,
-        request: ChatCompletionRequest,
+        request: Any,
         base_url: Optional[str],
         api_key: Optional[str],
         stream: bool = False,
         is_fim_request: bool = False,
-    ) -> Union[ModelResponse, AsyncIterator[ModelResponse]]:
+    ) -> Union[Any, AsyncIterator[Any]]:
         """
         Execute the completion request with inference engine API
         """
-        model_path = f"{request['base_url']}/{request['model']}.gguf"
+        model_path = f"{base_url}/{request.get_model()}.gguf"
 
         # Create a copy of the request dict and remove stream_options
         # Reason - Request error as JSON:
         # {'error': "Llama.create_completion() got an unexpected keyword argument 'stream_options'"}
-        request_dict = dict(request)
-        request_dict.pop("stream_options", None)
-        # Remove base_url from the request dict. We use this field as a standard across
-        # all providers to specify the base URL of the model.
-        request_dict.pop("base_url", None)
-
         if is_fim_request:
+            request_dict = request.dict(exclude={
+                "best_of",
+                "frequency_penalty",
+                "n",
+                "stream_options",
+                "user",
+            })
+
             response = await self.inference_engine.complete(
                 model_path,
                 Config.get_config().chat_model_n_ctx,
                 Config.get_config().chat_model_n_gpu_layers,
                 **request_dict,
             )
+
+            if stream:
+                return completion_to_async_iterator(response)
+            return LegacyCompletion(**response)
         else:
+            request_dict = request.dict(exclude={
+                "audio",
+                "frequency_penalty",
+                "include_reasoning",
+                "metadata",
+                "max_completion_tokens",
+                "modalities",
+                "n",
+                "parallel_tool_calls",
+                "prediction",
+                "prompt",
+                "reasoning_effort",
+                "service_tier",
+                "store",
+                "stream_options",
+                "user",
+            })
+
             response = await self.inference_engine.chat(
                 model_path,
                 Config.get_config().chat_model_n_ctx,
@@ -84,19 +118,25 @@ class LlamaCppCompletionHandler(BaseCompletionHandler):
                 **request_dict,
             )
 
-        return convert_to_async_iterator(response) if stream else response
+            if stream:
+                return chat_to_async_iterator(response)
+            else:
+                return StreamingChatCompletion(**response)
 
     def _create_streaming_response(
         self,
         stream: AsyncIterator[Any],
         client_type: ClientType = ClientType.GENERIC,
+        stream_generator: Callable | None = None,
     ) -> StreamingResponse:
         """
         Create a streaming response from a stream generator. The StreamingResponse
         is the format that FastAPI expects for streaming responses.
         """
         return StreamingResponse(
-            llamacpp_stream_generator(stream),
+            stream_generator(stream)
+            if stream_generator
+            else openai_stream_generator(stream),
             headers={
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",

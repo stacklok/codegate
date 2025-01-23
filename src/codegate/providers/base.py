@@ -7,8 +7,6 @@ from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Union
 
 import structlog
 from fastapi import APIRouter
-from litellm import ModelResponse
-from litellm.types.llms.openai import ChatCompletionRequest
 
 from codegate.clients.clients import ClientType
 from codegate.codegate_logging import setup_logging
@@ -25,8 +23,10 @@ from codegate.providers.formatting.input_pipeline import PipelineResponseFormatt
 from codegate.providers.normalizer.base import ModelInputNormalizer, ModelOutputNormalizer
 from codegate.providers.normalizer.completion import CompletionNormalizer
 
+
 setup_logging()
 logger = structlog.get_logger("codegate")
+
 
 TEMPDIR = None
 if os.getenv("CODEGATE_DUMP_DIR"):
@@ -38,6 +38,21 @@ StreamGenerator = Callable[[AsyncIterator[Any]], AsyncIterator[str]]
 
 class ModelFetchError(Exception):
     pass
+
+
+class PassThroughNormalizer:
+
+    def normalize(self, arg):
+        return arg
+
+    def denormalize(self, arg):
+        return arg
+
+    def normalize_streaming(self, arg):
+        return arg
+
+    def denormalize_streaming(self, arg):
+        return arg
 
 
 class BaseProvider(ABC):
@@ -55,14 +70,14 @@ class BaseProvider(ABC):
     ):
         self.router = APIRouter()
         self._completion_handler = completion_handler
-        self._input_normalizer = input_normalizer
-        self._output_normalizer = output_normalizer
+        self._input_normalizer = input_normalizer if input_normalizer else PassThroughNormalizer()
+        self._output_normalizer = output_normalizer if output_normalizer else PassThroughNormalizer()
         self._pipeline_factory = pipeline_factory
         self._db_recorder = DbRecorder()
         self._pipeline_response_formatter = PipelineResponseFormatter(
             output_normalizer, self._db_recorder
         )
-        self._fim_normalizer = CompletionNormalizer()
+        self._fim_normalizer = PassThroughNormalizer() # CompletionNormalizer()
 
         self._setup_routes()
 
@@ -79,6 +94,7 @@ class BaseProvider(ABC):
         self,
         data: dict,
         api_key: str,
+        base_url: str,
         is_fim_request: bool,
         client_type: ClientType,
     ):
@@ -97,8 +113,8 @@ class BaseProvider(ABC):
         return config.provider_urls.get(self.provider_route_name) if config else ""
 
     async def process_stream_no_pipeline(
-        self, stream: AsyncIterator[ModelResponse], context: PipelineContext
-    ) -> AsyncIterator[ModelResponse]:
+        self, stream: AsyncIterator[Any], context: PipelineContext
+    ) -> AsyncIterator[Any]:
         """
         Process a stream when there is no pipeline.
         This is needed to record the output stream chunks for FIM.
@@ -117,9 +133,9 @@ class BaseProvider(ABC):
     async def _run_output_stream_pipeline(
         self,
         input_context: PipelineContext,
-        model_stream: AsyncIterator[ModelResponse],
+        model_stream: AsyncIterator[Any],
         is_fim_request: bool,
-    ) -> AsyncIterator[ModelResponse]:
+    ) -> AsyncIterator[Any]:
         # Decide which pipeline processor to use
         out_pipeline_processor = None
         if is_fim_request:
@@ -155,7 +171,7 @@ class BaseProvider(ABC):
         self,
         input_context: PipelineContext,
         model_response: Any,
-    ) -> ModelResponse:
+    ) -> Any:
         """
         Run the output pipeline for a single response.
 
@@ -171,7 +187,7 @@ class BaseProvider(ABC):
 
     async def _run_input_pipeline(
         self,
-        normalized_request: ChatCompletionRequest,
+        normalized_request: Any,
         api_key: Optional[str],
         api_base: Optional[str],
         client_type: ClientType,
@@ -191,7 +207,7 @@ class BaseProvider(ABC):
         result = await pipeline_processor.process_request(
             request=normalized_request,
             provider=self.provider_route_name,
-            model=normalized_request.get("model"),
+            model=normalized_request.get_model(),
             api_key=api_key,
             api_base=api_base,
         )
@@ -203,8 +219,8 @@ class BaseProvider(ABC):
         return result
 
     async def _cleanup_after_streaming(
-        self, stream: AsyncIterator[ModelResponse], context: PipelineContext
-    ) -> AsyncIterator[ModelResponse]:
+        self, stream: AsyncIterator[Any], context: PipelineContext
+    ) -> AsyncIterator[Any]:
         """Wraps the stream to ensure cleanup after consumption"""
         try:
             async for item in stream:
@@ -231,6 +247,10 @@ class BaseProvider(ABC):
 
             with open(fname, "w") as f:
                 json.dump(data, f, indent=2)
+        elif hasattr(data, "json"):
+            # The new format
+            with open(fname, "w") as f:
+                f.write(data.json())
         else:
             with open(fname, "w") as f:
                 f.write(str(data))
@@ -239,9 +259,11 @@ class BaseProvider(ABC):
         self,
         data: Dict,
         api_key: Optional[str],
+        base_url: Optional[str],
         is_fim_request: bool,
         client_type: ClientType,
-    ) -> Union[ModelResponse, AsyncIterator[ModelResponse]]:
+        completion_handler: Callable | None = None,
+    ) -> Union[Any, AsyncIterator[Any]]:
         """
         Main completion flow with pipeline integration
 
@@ -258,13 +280,13 @@ class BaseProvider(ABC):
         normalized_request = self._input_normalizer.normalize(data)
         # Dump the normalized request
         self._dump_request_response("normalized-request", normalized_request)
-        streaming = normalized_request.get("stream", False)
+        streaming = normalized_request.get_stream()
 
-        # Get detected client if available
+        # Pass the request through the input pipeline.
         input_pipeline_result = await self._run_input_pipeline(
             normalized_request,
             api_key,
-            data.get("base_url"),
+            base_url,
             client_type,
             is_fim_request,
         )
@@ -284,13 +306,29 @@ class BaseProvider(ABC):
         # Execute the completion and translate the response
         # This gives us either a single response or a stream of responses
         # based on the streaming flag
-        model_response = await self._completion_handler.execute_completion(
-            provider_request,
-            base_url=data.get("base_url"),
-            api_key=api_key,
-            stream=streaming,
-            is_fim_request=is_fim_request,
-        )
+        #
+        # With "executing the completion" we actually mean "calling
+        # upstream LLM", e.g. sending the HTTP request to OpenAI or
+        # Anthropic.
+        model_response = None
+        if completion_handler != None:
+            model_response = await completion_handler(
+                provider_request,
+                base_url,
+                api_key,
+                stream=streaming,
+                is_fim_request=is_fim_request,
+            )
+        else:
+            model_response = await self._completion_handler.execute_completion(
+                provider_request,
+                base_url,
+                api_key,
+                stream=streaming,
+                is_fim_request=is_fim_request,
+            )
+
+        # Pass the request through the output pipeline
         if not streaming:
             return await self._run_output_pipeline(input_pipeline_result.context, model_response)
 

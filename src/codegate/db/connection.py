@@ -121,6 +121,17 @@ class DbCodeGate:
         return self._db_path.is_file()
 
 
+def row_from_model(model: BaseModel) -> dict:
+    return dict(
+        id=model.id,
+        timestamp=model.timestamp,
+        provider=model.provider,
+        request=model.request.json(exclude_defaults=True, exclude_unset=True),
+        type=model.type,
+        workspace_id=model.workspace_id,
+    )
+
+
 class DbRecorder(DbCodeGate):
     def __init__(self, sqlite_path: Optional[str] = None, *args, **kwargs):
         super().__init__(sqlite_path, *args, **kwargs)
@@ -131,7 +142,10 @@ class DbRecorder(DbCodeGate):
         """Execute an update or insert command for a Pydantic model."""
         try:
             async with self._async_db_engine.begin() as conn:
-                result = await conn.execute(sql_command, model.model_dump())
+                row = model
+                if isinstance(model, BaseModel):
+                    row = model.model_dump()
+                result = await conn.execute(sql_command, row)
                 row = result.first()
                 if row is None:
                     return None
@@ -173,7 +187,8 @@ class DbRecorder(DbCodeGate):
                 RETURNING *
                 """
         )
-        recorded_request = await self._execute_update_pydantic_model(prompt_params, sql)
+        row = row_from_model(prompt_params)
+        recorded_request = await self._execute_update_pydantic_model(row, sql)
         # Uncomment to debug the recorded request
         # logger.debug(f"Recorded request: {recorded_request}")
         return recorded_request  # type: ignore
@@ -192,7 +207,8 @@ class DbRecorder(DbCodeGate):
                 RETURNING *
                 """
         )
-        updated_request = await self._execute_update_pydantic_model(prompt_params, sql)
+        row = row_from_model(prompt_params)
+        updated_request = await self._execute_update_pydantic_model(row, sql)
         # Uncomment to debug the recorded request
         # logger.debug(f"Recorded request: {recorded_request}")
         return updated_request  # type: ignore
@@ -215,7 +231,7 @@ class DbRecorder(DbCodeGate):
             output=first_output.output,
         )
         full_outputs = []
-        # Just store the model respnses in the list of JSON objects.
+        # Just store the model responses in the list of JSON objects.
         for output in outputs:
             full_outputs.append(output.output)
 
@@ -339,7 +355,7 @@ class DbRecorder(DbCodeGate):
                     f"Alerts: {len(context.alerts_raised)}."
                 )
         except Exception as e:
-            logger.error(f"Failed to record context: {context}.", error=str(e))
+            logger.error(f"Failed to record context: {context}.", error=str(e), exc_info=e)
 
     async def add_workspace(self, workspace_name: str) -> WorkspaceRow:
         """Add a new workspace to the DB.

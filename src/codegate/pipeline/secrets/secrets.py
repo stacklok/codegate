@@ -1,12 +1,9 @@
 from abc import abstractmethod
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 import regex as re
 import structlog
-from litellm import ChatCompletionRequest, ChatCompletionSystemMessage, ModelResponse
-from litellm.types.utils import Delta, StreamingChoices
 
-from codegate.config import Config
 from codegate.db.models import AlertSeverity
 from codegate.extract_snippets.factory import MessageCodeExtractorFactory
 from codegate.pipeline.base import (
@@ -18,7 +15,6 @@ from codegate.pipeline.base import (
 from codegate.pipeline.output import OutputPipelineContext, OutputPipelineStep
 from codegate.pipeline.secrets.signatures import CodegateSignatures, Match
 from codegate.pipeline.sensitive_data.manager import SensitiveData, SensitiveDataManager
-from codegate.pipeline.systemmsg import add_or_update_system_message
 
 logger = structlog.get_logger("codegate")
 
@@ -164,7 +160,6 @@ class SecretsModifier:
 
         # Convert back to string
         protected_string = "".join(protected_text)
-        print(f"\nProtected text:\n{protected_string}")
         return protected_string, found_secrets
 
 
@@ -281,7 +276,7 @@ class CodegateSecrets(PipelineStep):
         return text_encryptor.obfuscate(text, snippet)
 
     async def process(
-        self, request: ChatCompletionRequest, context: PipelineContext
+        self, request: Any, context: PipelineContext
     ) -> PipelineResult:
         """
         Process the request to find and protect secrets in all messages.
@@ -294,9 +289,6 @@ class CodegateSecrets(PipelineStep):
             PipelineResult containing the processed request and context with redaction metadata
         """
 
-        if "messages" not in request:
-            return PipelineResult(request=request, context=context)
-
         sensitive_data_manager = context.sensitive.manager
         if not sensitive_data_manager or not isinstance(
             sensitive_data_manager, SensitiveDataManager
@@ -306,33 +298,27 @@ class CodegateSecrets(PipelineStep):
         if not session_id:
             raise ValueError("Session ID not found in context")
 
-        new_request = request.copy()
         total_matches = []
 
         # get last user message block to get index for the first relevant user message
-        last_user_message = self.get_last_user_message_block(new_request, context.client)
+        last_user_message = self.get_last_user_message_block(request)
         last_assistant_idx = last_user_message[1] - 1 if last_user_message else -1
 
         # Process all messages
-        for i, message in enumerate(new_request["messages"]):
-            if "content" in message and message["content"]:
-                message_content = message["content"]
+        for i, message in enumerate(request.get_messages()):
+            for content in message.get_content():
+                txt = content.get_text()
+                if txt is not None:
+                    redacted_content, secrets_matched = self._redact_message_content(
+                        "".join(txt for txt in content.get_text()), sensitive_data_manager, session_id, context
+                    )
+                    content.set_text(redacted_content)
+                    if i > last_assistant_idx:
+                        total_matches += secrets_matched
 
-                # cline with anthropic seems to be sending a list of dicts with type:text instead of
-                # a string
-                # this hack will not be needed once we access the native functions through an API
-                # (I tested this actually)
-                if isinstance(message_content, list) and "text" in message_content[0]:
-                    message_content = message_content[0]["text"]
-
-                redacted_content, secrets_matched = self._redact_message_content(
-                    message_content, sensitive_data_manager, session_id, context
-                )
-                new_request["messages"][i]["content"] = redacted_content
-                if i > last_assistant_idx:
-                    total_matches += secrets_matched
-        new_request = self._finalize_redaction(context, total_matches, new_request)
-        return PipelineResult(request=new_request, context=context)
+        # Not count repeated secret matches
+        request = self._finalize_redaction(context, total_matches, request)
+        return PipelineResult(request=request, context=context)
 
     def _redact_message_content(self, message_content, sensitive_data_manager, session_id, context):
         # Extract any code snippets
@@ -381,12 +367,6 @@ class CodegateSecrets(PipelineStep):
         context.secrets_found = total_redacted > 0
         logger.info(f"Total secrets redacted since last assistant message: {total_redacted}")
         context.metadata["redacted_secrets_count"] = total_redacted
-        if total_redacted > 0:
-            system_message = ChatCompletionSystemMessage(
-                content=Config.get_config().prompts.secrets_redacted,
-                role="system",
-            )
-            return add_or_update_system_message(new_request, system_message, context)
         return new_request
 
 
@@ -424,10 +404,10 @@ class SecretUnredactionStep(OutputPipelineStep):
 
     async def process_chunk(
         self,
-        chunk: ModelResponse,
+        chunk: Any,
         context: OutputPipelineContext,
         input_context: Optional[PipelineContext] = None,
-    ) -> list[ModelResponse]:
+    ) -> list[Any]:
         """Process a single chunk of the stream"""
         if not input_context:
             raise ValueError("Input context not found")
@@ -436,65 +416,56 @@ class SecretUnredactionStep(OutputPipelineStep):
         if input_context.sensitive.session_id == "":
             raise ValueError("Session ID not found in input context")
 
-        if len(chunk.choices) == 0 or not chunk.choices[0].delta.content:
-            return [chunk]
+        for content in chunk.get_content():
+            # Check the buffered content
+            buffered_content = "".join(context.buffer)
 
-        # Check the buffered content
-        buffered_content = "".join(context.buffer)
+            # Look for complete REDACTED markers first
+            match, remaining = self._find_complete_redaction(buffered_content)
+            if match:
+                # Found a complete marker, process it
+                encrypted_value = match.group(1)
+                if encrypted_value.startswith("$"):
+                    encrypted_value = encrypted_value[1:]
 
-        # Look for complete REDACTED markers first
-        match, remaining = self._find_complete_redaction(buffered_content)
-        if match:
-            # Found a complete marker, process it
-            encrypted_value = match.group(1)
-            if encrypted_value.startswith("$"):
-                encrypted_value = encrypted_value[1:]
+                session_id = input_context.sensitive.session_id
+                if not session_id:
+                    raise ValueError("Session ID not found in context")
 
-            session_id = input_context.sensitive.session_id
-            if not session_id:
-                raise ValueError("Session ID not found in context")
-
-            original_value = input_context.sensitive.manager.get_original_value(
-                session_id,
-                encrypted_value,
-            )
-
-            if original_value is None:
-                # If value not found, leave as is
-                original_value = match.group(0)  # Keep the REDACTED marker
-
-            # Post an alert with the redacted content
-            input_context.add_alert(self.name, trigger_string=encrypted_value)
-
-            # Unredact the content and return the chunk
-            unredacted_content = buffered_content[: match.start()] + original_value + remaining
-            # Return the unredacted content up to this point
-            chunk.choices = [
-                StreamingChoices(
-                    finish_reason=None,
-                    index=0,
-                    delta=Delta(
-                        content=unredacted_content,
-                        role="assistant",
-                    ),
-                    logprobs=None,
+                original_value = input_context.sensitive.manager.get_original_value(
+                    input_context.sensitive.session_id,
+                    encrypted_value,
                 )
-            ]
-            return [chunk]
 
-        # If we have a partial marker at the end, keep buffering
-        if self.marker_start in buffered_content:
+                if original_value is None:
+                    # If value not found, leave as is
+                    original_value = match.group(0)  # Keep the REDACTED marker
+
+                # Post an alert with the redacted content
+                input_context.add_alert(self.name, trigger_string=encrypted_value)
+
+                # Unredact the content and return the chunk
+                unredacted_content = buffered_content[: match.start()] + original_value + remaining
+                # Return the unredacted content up to this point
+                content.set_text(unredacted_content)
+                return [chunk]
+
+            # If we have a partial marker at the end, keep buffering
+            if self.marker_start in buffered_content:
+                context.prefix_buffer = ""
+                return []
+
+            if self._is_partial_marker_prefix(buffered_content):
+                context.prefix_buffer = buffered_content
+                return []
+
+            # No markers or partial markers, let pipeline handle the chunk normally
+            text = content.get_text()
+            content.set_text(context.prefix_buffer + text if text else "")
             context.prefix_buffer = ""
-            return []
-
-        if self._is_partial_marker_prefix(buffered_content):
-            context.prefix_buffer = buffered_content
-            return []
-
-        # No markers or partial markers, let pipeline handle the chunk normally
-        chunk.choices[0].delta.content = context.prefix_buffer + chunk.choices[0].delta.content
-        context.prefix_buffer = ""
-        return [chunk]
+            return [chunk]
+        else:
+            return [chunk]
 
 
 class SecretRedactionNotifier(OutputPipelineStep):
@@ -504,31 +475,20 @@ class SecretRedactionNotifier(OutputPipelineStep):
     def name(self) -> str:
         return "secret-redaction-notifier"
 
-    def _create_chunk(self, original_chunk: ModelResponse, content: str) -> ModelResponse:
+    def _create_chunk(self, original_chunk: Any, content: str) -> Any:
         """
         Creates a new chunk with the given content, preserving the original chunk's metadata
         """
-        return ModelResponse(
-            id=original_chunk.id,
-            choices=[
-                StreamingChoices(
-                    finish_reason=None,
-                    index=0,
-                    delta=Delta(content=content, role="assistant"),
-                    logprobs=None,
-                )
-            ],
-            created=original_chunk.created,
-            model=original_chunk.model,
-            object="chat.completion.chunk",
-        )
+        copy = original_chunk.model_copy(deep=True)
+        copy.set_text(content)
+        return copy
 
     async def process_chunk(
         self,
-        chunk: ModelResponse,
+        chunk: Any,
         context: OutputPipelineContext,
         input_context: Optional[PipelineContext] = None,
-    ) -> list[ModelResponse]:
+    ) -> list[Any]:
         """Process a single chunk of the stream"""
         if (
             not input_context
@@ -547,31 +507,42 @@ class SecretRedactionNotifier(OutputPipelineStep):
             "",
         )
 
+        # If the chunk has no content, we do not touch it, as it is
+        # likely to break the communication protocol. As of the time
+        # of this writing, this is probably only valid for Anthropic,
+        # and we might want to abstract this away in the interface by
+        # answering a question like "is this chunk modifiable?"
+        if next(chunk.get_content(), None) is None:
+            return [chunk]
+        for content in chunk.get_content():
+            if content.get_text() is None or content.get_text() == "":
+                return [chunk]
+
         # Check if this is the first chunk (delta role will be present, others will not)
-        if len(chunk.choices) > 0 and chunk.choices[0].delta.role:
-            redacted_count = input_context.metadata["redacted_secrets_count"]
-            secret_text = "secret" if redacted_count == 1 else "secrets"
-            # Create notification chunk
-            if tool_name in ["cline", "kodu"]:
-                notification_chunk = self._create_chunk(
-                    chunk,
-                    f"<thinking>\n🛡️ [CodeGate prevented {redacted_count} {secret_text}]"
-                    f"(http://localhost:9090/?search=codegate-secrets) from being leaked "
-                    f"by redacting them.</thinking>\n\n",
-                )
-                notification_chunk.choices[0].delta.role = "assistant"
-            else:
-                notification_chunk = self._create_chunk(
-                    chunk,
-                    f"\n🛡️ [CodeGate prevented {redacted_count} {secret_text}]"
-                    f"(http://localhost:9090/?search=codegate-secrets) from being leaked "
-                    f"by redacting them.\n\n",
-                )
+        redacted_count = input_context.metadata["redacted_secrets_count"]
+        secret_text = "secret" if redacted_count == 1 else "secrets"
+        # Create notification chunk
+        if tool_name in ["cline", "kodu"]:
+            # NOTE: Original code was ensuring that role was
+            # "assistant" here, we might have to do that as well,
+            # but I believe it was defensive programming or
+            # leftover of some refactoring.
+            notification_chunk = self._create_chunk(
+                chunk,
+                f"<thinking>\n🛡️ [CodeGate prevented {redacted_count} {secret_text}]"
+                f"(http://localhost:9090/?search=codegate-secrets) from being leaked "
+                f"by redacting them.</thinking>\n\n",
+            )
+        else:
+            notification_chunk = self._create_chunk(
+                chunk,
+                f"\n🛡️ [CodeGate prevented {redacted_count} {secret_text}]"
+                f"(http://localhost:9090/?search=codegate-secrets) from being leaked "
+                f"by redacting them.\n\n",
+            )
 
-            # Reset the counter
-            input_context.metadata["redacted_secrets_count"] = 0
+        # Reset the counter
+        input_context.metadata["redacted_secrets_count"] = 0
 
-            # Return both the notification and original chunk
-            return [notification_chunk, chunk]
-
-        return [chunk]
+        # Return both the notification and original chunk
+        return [notification_chunk, chunk]

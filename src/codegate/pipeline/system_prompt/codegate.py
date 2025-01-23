@@ -1,8 +1,7 @@
-from typing import Optional
-
-from litellm import ChatCompletionRequest, ChatCompletionSystemMessage
+from typing import Any, Optional
 
 from codegate.clients.clients import ClientType
+from codegate.config import Config
 from codegate.pipeline.base import (
     PipelineContext,
     PipelineResult,
@@ -38,15 +37,17 @@ class SystemPrompt(PipelineStep):
 
     async def _construct_system_prompt(
         self,
+        secrets_found: bool,
+        pii_found: bool,
         client: ClientType,
         wrksp_custom_instr: str,
         req_sys_prompt: Optional[str],
         should_add_codegate_sys_prompt: bool,
-    ) -> ChatCompletionSystemMessage:
+    ) -> str:
 
         def _start_or_append(existing_prompt: str, new_prompt: str) -> str:
             if existing_prompt:
-                return existing_prompt + "\n\nHere are additional instructions:\n\n" + new_prompt
+                return f"{existing_prompt}\n\nHere are additional instructions:\n\n{new_prompt}"
             return new_prompt
 
         system_prompt = ""
@@ -66,13 +67,24 @@ class SystemPrompt(PipelineStep):
         if client and client.value in self.client_prompts:
             system_prompt = _start_or_append(system_prompt, self.client_prompts[client.value])
 
+        # Add secrets redacted system prompt
+        if secrets_found:
+            system_prompt = _start_or_append(
+                system_prompt, Config.get_config().prompts.secrets_redacted
+            )
+
+        if pii_found:
+            system_prompt = _start_or_append(
+                system_prompt, Config.get_config().prompts.pii_redacted,
+            )
+
         return system_prompt
 
     async def _should_add_codegate_system_prompt(self, context: PipelineContext) -> bool:
-        return context.secrets_found or context.bad_packages_found
+        return context.secrets_found or context.pii_found or context.bad_packages_found
 
     async def process(
-        self, request: ChatCompletionRequest, context: PipelineContext
+        self, request: Any, context: PipelineContext
     ) -> PipelineResult:
         """
         Add system prompt if not present, otherwise prepend codegate system prompt
@@ -87,30 +99,20 @@ class SystemPrompt(PipelineStep):
         if not should_add_codegate_sys_prompt and not wrksp_custom_instructions:
             return PipelineResult(request=request, context=context)
 
-        new_request = request.copy()
-
-        if "messages" not in new_request:
-            new_request["messages"] = []
-
-        request_system_message = {}
-        for message in new_request["messages"]:
-            if message["role"] == "system":
-                request_system_message = message
-        req_sys_prompt = request_system_message.get("content")
-
+        req_sys_prompt = next(request.get_system_prompt(), "")
         system_prompt = await self._construct_system_prompt(
+            context.secrets_found,
+            context.pii_found,
             context.client,
             wrksp_custom_instructions,
             req_sys_prompt,
             should_add_codegate_sys_prompt,
         )
         context.add_alert(self.name, trigger_string=system_prompt)
-        if not request_system_message:
-            # Insert the system prompt at the beginning of the messages
-            sytem_message = ChatCompletionSystemMessage(content=system_prompt, role="system")
-            new_request["messages"].insert(0, sytem_message)
-        else:
-            # Update the existing system prompt
-            request_system_message["content"] = system_prompt
 
-        return PipelineResult(request=new_request, context=context)
+        if req_sys_prompt:
+            request.set_system_prompt(system_prompt)
+        else:
+            request.add_system_prompt(system_prompt)
+
+        return PipelineResult(request=request, context=context)

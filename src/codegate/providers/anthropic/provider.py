@@ -1,18 +1,21 @@
 import json
-from typing import List
+import os
+from typing import Callable, List
 
 import httpx
 import structlog
 from fastapi import Header, HTTPException, Request
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from codegate.clients.clients import ClientType
 from codegate.clients.detector import DetectClient
 from codegate.pipeline.factory import PipelineFactory
-from codegate.providers.anthropic.adapter import AnthropicInputNormalizer, AnthropicOutputNormalizer
 from codegate.providers.anthropic.completion_handler import AnthropicCompletion
 from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.fim_analyzer import FIMAnalyzer
-from codegate.providers.litellmshim import anthropic_stream_generator
+from codegate.types.anthropic import stream_generator
+from codegate.types.anthropic import ChatCompletionRequest
+
 
 logger = structlog.get_logger("codegate")
 
@@ -22,10 +25,15 @@ class AnthropicProvider(BaseProvider):
         self,
         pipeline_factory: PipelineFactory,
     ):
-        completion_handler = AnthropicCompletion(stream_generator=anthropic_stream_generator)
+        if self._get_base_url() != "":
+            self.base_url = self._get_base_url()
+        else:
+            self.base_url = "https://api.anthropic.com/v1"
+
+        completion_handler = AnthropicCompletion(stream_generator=stream_generator)
         super().__init__(
-            AnthropicInputNormalizer(),
-            AnthropicOutputNormalizer(),
+            None,
+            None,
             completion_handler,
             pipeline_factory,
         )
@@ -60,13 +68,23 @@ class AnthropicProvider(BaseProvider):
         self,
         data: dict,
         api_key: str,
+        base_url: str,
         is_fim_request: bool,
         client_type: ClientType,
+        completion_handler: Callable | None = None,
+        stream_generator: Callable | None = None,
     ):
         try:
-            stream = await self.complete(data, api_key, is_fim_request, client_type)
+            stream = await self.complete(
+                data,
+                api_key,
+                base_url,
+                is_fim_request,
+                client_type,
+                completion_handler=completion_handler,
+            )
         except Exception as e:
-            #  check if we have an status code there
+            # check if we have an status code there
             if hasattr(e, "status_code"):
                 # log the exception
                 logger.exception("Error in AnthropicProvider completion")
@@ -74,7 +92,9 @@ class AnthropicProvider(BaseProvider):
             else:
                 # just continue raising the exception
                 raise e
-        return self._completion_handler.create_response(stream, client_type)
+        return self._completion_handler.create_response(
+            stream, client_type, stream_generator=stream_generator,
+        )
 
     def _setup_routes(self):
         """
@@ -98,12 +118,26 @@ class AnthropicProvider(BaseProvider):
                 raise HTTPException(status_code=401, detail="No API key provided")
 
             body = await request.body()
-            data = json.loads(body)
-            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, data)
+
+            if os.getenv("CODEGATE_DEBUG_ANTHROPIC") is not None:
+                print(f"{create_message.__name__}: {body}")
+
+            req = ChatCompletionRequest.model_validate_json(body)
+            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, req)
 
             return await self.process_request(
-                data,
+                req,
                 x_api_key,
+                self.base_url,
                 is_fim_request,
                 request.state.detected_client,
             )
+
+
+async def dumper(stream):
+    print("==========")
+    async for event in stream:
+        res = f"event: {event.type}\ndata: {event.json(exclude_defaults=True, exclude_unset=True)}\n"
+        print(res)
+        yield res
+    print("==========")
