@@ -3,12 +3,11 @@ from typing import AsyncIterator, Optional, Union
 
 import structlog
 from fastapi.responses import JSONResponse, StreamingResponse
-from litellm import ChatCompletionRequest
 from ollama import AsyncClient, ChatResponse, GenerateResponse
 
 from codegate.clients.clients import ClientType
 from codegate.providers.base import BaseCompletionHandler
-from codegate.providers.ollama.adapter import OLlamaToModel
+from codegate.types.common import ChatCompletionRequest
 
 logger = structlog.get_logger("codegate")
 

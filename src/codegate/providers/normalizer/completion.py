@@ -1,10 +1,7 @@
 from typing import Dict
 
-from litellm.types.llms.openai import (
-    ChatCompletionRequest,
-)
-
 from codegate.providers.normalizer import ModelInputNormalizer
+from codegate.types.openai import ChatCompletionRequest
 
 
 class CompletionNormalizer(ModelInputNormalizer):
