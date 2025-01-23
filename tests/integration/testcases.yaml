@@ -217,15 +217,7 @@ testcases:
         "temperature":0
       }
     likes: |
-      Hello! I'm CodeGate, your security-focused AI assistant. I can help you with:
-
-      - Software security analysis and reviews
-      - Package security assessments
-      - Secure coding practices and guidance
-      - Security vulnerability analysis
-      - Best practices for secure implementations
-
-      How can I assist you with your security needs today?
+      Hello! How can I assist you today?
 
   anthropic_fim:
     name: Anthropic FIM
