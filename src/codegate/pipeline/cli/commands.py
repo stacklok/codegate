@@ -1,7 +1,8 @@
+import datetime
 from abc import ABC, abstractmethod
-from typing import Awaitable, Callable, Dict, List, Tuple
+from typing import Awaitable, Callable, Dict, List, Optional, Tuple
 
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from codegate import __version__
 from codegate.db.connection import AlreadyExistsError
@@ -14,6 +15,15 @@ class NoFlagValueError(Exception):
 
 class NoSubcommandError(Exception):
     pass
+
+
+class ExecCommand(BaseModel):
+
+    cmd_out: str
+    exec_time: datetime.datetime
+
+
+command_cache: Dict[str, ExecCommand] = {}
 
 
 class CodegateCommand(ABC):
@@ -31,10 +41,56 @@ class CodegateCommand(ABC):
     def help(self) -> str:
         pass
 
+    async def _get_full_command(self, args: List[str]) -> str:
+        """
+        Get the full command string with the command name and args.
+        """
+        joined_args = " ".join(args)
+        return f"{self.command_name} {joined_args}"
+
+    async def _record_in_cache(self, args: List[str], cmd_out: str) -> None:
+        """
+        Record the command in the cache.
+        """
+        full_command = await self._get_full_command(args)
+        command_cache[full_command] = ExecCommand(
+            cmd_out=cmd_out, exec_time=datetime.datetime.now(datetime.timezone.utc)
+        )
+
+    async def _cache_lookup(self, args: List[str]) -> Optional[str]:
+        """
+        Look up the command in the cache. If the command was executed less than 1 second ago,
+        return the cached output.
+        """
+        full_command = await self._get_full_command(args)
+        if full_command in command_cache:
+            exec_command = command_cache[full_command]
+            time_since_last_exec = (
+                datetime.datetime.now(datetime.timezone.utc) - exec_command.exec_time
+            )
+            # 1 second cache. 1 second is to be short enough to not affect UX but long enough to
+            # reply the same to concurrent requests. Needed for Copilot.
+            if time_since_last_exec.total_seconds() < 1:
+                return exec_command.cmd_out
+        return None
+
     async def exec(self, args: List[str]) -> str:
+        """
+        Execute the command and cache the output. The cache is invalidated after 1 second.
+
+        1. Check if the command is help. If it is, return the help text.
+        2. Check if the command is in the cache. If it is, return the cached output.
+        3. Run the command and cache the output.
+        4. Return the output.
+        """
         if args and args[0] == "-h":
             return self.help
-        return await self.run(args)
+        cached_out = await self._cache_lookup(args)
+        if cached_out:
+            return cached_out
+        cmd_out = await self.run(args)
+        await self._record_in_cache(args, cmd_out)
+        return cmd_out
 
 
 class Version(CodegateCommand):
