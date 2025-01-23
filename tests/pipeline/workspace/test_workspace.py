@@ -2,8 +2,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from codegate.db.models import Workspace as WorkspaceModel
-from codegate.db.models import WorkspaceActive
+from codegate.db.models import WorkspaceRow as WorkspaceModel
+from codegate.db.models import WorkspaceWithSessionInfo
 from codegate.pipeline.cli.commands import Workspace
 
 
@@ -17,16 +17,16 @@ from codegate.pipeline.cli.commands import Workspace
         (
             [
                 # We'll make a MagicMock that simulates a workspace
-                # with 'name' attribute and 'active_workspace_id' set
-                WorkspaceActive(id="1", name="Workspace1", active_workspace_id="100")
+                # with 'name' attribute and 'session_id' set
+                WorkspaceWithSessionInfo(id="1", name="Workspace1", session_id="100")
             ],
             "- Workspace1 **(active)**\n",
         ),
         # Case 3: Multiple workspaces, second one active
         (
             [
-                WorkspaceActive(id="1", name="Workspace1", active_workspace_id=None),
-                WorkspaceActive(id="2", name="Workspace2", active_workspace_id="200"),
+                WorkspaceWithSessionInfo(id="1", name="Workspace1", session_id=None),
+                WorkspaceWithSessionInfo(id="2", name="Workspace2", session_id="200"),
             ],
             "- Workspace1\n- Workspace2 **(active)**\n",
         ),

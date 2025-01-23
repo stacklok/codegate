@@ -168,7 +168,7 @@ class Workspace(CodegateCommandSubcommand):
         respond_str = ""
         for workspace in workspaces:
             respond_str += f"- {workspace.name}"
-            if workspace.active_workspace_id:
+            if workspace.session_id:
                 respond_str += " **(active)**"
             respond_str += "\n"
         return respond_str

@@ -30,7 +30,7 @@ class Prompt(BaseModel):
     workspace_id: Optional[str]
 
 
-WorskpaceNameStr = Annotated[
+WorkspaceNameStr = Annotated[
     str,
     StringConstraints(
         strip_whitespace=True, to_lower=True, pattern=r"^[a-zA-Z0-9_-]+$", strict=True
@@ -38,10 +38,24 @@ WorskpaceNameStr = Annotated[
 ]
 
 
-class Workspace(BaseModel):
+class WorkspaceRow(BaseModel):
+    """A workspace row entry.
+
+    Since our model currently includes instructions
+    in the same table, this is returned as a single
+    object.
+    """
+
     id: str
-    name: WorskpaceNameStr
+    name: WorkspaceNameStr
     custom_instructions: Optional[str]
+
+
+class GetWorkspaceByNameConditions(BaseModel):
+    name: WorkspaceNameStr
+
+    def get_conditions(self):
+        return {"name": self.name}
 
 
 class Session(BaseModel):
@@ -81,15 +95,24 @@ class GetPromptWithOutputsRow(BaseModel):
     output_timestamp: Optional[Any]
 
 
-class WorkspaceActive(BaseModel):
+class WorkspaceWithSessionInfo(BaseModel):
+    """Returns a workspace ID with an optional
+    session ID. If the session ID is None, then
+    the workspace is not active.
+    """
+
     id: str
-    name: str
-    active_workspace_id: Optional[str]
+    name: WorkspaceNameStr
+    session_id: Optional[str]
 
 
 class ActiveWorkspace(BaseModel):
+    """Returns a full active workspace object with the
+    with the session information.
+    """
+
     id: str
-    name: str
+    name: WorkspaceNameStr
     custom_instructions: Optional[str]
     session_id: str
     last_update: datetime.datetime
