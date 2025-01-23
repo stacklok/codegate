@@ -129,6 +129,13 @@ jobs:
         run: |
           poetry run python tests/integration/integration_tests.py
 
+      - name: Run integration tests - OpenAI
+        env:
+          CODEGATE_PROVIDERS: "openai"
+          ENV_OPENAI_KEY: ${{ secrets.copilot-key }} # We use the same key for OpenAI as the Copilot tests
+        run: |
+          poetry run python tests/integration/integration_tests.py
+
       - name: Print the container logs (useful for debugging)
         if: always()
         run: |
