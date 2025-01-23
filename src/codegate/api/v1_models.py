@@ -23,19 +23,18 @@ class ListWorkspacesResponse(pydantic.BaseModel):
     workspaces: list[Workspace]
 
     @classmethod
-    def from_db_workspaces_active(
-        cls, db_workspaces: List[db_models.WorkspaceActive]
+    def from_db_workspaces_with_sessioninfo(
+        cls, db_workspaces: List[db_models.WorkspaceWithSessionInfo]
     ) -> "ListWorkspacesResponse":
         return cls(
             workspaces=[
-                Workspace(name=ws.name, is_active=ws.active_workspace_id is not None)
-                for ws in db_workspaces
+                Workspace(name=ws.name, is_active=ws.session_id is not None) for ws in db_workspaces
             ]
         )
 
     @classmethod
     def from_db_workspaces(
-        cls, db_workspaces: List[db_models.Workspace]
+        cls, db_workspaces: List[db_models.WorkspaceRow]
     ) -> "ListWorkspacesResponse":
         return cls(workspaces=[Workspace(name=ws.name, is_active=False) for ws in db_workspaces])
 

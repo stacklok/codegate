@@ -19,11 +19,12 @@ from codegate.db.models import (
     Alert,
     GetAlertsWithPromptAndOutputRow,
     GetPromptWithOutputsRow,
+    GetWorkspaceByNameConditions,
     Output,
     Prompt,
     Session,
-    Workspace,
-    WorkspaceActive,
+    WorkspaceRow,
+    WorkspaceWithSessionInfo,
 )
 from codegate.pipeline.base import PipelineContext
 
@@ -263,7 +264,7 @@ class DbRecorder(DbCodeGate):
         except Exception as e:
             logger.error(f"Failed to record context: {context}.", error=str(e))
 
-    async def add_workspace(self, workspace_name: str) -> Workspace:
+    async def add_workspace(self, workspace_name: str) -> WorkspaceRow:
         """Add a new workspace to the DB.
 
         This handles validation and insertion of a new workspace.
@@ -271,7 +272,9 @@ class DbRecorder(DbCodeGate):
         It may raise a ValidationError if the workspace name is invalid.
         or a AlreadyExistsError if the workspace already exists.
         """
-        workspace = Workspace(id=str(uuid.uuid4()), name=workspace_name, custom_instructions=None)
+        workspace = WorkspaceRow(
+            id=str(uuid.uuid4()), name=workspace_name, custom_instructions=None
+        )
         sql = text(
             """
             INSERT INTO workspaces (id, name)
@@ -289,7 +292,7 @@ class DbRecorder(DbCodeGate):
             raise AlreadyExistsError(f"Workspace {workspace_name} already exists.")
         return added_workspace
 
-    async def update_workspace(self, workspace: Workspace) -> Workspace:
+    async def update_workspace(self, workspace: WorkspaceRow) -> WorkspaceRow:
         sql = text(
             """
             UPDATE workspaces SET
@@ -319,7 +322,7 @@ class DbRecorder(DbCodeGate):
         active_session = await self._execute_update_pydantic_model(session, sql, should_raise=True)
         return active_session
 
-    async def soft_delete_workspace(self, workspace: Workspace) -> Optional[Workspace]:
+    async def soft_delete_workspace(self, workspace: WorkspaceRow) -> Optional[WorkspaceRow]:
         sql = text(
             """
             UPDATE workspaces
@@ -333,7 +336,7 @@ class DbRecorder(DbCodeGate):
         )
         return deleted_workspace
 
-    async def hard_delete_workspace(self, workspace: Workspace) -> Optional[Workspace]:
+    async def hard_delete_workspace(self, workspace: WorkspaceRow) -> Optional[WorkspaceRow]:
         sql = text(
             """
             DELETE FROM workspaces
@@ -346,7 +349,7 @@ class DbRecorder(DbCodeGate):
         )
         return deleted_workspace
 
-    async def recover_workspace(self, workspace: Workspace) -> Optional[Workspace]:
+    async def recover_workspace(self, workspace: WorkspaceRow) -> Optional[WorkspaceRow]:
         sql = text(
             """
             UPDATE workspaces
@@ -460,20 +463,20 @@ class DbReader(DbCodeGate):
         )
         return prompts
 
-    async def get_workspaces(self) -> List[WorkspaceActive]:
+    async def get_workspaces(self) -> List[WorkspaceWithSessionInfo]:
         sql = text(
             """
             SELECT
-                w.id, w.name, s.active_workspace_id
+                w.id, w.name, s.id as session_id
             FROM workspaces w
             LEFT JOIN sessions s ON w.id = s.active_workspace_id
             WHERE w.deleted_at IS NULL
             """
         )
-        workspaces = await self._execute_select_pydantic_model(WorkspaceActive, sql)
+        workspaces = await self._execute_select_pydantic_model(WorkspaceWithSessionInfo, sql)
         return workspaces
 
-    async def get_archived_workspaces(self) -> List[Workspace]:
+    async def get_archived_workspaces(self) -> List[WorkspaceRow]:
         sql = text(
             """
             SELECT
@@ -483,10 +486,10 @@ class DbReader(DbCodeGate):
             ORDER BY deleted_at DESC
             """
         )
-        workspaces = await self._execute_select_pydantic_model(Workspace, sql)
+        workspaces = await self._execute_select_pydantic_model(WorkspaceRow, sql)
         return workspaces
 
-    async def get_workspace_by_name(self, name: str) -> Optional[Workspace]:
+    async def get_workspace_by_name(self, name: str) -> Optional[WorkspaceRow]:
         sql = text(
             """
             SELECT
@@ -495,13 +498,13 @@ class DbReader(DbCodeGate):
             WHERE name = :name AND deleted_at IS NULL
             """
         )
-        conditions = {"name": name}
+        conditions = GetWorkspaceByNameConditions(name=name).get_conditions()
         workspaces = await self._exec_select_conditions_to_pydantic(
-            Workspace, sql, conditions, should_raise=True
+            WorkspaceRow, sql, conditions, should_raise=True
         )
         return workspaces[0] if workspaces else None
 
-    async def get_archived_workspace_by_name(self, name: str) -> Optional[Workspace]:
+    async def get_archived_workspace_by_name(self, name: str) -> Optional[WorkspaceRow]:
         sql = text(
             """
             SELECT
@@ -510,9 +513,9 @@ class DbReader(DbCodeGate):
             WHERE name = :name AND deleted_at IS NOT NULL
             """
         )
-        conditions = {"name": name}
+        conditions = GetWorkspaceByNameConditions(name=name).get_conditions()
         workspaces = await self._exec_select_conditions_to_pydantic(
-            Workspace, sql, conditions, should_raise=True
+            WorkspaceRow, sql, conditions, should_raise=True
         )
         return workspaces[0] if workspaces else None
 

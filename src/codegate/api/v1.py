@@ -27,7 +27,7 @@ async def list_workspaces() -> v1_models.ListWorkspacesResponse:
     """List all workspaces."""
     wslist = await wscrud.get_workspaces()
 
-    resp = v1_models.ListWorkspacesResponse.from_db_workspaces_active(wslist)
+    resp = v1_models.ListWorkspacesResponse.from_db_workspaces_with_sessioninfo(wslist)
 
     return resp
 
