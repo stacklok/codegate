@@ -1,7 +1,5 @@
 from typing import Optional
 
-from litellm import ChatCompletionRequest, ChatCompletionSystemMessage
-
 from codegate.clients.clients import ClientType
 from codegate.pipeline.base import (
     PipelineContext,
@@ -9,6 +7,7 @@ from codegate.pipeline.base import (
     PipelineStep,
 )
 from codegate.workspaces.crud import WorkspaceCrud
+from codegate.types.common import ChatCompletionRequest, ChatCompletionSystemMessage
 
 
 class SystemPrompt(PipelineStep):
