@@ -20,7 +20,7 @@ from codegate.pipeline.cli.commands import Workspace
                 # with 'name' attribute and 'session_id' set
                 WorkspaceWithSessionInfo(id="1", name="Workspace1", session_id="100")
             ],
-            "- Workspace1 **(active)**\n",
+            "- workspace1 **(active)**\n",
         ),
         # Case 3: Multiple workspaces, second one active
         (
@@ -28,7 +28,7 @@ from codegate.pipeline.cli.commands import Workspace
                 WorkspaceWithSessionInfo(id="1", name="Workspace1", session_id=None),
                 WorkspaceWithSessionInfo(id="2", name="Workspace2", session_id="200"),
             ],
-            "- Workspace1\n- Workspace2 **(active)**\n",
+            "- workspace1\n- workspace2 **(active)**\n",
         ),
     ],
 )
