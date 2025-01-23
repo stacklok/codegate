@@ -12,11 +12,11 @@ from typing import (
 import pytest
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
-from litellm import ChatCompletionRequest, ModelResponse
 
 from codegate.providers.base import BaseCompletionHandler, BaseProvider
 from codegate.providers.normalizer import ModelInputNormalizer, ModelOutputNormalizer
 from codegate.providers.registry import ProviderRegistry
+from codegate.types.common import ChatCompletionRequest, ModelResponse
 
 
 class MockCompletionHandler(BaseCompletionHandler):
