@@ -4,12 +4,15 @@ from dataclasses import dataclass, field
 from typing import AsyncIterator, List, Optional
 
 import structlog
-from litellm import ModelResponse
-from litellm.types.utils import Delta, StreamingChoices
 
 from codegate.db.connection import DbRecorder
 from codegate.extract_snippets.message_extractor import CodeSnippet
 from codegate.pipeline.base import PipelineContext
+from codegate.types.common import (
+    Delta,
+    ModelResponse,
+    StreamingChoices,
+)
 
 logger = structlog.get_logger("codegate")
 

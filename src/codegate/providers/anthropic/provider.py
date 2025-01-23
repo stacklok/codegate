@@ -12,7 +12,7 @@ from codegate.providers.anthropic.adapter import AnthropicInputNormalizer, Anthr
 from codegate.providers.anthropic.completion_handler import AnthropicCompletion
 from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.fim_analyzer import FIMAnalyzer
-from codegate.providers.litellmshim import anthropic_stream_generator
+from codegate.types.generators import anthropic_stream_generator
 
 logger = structlog.get_logger("codegate")
 

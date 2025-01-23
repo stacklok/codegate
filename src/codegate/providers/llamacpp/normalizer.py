@@ -1,7 +1,5 @@
 from typing import Any, AsyncIterable, AsyncIterator, Dict, Union
 
-from litellm import ChatCompletionRequest, ModelResponse
-from litellm.types.utils import Delta, StreamingChoices
 from llama_cpp.llama_types import (
     ChatCompletionStreamResponseChoice,
     ChatCompletionStreamResponseDelta,
@@ -10,6 +8,12 @@ from llama_cpp.llama_types import (
 )
 
 from codegate.providers.normalizer import ModelInputNormalizer, ModelOutputNormalizer
+from codegate.types.common import (
+    ChatCompletionRequest,
+    Delta,
+    ModelResponse,
+    StreamingChoices,
+)
 
 
 class LLamaCppInputNormalizer(ModelInputNormalizer):

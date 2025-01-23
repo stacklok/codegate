@@ -1,10 +1,10 @@
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from litellm.types.llms.openai import ChatCompletionRequest
 
 from codegate.pipeline.base import PipelineContext
 from codegate.pipeline.system_prompt.codegate import SystemPrompt
+from codegate.types.openai import ChatCompletionRequest
 
 
 class TestSystemPrompt:

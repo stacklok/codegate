@@ -3,7 +3,6 @@ import json
 from typing import Any, AsyncIterator, Iterator, Optional, Union
 
 from fastapi.responses import JSONResponse, StreamingResponse
-from litellm import ChatCompletionRequest, ModelResponse
 from llama_cpp.llama_types import (
     CreateChatCompletionStreamResponse,
 )
@@ -12,6 +11,7 @@ from codegate.clients.clients import ClientType
 from codegate.config import Config
 from codegate.inference.inference_engine import LlamaCppInferenceEngine
 from codegate.providers.base import BaseCompletionHandler
+from codegate.types.common import ChatCompletionRequest, ModelResponse
 
 
 async def llamacpp_stream_generator(
