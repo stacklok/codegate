@@ -9,7 +9,7 @@ authors = []
 python = ">=3.12,<4.0"
 click = "==8.1.8"
 PyYAML = "==6.0.2"
-fastapi = "==0.115.6"
+fastapi = "==0.115.7"
 uvicorn = "==0.34.0"
 structlog = "==25.1.0"
 litellm = "==1.59.1"
