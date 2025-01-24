@@ -1,13 +1,18 @@
 import datetime
 from enum import Enum
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import pydantic
+import requests
+from cachetools import TTLCache
 
 from codegate.db import models as db_models
 from codegate.pipeline.base import CodeSnippet
 from codegate.providers.base import BaseProvider
 from codegate.providers.registry import ProviderRegistry
+
+# 1 day cache. Not keep all the models in the cache. Just the ones we have used recently.
+model_cost_cache = TTLCache(maxsize=2000, ttl=1 * 24 * 60 * 60)
 
 
 class Workspace(pydantic.BaseModel):
@@ -107,15 +112,6 @@ class PartialQuestions(pydantic.BaseModel):
     type: QuestionType
 
 
-class PartialQuestionAnswer(pydantic.BaseModel):
-    """
-    Represents a partial conversation.
-    """
-
-    partial_questions: PartialQuestions
-    answer: Optional[ChatMessage]
-
-
 class ProviderType(str, Enum):
     """
     Represents the different types of providers we support.
@@ -128,6 +124,46 @@ class ProviderType(str, Enum):
     lm_studio = "lm_studio"
 
 
+class TokenUsage(pydantic.BaseModel):
+    input_tokens: int = 0
+    output_tokens: int = 0
+    input_cost: float = 0
+    output_cost: float = 0
+
+    @classmethod
+    def from_dict(cls, usage_dict: Dict) -> "TokenUsage":
+        return cls(
+            input_tokens=usage_dict.get("prompt_tokens", 0) or usage_dict.get("input_tokens", 0),
+            output_tokens=usage_dict.get("completion_tokens", 0)
+            or usage_dict.get("output_tokens", 0),
+            input_cost=0,
+            output_cost=0,
+        )
+
+    def __add__(self, other: "TokenUsage") -> "TokenUsage":
+        return TokenUsage(
+            input_tokens=self.input_tokens + other.input_tokens,
+            output_tokens=self.output_tokens + other.output_tokens,
+            input_cost=self.input_cost + other.input_cost,
+            output_cost=self.output_cost + other.output_cost,
+        )
+
+    def update_token_cost(self, model: str) -> None:
+        if not model_cost_cache:
+            model_cost = requests.get(
+                "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+            )
+            model_cost_cache.update(model_cost.json())
+        model_cost = model_cost_cache.get(model, {})
+        input_cost_per_token = model_cost.get("input_cost_per_token", 0)
+        output_cost_per_token = model_cost.get("output_cost_per_token", 0)
+        self.input_cost = self.input_tokens * input_cost_per_token
+        self.output_cost = self.output_tokens * output_cost_per_token
+
+    def update_costs_based_on_model(self, model: str):
+        pass
+
+
 class TokenUsageByModel(pydantic.BaseModel):
     """
     Represents the tokens used by a model.
@@ -135,17 +171,36 @@ class TokenUsageByModel(pydantic.BaseModel):
 
     provider_type: ProviderType
     model: str
-    used_tokens: int
+    token_usage: TokenUsage
 
 
-class TokenUsage(pydantic.BaseModel):
+class TokenUsageAggregate(pydantic.BaseModel):
     """
     Represents the tokens used. Includes the information of the tokens used by model.
     `used_tokens` are the total tokens used in the `tokens_by_model` list.
     """
 
-    tokens_by_model: List[TokenUsageByModel]
-    used_tokens: int
+    tokens_by_model: Dict[str, TokenUsageByModel]
+    token_usage: TokenUsage
+
+    def add_model_token_usage(self, model_token_usage: TokenUsageByModel) -> None:
+        if model_token_usage.model in self.tokens_by_model:
+            self.tokens_by_model[
+                model_token_usage.model
+            ].token_usage += model_token_usage.token_usage
+        else:
+            self.tokens_by_model[model_token_usage.model] = model_token_usage
+        self.token_usage += model_token_usage.token_usage
+
+
+class PartialQuestionAnswer(pydantic.BaseModel):
+    """
+    Represents a partial conversation.
+    """
+
+    partial_questions: PartialQuestions
+    answer: Optional[ChatMessage]
+    model_token_usage: TokenUsageByModel
 
 
 class Conversation(pydantic.BaseModel):
@@ -158,7 +213,7 @@ class Conversation(pydantic.BaseModel):
     type: QuestionType
     chat_id: str
     conversation_timestamp: datetime.datetime
-    token_usage: Optional[TokenUsage]
+    token_usage_agg: Optional[TokenUsageAggregate]
 
 
 class AlertConversation(pydantic.BaseModel):

@@ -113,9 +113,6 @@ class OutputPipelineInstance:
             if choice.delta is not None and choice.delta.content is not None:
                 self._context.processed_content.append(choice.delta.content)
 
-    async def _record_to_db(self):
-        await self._db_recorder.record_context(self._input_context)
-
     async def process_stream(
         self, stream: AsyncIterator[ModelResponse], cleanup_sensitive: bool = True
     ) -> AsyncIterator[ModelResponse]:
@@ -144,13 +141,6 @@ class OutputPipelineInstance:
 
                     current_chunks = processed_chunks
 
-                # **Needed for Copilot**. This is a hacky way of recording in DB the context
-                # when we see the last chunk. Ideally this should be done in a `finally` or
-                # `StopAsyncIteration` but Copilot streams in an infite while loop so is not
-                # possible
-                if len(chunk.choices) > 0 and chunk.choices[0].get("finish_reason", "") == "stop":
-                    await self._record_to_db()
-
                 # Yield all processed chunks
                 for c in current_chunks:
                     self._store_chunk_content(c)
@@ -164,12 +154,13 @@ class OutputPipelineInstance:
         finally:
             # Don't flush the buffer if we assume we'll call the pipeline again
             if cleanup_sensitive is False:
+                await self._db_recorder.record_context(self._input_context)
                 return
 
             # Process any remaining content in buffer when stream ends
             if self._context.buffer:
                 final_content = "".join(self._context.buffer)
-                yield ModelResponse(
+                chunk = ModelResponse(
                     id=self._buffered_chunk.id,
                     choices=[
                         StreamingChoices(
@@ -185,8 +176,11 @@ class OutputPipelineInstance:
                     model=self._buffered_chunk.model,
                     object="chat.completion.chunk",
                 )
+                self._input_context.add_output(chunk)
+                yield chunk
                 self._context.buffer.clear()
 
+            await self._db_recorder.record_context(self._input_context)
             # Cleanup sensitive data through the input context
             if cleanup_sensitive and self._input_context and self._input_context.sensitive:
                 self._input_context.sensitive.secure_cleanup()

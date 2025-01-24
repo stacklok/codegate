@@ -197,8 +197,6 @@ class BaseProvider(ABC):
                 yield item
         finally:
             if context:
-                # Record to DB the objects captured during the stream
-                await self._db_recorder.record_context(context)
                 # Ensure sensitive data is cleaned up after the stream is consumed
                 if context.sensitive:
                     context.sensitive.secure_cleanup()

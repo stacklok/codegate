@@ -42,6 +42,7 @@ def test_normalize_anthropic_input(input_normalizer):
         ],
         "model": "claude-3-haiku-20240307",
         "stream": True,
+        "stream_options": {"include_usage": True},
     }
 
     # Get translation

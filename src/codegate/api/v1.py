@@ -531,11 +531,11 @@ def version_check():
     tags=["Workspaces", "Token Usage"],
     generate_unique_id_function=uniq_name,
 )
-async def get_workspace_token_usage(workspace_name: str) -> v1_models.TokenUsage:
+async def get_workspace_token_usage(workspace_name: str) -> v1_models.TokenUsageAggregate:
     """Get the token usage of a workspace."""
     # TODO: This is a dummy implementation. In the future, we should have a proper
     # implementation that fetches the token usage from the database.
-    return v1_models.TokenUsage(
+    return v1_models.TokenUsageAggregate(
         used_tokens=50,
         tokens_by_model=[
             v1_models.TokenUsageByModel(

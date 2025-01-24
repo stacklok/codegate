@@ -4,9 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from codegate.api.v1_models import (
-    PartialQuestions,
-)
+from codegate.api.v1_models import PartialQuestions, TokenUsage
 from codegate.api.v1_processing import (
     _get_question_answer,
     _group_partial_messages,
@@ -77,7 +75,7 @@ async def test_is_system_prompt(message, expected_bool):
 )
 async def test_parse_request(request_dict, expected_str_list):
     request_str = json.dumps(request_dict)
-    result = await parse_request(request_str)
+    result, _ = await parse_request(request_str)
     assert result == expected_str_list
 
 
@@ -135,7 +133,7 @@ async def test_parse_request(request_dict, expected_str_list):
 )
 async def test_parse_output(output_dict, expected_str):
     request_str = json.dumps(output_dict)
-    output_message = await parse_output(request_str)
+    output_message, _ = await parse_output(request_str)
     assert output_message == expected_str
 
 
@@ -151,7 +149,7 @@ timestamp_now = datetime.datetime.now(datetime.timezone.utc)
         GetPromptWithOutputsRow(
             id="1",
             timestamp=timestamp_now,
-            provider="provider",
+            provider="openai",
             request="foo",
             type="chat",
             output_id="2",
@@ -168,8 +166,8 @@ async def test_get_question_answer(request_msg_list, output_msg_str, row):
             "codegate.api.v1_processing.parse_output", new_callable=AsyncMock
         ) as mock_parse_output:
             # Set return values for the mocks
-            mock_parse_request.return_value = request_msg_list
-            mock_parse_output.return_value = output_msg_str
+            mock_parse_request.return_value = request_msg_list, "openai"
+            mock_parse_output.return_value = output_msg_str, TokenUsage()
             result = await _get_question_answer(row)
 
             mock_parse_request.assert_called_once()
@@ -181,7 +179,7 @@ async def test_get_question_answer(request_msg_list, output_msg_str, row):
                 assert result.partial_questions.messages == request_msg_list
                 if output_msg_str is not None:
                     assert result.answer.message == output_msg_str
-                assert result.partial_questions.provider == "provider"
+                assert result.partial_questions.provider == "openai"
                 assert result.partial_questions.type == "chat"
 
 

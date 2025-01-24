@@ -27,6 +27,13 @@ class OllamaInputNormalizer(ModelInputNormalizer):
 
         # if we have the stream flag in data we set it, otherwise defaults to true
         normalized_data["stream"] = data.get("stream", True)
+
+        # This would normally be the required to get the token usage.
+        # However Ollama python client doesn't support it. We would be able to get the response
+        # with a direct HTTP request. Since Ollama is local this is not critical.
+        # if normalized_data.get("stream", False):
+        #     normalized_data["stream_options"] = {"include_usage": True}
+
         return ChatCompletionRequest(**normalized_data)
 
     def denormalize(self, data: ChatCompletionRequest) -> Dict:

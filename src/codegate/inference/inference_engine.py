@@ -35,7 +35,7 @@ class LlamaCppInferenceEngine:
                 model._sampler.close()
             model.close()
 
-    async def __get_model(self, model_path, embedding=False, n_ctx=512, n_gpu_layers=0):
+    async def __get_model(self, model_path, embedding=False, n_ctx=512, n_gpu_layers=0) -> Llama:
         """
         Returns Llama model object from __models if present. Otherwise, the model
         is loaded and added to __models and returned.

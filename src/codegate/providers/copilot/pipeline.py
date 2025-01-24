@@ -138,7 +138,6 @@ class CopilotPipeline(ABC):
                 body = self.normalizer.denormalize(result.request)
                 # Uncomment the below to debug the request
                 # logger.debug(f"Pipeline processed request: {body}")
-
                 return body, result.context
             except Exception as e:
                 logger.error(f"Pipeline processing error: {e}")
@@ -173,7 +172,15 @@ class CopilotChatNormalizer:
 
     def normalize(self, body: bytes) -> ChatCompletionRequest:
         json_body = json.loads(body)
-        return ChatCompletionRequest(**json_body)
+        normalized_data = ChatCompletionRequest(**json_body)
+
+        # This would normally be the required to get the token usage with OpenAI models.
+        # However the response comes back empty with Copilot. Commenting for the moment.
+        # It's not critical since Copilot charges a fixed rate and not based in tokens.
+        # if normalized_data.get("stream", False):
+        #     normalized_data["stream_options"] = {"include_usage": True}
+
+        return normalized_data
 
     def denormalize(self, request_from_pipeline: ChatCompletionRequest) -> bytes:
         return json.dumps(request_from_pipeline).encode()
