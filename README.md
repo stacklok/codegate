@@ -137,8 +137,8 @@ Check out the developer reference guides:
 
 ## 🤝 Contributing
 
-We welcome contributions! Whether it's bug reports, feature requests, or code
-contributions, please feel free to contribute to making CodeGate better.
+We welcome contributions! Whether you'd like to submit bug reports, feature requests, or code
+contributions, please feel free to contribute to making CodeGate better. We thank you!
 
 Start by reading the [Contributor Guidelines](./CONTRIBUTING.md).
 
