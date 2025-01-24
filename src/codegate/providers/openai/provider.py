@@ -1,9 +1,8 @@
 import json
 
-from fastapi.responses import JSONResponse
-import httpx
 import structlog
 from fastapi import Header, HTTPException, Request
+from fastapi.responses import JSONResponse
 
 from codegate.config import Config
 from codegate.pipeline.factory import PipelineFactory

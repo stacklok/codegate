@@ -82,10 +82,10 @@ def test_health_check(test_client: TestClient) -> None:
     assert response.json() == {"status": "healthy"}
 
 
-@patch("codegate.api.dashboard.dashboard.fetch_latest_version", return_value="foo")
+@patch("codegate.api.v1_processing.fetch_latest_version", return_value="foo")
 def test_version_endpoint(mock_fetch_latest_version, test_client: TestClient) -> None:
     """Test the version endpoint."""
-    response = test_client.get("/api/v1/dashboard/version")
+    response = test_client.get("/api/v1/version")
     assert response.status_code == 200
 
     response_data = response.json()
@@ -135,13 +135,13 @@ def test_pipeline_initialization(mock_pipeline_factory) -> None:
             assert hasattr(provider, "output_pipeline_processor")
 
 
-def test_dashboard_routes(mock_pipeline_factory) -> None:
+def test_workspaces_routes(mock_pipeline_factory) -> None:
     """Test that dashboard routes are included."""
     app = init_app(mock_pipeline_factory)
     routes = [route.path for route in app.routes]
 
     # Verify dashboard endpoints are included
-    dashboard_routes = [route for route in routes if route.startswith("/api/v1/dashboard")]
+    dashboard_routes = [route for route in routes if route.startswith("/api/v1/workspaces")]
     assert len(dashboard_routes) > 0
 
 

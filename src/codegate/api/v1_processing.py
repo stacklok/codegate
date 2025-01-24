@@ -2,11 +2,12 @@ import asyncio
 import json
 import re
 from collections import defaultdict
-from typing import List, Optional, Union
+from typing import AsyncGenerator, List, Optional, Union
 
+import requests
 import structlog
 
-from codegate.api.dashboard.request_models import (
+from codegate.api.v1_models import (
     AlertConversation,
     ChatMessage,
     Conversation,
@@ -14,6 +15,7 @@ from codegate.api.dashboard.request_models import (
     PartialQuestions,
     QuestionAnswer,
 )
+from codegate.db.connection import alert_queue
 from codegate.db.models import GetAlertsWithPromptAndOutputRow, GetPromptWithOutputsRow
 
 logger = structlog.get_logger("codegate")
@@ -25,6 +27,24 @@ SYSTEM_PROMPTS = [
     "You should only respond with the summary, no additional text or explanation, "
     "you don't need ending punctuation.",
 ]
+
+
+def fetch_latest_version() -> str:
+    url = "https://api.github.com/repos/stacklok/codegate/releases/latest"
+    headers = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
+    response = requests.get(url, headers=headers, timeout=5)
+    response.raise_for_status()
+    data = response.json()
+    return data.get("tag_name", "unknown")
+
+
+async def generate_sse_events() -> AsyncGenerator[str, None]:
+    """
+    SSE generator from queue
+    """
+    while True:
+        message = await alert_queue.get()
+        yield f"data: {message}\n\n"
 
 
 async def _is_system_prompt(message: str) -> bool:

@@ -4,15 +4,15 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from codegate.api.dashboard.post_processing import (
+from codegate.api.v1_models import (
+    PartialQuestions,
+)
+from codegate.api.v1_processing import (
     _get_question_answer,
     _group_partial_messages,
     _is_system_prompt,
     parse_output,
     parse_request,
-)
-from codegate.api.dashboard.request_models import (
-    PartialQuestions,
 )
 from codegate.db.models import GetPromptWithOutputsRow
 
@@ -162,10 +162,10 @@ timestamp_now = datetime.datetime.now(datetime.timezone.utc)
 )
 async def test_get_question_answer(request_msg_list, output_msg_str, row):
     with patch(
-        "codegate.api.dashboard.post_processing.parse_request", new_callable=AsyncMock
+        "codegate.api.v1_processing.parse_request", new_callable=AsyncMock
     ) as mock_parse_request:
         with patch(
-            "codegate.api.dashboard.post_processing.parse_output", new_callable=AsyncMock
+            "codegate.api.v1_processing.parse_output", new_callable=AsyncMock
         ) as mock_parse_output:
             # Set return values for the mocks
             mock_parse_request.return_value = request_msg_list

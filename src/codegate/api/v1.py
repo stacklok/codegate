@@ -1,17 +1,20 @@
 from typing import List, Optional
 
+import requests
+import structlog
 from fastapi import APIRouter, HTTPException, Response
+from fastapi.responses import StreamingResponse
 from fastapi.routing import APIRoute
 from pydantic import ValidationError
 
-from codegate.api import v1_models
-from codegate.api.dashboard import dashboard
-from codegate.api.dashboard.request_models import AlertConversation, Conversation
+from codegate import __version__
+from codegate.api import v1_models, v1_processing
 from codegate.db.connection import AlreadyExistsError, DbReader
 from codegate.workspaces import crud
 
+logger = structlog.get_logger("codegate")
+
 v1 = APIRouter()
-v1.include_router(dashboard.dashboard_router)
 wscrud = crud.WorkspaceCrud()
 
 # This is a singleton object
@@ -192,7 +195,7 @@ async def hard_delete_workspace(workspace_name: str):
     tags=["Workspaces"],
     generate_unique_id_function=uniq_name,
 )
-async def get_workspace_alerts(workspace_name: str) -> List[Optional[AlertConversation]]:
+async def get_workspace_alerts(workspace_name: str) -> List[Optional[v1_models.AlertConversation]]:
     """Get alerts for a workspace."""
     try:
         ws = await wscrud.get_workspace_by_name(workspace_name)
@@ -203,7 +206,7 @@ async def get_workspace_alerts(workspace_name: str) -> List[Optional[AlertConver
 
     try:
         alerts = await dbreader.get_alerts_with_prompt_and_output(ws.id)
-        return await dashboard.parse_get_alert_conversation(alerts)
+        return await v1_processing.parse_get_alert_conversation(alerts)
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -213,7 +216,7 @@ async def get_workspace_alerts(workspace_name: str) -> List[Optional[AlertConver
     tags=["Workspaces"],
     generate_unique_id_function=uniq_name,
 )
-async def get_workspace_messages(workspace_name: str) -> List[Conversation]:
+async def get_workspace_messages(workspace_name: str) -> List[v1_models.Conversation]:
     """Get messages for a workspace."""
     try:
         ws = await wscrud.get_workspace_by_name(workspace_name)
@@ -224,7 +227,7 @@ async def get_workspace_messages(workspace_name: str) -> List[Conversation]:
 
     try:
         prompts_outputs = await dbreader.get_prompts_with_output(ws.id)
-        return await dashboard.parse_messages_in_conversations(prompts_outputs)
+        return await v1_processing.parse_messages_in_conversations(prompts_outputs)
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -285,3 +288,46 @@ async def delete_workspace_custom_instructions(workspace_name: str):
         raise HTTPException(status_code=500, detail="Internal server error")
 
     return Response(status_code=204)
+
+
+@v1.get("/alerts_notification", tags=["Dashboard"], generate_unique_id_function=uniq_name)
+async def stream_sse():
+    """
+    Send alerts event
+    """
+    return StreamingResponse(v1_processing.generate_sse_events(), media_type="text/event-stream")
+
+
+@v1.get("/version", tags=["Dashboard"], generate_unique_id_function=uniq_name)
+def version_check():
+    try:
+        latest_version = v1_processing.fetch_latest_version()
+
+        # normalize the versions as github will return them with a 'v' prefix
+        current_version = __version__.lstrip("v")
+        latest_version_stripped = latest_version.lstrip("v")
+
+        is_latest: bool = latest_version_stripped == current_version
+
+        return {
+            "current_version": current_version,
+            "latest_version": latest_version_stripped,
+            "is_latest": is_latest,
+            "error": None,
+        }
+    except requests.RequestException as e:
+        logger.error(f"RequestException: {str(e)}")
+        return {
+            "current_version": __version__,
+            "latest_version": "unknown",
+            "is_latest": None,
+            "error": "An error occurred while fetching the latest version",
+        }
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
+        return {
+            "current_version": __version__,
+            "latest_version": "unknown",
+            "is_latest": None,
+            "error": "An unexpected error occurred",
+        }
