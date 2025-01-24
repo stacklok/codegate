@@ -19,7 +19,10 @@ def generate_vector_string(package) -> str:
     }
     vector_str += f" is a {type_map.get(package['type'], 'package of unknown type')}. "
     package_name = quote(package["name"], safe="")
-    package_url = f"https://www.insight.stacklok.com/report/{package['type']}/{package_name}"
+    package_url = (
+        f"https://www.insight.stacklok.com/report/{package['type']}/"
+        f"{package_name}?utm_source=codegate"
+    )
 
     # Add extra status
     status_suffix = status_messages.get(package["status"], "")

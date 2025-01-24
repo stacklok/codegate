@@ -72,7 +72,8 @@ class CodeCommentStep(OutputPipelineStep):
             lib_type = lib["properties"]["type"]
             lib_status = lib["properties"]["status"]
             lib_url = (
-                f"https://www.insight.stacklok.com/report/{lib_type}/{quote(lib_name, safe='')}"
+                f"https://www.insight.stacklok.com/report/{lib_type}/"
+                f"{quote(lib_name, safe='')}?utm_source=codegate"
             )
 
             warnings.append(
