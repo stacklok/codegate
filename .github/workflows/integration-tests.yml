@@ -12,6 +12,9 @@ on:
       copilot-key:
         description: 'The Copilot key to use for integration tests'
         required: true
+      anthropic-key:
+        description: 'The Anthropic key to use for integration tests'
+        required: true
 
 jobs:
   integration-tests:
@@ -126,6 +129,20 @@ jobs:
           CODEGATE_PROVIDERS: "copilot"
           CA_CERT_FILE: "/home/runner/work/codegate/codegate/codegate_volume/certs/ca.crt"
           ENV_COPILOT_KEY: ${{ secrets.copilot-key }}
+        run: |
+          poetry run python tests/integration/integration_tests.py
+
+      - name: Run integration tests - OpenAI
+        env:
+          CODEGATE_PROVIDERS: "openai"
+          ENV_OPENAI_KEY: ${{ secrets.copilot-key }} # We use the same key for OpenAI as the Copilot tests
+        run: |
+          poetry run python tests/integration/integration_tests.py
+
+      - name: Run integration tests - Anthropic
+        env:
+          CODEGATE_PROVIDERS: "anthropic"
+          ENV_ANTHROPIC_KEY: ${{ secrets.anthropic-key }}
         run: |
           poetry run python tests/integration/integration_tests.py
 

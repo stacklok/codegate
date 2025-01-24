@@ -2,7 +2,9 @@ import json
 
 import structlog
 from fastapi import Header, HTTPException, Request
+from fastapi.responses import JSONResponse
 
+from codegate.config import Config
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.base import BaseProvider
 from codegate.providers.litellmshim import LiteLLmShim, sse_stream_generator
@@ -15,6 +17,11 @@ class OpenAIProvider(BaseProvider):
         pipeline_factory: PipelineFactory,
     ):
         completion_handler = LiteLLmShim(stream_generator=sse_stream_generator)
+        config = Config.get_config()
+        if config is not None:
+            provided_urls = config.provider_urls
+            self.lm_studio_url = provided_urls.get("lm_studio", "http://localhost:11434/")
+
         super().__init__(
             OpenAIInputNormalizer(),
             OpenAIOutputNormalizer(),
@@ -33,8 +40,15 @@ class OpenAIProvider(BaseProvider):
         passes it to the completion handler.
         """
 
+        @self.router.get(f"/{self.provider_route_name}/models")
+        @self.router.get(f"/{self.provider_route_name}/v1/models")
+        async def get_models():
+            # dummy method for lm studio
+            return JSONResponse(status_code=200, content=[])
+
         @self.router.post(f"/{self.provider_route_name}/chat/completions")
         @self.router.post(f"/{self.provider_route_name}/completions")
+        @self.router.post(f"/{self.provider_route_name}/v1/chat/completions")
         async def create_completion(
             request: Request,
             authorization: str = Header(..., description="Bearer token"),
@@ -46,6 +60,9 @@ class OpenAIProvider(BaseProvider):
             body = await request.body()
             data = json.loads(body)
 
+            # if model starts with lm_studio, propagate it
+            if data.get("model", "").startswith("lm_studio"):
+                data["base_url"] = self.lm_studio_url + "/v1/"
             is_fim_request = self._is_fim_request(request, data)
             try:
                 stream = await self.complete(data, api_key, is_fim_request=is_fim_request)

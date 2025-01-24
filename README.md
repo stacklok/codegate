@@ -82,6 +82,16 @@ With Aider, you can choose from two leading AI model providers:
 - 💻 Local LLMs with [Ollama](https://ollama.com/)
 - 🧠 [OpenAI API](https://openai.com/api/)
 
+- **[Cline](https://github.com/cline/cline)**
+
+With Cline, you can choose between differnet leading AI model providers:
+
+- 🤖 [Anthropic API](https://www.anthropic.com/api)
+- 🧠 [OpenAI API](https://openai.com/api/)
+- 💻 [LM Studio](https://lmstudio.ai/)
+- 💻 Local LLMs with [Ollama](https://ollama.com/)
+
+
 ### Privacy first
 
 Unlike E.T., your code never phones home! 🛸 CodeGate is designed with privacy
@@ -124,87 +134,6 @@ Check out the developer reference guides:
 - [CLI commands and flags](./docs/cli.md)
 - [Configuration system](./docs/configuration.md)
 - [Logging system](./docs/logging.md)
-
-### Local setup
-
-```bash
-# Get the code
-git clone https://github.com/stacklok/codegate.git
-cd codegate
-
-# Set up virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dev dependencies
-pip install -e ".[dev]"
-```
-
-### Testing
-
-To run the unit tests, execute this command:
-
-```bash
-pytest
-```
-
-To run the integration tests, create a `.env` file in the repo root directory
-and add the following properties to it:
-
-```plain
-ENV_OPENAI_KEY=<YOUR_KEY>
-ENV_VLLM_KEY=<YOUR_KEY>
-ENV_ANTHROPIC_KEY=<YOUR_KEY>
-```
-
-Then the integration tests can be executed by running:
-
-```bash
-python tests/integration/integration_tests.py
-```
-
-## 🐳 Docker deployment
-
-### Build the image
-
-```bash
-make image-build
-```
-
-### Run the container
-
-```bash
-# Basic usage with local image
-docker run -p 8989:8989 -p 9090:9090 codegate:latest
-
-# With pre-built pulled image
-docker pull ghcr.io/stacklok/codegate:latest
-docker run --name codegate -d -p 8989:8989 -p 9090:9090 ghcr.io/stacklok/codegate:latest
-
-# It will mount a volume to /app/codegate_volume
-# The directory supports storing Llama CPP models under subdirectory /models
-# A sqlite DB with the messages and alerts is stored under the subdirectory /db
-docker run --name codegate -d -v /path/to/volume:/app/codegate_volume -p 8989:8989 -p 9090:9090 ghcr.io/stacklok/codegate:latest
-```
-
-### Exposed parameters
-
-- CODEGATE_VLLM_URL: URL for the inference engine (defaults to
-  [https://inference.codegate.ai](https://inference.codegate.ai))
-- CODEGATE_OPENAI_URL: URL for OpenAI inference engine (defaults to
-  [https://api.openai.com/v1](https://api.openai.com/v1))
-- CODEGATE_ANTHROPIC_URL: URL for Anthropic inference engine (defaults to
-  [https://api.anthropic.com/v1](https://api.anthropic.com/v1))
-- CODEGATE_OLLAMA_URL: URL for OLlama inference engine (defaults to
-  [http://localhost:11434/api](http://localhost:11434/api))
-- CODEGATE_APP_LOG_LEVEL: Level of debug desired when running the codegate
-  server (defaults to WARNING, can be ERROR/WARNING/INFO/DEBUG)
-- CODEGATE_LOG_FORMAT: Type of log formatting desired when running the codegate
-  server (default to TEXT, can be JSON/TEXT)
-
-```bash
-docker run -p 8989:8989 -p 9090:9090 -e CODEGATE_OLLAMA_URL=http://1.2.3.4:11434/api ghcr.io/stacklok/codegate:latest
-```
 
 ## 🤝 Contributing
 

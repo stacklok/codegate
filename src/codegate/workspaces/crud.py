@@ -2,7 +2,7 @@ import datetime
 from typing import List, Optional, Tuple
 
 from codegate.db.connection import DbReader, DbRecorder
-from codegate.db.models import ActiveWorkspace, Session, Workspace, WorkspaceActive
+from codegate.db.models import ActiveWorkspace, Session, WorkspaceRow, WorkspaceWithSessionInfo
 
 
 class WorkspaceCrudError(Exception):
@@ -28,7 +28,7 @@ class WorkspaceCrud:
     def __init__(self):
         self._db_reader = DbReader()
 
-    async def add_workspace(self, new_workspace_name: str) -> Workspace:
+    async def add_workspace(self, new_workspace_name: str) -> WorkspaceRow:
         """
         Add a workspace
 
@@ -43,7 +43,9 @@ class WorkspaceCrud:
         workspace_created = await db_recorder.add_workspace(new_workspace_name)
         return workspace_created
 
-    async def rename_workspace(self, old_workspace_name: str, new_workspace_name: str) -> Workspace:
+    async def rename_workspace(
+        self, old_workspace_name: str, new_workspace_name: str
+    ) -> WorkspaceRow:
         """
         Rename a workspace
 
@@ -65,19 +67,19 @@ class WorkspaceCrud:
         if not ws:
             raise WorkspaceDoesNotExistError(f"Workspace {old_workspace_name} does not exist.")
         db_recorder = DbRecorder()
-        new_ws = Workspace(
+        new_ws = WorkspaceRow(
             id=ws.id, name=new_workspace_name, custom_instructions=ws.custom_instructions
         )
         workspace_renamed = await db_recorder.update_workspace(new_ws)
         return workspace_renamed
 
-    async def get_workspaces(self) -> List[WorkspaceActive]:
+    async def get_workspaces(self) -> List[WorkspaceWithSessionInfo]:
         """
         Get all workspaces
         """
         return await self._db_reader.get_workspaces()
 
-    async def get_archived_workspaces(self) -> List[Workspace]:
+    async def get_archived_workspaces(self) -> List[WorkspaceRow]:
         """
         Get all archived workspaces
         """
@@ -91,7 +93,7 @@ class WorkspaceCrud:
 
     async def _is_workspace_active(
         self, workspace_name: str
-    ) -> Tuple[bool, Optional[Session], Optional[Workspace]]:
+    ) -> Tuple[bool, Optional[Session], Optional[WorkspaceRow]]:
         """
         Check if the workspace is active alongside the session and workspace objects
         """
@@ -137,13 +139,13 @@ class WorkspaceCrud:
 
     async def update_workspace_custom_instructions(
         self, workspace_name: str, custom_instr_lst: List[str]
-    ) -> Workspace:
+    ) -> WorkspaceRow:
         selected_workspace = await self._db_reader.get_workspace_by_name(workspace_name)
         if not selected_workspace:
             raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
 
         custom_instructions = " ".join(custom_instr_lst)
-        workspace_update = Workspace(
+        workspace_update = WorkspaceRow(
             id=selected_workspace.id,
             name=selected_workspace.name,
             custom_instructions=custom_instructions,
@@ -195,7 +197,7 @@ class WorkspaceCrud:
             raise WorkspaceCrudError(f"Error deleting workspace {workspace_name}")
         return
 
-    async def get_workspace_by_name(self, workspace_name: str) -> Workspace:
+    async def get_workspace_by_name(self, workspace_name: str) -> WorkspaceRow:
         workspace = await self._db_reader.get_workspace_by_name(workspace_name)
         if not workspace:
             raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")

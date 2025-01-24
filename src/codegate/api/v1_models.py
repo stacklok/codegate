@@ -1,8 +1,10 @@
-from typing import Any, List, Optional
+import datetime
+from typing import Any, List, Optional, Union
 
 import pydantic
 
 from codegate.db import models as db_models
+from codegate.pipeline.base import CodeSnippet
 
 
 class Workspace(pydantic.BaseModel):
@@ -23,19 +25,18 @@ class ListWorkspacesResponse(pydantic.BaseModel):
     workspaces: list[Workspace]
 
     @classmethod
-    def from_db_workspaces_active(
-        cls, db_workspaces: List[db_models.WorkspaceActive]
+    def from_db_workspaces_with_sessioninfo(
+        cls, db_workspaces: List[db_models.WorkspaceWithSessionInfo]
     ) -> "ListWorkspacesResponse":
         return cls(
             workspaces=[
-                Workspace(name=ws.name, is_active=ws.active_workspace_id is not None)
-                for ws in db_workspaces
+                Workspace(name=ws.name, is_active=ws.session_id is not None) for ws in db_workspaces
             ]
         )
 
     @classmethod
     def from_db_workspaces(
-        cls, db_workspaces: List[db_models.Workspace]
+        cls, db_workspaces: List[db_models.WorkspaceRow]
     ) -> "ListWorkspacesResponse":
         return cls(workspaces=[Workspace(name=ws.name, is_active=False) for ws in db_workspaces])
 
@@ -65,3 +66,69 @@ class CreateOrRenameWorkspaceRequest(pydantic.BaseModel):
 
 class ActivateWorkspaceRequest(pydantic.BaseModel):
     name: str
+
+
+class ChatMessage(pydantic.BaseModel):
+    """
+    Represents a chat message.
+    """
+
+    message: str
+    timestamp: datetime.datetime
+    message_id: str
+
+
+class QuestionAnswer(pydantic.BaseModel):
+    """
+    Represents a question and answer pair.
+    """
+
+    question: ChatMessage
+    answer: Optional[ChatMessage]
+
+
+class PartialQuestions(pydantic.BaseModel):
+    """
+    Represents all user messages obtained from a DB row.
+    """
+
+    messages: List[str]
+    timestamp: datetime.datetime
+    message_id: str
+    provider: Optional[str]
+    type: str
+
+
+class PartialQuestionAnswer(pydantic.BaseModel):
+    """
+    Represents a partial conversation.
+    """
+
+    partial_questions: PartialQuestions
+    answer: Optional[ChatMessage]
+
+
+class Conversation(pydantic.BaseModel):
+    """
+    Represents a conversation.
+    """
+
+    question_answers: List[QuestionAnswer]
+    provider: Optional[str]
+    type: str
+    chat_id: str
+    conversation_timestamp: datetime.datetime
+
+
+class AlertConversation(pydantic.BaseModel):
+    """
+    Represents an alert with it's respective conversation.
+    """
+
+    conversation: Conversation
+    alert_id: str
+    code_snippet: Optional[CodeSnippet]
+    trigger_string: Optional[Union[str, dict]]
+    trigger_type: str
+    trigger_category: Optional[str]
+    timestamp: datetime.datetime

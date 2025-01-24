@@ -25,108 +25,6 @@
         }
       }
     },
-    "/api/v1/dashboard/messages": {
-      "get": {
-        "tags": [
-          "CodeGate API",
-          "Dashboard"
-        ],
-        "summary": "Get Messages",
-        "description": "Get all the messages from the database and return them as a list of conversations.",
-        "operationId": "v1_get_messages",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/Conversation"
-                  },
-                  "type": "array",
-                  "title": "Response V1 Get Messages"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/dashboard/alerts": {
-      "get": {
-        "tags": [
-          "CodeGate API",
-          "Dashboard"
-        ],
-        "summary": "Get Alerts",
-        "description": "Get all the messages from the database and return them as a list of conversations.",
-        "operationId": "v1_get_alerts",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "anyOf": [
-                      {
-                        "$ref": "#/components/schemas/AlertConversation"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
-                  "type": "array",
-                  "title": "Response V1 Get Alerts"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/dashboard/alerts_notification": {
-      "get": {
-        "tags": [
-          "CodeGate API",
-          "Dashboard"
-        ],
-        "summary": "Stream Sse",
-        "description": "Send alerts event",
-        "operationId": "v1_stream_sse",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/dashboard/version": {
-      "get": {
-        "tags": [
-          "CodeGate API",
-          "Dashboard"
-        ],
-        "summary": "Version Check",
-        "operationId": "v1_version_check",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/workspaces": {
       "get": {
         "tags": [
@@ -627,6 +525,47 @@
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/alerts_notification": {
+      "get": {
+        "tags": [
+          "CodeGate API",
+          "Dashboard"
+        ],
+        "summary": "Stream Sse",
+        "description": "Send alerts event",
+        "operationId": "v1_stream_sse",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/version": {
+      "get": {
+        "tags": [
+          "CodeGate API",
+          "Dashboard"
+        ],
+        "summary": "Version Check",
+        "operationId": "v1_version_check",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           }
