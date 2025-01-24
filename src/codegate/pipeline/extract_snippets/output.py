@@ -5,7 +5,7 @@ import structlog
 from litellm import ModelResponse
 from litellm.types.utils import Delta, StreamingChoices
 
-from codegate.pipeline.base import CodeSnippet, PipelineContext
+from codegate.pipeline.base import AlertSeverity, CodeSnippet, PipelineContext
 from codegate.pipeline.extract_snippets.extract_snippets import extract_snippets
 from codegate.pipeline.output import OutputPipelineContext, OutputPipelineStep
 from codegate.storage import StorageEngine
@@ -85,6 +85,11 @@ class CodeCommentStep(OutputPipelineStep):
 archived packages: {libobjects_text}\n"
         comment += "\n### 🚨 Warnings\n" + "\n".join(warnings) + "\n"
 
+        # Add an alert to the context
+        context.add_alert(
+            self.name, trigger_string=comment, severity_category=AlertSeverity.CRITICAL
+        )
+
         return comment
 
     def _split_chunk_at_code_end(self, content: str) -> tuple[str, str]:
@@ -146,9 +151,6 @@ archived packages: {libobjects_text}\n"
             if after:
                 chunks.append(self._create_chunk(chunk, after))
                 complete_comment += after
-
-            # Add an alert to the context
-            input_context.add_alert(self.name, trigger_string=complete_comment)
 
             return chunks
 

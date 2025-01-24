@@ -138,3 +138,83 @@ class AlertConversation(pydantic.BaseModel):
     trigger_type: str
     trigger_category: Optional[str]
     timestamp: datetime.datetime
+
+
+class ProviderType(str, Enum):
+    """
+    Represents the different types of providers we support.
+    """
+
+    openai = "openai"
+    anthropic = "anthropic"
+    vllm = "vllm"
+
+
+class ProviderAuthType(str, Enum):
+    """
+    Represents the different types of auth we support for providers.
+    """
+
+    # No auth required
+    none = "none"
+    # Whatever the user provides is passed through
+    passthrough = "passthrough"
+    # API key is required
+    api_key = "api_key"
+
+
+class ProviderEndpoint(pydantic.BaseModel):
+    """
+    Represents a provider's endpoint configuration. This
+    allows us to persist the configuration for each provider,
+    so we can use this for muxing messages.
+    """
+
+    id: int
+    name: str
+    description: str = ""
+    provider_type: ProviderType
+    endpoint: str
+    auth_type: ProviderAuthType
+
+
+class ModelByProvider(pydantic.BaseModel):
+    """
+    Represents a model supported by a provider.
+
+    Note that these are auto-discovered by the provider.
+    """
+
+    name: str
+    provider: str
+
+    def __str__(self):
+        return f"{self.provider}/{self.name}"
+
+
+class MuxMatcherType(str, Enum):
+    """
+    Represents the different types of matchers we support.
+    """
+
+    # Match a regular expression for a file path
+    # in the prompt. Note that if no file is found,
+    # the prompt will be passed through.
+    file_regex = "file_regex"
+
+    # Always match this prompt
+    catch_all = "catch_all"
+
+
+class MuxRule(pydantic.BaseModel):
+    """
+    Represents a mux rule for a provider.
+    """
+
+    provider: str
+    model: str
+    # The type of matcher to use
+    matcher_type: MuxMatcherType
+    # The actual matcher to use. Note that
+    # this depends on the matcher type.
+    matcher: Optional[str]
