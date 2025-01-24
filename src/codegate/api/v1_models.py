@@ -1,4 +1,5 @@
 import datetime
+from enum import Enum
 from typing import Any, List, Optional, Union
 
 import pydantic
@@ -87,6 +88,11 @@ class QuestionAnswer(pydantic.BaseModel):
     answer: Optional[ChatMessage]
 
 
+class PartialQuestionsType(str, Enum):
+    chat = "chat"
+    fim = "fim"
+
+
 class PartialQuestions(pydantic.BaseModel):
     """
     Represents all user messages obtained from a DB row.
@@ -96,7 +102,7 @@ class PartialQuestions(pydantic.BaseModel):
     timestamp: datetime.datetime
     message_id: str
     provider: Optional[str]
-    type: str
+    type: PartialQuestionsType
 
 
 class PartialQuestionAnswer(pydantic.BaseModel):
