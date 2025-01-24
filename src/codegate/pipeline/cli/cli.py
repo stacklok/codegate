@@ -77,27 +77,47 @@ class CodegateCli(PipelineStep):
 
         if last_user_message is not None:
             last_user_message_str, _ = last_user_message
-            cleaned_message_str = re.sub(r"<.*?>", "", last_user_message_str).strip()
-            splitted_message = cleaned_message_str.lower().split(" ")
-            # We expect codegate as the first word in the message
-            if splitted_message[0] == "codegate":
-                context.shortcut_response = True
-                args = shlex.split(cleaned_message_str)
-                cmd_out = await codegate_cli(args[1:])
+            last_user_message_str = last_user_message_str.strip()
+            is_cline_client = any(
+                "Cline" in str(message.get("content", "")) for message in request.get("messages",
+                                                                                      [])
+            )
+            if not is_cline_client:
+                # Check if "codegate" is the first word in the message
+                match = re.match(r"^codegate(?:\s+(\S+))?", last_user_message_str, re.IGNORECASE)
+            else:
+                # Check if "codegate" is the first word after the first XML tag
+                xml_start = re.search(r"<[^>]+>", last_user_message_str)
+                if xml_start:
+                    # Start processing only from the first XML tag
+                    relevant_message = last_user_message_str[xml_start.start():]
+                    # Remove all XML tags and trim whitespace
+                    stripped_message = re.sub(r"<[^>]+>", "", relevant_message).strip()
+                    # Check if "codegate" is the first word
+                    match = re.match(r"^codegate(?:\s+(\S+))?", stripped_message, re.IGNORECASE)
+                else:
+                    match = None
+            if match:
+                command = match.group(1)  # Extract the second word
+                command = command.strip()
 
-                if cleaned_message_str != last_user_message_str:
-                    # it came from Cline, need to wrap into tags
-                    cmd_out = (
-                        f"<attempt_completion><result>{cmd_out}</result></attempt_completion>\n"
+                # Process the command
+                args = shlex.split(f"codegate {command}")
+                if args:
+                    cmd_out = await codegate_cli(args[1:])
+
+                    if is_cline_client:
+                        cmd_out = (
+                            f"<attempt_completion><result>{cmd_out}</result></attempt_completion>\n"
+                        )
+                    return PipelineResult(
+                        response=PipelineResponse(
+                            step_name=self.name,
+                            content=cmd_out,
+                            model=request["model"],
+                        ),
+                        context=context,
                     )
-                return PipelineResult(
-                    response=PipelineResponse(
-                        step_name=self.name,
-                        content=cmd_out,
-                        model=request["model"],
-                    ),
-                    context=context,
-                )
 
         # Fall through
         return PipelineResult(request=request, context=context)

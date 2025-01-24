@@ -291,12 +291,15 @@ class CopilotProvider(asyncio.Protocol):
             # we couldn't parse this into an HTTP request, so we just pass through
             return data
 
-        body, context = await self._body_through_pipeline(
+        result = await self._body_through_pipeline(
             http_request.method,
             http_request.path,
             http_request.headers,
             http_request.body,
         )
+        if not result:
+            return data
+        body, context = result
         # TODO: it's weird that we're overwriting the context.
         # Should we set the context once? Maybe when
         # creating the pipeline instance?
