@@ -48,6 +48,47 @@ class LogFormat(str, Enum):
             )
 
 
+# Define all LiteLLM logger names
+LITELLM_LOGGERS = ["LiteLLM Proxy", "LiteLLM Router", "LiteLLM"]
+
+
+def configure_litellm_logging(enabled: bool = False, level: LogLevel = LogLevel.INFO) -> None:
+    """Configure LiteLLM logging.
+
+    Args:
+        enabled: Whether to enable LiteLLM logging
+        level: Log level to use if enabled
+    """
+    # Configure the main litellm logger
+    logger = logging.getLogger("litellm")
+    logger.disabled = not enabled
+    if not enabled:
+        logger.setLevel(logging.CRITICAL + 1)  # Effectively disables all logging
+    else:
+        logger.setLevel(getattr(logging, level.value))
+        logger.propagate = False
+        # Clear any existing handlers
+        logger.handlers.clear()
+        # Add a handler to ensure logs are properly routed
+        handler = logging.StreamHandler()
+        handler.setLevel(getattr(logging, level.value))
+        logger.addHandler(handler)
+
+    # Also configure the specific LiteLLM loggers
+    for logger_name in LITELLM_LOGGERS:
+        logger = logging.getLogger(logger_name)
+        logger.disabled = not enabled
+        if not enabled:
+            logger.setLevel(logging.CRITICAL + 1)
+        else:
+            logger.setLevel(getattr(logging, level.value))
+            logger.propagate = False
+            logger.handlers.clear()
+            handler = logging.StreamHandler()
+            handler.setLevel(getattr(logging, level.value))
+            logger.addHandler(handler)
+
+
 def add_origin(logger, log_method, event_dict):
     # Add 'origin' if it's bound to the logger but not explicitly in the event dict
     if "origin" not in event_dict and hasattr(logger, "_context"):
@@ -58,13 +99,17 @@ def add_origin(logger, log_method, event_dict):
 
 
 def setup_logging(
-    log_level: Optional[LogLevel] = None, log_format: Optional[LogFormat] = None
+    log_level: Optional[LogLevel] = None,
+    log_format: Optional[LogFormat] = None,
+    external_loggers: Optional[Dict[str, bool]] = None,
 ) -> logging.Logger:
     """Configure the logging system.
 
     Args:
         log_level: The logging level to use. Defaults to INFO if not specified.
         log_format: The log format to use. Defaults to JSON if not specified.
+        external_loggers: Dictionary of external logger names and whether they should be enabled.
+                        e.g. {"litellm": False, "sqlalchemy": False, "uvicorn.error": False}
 
     This configures two handlers:
     - stderr_handler: For ERROR, CRITICAL, and WARNING messages
@@ -74,6 +119,16 @@ def setup_logging(
         log_level = LogLevel.INFO
     if log_format is None:
         log_format = LogFormat.JSON
+    if external_loggers is None:
+        external_loggers = {
+            "litellm": False,
+            "sqlalchemy": False,
+            "uvicorn.error": False,
+            "aiosqlite": False,
+        }
+
+    # Configure LiteLLM logging based on external_loggers setting
+    configure_litellm_logging(enabled=external_loggers.get("litellm", False), level=log_level)
 
     # The configuration was taken from structlog documentation
     # https://www.structlog.org/en/stable/standard-library.html

@@ -7,6 +7,11 @@ from codegate.pipeline.codegate_context_retriever.codegate import CodegateContex
 from codegate.pipeline.extract_snippets.extract_snippets import CodeSnippetExtractor
 from codegate.pipeline.extract_snippets.output import CodeCommentStep
 from codegate.pipeline.output import OutputPipelineProcessor, OutputPipelineStep
+from codegate.pipeline.pii.pii import (
+    CodegatePii,
+    PiiRedactionNotifier,
+    PiiUnRedactionStep,
+)
 from codegate.pipeline.secrets.manager import SecretsManager
 from codegate.pipeline.secrets.secrets import (
     CodegateSecrets,
@@ -22,11 +27,12 @@ class PipelineFactory:
 
     def create_input_pipeline(self) -> SequentialPipelineProcessor:
         input_steps: List[PipelineStep] = [
-            # make sure that this step is always first in the pipeline
+            # make sure that these steps are always first in the pipeline
             # the other steps might send the request to a LLM for it to be analyzed
-            # and without obfuscating the secrets, we'd leak the secrets during those
+            # and without obfuscating the secrets/PII, we'd leak them during those
             # later steps
             CodegateSecrets(),
+            CodegatePii(),
             CodegateCli(),
             CodeSnippetExtractor(),
             CodegateContextRetriever(),
@@ -37,13 +43,16 @@ class PipelineFactory:
     def create_fim_pipeline(self) -> SequentialPipelineProcessor:
         fim_steps: List[PipelineStep] = [
             CodegateSecrets(),
+            CodegatePii(),
         ]
         return SequentialPipelineProcessor(fim_steps, self.secrets_manager, is_fim=True)
 
     def create_output_pipeline(self) -> OutputPipelineProcessor:
         output_steps: List[OutputPipelineStep] = [
             SecretRedactionNotifier(),
+            PiiRedactionNotifier(),
             SecretUnredactionStep(),
+            PiiUnRedactionStep(),
             CodeCommentStep(),
         ]
         return OutputPipelineProcessor(output_steps)
