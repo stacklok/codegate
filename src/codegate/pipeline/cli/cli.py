@@ -109,11 +109,13 @@ class CodegateCli(PipelineStep):
                 # Process the command
                 args = shlex.split(f"codegate {command}")
                 if args:
+                    context.shortcut_response = True
                     cmd_out = await codegate_cli(args[1:])
                     if base_tool and base_tool == "cline":
                         cmd_out = (
                             f"<attempt_completion><result>{cmd_out}</result></attempt_completion>\n"
                         )
+
                     return PipelineResult(
                         response=PipelineResponse(
                             step_name=self.name,
