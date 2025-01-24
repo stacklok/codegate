@@ -767,8 +767,7 @@
             "title": "Provider"
           },
           "type": {
-            "type": "string",
-            "title": "Type"
+            "$ref": "#/components/schemas/QuestionType"
           },
           "chat_id": {
             "type": "string",
@@ -896,6 +895,14 @@
         ],
         "title": "QuestionAnswer",
         "description": "Represents a question and answer pair."
+      },
+      "QuestionType": {
+        "type": "string",
+        "enum": [
+          "chat",
+          "fim"
+        ],
+        "title": "QuestionType"
       },
       "ValidationError": {
         "properties": {
