@@ -88,7 +88,7 @@ class QuestionAnswer(pydantic.BaseModel):
     answer: Optional[ChatMessage]
 
 
-class PartialQuestionsType(str, Enum):
+class QuestionType(str, Enum):
     chat = "chat"
     fim = "fim"
 
@@ -102,7 +102,7 @@ class PartialQuestions(pydantic.BaseModel):
     timestamp: datetime.datetime
     message_id: str
     provider: Optional[str]
-    type: PartialQuestionsType
+    type: QuestionType
 
 
 class PartialQuestionAnswer(pydantic.BaseModel):
@@ -121,7 +121,7 @@ class Conversation(pydantic.BaseModel):
 
     question_answers: List[QuestionAnswer]
     provider: Optional[str]
-    type: str
+    type: QuestionType
     chat_id: str
     conversation_timestamp: datetime.datetime
 
