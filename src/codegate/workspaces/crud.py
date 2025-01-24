@@ -161,7 +161,7 @@ class WorkspaceCrud:
         if workspace_name == "":
             raise WorkspaceCrudError("Workspace name cannot be empty.")
         if workspace_name == DEFAULT_WORKSPACE_NAME:
-            raise WorkspaceCrudError("Cannot delete default workspace.")
+            raise WorkspaceCrudError("Cannot archive default workspace.")
 
         selected_workspace = await self._db_reader.get_workspace_by_name(workspace_name)
         if not selected_workspace:
@@ -170,7 +170,7 @@ class WorkspaceCrud:
         # Check if workspace is active, if it is, make the default workspace active
         active_workspace = await self._db_reader.get_active_workspace()
         if active_workspace and active_workspace.id == selected_workspace.id:
-            raise WorkspaceCrudError("Cannot delete active workspace.")
+            raise WorkspaceCrudError("Cannot archive active workspace.")
 
         db_recorder = DbRecorder()
         try:
