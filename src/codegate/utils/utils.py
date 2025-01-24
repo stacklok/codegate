@@ -29,3 +29,25 @@ def generate_vector_string(package) -> str:
     # add description
     vector_str += f" - Package offers this functionality: {package['description']}"
     return vector_str
+
+
+def get_tool_name_from_messages(data):
+    """
+    Identifies the tool name based on the content of the messages.
+
+    Args:
+        request (dict): The request object containing messages.
+        tools (list): A list of tool names to search for.
+
+    Returns:
+        str: The name of the tool found in the messages, or None if no match is found.
+    """
+    tools = [
+        "Cline",
+    ]
+    for message in data.get("messages", []):
+        message_content = str(message.get("content", ""))
+        for tool in tools:
+            if tool in message_content:
+                return tool.lower()
+    return None

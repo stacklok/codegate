@@ -10,6 +10,7 @@ from codegate.pipeline.base import (
     PipelineStep,
 )
 from codegate.pipeline.cli.commands import CustomInstructions, Version, Workspace
+from codegate.utils.utils import get_tool_name_from_messages
 
 HELP_TEXT = """
 ## CodeGate CLI\n
@@ -78,35 +79,38 @@ class CodegateCli(PipelineStep):
         if last_user_message is not None:
             last_user_message_str, _ = last_user_message
             last_user_message_str = last_user_message_str.strip()
-            is_cline_client = any(
-                "Cline" in str(message.get("content", ""))
-                for message in request.get("messages", [])
-            )
-            if not is_cline_client:
-                # Check if "codegate" is the first word in the message
-                match = re.match(r"^codegate(?:\s+(\S+))?", last_user_message_str, re.IGNORECASE)
-            else:
-                # Check if "codegate" is the first word after the first XML tag
-                xml_start = re.search(r"<[^>]+>", last_user_message_str)
-                if xml_start:
-                    # Start processing only from the first XML tag
-                    relevant_message = last_user_message_str[xml_start.start() :]
-                    # Remove all XML tags and trim whitespace
-                    stripped_message = re.sub(r"<[^>]+>", "", relevant_message).strip()
-                    # Check if "codegate" is the first word
-                    match = re.match(r"^codegate(?:\s+(\S+))?", stripped_message, re.IGNORECASE)
+            base_tool = get_tool_name_from_messages(request)
+            codegate_regex = re.compile(r"^codegate(?:\s+(.*))?", re.IGNORECASE)
+
+            if base_tool and base_tool == "cline":
+                # Check if there are <task> or <feedback> tags
+                tag_match = re.search(
+                    r"<(task|feedback)>(.*?)</\1>", last_user_message_str, re.DOTALL
+                )
+                if tag_match:
+                    # Extract the content between the tags
+                    stripped_message = tag_match.group(2).strip()
                 else:
-                    match = None
+                    # If no <task> or <feedback> tags, use the entire message
+                    stripped_message = last_user_message_str.strip()
+
+                # Remove all other XML tags and trim whitespace
+                stripped_message = re.sub(r"<[^>]+>", "", stripped_message).strip()
+
+                # Check if "codegate" is the first word
+                match = codegate_regex.match(stripped_message)
+            else:
+                # Check if "codegate" is the first word in the message
+                match = codegate_regex.match(last_user_message_str)
             if match:
-                command = match.group(1)  # Extract the second word
+                command = match.group(1) or ""
                 command = command.strip()
 
                 # Process the command
                 args = shlex.split(f"codegate {command}")
                 if args:
                     cmd_out = await codegate_cli(args[1:])
-
-                    if is_cline_client:
+                    if base_tool and base_tool == "cline":
                         cmd_out = (
                             f"<attempt_completion><result>{cmd_out}</result></attempt_completion>\n"
                         )
