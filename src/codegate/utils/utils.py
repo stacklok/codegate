@@ -45,9 +45,7 @@ def get_tool_name_from_messages(data):
     Returns:
         str: The name of the tool found in the messages, or None if no match is found.
     """
-    tools = [
-        "Cline",
-    ]
+    tools = ["Cline", "Kodu"]
     for message in data.get("messages", []):
         message_content = str(message.get("content", ""))
         for tool in tools:

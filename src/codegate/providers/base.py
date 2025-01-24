@@ -17,6 +17,7 @@ from codegate.providers.completion.base import BaseCompletionHandler
 from codegate.providers.formatting.input_pipeline import PipelineResponseFormatter
 from codegate.providers.normalizer.base import ModelInputNormalizer, ModelOutputNormalizer
 from codegate.providers.normalizer.completion import CompletionNormalizer
+from codegate.utils.utils import get_tool_name_from_messages
 
 logger = structlog.get_logger("codegate")
 
@@ -233,12 +234,7 @@ class BaseProvider(ABC):
         # Execute the completion and translate the response
         # This gives us either a single response or a stream of responses
         # based on the streaming flag
-        is_cline_client = any(
-            "Cline" in str(message.get("content", "")) for message in data.get("messages", [])
-        )
-        base_tool = ""
-        if is_cline_client:
-            base_tool = "cline"
+        base_tool = get_tool_name_from_messages(data)
 
         model_response = await self._completion_handler.execute_completion(
             provider_request,

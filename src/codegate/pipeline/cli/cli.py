@@ -111,7 +111,7 @@ class CodegateCli(PipelineStep):
                 if args:
                     context.shortcut_response = True
                     cmd_out = await codegate_cli(args[1:])
-                    if base_tool and base_tool == "cline":
+                    if base_tool in ["cline", "kodu"]:
                         cmd_out = (
                             f"<attempt_completion><result>{cmd_out}</result></attempt_completion>\n"
                         )
