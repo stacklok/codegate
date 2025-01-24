@@ -79,8 +79,8 @@ class CodegateCli(PipelineStep):
             last_user_message_str, _ = last_user_message
             last_user_message_str = last_user_message_str.strip()
             is_cline_client = any(
-                "Cline" in str(message.get("content", "")) for message in request.get("messages",
-                                                                                      [])
+                "Cline" in str(message.get("content", ""))
+                for message in request.get("messages", [])
             )
             if not is_cline_client:
                 # Check if "codegate" is the first word in the message
@@ -90,7 +90,7 @@ class CodegateCli(PipelineStep):
                 xml_start = re.search(r"<[^>]+>", last_user_message_str)
                 if xml_start:
                     # Start processing only from the first XML tag
-                    relevant_message = last_user_message_str[xml_start.start():]
+                    relevant_message = last_user_message_str[xml_start.start() :]
                     # Remove all XML tags and trim whitespace
                     stripped_message = re.sub(r"<[^>]+>", "", relevant_message).strip()
                     # Check if "codegate" is the first word
