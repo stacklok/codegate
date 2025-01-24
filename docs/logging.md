@@ -18,17 +18,12 @@ CodeGate provides control over external loggers through configuration:
 
 LiteLLM logging can be controlled through:
 
-1. CLI flag:
-   ```bash
-   codegate serve --enable-litellm
-   ```
-
-2. Environment variable:
+1. Environment variable:
    ```bash
    export CODEGATE_ENABLE_LITELLM=true
    ```
 
-3. Configuration file:
+2. Configuration file:
    ```yaml
    external_loggers:
      litellm: true      # Enable/disable LiteLLM logging (includes LiteLLM Proxy, Router, and core)
@@ -120,13 +115,7 @@ except Exception as e:
 
 The logging system can be configured through:
 
-1. CLI arguments:
-
-   ```bash
-   codegate serve --log-level DEBUG --log-format TEXT --enable-litellm # to enable LiteLLM debug
-   ```
-
-2. Environment variables:
+1. Environment variables:
 
    ```bash
    export CODEGATE_APP_LOG_LEVEL=DEBUG
@@ -134,7 +123,7 @@ The logging system can be configured through:
    export CODEGATE_ENABLE_LITELLM=true
    ```
 
-3. Configuration file:
+2. Configuration file:
 
    ```yaml
    log_level: DEBUG

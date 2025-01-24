@@ -76,7 +76,4 @@ external_loggers:
 #    CODEGATE_ENABLE_SQLALCHEMY=true
 #    CODEGATE_ENABLE_UVICORN_ERROR=true
 #    CODEGATE_ENABLE_AIOSQLITE=true
-# 2. CLI arguments:
-#    --enable-litellm    # Enables LiteLLM logging
-#    --enable-sqlalchemy # Enables SQLAlchemy logging
-#    etc.
+

@@ -246,12 +246,6 @@ def show_prompts(prompts: Optional[Path]) -> None:
     default=None,
     help="Path to the vector SQLite database file (default: ./sqlite_data/vectordb.db)",
 )
-@click.option(
-    "--enable-litellm",
-    is_flag=True,
-    default=False,
-    help="Enable LiteLLM logging (includes LiteLLM Proxy, Router, and core)",
-)
 def serve(
     port: Optional[int],
     proxy_port: Optional[int],
@@ -273,7 +267,6 @@ def serve(
     ca_key: Optional[str],
     server_cert: Optional[str],
     server_key: Optional[str],
-    enable_litellm: bool,
 ) -> None:
     """Start the codegate server."""
     try:
@@ -288,8 +281,6 @@ def serve(
         if ollama_url:
             cli_provider_urls["ollama"] = ollama_url
 
-        # Create external loggers dictionary from CLI arguments
-        cli_external_loggers = {"litellm": enable_litellm}
 
         # Load configuration with priority resolution
         cfg = Config.load(
@@ -301,7 +292,6 @@ def serve(
             cli_log_level=log_level,
             cli_log_format=log_format,
             cli_provider_urls=cli_provider_urls if cli_provider_urls else None,
-            cli_external_loggers=cli_external_loggers,
             model_base_path=model_base_path,
             embedding_model=embedding_model,
             certs_dir=certs_dir,

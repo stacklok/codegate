@@ -142,12 +142,6 @@ codegate generate-certs [OPTIONS]
   - Case-insensitive
   - Overrides configuration file and environment variables
 
-- `--enable-litellm`: Enable LiteLLM logging
-  - Optional flag
-  - Default: false
-  - Enables logging for LiteLLM Proxy, Router, and core components
-  - Overrides configuration file and environment variables
-
 ## Error handling
 
 The CLI provides user-friendly error messages for:

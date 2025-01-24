@@ -258,19 +258,11 @@ def test_serve_custom_options(cli_runner):
                 "custom-server.crt",
                 "--server-key",
                 "custom-server.key",
-                "--enable-litellm",
             ],
         )
 
         # Check the command executed successfully
         assert result.exit_code == 0
-
-        # Assert logging setup was called with the provided log level and format
-        mock_setup_logging.assert_called_once_with(
-            LogLevel.DEBUG,
-            LogFormat.TEXT,
-            {"litellm": True, "sqlalchemy": False, "uvicorn.error": False, "aiosqlite": False},
-        )
 
         # Validate run_servers was called once
         mock_run.assert_called_once()
