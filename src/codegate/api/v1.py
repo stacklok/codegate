@@ -202,13 +202,15 @@ async def get_workspace_alerts(workspace_name: str) -> List[Optional[v1_models.A
     except crud.WorkspaceDoesNotExistError:
         raise HTTPException(status_code=404, detail="Workspace does not exist")
     except Exception:
+        logger.exception("Error while getting workspace")
         raise HTTPException(status_code=500, detail="Internal server error")
 
     try:
-        alerts = await dbreader.get_alerts_with_prompt_and_output(ws.id)
+        alerts = await dbreader.get_alerts_by_workspace(ws.id)
         prompts_outputs = await dbreader.get_prompts_with_output(ws.id)
         return await v1_processing.parse_get_alert_conversation(alerts, prompts_outputs)
     except Exception:
+        logger.exception("Error while getting alerts and messages")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -224,6 +226,7 @@ async def get_workspace_messages(workspace_name: str) -> List[v1_models.Conversa
     except crud.WorkspaceDoesNotExistError:
         raise HTTPException(status_code=404, detail="Workspace does not exist")
     except Exception:
+        logger.exception("Error while getting workspace")
         raise HTTPException(status_code=500, detail="Internal server error")
 
     try:
@@ -231,6 +234,7 @@ async def get_workspace_messages(workspace_name: str) -> List[v1_models.Conversa
         conversations, _ = await v1_processing.parse_messages_in_conversations(prompts_outputs)
         return conversations
     except Exception:
+        logger.exception("Error while getting messages")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
