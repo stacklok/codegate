@@ -25,6 +25,313 @@
         }
       }
     },
+    "/api/v1/provider-endpoints": {
+      "get": {
+        "tags": [
+          "CodeGate API",
+          "Providers"
+        ],
+        "summary": "List Provider Endpoints",
+        "description": "List all provider endpoints.",
+        "operationId": "v1_list_provider_endpoints",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProviderEndpoint"
+                  },
+                  "title": "Response V1 List Provider Endpoints"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "CodeGate API",
+          "Providers"
+        ],
+        "summary": "Add Provider Endpoint",
+        "description": "Add a provider endpoint.",
+        "operationId": "v1_add_provider_endpoint",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderEndpoint"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderEndpoint"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/provider-endpoints/{provider_id}": {
+      "get": {
+        "tags": [
+          "CodeGate API",
+          "Providers"
+        ],
+        "summary": "Get Provider Endpoint",
+        "description": "Get a provider endpoint by ID.",
+        "operationId": "v1_get_provider_endpoint",
+        "parameters": [
+          {
+            "name": "provider_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Provider Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderEndpoint"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "CodeGate API",
+          "Providers"
+        ],
+        "summary": "Update Provider Endpoint",
+        "description": "Update a provider endpoint by ID.",
+        "operationId": "v1_update_provider_endpoint",
+        "parameters": [
+          {
+            "name": "provider_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Provider Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderEndpoint"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderEndpoint"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "CodeGate API",
+          "Providers"
+        ],
+        "summary": "Delete Provider Endpoint",
+        "description": "Delete a provider endpoint by id.",
+        "operationId": "v1_delete_provider_endpoint",
+        "parameters": [
+          {
+            "name": "provider_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Provider Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/provider-endpoints/{provider_name}/models": {
+      "get": {
+        "tags": [
+          "CodeGate API",
+          "Providers"
+        ],
+        "summary": "List Models By Provider",
+        "description": "List models by provider.",
+        "operationId": "v1_list_models_by_provider",
+        "parameters": [
+          {
+            "name": "provider_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Provider Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ModelByProvider"
+                  },
+                  "title": "Response V1 List Models By Provider"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/provider-endpoints/models": {
+      "get": {
+        "tags": [
+          "CodeGate API",
+          "Providers"
+        ],
+        "summary": "List All Models For All Providers",
+        "description": "List all models for all providers.",
+        "operationId": "v1_list_all_models_for_all_providers",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ModelByProvider"
+                  },
+                  "type": "array",
+                  "title": "Response V1 List All Models For All Providers"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces": {
       "get": {
         "tags": [
@@ -531,6 +838,105 @@
         }
       }
     },
+    "/api/v1/workspaces/{workspace_name}/muxes": {
+      "get": {
+        "tags": [
+          "CodeGate API",
+          "Workspaces",
+          "Muxes"
+        ],
+        "summary": "Get Workspace Muxes",
+        "description": "Get the mux rules of a workspace.\n\nThe list is ordered in order of priority. That is, the first rule in the list\nhas the highest priority.",
+        "operationId": "v1_get_workspace_muxes",
+        "parameters": [
+          {
+            "name": "workspace_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MuxRule"
+                  },
+                  "title": "Response V1 Get Workspace Muxes"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "CodeGate API",
+          "Workspaces",
+          "Muxes"
+        ],
+        "summary": "Set Workspace Muxes",
+        "description": "Set the mux rules of a workspace.",
+        "operationId": "v1_set_workspace_muxes",
+        "parameters": [
+          {
+            "name": "workspace_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MuxRule"
+                },
+                "title": "Request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/alerts_notification": {
       "get": {
         "tags": [
@@ -871,6 +1277,126 @@
           "workspaces"
         ],
         "title": "ListWorkspacesResponse"
+      },
+      "ModelByProvider": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "provider"
+        ],
+        "title": "ModelByProvider",
+        "description": "Represents a model supported by a provider.\n\nNote that these are auto-discovered by the provider."
+      },
+      "MuxMatcherType": {
+        "type": "string",
+        "enum": [
+          "file_regex",
+          "catch_all"
+        ],
+        "title": "MuxMatcherType",
+        "description": "Represents the different types of matchers we support."
+      },
+      "MuxRule": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "matcher_type": {
+            "$ref": "#/components/schemas/MuxMatcherType"
+          },
+          "matcher": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matcher"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider",
+          "model",
+          "matcher_type",
+          "matcher"
+        ],
+        "title": "MuxRule",
+        "description": "Represents a mux rule for a provider."
+      },
+      "ProviderAuthType": {
+        "type": "string",
+        "enum": [
+          "none",
+          "passthrough",
+          "api_key"
+        ],
+        "title": "ProviderAuthType",
+        "description": "Represents the different types of auth we support for providers."
+      },
+      "ProviderEndpoint": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "provider_type": {
+            "$ref": "#/components/schemas/ProviderType"
+          },
+          "endpoint": {
+            "type": "string",
+            "title": "Endpoint"
+          },
+          "auth_type": {
+            "$ref": "#/components/schemas/ProviderAuthType"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "provider_type",
+          "endpoint",
+          "auth_type"
+        ],
+        "title": "ProviderEndpoint",
+        "description": "Represents a provider's endpoint configuration. This\nallows us to persist the configuration for each provider,\nso we can use this for muxing messages."
+      },
+      "ProviderType": {
+        "type": "string",
+        "enum": [
+          "openai",
+          "anthropic",
+          "vllm"
+        ],
+        "title": "ProviderType",
+        "description": "Represents the different types of providers we support."
       },
       "QuestionAnswer": {
         "properties": {
