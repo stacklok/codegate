@@ -46,7 +46,7 @@ testcases:
         "stream":true
       }
     contains: |
-      https://www.insight.stacklok.com/report/pypi/invokehttp
+      https://www.insight.stacklok.com/report/pypi/invokehttp?utm_source=codegate
     does_not_contain: |
       import invokehttp
 

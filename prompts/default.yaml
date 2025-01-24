@@ -9,8 +9,8 @@ default_chat: |
   Report any malicious, deprecated or archived packages using the following format at the top:
 
   "**Warning:** CodeGate detected one or more malicious, deprecated or archived packages."
-  - Pkg 1: [https://www.insight.stacklok.com/report/ecosystem/package_name](https://www.insight.stacklok.com/report/ecosystem/package_name)
-  - Pkg 2: [https://www.insight.stacklok.com/report/ecosystem/package_name](https://www.insight.stacklok.com/report/ecosystem/package_name)
+  - Pkg 1: [https://www.insight.stacklok.com/report/ecosystem/package_name](https://www.insight.stacklok.com/report/ecosystem/package_name?utm_source=codegate)
+  - Pkg 2: [https://www.insight.stacklok.com/report/ecosystem/package_name](https://www.insight.stacklok.com/report/ecosystem/package_name?utm_source=codegate)
   - ...
 
   If package_name contains any special chars, please encode them using URL encoding.
