@@ -124,6 +124,7 @@ class Conversation(pydantic.BaseModel):
     type: QuestionType
     chat_id: str
     conversation_timestamp: datetime.datetime
+    token_usage: Optional[int]
 
 
 class AlertConversation(pydantic.BaseModel):
@@ -218,3 +219,24 @@ class MuxRule(pydantic.BaseModel):
     # The actual matcher to use. Note that
     # this depends on the matcher type.
     matcher: Optional[str]
+
+
+class TokenUsageByModel(pydantic.BaseModel):
+    """
+    Represents the tokens used by a model.
+    """
+
+    provider_type: ProviderType
+    model: str
+    used_tokens: int
+
+
+class TokenUsage(pydantic.BaseModel):
+    """
+    Represents the tokens used by a workspace. Includes the information of the tokens used
+    by model.
+    `used_tokens` are the total tokens used in the `tokens_by_model` list.
+    """
+
+    tokens_by_model: List[TokenUsageByModel]
+    workspace_used_tokens: int
