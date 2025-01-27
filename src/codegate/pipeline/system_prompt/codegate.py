@@ -103,4 +103,41 @@ class SystemPrompt(PipelineStep):
             # Update the existing system prompt
             request_system_message["content"] = system_prompt
 
+        # check if we are in kodu
+        if "</kodu_action>" in new_request.get("stop", []):
+            # Collect messages from the assistant matching the criteria
+            relevant_contents = [
+                message["content"]
+                for message in new_request["messages"]
+                if message["role"] == "assistant"
+                and (
+                    message["content"].startswith("**Warning")
+                    or message["content"].startswith("<thinking>")
+                )
+            ]
+
+            if relevant_contents:
+                # Combine the contents into a single message
+                summarized_content = (
+                    "<attempt_completion><result>"
+                    + "".join(relevant_contents)
+                    + "</result></attempt_completion>"
+                )
+
+                # Replace the messages with a single summarized message
+                new_request["messages"] = [
+                    message
+                    for message in new_request["messages"]
+                    if not (
+                        message["role"] == "assistant"
+                        and (
+                            message["content"].startswith("**Warning")
+                            or message["content"].startswith("<thinking>")
+                        )
+                    )
+                ]
+
+                # Append the summarized message to the messages
+                new_request["messages"].append({"role": "assistant", "content": summarized_content})
+
         return PipelineResult(request=new_request, context=context)

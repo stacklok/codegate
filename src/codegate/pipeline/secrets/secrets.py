@@ -450,10 +450,14 @@ class SecretRedactionNotifier(OutputPipelineStep):
             or input_context.metadata.get("redacted_secrets_count", 0) == 0
         ):
             return [chunk]
-
-        is_cline_client = any(
-            "Cline" in str(message.trigger_string or "")
-            for message in input_context.alerts_raised or []
+        tool_name = next(
+            (
+                tool.lower()
+                for tool in ["Cline", "Kodu"]
+                for message in input_context.alerts_raised or []
+                if tool in str(message.trigger_string or "")
+            ),
+            "",
         )
 
         # Check if this is the first chunk (delta role will be present, others will not)
@@ -461,7 +465,7 @@ class SecretRedactionNotifier(OutputPipelineStep):
             redacted_count = input_context.metadata["redacted_secrets_count"]
             secret_text = "secret" if redacted_count == 1 else "secrets"
             # Create notification chunk
-            if is_cline_client:
+            if tool_name in ["cline", "kodu"]:
                 notification_chunk = self._create_chunk(
                     chunk,
                     f"<thinking>\n🛡️ [CodeGate prevented {redacted_count} {secret_text}]"

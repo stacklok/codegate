@@ -13,7 +13,7 @@ from codegate.pipeline.base import (
 from codegate.pipeline.extract_snippets.extract_snippets import extract_snippets
 from codegate.storage.storage_engine import StorageEngine
 from codegate.utils.package_extractor import PackageExtractor
-from codegate.utils.utils import generate_vector_string
+from codegate.utils.utils import generate_vector_string, get_tool_name_from_messages
 
 logger = structlog.get_logger("codegate")
 
@@ -63,7 +63,7 @@ class CodegateContextRetriever(PipelineStep):
         last_message = self.get_last_user_message_block(request)
         if not last_message:
             return PipelineResult(request=request)
-        user_message, _ = last_message
+        user_message, last_user_idx = last_message
 
         # Create storage engine object
         storage_engine = StorageEngine()
@@ -124,33 +124,34 @@ class CodegateContextRetriever(PipelineStep):
             context_str = self.generate_context_str(all_bad_packages, context)
             context.bad_packages_found = True
 
-            last_user_idx = self.get_last_user_message_idx(request)
-
             # Make a copy of the request
             new_request = request.copy()
 
-            # Format: "Context: {context_str} \n Query: {last user message content}"
-            message = new_request["messages"][last_user_idx]
-            message_str = str(message["content"])  # type: ignore
-            # Add the context to the last user message
-            if message_str.strip().startswith("<task>"):
-                # formatting of cline
-                match = re.match(r"(<task>)(.*?)(</task>)(.*)", message_str, re.DOTALL)
-                if match:
-                    task_start, task_content, task_end, rest_of_message = match.groups()
+            # perform replacement in all the messages starting from this index
+            for i in range(last_user_idx, len(new_request["messages"])):
+                message = new_request["messages"][i]
+                message_str = str(message["content"])  # type: ignore
+                context_msg = message_str
+                # Add the context to the last user message
+                base_tool = get_tool_name_from_messages(request)
+                if base_tool in ["cline", "kodu"]:
+                    match = re.search(r"<task>\s*(.*?)\s*</task>(.*)", message_str, re.DOTALL)
+                    if match:
+                        task_content = match.group(1)  # Content within <task>...</task>
+                        rest_of_message = match.group(2).strip()  # Content after </task>, if any
 
-                # Embed the context into the task block
-                updated_task_content = (
-                    f"{task_start}Context: {context_str}\n"
-                    + f"Query: {task_content.strip()}</details>{task_end}"
-                )
+                        # Embed the context into the task block
+                        updated_task_content = (
+                            f"<task>Context: {context_str}"
+                            + f"Query: {task_content.strip()}</task>"
+                        )
 
-                # Combine the updated task block with the rest of the message
-                context_msg = updated_task_content + rest_of_message
-            else:
-                context_msg = f"Context: {context_str} \n\n Query: {message_str}"  # type: ignore
-            message["content"] = context_msg
+                        # Combine updated task content with the rest of the message
+                        context_msg = updated_task_content + rest_of_message
 
-            logger.debug("Final context message", context_message=context_msg)
+                else:
+                    context_msg = f"Context: {context_str} \n\n Query: {message_str}"  # type: ignore
 
+                new_request["messages"][i]["content"] = context_msg
+                logger.debug("Final context message", context_message=context_msg)
             return PipelineResult(request=new_request, context=context)
