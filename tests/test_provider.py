@@ -19,6 +19,9 @@ class MockProvider(BaseProvider):
             mocked_factory,
         )
 
+    def models(self):
+        return []
+
     def _setup_routes(self) -> None:
         pass
 

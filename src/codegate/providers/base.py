@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, AsyncIterator, Callable, Dict, Optional, Union
+from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Union
 
 import structlog
 from fastapi import APIRouter, Request
@@ -52,6 +52,10 @@ class BaseProvider(ABC):
 
     @abstractmethod
     def _setup_routes(self) -> None:
+        pass
+
+    @abstractmethod
+    def models(self) -> List[str]:
         pass
 
     @property

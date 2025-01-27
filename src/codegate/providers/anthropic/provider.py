@@ -1,5 +1,7 @@
 import json
+from typing import List
 
+import httpx
 import structlog
 from fastapi import Header, HTTPException, Request
 
@@ -26,6 +28,21 @@ class AnthropicProvider(BaseProvider):
     @property
     def provider_route_name(self) -> str:
         return "anthropic"
+
+    def models(self) -> List[str]:
+        # TODO: This won't work since we need an API Key being set.
+        resp = httpx.get("https://api.anthropic.com/models")
+        # If Anthropic returned 404, it means it's not accepting our
+        # requests. We should throw an error.
+        if resp.status_code == 404:
+            raise HTTPException(
+                status_code=404,
+                detail="The Anthropic API is not accepting requests. Please check your API key.",
+            )
+
+        respjson = resp.json()
+
+        return [model["id"] for model in respjson.get("data", [])]
 
     def _setup_routes(self):
         """

@@ -99,3 +99,24 @@ class ActiveWorkspace(BaseModel):
     custom_instructions: Optional[str]
     session_id: str
     last_update: datetime.datetime
+
+
+class ProviderEndpoint(BaseModel):
+    id: str
+    name: str
+    description: str
+    provider_type: str
+    endpoint: str
+    auth_type: str
+
+
+class ProviderAuthMaterial(BaseModel):
+    provider_endpoint_id: str
+    auth_type: str
+    auth_blob: str
+
+
+class ProviderModel(BaseModel):
+    provider_endpoint_id: str
+    provider_endpoint_name: Optional[str] = None
+    name: str

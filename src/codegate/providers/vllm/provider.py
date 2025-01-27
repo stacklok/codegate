@@ -31,6 +31,12 @@ class VLLMProvider(BaseProvider):
     def provider_route_name(self) -> str:
         return "vllm"
 
+    def models(self):
+        resp = httpx.get(f"{self.base_url}/v1/models")
+        jsonresp = resp.json()
+
+        return [model["id"] for model in jsonresp.get("data", [])]
+
     def _setup_routes(self):
         """
         Sets up the /chat/completions route for the provider as expected by the

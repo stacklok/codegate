@@ -6,6 +6,8 @@ import pydantic
 
 from codegate.db import models as db_models
 from codegate.pipeline.base import CodeSnippet
+from codegate.providers.base import BaseProvider
+from codegate.providers.registry import ProviderRegistry
 
 
 class Workspace(pydantic.BaseModel):
@@ -122,6 +124,8 @@ class ProviderType(str, Enum):
     openai = "openai"
     anthropic = "anthropic"
     vllm = "vllm"
+    ollama = "ollama"
+    lm_studio = "lm_studio"
 
 
 class TokenUsageByModel(pydantic.BaseModel):
@@ -191,12 +195,37 @@ class ProviderEndpoint(pydantic.BaseModel):
     so we can use this for muxing messages.
     """
 
-    id: int
+    #  This will be set on creation
+    id: Optional[str] = ""
     name: str
     description: str = ""
     provider_type: ProviderType
     endpoint: str
     auth_type: ProviderAuthType
+
+    @staticmethod
+    def from_db_model(db_model: db_models.ProviderEndpoint) -> "ProviderEndpoint":
+        return ProviderEndpoint(
+            id=db_model.id,
+            name=db_model.name,
+            description=db_model.description,
+            provider_type=db_model.provider_type,
+            endpoint=db_model.endpoint,
+            auth_type=db_model.auth_type,
+        )
+
+    def to_db_model(self) -> db_models.ProviderEndpoint:
+        return db_models.ProviderEndpoint(
+            id=self.id,
+            name=self.name,
+            description=self.description,
+            provider_type=self.provider_type,
+            endpoint=self.endpoint,
+            auth_type=self.auth_type,
+        )
+
+    def get_from_registry(self, registry: ProviderRegistry) -> Optional[BaseProvider]:
+        return registry.get_provider(self.provider_type)
 
 
 class ModelByProvider(pydantic.BaseModel):
@@ -207,10 +236,11 @@ class ModelByProvider(pydantic.BaseModel):
     """
 
     name: str
-    provider: str
+    provider_id: str
+    provider_name: str
 
     def __str__(self):
-        return f"{self.provider}/{self.name}"
+        return f"{self.provider_name} / {self.name}"
 
 
 class MuxMatcherType(str, Enum):

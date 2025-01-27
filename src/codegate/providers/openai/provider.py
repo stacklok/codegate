@@ -1,5 +1,7 @@
 import json
+from typing import List
 
+import httpx
 import structlog
 from fastapi import Header, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -32,6 +34,13 @@ class OpenAIProvider(BaseProvider):
     @property
     def provider_route_name(self) -> str:
         return "openai"
+
+    def models(self) -> List[str]:
+        # NOTE: This won't work since we need an API Key being set.
+        resp = httpx.get(f"{self.lm_studio_url}/v1/models")
+        jsonresp = resp.json()
+
+        return [model["id"] for model in jsonresp.get("data", [])]
 
     def _setup_routes(self):
         """
