@@ -482,7 +482,7 @@ async def get_workspace_token_usage(workspace_name: str) -> v1_models.TokenUsage
     # TODO: This is a dummy implementation. In the future, we should have a proper
     # implementation that fetches the token usage from the database.
     return v1_models.TokenUsage(
-        workspace_used_tokens=50,
+        used_tokens=50,
         tokens_by_model=[
             v1_models.TokenUsageByModel(
                 provider_type="openai", model="gpt-4o-mini", used_tokens=20
