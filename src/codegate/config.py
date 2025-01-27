@@ -360,5 +360,5 @@ class Config:
         return config
 
     @classmethod
-    def get_config(cls):
+    def get_config(cls) -> "Config":
         return cls.__config
