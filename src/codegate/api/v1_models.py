@@ -114,6 +114,36 @@ class PartialQuestionAnswer(pydantic.BaseModel):
     answer: Optional[ChatMessage]
 
 
+class ProviderType(str, Enum):
+    """
+    Represents the different types of providers we support.
+    """
+
+    openai = "openai"
+    anthropic = "anthropic"
+    vllm = "vllm"
+
+
+class TokenUsageByModel(pydantic.BaseModel):
+    """
+    Represents the tokens used by a model.
+    """
+
+    provider_type: ProviderType
+    model: str
+    used_tokens: int
+
+
+class TokenUsage(pydantic.BaseModel):
+    """
+    Represents the tokens used. Includes the information of the tokens used by model.
+    `used_tokens` are the total tokens used in the `tokens_by_model` list.
+    """
+
+    tokens_by_model: List[TokenUsageByModel]
+    used_tokens: int
+
+
 class Conversation(pydantic.BaseModel):
     """
     Represents a conversation.
@@ -124,6 +154,7 @@ class Conversation(pydantic.BaseModel):
     type: QuestionType
     chat_id: str
     conversation_timestamp: datetime.datetime
+    token_usage: Optional[TokenUsage]
 
 
 class AlertConversation(pydantic.BaseModel):
@@ -138,16 +169,6 @@ class AlertConversation(pydantic.BaseModel):
     trigger_type: str
     trigger_category: Optional[str]
     timestamp: datetime.datetime
-
-
-class ProviderType(str, Enum):
-    """
-    Represents the different types of providers we support.
-    """
-
-    openai = "openai"
-    anthropic = "anthropic"
-    vllm = "vllm"
 
 
 class ProviderAuthType(str, Enum):

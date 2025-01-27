@@ -977,6 +977,51 @@
           }
         }
       }
+    },
+    "/api/v1/workspaces/{workspace_name}/token-usage": {
+      "get": {
+        "tags": [
+          "CodeGate API",
+          "Workspaces",
+          "Token Usage"
+        ],
+        "summary": "Get Workspace Token Usage",
+        "description": "Get the token usage of a workspace.",
+        "operationId": "v1_get_workspace_token_usage",
+        "parameters": [
+          {
+            "name": "workspace_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenUsage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1183,6 +1228,16 @@
             "type": "string",
             "format": "date-time",
             "title": "Conversation Timestamp"
+          },
+          "token_usage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TokenUsage"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -1191,7 +1246,8 @@
           "provider",
           "type",
           "chat_id",
-          "conversation_timestamp"
+          "conversation_timestamp",
+          "token_usage"
         ],
         "title": "Conversation",
         "description": "Represents a conversation."
@@ -1429,6 +1485,51 @@
           "fim"
         ],
         "title": "QuestionType"
+      },
+      "TokenUsage": {
+        "properties": {
+          "tokens_by_model": {
+            "items": {
+              "$ref": "#/components/schemas/TokenUsageByModel"
+            },
+            "type": "array",
+            "title": "Tokens By Model"
+          },
+          "used_tokens": {
+            "type": "integer",
+            "title": "Used Tokens"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tokens_by_model",
+          "used_tokens"
+        ],
+        "title": "TokenUsage",
+        "description": "Represents the tokens used. Includes the information of the tokens used by model.\n`used_tokens` are the total tokens used in the `tokens_by_model` list."
+      },
+      "TokenUsageByModel": {
+        "properties": {
+          "provider_type": {
+            "$ref": "#/components/schemas/ProviderType"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "used_tokens": {
+            "type": "integer",
+            "title": "Used Tokens"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider_type",
+          "model",
+          "used_tokens"
+        ],
+        "title": "TokenUsageByModel",
+        "description": "Represents the tokens used by a model."
       },
       "ValidationError": {
         "properties": {

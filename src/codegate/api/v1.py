@@ -470,3 +470,25 @@ def version_check():
             "is_latest": None,
             "error": "An unexpected error occurred",
         }
+
+
+@v1.get(
+    "/workspaces/{workspace_name}/token-usage",
+    tags=["Workspaces", "Token Usage"],
+    generate_unique_id_function=uniq_name,
+)
+async def get_workspace_token_usage(workspace_name: str) -> v1_models.TokenUsage:
+    """Get the token usage of a workspace."""
+    # TODO: This is a dummy implementation. In the future, we should have a proper
+    # implementation that fetches the token usage from the database.
+    return v1_models.TokenUsage(
+        used_tokens=50,
+        tokens_by_model=[
+            v1_models.TokenUsageByModel(
+                provider_type="openai", model="gpt-4o-mini", used_tokens=20
+            ),
+            v1_models.TokenUsageByModel(
+                provider_type="anthropic", model="claude-3-5-sonnet-20241022", used_tokens=30
+            ),
+        ],
+    )

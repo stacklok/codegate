@@ -331,6 +331,7 @@ async def match_conversations(
                 type=first_partial_qa.partial_questions.type,
                 chat_id=first_partial_qa.partial_questions.message_id,
                 conversation_timestamp=first_partial_qa.partial_questions.timestamp,
+                token_usage=None,
             )
             for qa in questions_answers:
                 map_q_id_to_conversation[qa.question.message_id] = conversation
