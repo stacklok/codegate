@@ -2,7 +2,7 @@ from typing import List, Optional
 
 import requests
 import structlog
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import StreamingResponse
 from fastapi.routing import APIRoute
 from pydantic import ValidationError
@@ -10,6 +10,7 @@ from pydantic import ValidationError
 from codegate import __version__
 from codegate.api import v1_models, v1_processing
 from codegate.db.connection import AlreadyExistsError, DbReader
+from codegate.providers import crud as provendcrud
 from codegate.workspaces import crud
 
 logger = structlog.get_logger("codegate")
@@ -26,26 +27,24 @@ def uniq_name(route: APIRoute):
 
 
 @v1.get("/provider-endpoints", tags=["Providers"], generate_unique_id_function=uniq_name)
-async def list_provider_endpoints(name: Optional[str] = None) -> List[v1_models.ProviderEndpoint]:
+async def list_provider_endpoints(
+    name: Optional[str] = None,
+    pcrud: provendcrud.ProviderCrud = Depends(provendcrud.ProviderCrud),
+) -> List[v1_models.ProviderEndpoint]:
     """List all provider endpoints."""
-    # NOTE: This is a dummy implementation. In the future, we should have a proper
-    # implementation that fetches the provider endpoints from the database.
-    return [
-        v1_models.ProviderEndpoint(
-            id=1,
-            name="dummy",
-            description="Dummy provider endpoint",
-            endpoint="http://example.com",
-            provider_type=v1_models.ProviderType.openai,
-            auth_type=v1_models.ProviderAuthType.none,
-        )
-    ]
+    try:
+        return pcrud.list_endpoints()
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @v1.get(
     "/provider-endpoints/{provider_id}", tags=["Providers"], generate_unique_id_function=uniq_name
 )
-async def get_provider_endpoint(provider_id: int) -> v1_models.ProviderEndpoint:
+async def get_provider_endpoint(
+    provider_id: int,
+    pcrud: provendcrud.ProviderCrud = Depends(provendcrud.ProviderCrud),
+) -> v1_models.ProviderEndpoint:
     """Get a provider endpoint by ID."""
     # NOTE: This is a dummy implementation. In the future, we should have a proper
     # implementation that fetches the provider endpoint from the database.
@@ -65,7 +64,10 @@ async def get_provider_endpoint(provider_id: int) -> v1_models.ProviderEndpoint:
     generate_unique_id_function=uniq_name,
     status_code=201,
 )
-async def add_provider_endpoint(request: v1_models.ProviderEndpoint) -> v1_models.ProviderEndpoint:
+async def add_provider_endpoint(
+    request: v1_models.ProviderEndpoint,
+    pcrud: provendcrud.ProviderCrud = Depends(provendcrud.ProviderCrud),
+) -> v1_models.ProviderEndpoint:
     """Add a provider endpoint."""
     # NOTE: This is a dummy implementation. In the future, we should have a proper
     # implementation that adds the provider endpoint to the database.
@@ -76,7 +78,9 @@ async def add_provider_endpoint(request: v1_models.ProviderEndpoint) -> v1_model
     "/provider-endpoints/{provider_id}", tags=["Providers"], generate_unique_id_function=uniq_name
 )
 async def update_provider_endpoint(
-    provider_id: int, request: v1_models.ProviderEndpoint
+    provider_id: int,
+    request: v1_models.ProviderEndpoint,
+    pcrud: provendcrud.ProviderCrud = Depends(provendcrud.ProviderCrud),
 ) -> v1_models.ProviderEndpoint:
     """Update a provider endpoint by ID."""
     # NOTE: This is a dummy implementation. In the future, we should have a proper
@@ -87,7 +91,10 @@ async def update_provider_endpoint(
 @v1.delete(
     "/provider-endpoints/{provider_id}", tags=["Providers"], generate_unique_id_function=uniq_name
 )
-async def delete_provider_endpoint(provider_id: int):
+async def delete_provider_endpoint(
+    provider_id: int,
+    pcrud: provendcrud.ProviderCrud = Depends(provendcrud.ProviderCrud),
+):
     """Delete a provider endpoint by id."""
     # NOTE: This is a dummy implementation. In the future, we should have a proper
     # implementation that deletes the provider endpoint from the database.
@@ -99,7 +106,10 @@ async def delete_provider_endpoint(provider_id: int):
     tags=["Providers"],
     generate_unique_id_function=uniq_name,
 )
-async def list_models_by_provider(provider_name: str) -> List[v1_models.ModelByProvider]:
+async def list_models_by_provider(
+    provider_name: str,
+    pcrud: provendcrud.ProviderCrud = Depends(provendcrud.ProviderCrud),
+) -> List[v1_models.ModelByProvider]:
     """List models by provider."""
     # NOTE: This is a dummy implementation. In the future, we should have a proper
     # implementation that fetches the models by provider from the database.
@@ -111,7 +121,9 @@ async def list_models_by_provider(provider_name: str) -> List[v1_models.ModelByP
     tags=["Providers"],
     generate_unique_id_function=uniq_name,
 )
-async def list_all_models_for_all_providers() -> List[v1_models.ModelByProvider]:
+async def list_all_models_for_all_providers(
+    pcrud: provendcrud.ProviderCrud = Depends(provendcrud.ProviderCrud),
+) -> List[v1_models.ModelByProvider]:
     """List all models for all providers."""
     # NOTE: This is a dummy implementation. In the future, we should have a proper
     # implementation that fetches all the models for all providers from the database.
@@ -394,7 +406,10 @@ async def delete_workspace_custom_instructions(workspace_name: str):
     tags=["Workspaces", "Muxes"],
     generate_unique_id_function=uniq_name,
 )
-async def get_workspace_muxes(workspace_name: str) -> List[v1_models.MuxRule]:
+async def get_workspace_muxes(
+    workspace_name: str,
+    pcrud: provendcrud.ProviderCrud = Depends(provendcrud.ProviderCrud),
+) -> List[v1_models.MuxRule]:
     """Get the mux rules of a workspace.
 
     The list is ordered in order of priority. That is, the first rule in the list
@@ -422,7 +437,11 @@ async def get_workspace_muxes(workspace_name: str) -> List[v1_models.MuxRule]:
     generate_unique_id_function=uniq_name,
     status_code=204,
 )
-async def set_workspace_muxes(workspace_name: str, request: List[v1_models.MuxRule]):
+async def set_workspace_muxes(
+    workspace_name: str,
+    request: List[v1_models.MuxRule],
+    pcrud: provendcrud.ProviderCrud = Depends(provendcrud.ProviderCrud),
+):
     """Set the mux rules of a workspace."""
     # TODO: This is a dummy implementation. In the future, we should have a proper
     # implementation that sets the mux rules in the database.

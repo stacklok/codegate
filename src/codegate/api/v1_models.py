@@ -148,6 +148,8 @@ class ProviderType(str, Enum):
     openai = "openai"
     anthropic = "anthropic"
     vllm = "vllm"
+    ollama = "ollama"
+    lm_studio = "lm_studio"
 
 
 class ProviderAuthType(str, Enum):
@@ -163,6 +165,15 @@ class ProviderAuthType(str, Enum):
     api_key = "api_key"
 
 
+class ProviderEndpointSource(str, Enum):
+    """
+    Represents the different sources of provider endpoints.
+    """
+
+    config = "config"
+    db = "db"
+
+
 class ProviderEndpoint(pydantic.BaseModel):
     """
     Represents a provider's endpoint configuration. This
@@ -170,12 +181,13 @@ class ProviderEndpoint(pydantic.BaseModel):
     so we can use this for muxing messages.
     """
 
-    id: int
+    id: Optional[int] = None
     name: str
     description: str = ""
     provider_type: ProviderType
     endpoint: str
     auth_type: ProviderAuthType
+    source: ProviderEndpointSource
 
 
 class ModelByProvider(pydantic.BaseModel):
