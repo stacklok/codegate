@@ -190,7 +190,7 @@ def show_prompts(prompts: Optional[Path]) -> None:
     "--ollama-url",
     type=str,
     default=None,
-    help="Ollama provider URL (default: http://localhost:11434/api)",
+    help="Ollama provider URL (default: http://localhost:11434/)",
 )
 @click.option(
     "--model-base-path",
