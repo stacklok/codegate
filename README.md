@@ -91,6 +91,12 @@ With Cline, you can choose between differnet leading AI model providers:
 - 💻 [LM Studio](https://lmstudio.ai/)
 - 💻 Local LLMs with [Ollama](https://ollama.com/)
 
+- **[Kodu](https://kodu.ai)**
+
+You can use Kodu with OpenAI compatible APIs:
+
+- 🧠 [OpenAI API](https://openai.com/api/)
+
 
 ### Privacy first
 
