@@ -812,7 +812,7 @@ class CopilotProxyTargetProtocol(asyncio.Protocol):
             input_context=self.proxy.context_tracking,
         )
 
-    async def _process_stream(self):
+    async def _process_stream(self):  # noqa: C901
         try:
 
             async def stream_iterator():
