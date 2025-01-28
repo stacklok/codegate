@@ -25,7 +25,7 @@
 
 **By [Stacklok](https://stacklok.com)**
 
-CodeGate is a **local gateway** that makes AI coding assistants safer. It
+CodeGate is a **local gateway** that makes AI agents and coding assistants safer. It
 ensures AI-generated recommendations adhere to best practices while safeguarding
 your code's integrity and protecting your privacy. With CodeGate, you can
 confidently leverage AI in your development workflow without sacrificing
