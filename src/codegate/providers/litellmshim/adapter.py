@@ -3,7 +3,8 @@ from typing import Any, AsyncIterable, AsyncIterator, Dict, Iterable, Iterator, 
 
 from codegate.providers.base import StreamGenerator
 from codegate.providers.normalizer.base import ModelInputNormalizer, ModelOutputNormalizer
-from codegate.types.common import ChatCompletionRequest, ModelResponse
+from codegate.types.common import CodegateModelResponseStream, ModelResponse
+from codegate.types.anthropic import ChatCompletionRequest
 
 
 class BaseAdapter(ABC):
@@ -55,11 +56,12 @@ class LiteLLMAdapterInputNormalizer(ModelInputNormalizer):
 
         # this is a HACK - either we or liteLLM doesn't handle tools properly
         # so let's just pretend they doesn't exist
-        if ret.get("tools") is not None:
-            ret["tools"] = []
+        # if ret.get("tools") is not None:
+        #     ret["tools"] = []
 
-        if ret.get("stream", False):
-            ret["stream_options"] = {"include_usage": True}
+        # if ret.get("stream", False):
+        #     ret["stream_options"] = {"include_usage": True}
+
         return ret
 
     def denormalize(self, data: ChatCompletionRequest) -> Dict:
@@ -67,6 +69,20 @@ class LiteLLMAdapterInputNormalizer(ModelInputNormalizer):
         For LiteLLM, we don't have to de-normalize as the input format is
         always ChatCompletionRequest which is a TypedDict which is a Dict
         """
+        try:
+            system_prompt = bytearray(data["system"].encode("utf-8") if data["system"] else bytes())
+            filtered_messages = []
+            for msg in data["messages"]:
+                if msg["role"] == "system":
+                    system_prompt.extend(msg["content"].encode("utf-8"))
+                else:
+                    filtered_messages.append(msg)
+            data["messages"] = filtered_messages
+            data["system"] = system_prompt.decode("utf-8")
+        except Exception as e:
+            logger.error(f"anthropic: failed mapping system prompt: {repr(e)}", exc_info=e)
+            raise e
+
         return data
 
 
@@ -96,6 +112,8 @@ class LiteLLMAdapterOutputNormalizer(ModelOutputNormalizer):
         Denormalize the output data from the completion function to the format
         expected by the client
         """
+        if isinstance(normalized_reply, CodegateModelResponseStream):
+            return normalized_reply
         return self._adapter.translate_completion_output_params(normalized_reply)
 
     def denormalize_streaming(
@@ -106,4 +124,6 @@ class LiteLLMAdapterOutputNormalizer(ModelOutputNormalizer):
         Denormalize the output stream from the completion function to the format
         expected by the client
         """
+        if isinstance(normalized_reply, CodegateModelResponseStream):
+            return normalized_reply
         return self._adapter.translate_completion_output_params_streaming(normalized_reply)

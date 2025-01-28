@@ -165,7 +165,7 @@ class OutputPipelineInstance:
 
         except Exception as e:
             # Log exception and stop processing
-            logger.error(f"Error processing stream: {e}")
+            logger.error(f"Error processing stream: {e}", exc_info=e)
             raise e
         finally:
             # NOTE: Don't use await in finally block, it will break the stream

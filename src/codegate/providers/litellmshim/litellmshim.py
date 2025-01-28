@@ -10,7 +10,7 @@ from codegate.types.common import (
     ChatCompletionRequest,
     ModelResponse,
 )
-from codegate.types.generators import acompletion
+from codegate.types.generators import acompletion, legacy_acompletion
 
 logger = structlog.get_logger("codegate")
 
@@ -27,6 +27,7 @@ class LiteLLmShim(BaseCompletionHandler):
     def __init__(
         self,
         stream_generator: StreamGenerator,
+        # completion_func: Callable = legacy_acompletion,
         completion_func: Callable = acompletion,
         fim_completion_func: Optional[Callable] = None,
     ):

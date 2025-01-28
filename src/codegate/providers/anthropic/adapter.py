@@ -9,7 +9,7 @@ from codegate.types.anthropic import (
     AnthropicMessagesRequest,
     LitellmAnthropicAdapter,
 )
-from codegate.types.common import ChatCompletionRequest
+from codegate.types.anthropic import ChatCompletionRequest
 
 
 class AnthropicAdapter(LitellmAnthropicAdapter):
@@ -17,14 +17,15 @@ class AnthropicAdapter(LitellmAnthropicAdapter):
         super().__init__()
 
     def translate_completion_input_params(self, kwargs) -> Optional[ChatCompletionRequest]:
-        request_body = AnthropicMessagesRequest(**kwargs)  # type: ignore
-        if not request_body.get("system"):
-            request_body["system"] = "System prompt"
-        translated_body = (
-            AnthropicExperimentalPassThroughConfig().translate_anthropic_to_openai(
-                anthropic_message_request=request_body
-            )
-        )
+        # request_body = AnthropicMessagesRequest(**kwargs)  # type: ignore
+        # if not request_body.get("system"):
+        #     request_body["system"] = "System prompt"
+        # translated_body = (
+        #     AnthropicExperimentalPassThroughConfig().translate_anthropic_to_openai(
+        #         anthropic_message_request=request_body
+        #     )
+        # )
+        translated_body = ChatCompletionRequest(**kwargs)
         return translated_body
 
 
@@ -49,3 +50,6 @@ class AnthropicOutputNormalizer(LiteLLMAdapterOutputNormalizer):
 
     def __init__(self):
         super().__init__(LitellmAnthropicAdapter())
+
+    def denormalize_streaming(self, stream):
+        return stream
