@@ -28,13 +28,9 @@ class AnthropicCompletion(LiteLLmShim):
         For more details, refer to the
         [LiteLLM Documentation](https://docs.litellm.ai/docs/providers/anthropic).
         """
-        model_in_request = request["model"]
-        if not model_in_request.startswith("anthropic/"):
-            request["model"] = f"anthropic/{model_in_request}"
         return await super().execute_completion(
-            request=request,
-            api_key=api_key,
-            stream=stream,
-            is_fim_request=is_fim_request,
-            base_url=request.get("base_url"),
+            request,
+            api_key,
+            stream,
+            is_fim_request,
         )
