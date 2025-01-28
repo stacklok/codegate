@@ -1,0 +1,59 @@
+# This workflow updates the file in /data/model_prices_and_context_window.json
+name: Update model prices and context window JSON file
+
+on:
+  workflow_call:
+  schedule:
+    - cron: '0 2 * * 0'   # Run every Sunday at 2:00 AM
+
+jobs:
+  update_model_prices:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write    
+
+    steps:
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+    - name: Get the latest file
+      run: |
+        curl -Ss 'https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json' > data/model_prices_and_context_window.json
+
+    - name: Check if file changed
+      id: check-model-prices
+      run: |
+          if ! git diff --quiet data/model_prices_and_context_window.json ; then
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi      
+
+    - name: Set git config
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+    
+    - name: Get current date
+      id: date
+      run: |
+        echo "CURRENT_DATETIME=$(date +%Y-%m-%d)" >> $GITHUB_ENV
+    
+    - name: Generate PR if needed
+      if: steps.check-model-prices.outputs.changed == 'true'
+      run: |
+        git checkout -b update-model-prices-$GITHUB_SHA
+
+        git add data/model_prices_and_context_window.json
+        git commit -m "Update model_prices_and_context_window.json to version generated on ${{ env.CURRENT_DATETIME }}"
+
+        echo "Pushing branch so we can create a PR..."
+        git push --set-upstream origin update-model-prices-$GITHUB_SHA
+
+        gh pr create --title "Update model_prices_and_context_window.json" \
+          --body "This PR updates the model_prices_and_context_window.json definition to the version generated on ${{ env.CURRENT_DATETIME }}" \
+          --repo "$GITHUB_REPOSITORY" \
+          --base main \
+          --head update-model-prices-$GITHUB_SHA
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}        

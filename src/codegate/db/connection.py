@@ -202,7 +202,7 @@ class DbRecorder(DbCodeGate):
                 input_tokens = excluded.input_tokens,
                 output_tokens = excluded.output_tokens,
                 input_cost = excluded.input_cost,
-                output_cost = excluded.output_cost,
+                output_cost = excluded.output_cost
                 RETURNING *
                 """
         )
