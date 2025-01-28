@@ -7,7 +7,7 @@ from ollama import Client as OllamaClient
 
 from codegate.config import Config
 from codegate.inference import LlamaCppInferenceEngine
-from codegate.types.generators import acompletion
+from codegate.types.generators import legacy_acompletion
 
 logger = structlog.get_logger("codegate")
 
@@ -133,7 +133,7 @@ class LLMClient:
                 )
                 content = response.message.content
             else:
-                response = await acompletion(
+                response = await legacy_acompletion(
                     model=model,
                     messages=request["messages"],
                     api_key=api_key,

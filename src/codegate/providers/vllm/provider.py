@@ -13,7 +13,7 @@ from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.fim_analyzer import FIMAnalyzer
 from codegate.providers.litellmshim import LiteLLmShim
 from codegate.providers.vllm.adapter import VLLMInputNormalizer, VLLMOutputNormalizer
-from codegate.types.generators import atext_completion, sse_stream_generator
+from codegate.types.generators import legacy_atext_completion, sse_stream_generator
 
 
 class VLLMProvider(BaseProvider):
@@ -22,7 +22,7 @@ class VLLMProvider(BaseProvider):
         pipeline_factory: PipelineFactory,
     ):
         completion_handler = LiteLLmShim(
-            stream_generator=sse_stream_generator, fim_completion_func=atext_completion
+            stream_generator=sse_stream_generator, fim_completion_func=legacy_atext_completion
         )
         super().__init__(
             VLLMInputNormalizer(),
