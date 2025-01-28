@@ -1,0 +1,22 @@
+name: Task
+description: Task request
+type: Task
+title: '[Task]: '
+labels: []
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the need. Why is it needed? What is the expected outcome? What is the impact?
+      placeholder: Describe the task
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-data
+    attributes:
+      label: Links to PRD, etc.
+      description: Please provide links to the required docs.
+    validations:
+      required: false

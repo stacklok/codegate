@@ -1,7 +1,8 @@
-name: "Bug Report"
+name: "Bug"
 description: "Report a bug to help us improve the proxy system."
+type: Bug
 title: "-- Provide a general summary of the issue --"
-labels: [bug]
+labels: ["bug", "needs-triage"]
 assignees: "-"
 body:
   - type: markdown
