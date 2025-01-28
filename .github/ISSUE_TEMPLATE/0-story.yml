@@ -14,9 +14,8 @@ body:
       required: true
 
   - type: textarea
-    id: additional-data
+    id: additional-context
     attributes:
-      label: Links to PRD, etc.
-      description: Please provide links to the required docs.
-    validations:
-      required: false
+      label: "Additional Context"
+      description: "Add any other context or details about the problem here (e.g. link to Discussion, etc.)."
+    required: false
