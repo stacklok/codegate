@@ -4,6 +4,7 @@ headers:
   openai:
     Authorization: Bearer ENV_OPENAI_KEY
   ollama:
+    Content-Type: application/json
   llamacpp:
   anthropic:
     x-api-key: ENV_ANTHROPIC_KEY
@@ -275,12 +276,12 @@ testcases:
               "role":"user"
             }
         ],
-        "model":"qwen2.5-coder:latest",
+        "model":"qwen2.5-coder:0.5b",
         "stream":true,
         "temperature":0
       }
     likes: |
-      Hello! How can I assist you today? If you have any questions or need guidance on secure coding practices, software security, package analysis, or anything else related to cybersecurity, feel free to ask!
+      Hello! How can I assist you today?
 
   ollama_fim:
     name: Ollama FIM
@@ -288,7 +289,7 @@ testcases:
     url: http://127.0.0.1:8989/ollama/api/generate
     data: |
       {
-        "model": "qwen2.5-coder:latest",
+        "model": "qwen2.5-coder:0.5b",
         "max_tokens": 4096,
         "temperature": 0,
         "stream": true,

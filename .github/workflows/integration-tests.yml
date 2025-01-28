@@ -58,8 +58,7 @@ jobs:
           echo "Running container from image: $DOCKER_IMAGE"
 
           # Run the container
-          docker run --name $CONTAINER_NAME -d -p 8989:8989 -p 9090:9090 \
-            -p 8990:8990 \
+          docker run --name $CONTAINER_NAME -d --network host \
             -v "$(pwd)"/codegate_volume:/app/codegate_volume \
             -e CODEGATE_APP_LOG_LEVEL=DEBUG \
             --restart unless-stopped $DOCKER_IMAGE
@@ -145,6 +144,41 @@ jobs:
           ENV_ANTHROPIC_KEY: ${{ secrets.anthropic-key }}
         run: |
           poetry run python tests/integration/integration_tests.py
+
+      - name: Run Ollama
+        run: |
+          docker run -d -v ollama:/root/.ollama --network host --name ollama ollama/ollama
+          docker ps -f name=ollama
+          echo "Loop until the endpoint responds successfully"
+          while ! curl --silent --fail --get "http://localhost:11434" >/dev/null; do
+            echo "Ollama not available yet. Retrying in 2 seconds..."
+            sleep 2
+          done
+          echo "Ollama is now available!"
+          docker exec -d ollama ollama run qwen2.5-coder:0.5b
+
+          sleep 120 # Sleep for 2 minutes to allow Ollama to download the model. TODO: Improve this
+          docker logs ollama
+
+          # Verify the Ollama API is working
+          curl http://localhost:11434/api/generate -d '{
+            "model": "qwen2.5-coder:0.5b",
+            "prompt": "Why is the sky blue?",
+            "stream": false
+          }'
+
+          docker logs ollama
+
+      - name: Run integration tests - Ollama
+        env:
+          CODEGATE_PROVIDERS: "ollama"
+        run: |
+          poetry run python tests/integration/integration_tests.py
+
+      - name: Print the Ollama container logs (useful for debugging)
+        if: always()
+        run: |
+          docker logs ollama
 
       - name: Print the container logs (useful for debugging)
         if: always()
