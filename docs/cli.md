@@ -71,6 +71,11 @@ codegate serve [OPTIONS]
   - Base URL for Ollama provider (/api path is added automatically)
   - Overrides configuration file and environment variables
 
+- `--lm-studio-url TEXT`: LM Studio provider URL (default: `http://localhost:1234`)
+  - Optional
+  - Base URL for LM studio provider (/v1 path is added automatically)
+  - Overrides configuration file and environment variables
+
 - `--model-base-path TEXT`: Base path for loading models needed for the system
   - Optional
 
@@ -197,6 +202,12 @@ Start server with custom Ollama endpoint:
 
 ```bash
 codegate serve --ollama-url http://localhost:11434
+```
+
+Start server with custom LM Studio endpoint:
+
+```bash
+codegate serve --lm-studio-url https://lmstudio.example.com
 ```
 
 Show default system prompts:

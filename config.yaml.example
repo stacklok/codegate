@@ -26,6 +26,7 @@ provider_urls:
 # --vllm-url
 # --openai-url
 # --anthropic-url
+# --lm-studio-url
 
 # Certificate configuration
 certs_dir: "./certs"  # Directory for certificate files

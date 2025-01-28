@@ -44,6 +44,7 @@ start_application() {
     [ -n "$CODEGATE_ANTHROPIC_URL" ] && CMD_ARGS+=" --anthropic-url $CODEGATE_ANTHROPIC_URL"
     [ -n "$CODEGATE_OLLAMA_URL" ] && CMD_ARGS+=" --ollama-url $CODEGATE_OLLAMA_URL"
     [ -n "$CODEGATE_VLLM_URL" ] && CMD_ARGS+=" --vllm-url $CODEGATE_VLLM_URL"
+    [ -n "$CODEGATE_LM_STUDIO_URL" ] && CMD_ARGS+=" --lm-studio-url $CODEGATE_LM_STUDIO_URL"
 
     # Check and append debug level if set
     [ -n "$CODEGATE_APP_LOG_LEVEL" ] && CMD_ARGS+=" --log-level $CODEGATE_APP_LOG_LEVEL"

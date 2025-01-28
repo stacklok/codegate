@@ -232,6 +232,8 @@ docker run --name codegate -d -v /path/to/volume:/app/codegate_volume -p 8989:89
   [https://api.anthropic.com/v1](https://api.anthropic.com/v1))
 - CODEGATE_OLLAMA_URL: URL for OLlama inference engine (defaults to
   [http://localhost:11434/api](http://localhost:11434/api))
+- CODEGATE_LM_STUDIO_URL: URL for LM Studio inference engine (defaults to
+  [http://localhost:1234/api](http://localhost:1234/api))
 - CODEGATE_APP_LOG_LEVEL: Level of debug desired when running the codegate
   server (defaults to WARNING, can be ERROR/WARNING/INFO/DEBUG)
 - CODEGATE_LOG_FORMAT: Type of log formatting desired when running the codegate
@@ -312,6 +314,7 @@ Provider URLs can be configured through:
    export CODEGATE_PROVIDER_OPENAI_URL=https://api.openai.com/v1
    export CODEGATE_PROVIDER_ANTHROPIC_URL=https://api.anthropic.com/v1
    export CODEGATE_PROVIDER_OLLAMA_URL=http://localhost:11434
+   export CODEGATE_PROVIDER_LM_STUDIO_URL=http://localhost:1234
    ```
 
 3. CLI flags:
