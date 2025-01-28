@@ -74,8 +74,8 @@ docker run --name codegate -d -p 8989:8989 -p 9090:9090 -p 8990:8990 \
 
 That’s it! CodeGate is now running locally. 
 
-### Get into Action
-Now it's time to configure your preferred AI Coding Assistant to use CodeGate
+### Get into action
+Now it's time to configure your preferred AI coding assistant to use CodeGate
 [See supported AI Coding Assistants and providers](#-supported-ai-coding-assistants-and-providers)
 
 ⚙️ For advanced configurations and parameter references, check out the
