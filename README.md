@@ -21,11 +21,15 @@
 
 ---
 
-# CodeGate: Secure AI Coding Assistance
+# CodeGate: secure AI coding assistance
 
-**By [Stacklok](https://stacklok.com)**  
+**By [Stacklok](https://stacklok.com)**
 
-CodeGate is a **local gateway** that makes AI coding assistants safer. It ensures AI-generated recommendations adhere to best practices while safeguarding your code's integrity and protecting your privacy. With CodeGate, you can confidently leverage AI in your development workflow without sacrificing security or productivity.
+CodeGate is a **local gateway** that makes AI coding assistants safer. It
+ensures AI-generated recommendations adhere to best practices while safeguarding
+your code's integrity and protecting your privacy. With CodeGate, you can
+confidently leverage AI in your development workflow without sacrificing
+security or productivity.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./static/diagram-dark.png">
@@ -34,24 +38,32 @@ CodeGate is a **local gateway** that makes AI coding assistants safer. It ensure
 
 ---
 
-## ✨ Why Choose CodeGate?
-AI coding assistants are powerful, but they can inadvertently introduce risks. CodeGate protects your development process by:
+## ✨ Why choose CodeGate?
 
-- 🔒 **Preventing accidental exposure of secrets and sensitive data**
-- 🛡️ **Ensuring AI suggestions follow secure coding practices**
-- ⚠️ **Blocking recommendations of known malicious or deprecated libraries**
-- 🔍 **Providing real-time security analysis of AI suggestions**
+AI coding assistants are powerful, but they can inadvertently introduce risks.
+CodeGate protects your development process by:
+
+- 🔒 Preventing accidental exposure of secrets and sensitive data
+- 🛡️ Ensuring AI suggestions follow secure coding practices
+- ⚠️ Blocking recommendations of known malicious or deprecated libraries
+- 🔍 Providing real-time security analysis of AI suggestions
 
 ---
 
 ## 🚀 Quickstart
 
 ### Prerequisites
-CodeGate is distributed as a Docker container. You need a container runtime like Docker Desktop or Docker Engine. **Podman** and **Podman Desktop** are also supported. CodeGate works on **Windows**, **macOS**, and **Linux** operating systems with **x86_64** and **arm64** (ARM and Apple Silicon) CPU architectures.
 
-These instructions assume the `docker` CLI is available. If you use Podman, replace `docker` with `podman` in all commands.
+CodeGate is distributed as a Docker container. You need a container runtime like
+Docker Desktop or Docker Engine. Podman and Podman Desktop are also supported.
+CodeGate works on Windows, macOS, and Linux operating systems with x86_64 and
+arm64 (ARM and Apple Silicon) CPU architectures.
+
+These instructions assume the `docker` CLI is available. If you use Podman,
+replace `docker` with `podman` in all commands.
 
 ### Installation
+
 To start CodeGate, run this simple command:
 
 ```bash
@@ -60,12 +72,17 @@ docker run --name codegate -d -p 8989:8989 -p 9090:9090 -p 8990:8990 \
   --restart unless-stopped ghcr.io/stacklok/codegate:latest
 ```
 
-That’s it! CodeGate is now running locally. For advanced configurations and parameter references, check out the [CodeGate Install and Upgrade](https://docs.codegate.ai/how-to/install) documentation.
+That’s it! CodeGate is now running locally. For advanced configurations and
+parameter references, check out the
+[CodeGate Install and Upgrade](https://docs.codegate.ai/how-to/install)
+documentation.
 
 ---
 
 ## 🖥️ Dashboard
+
 CodeGate includes a web dashboard that provides:
+
 - A view of **security risks** detected by CodeGate
 - A **history of interactions** between your AI coding assistant and your LLM
 
@@ -86,47 +103,76 @@ To learn more, visit the
 
 ## 🔐 Features
 
-### Secret Encryption
-CodeGate helps you protect sensitive information from being accidentally exposed to AI models and third-party AI provider systems by redacting detected secrets from your prompts using encryption. [Learn more](https://docs.codegate.ai/features/secrets-encryption)
+### Secrets encryption
 
-### Dependency Risk Awareness
-LLMs’ knowledge cutoff date is often months or even years in the past. They might suggest outdated, vulnerable, or non-existent packages (hallucinations), exposing you and your users to security risks. 
+CodeGate helps you protect sensitive information from being accidentally exposed
+to AI models and third-party AI provider systems by redacting detected secrets
+from your prompts using encryption.
+[Learn more](https://docs.codegate.ai/features/secrets-encryption)
 
-CodeGate scans direct, transitive, and development dependencies in your package definition files, installation scripts, and source code imports that you supply as context to an LLM. [Learn more](https://docs.codegate.ai/features/dependency-risk)
+### Dependency risk awareness
 
-### Security Reviews
-CodeGate performs security-centric code reviews, identifying insecure patterns or potential vulnerabilities to help you adopt more secure coding practices. [Learn more](https://docs.codegate.ai/features/security-reviews)
+LLMs’ knowledge cutoff date is often months or even years in the past. They
+might suggest outdated, vulnerable, or non-existent packages (hallucinations),
+exposing you and your users to security risks.
+
+CodeGate scans direct, transitive, and development dependencies in your package
+definition files, installation scripts, and source code imports that you supply
+as context to an LLM.
+[Learn more](https://docs.codegate.ai/features/dependency-risk)
+
+### Security reviews
+
+CodeGate performs security-centric code reviews, identifying insecure patterns
+or potential vulnerabilities to help you adopt more secure coding practices.
+[Learn more](https://docs.codegate.ai/features/security-reviews)
 
 ---
 
-## 🤖 Supported AI Coding Assistants and Providers
+## 🤖 Supported AI coding assistants and providers
 
-### [Aider](https://aider.chat)
-- **Local / Self-Managed:**
-  - [Ollama](https://ollama.com/)
+### [Aider](https://docs.codegate.ai/how-to/use-with-aider)
+
+- **Local / self-managed:**
+  - Ollama
 - **Hosted:**
-  - [OpenAI API](https://openai.com/api/)
+  - OpenAI and compatible APIs
 
-🔥 Getting Started with CodeGate and aider [Watch on YouTube](https://www.youtube.com/watch?v=VxvEXiwEGnA)
+🔥 Getting started with CodeGate and aider -
+[watch on YouTube](https://www.youtube.com/watch?v=VxvEXiwEGnA)
 
-### [Continue](https://www.continue.dev/)
-- **Local / Self-Managed:**
-  - [Ollama](https://ollama.com/)
-  - [llama.cpp](https://github.com/ggerganov/llama.cpp)
-  - [vLLM](https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html)
+### [Cline](https://docs.codegate.ai/how-to/use-with-cline)
+
+- **Local / self-managed:**
+  - Ollama
+  - LM Studio
 - **Hosted:**
-  - [OpenRouter](https://openrouter.ai/)
-  - [Anthropic API](https://www.anthropic.com/api)
-  - [OpenAI API](https://openai.com/api/)
+  - OpenRouter
+  - Anthropic
+  - OpenAI and compatible APIs
 
-### [GitHub Copilot](https://github.com/features/copilot)
-- The Copilot plugin works with **Visual Studio Code (VS Code)**. 
+### [Continue](https://docs.codegate.ai/how-to/use-with-continue)
+
+- **Local / self-managed:**
+  - Ollama
+  - llama.cpp
+  - vLLM
+- **Hosted:**
+  - OpenRouter
+  - Anthropic API
+  - OpenAI and compatible APIs
+
+### [GitHub Copilot](https://docs.codegate.ai/how-to/use-with-copilot)
+
+- The Copilot plugin works with **Visual Studio Code (VS Code)**.
 - **Support for JetBrains is coming soon.**
 
 ---
 
-## 🛡️ Privacy First
-Unlike other tools, with CodeGate **your code never leaves your machine**. CodeGate is built with privacy at its core:
+## 🛡️ Privacy first
+
+Unlike other tools, with CodeGate **your code never leaves your machine**.
+CodeGate is built with privacy at its core:
 
 - 🏠 **Everything stays local**
 - 🚫 **No external data collection**
@@ -136,29 +182,38 @@ Unlike other tools, with CodeGate **your code never leaves your machine**. CodeG
 ---
 
 ## 🛠️ Development
+
 Are you a developer looking to contribute? Dive into our technical resources:
 
-- [Development Guide](https://github.com/stacklok/codegate/blob/main/docs/development.md)
-- [CLI Commands and Flags](https://github.com/stacklok/codegate/blob/main/docs/cli.md)
-- [Configuration System](https://github.com/stacklok/codegate/blob/main/docs/configuration.md)
-- [Logging System](https://github.com/stacklok/codegate/blob/main/docs/logging.md)
+- [Development guide](https://github.com/stacklok/codegate/blob/main/docs/development.md)
+- [CLI commands and flags](https://github.com/stacklok/codegate/blob/main/docs/cli.md)
+- [Configuration system](https://github.com/stacklok/codegate/blob/main/docs/configuration.md)
+- [Logging system](https://github.com/stacklok/codegate/blob/main/docs/logging.md)
 
 ---
 
 ## 🤝 Contributing
-We welcome contributions! Whether you're submitting bug reports, feature requests, or code contributions, your input makes CodeGate better for everyone. We thank you ❤️!
 
-Start by reading our [Contributor Guidelines](https://github.com/stacklok/codegate/blob/main/CONTRIBUTING.md).
+We welcome contributions! Whether you're submitting bug reports, feature
+requests, or code contributions, your input makes CodeGate better for everyone.
+We thank you ❤️!
+
+Start by reading our
+[Contributor guidelines](https://github.com/stacklok/codegate/blob/main/CONTRIBUTING.md).
 
 ---
 
-## 🌟 Support Us
-Love CodeGate? Starring this repository and sharing it with others helps CodeGate grow 🌱
+## 🌟 Support us
+
+Love CodeGate? Starring this repository and sharing it with others helps
+CodeGate grow 🌱
 
 [![Star on GitHub](https://img.shields.io/github/stars/stacklok/codegate.svg?style=social)](https://github.com/stacklok/codegate)
 
 ## 📜 License
-CodeGate is licensed under the terms specified in the [LICENSE file](https://github.com/stacklok/codegate/blob/main/LICENSE).
+
+CodeGate is licensed under the terms specified in the
+[LICENSE file](https://github.com/stacklok/codegate/blob/main/LICENSE).
 
 ---
 
