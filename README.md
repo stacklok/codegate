@@ -5,11 +5,19 @@
 
 ---
 
-[![CI](https://github.com/stacklok/codegate/actions/workflows/run-on-push.yml/badge.svg)](https://github.com/stacklok/codegate/actions/workflows/run-on-push.yml)
+![Latest version](https://img.shields.io/github/v/release/stacklok/codegate?style=flat&label=Latest%20version)
 |
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache2.0-brightgreen.svg)](https://opensource.org/licenses/Apache-2.0)
+[![CI](https://github.com/stacklok/codegate/actions/workflows/run-on-push.yml/badge.svg?event=push)](https://github.com/stacklok/codegate/actions/workflows/run-on-push.yml)
 |
-[![Discord](https://dcbadge.vercel.app/api/server/RkzVuTp3WK?logo=discord&label=Discord&color=5865&style=flat)](https://discord.gg/RkzVuTp3WK)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache2.0-brightgreen.svg?style=flat)](https://opensource.org/licenses/Apache-2.0)
+|
+[![Star on GitHub](https://img.shields.io/github/stars/stacklok/codegate.svg?style=flat&logo=github&label=Stars)](https://github.com/stacklok/codegate)
+|
+[![Discord](https://img.shields.io/discord/1184987096302239844?style=flat&logo=discord&label=Discord)](https://discord.gg/stacklok)
+
+[Website](https://codegate.ai) | [Documentation](https://docs.codegate.ai) |
+[YouTube](https://www.youtube.com/playlist?list=PLYBL38zBWVIhrDgKwAMjAwOYZeP-ZH64n)
+| [Discord](https://discord.gg/stacklok)
 
 ---
 
