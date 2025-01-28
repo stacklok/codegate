@@ -1,5 +1,5 @@
 import datetime
-from typing import Annotated, Any, Optional
+from typing import Annotated, Any, Dict, Optional
 
 from pydantic import BaseModel, StringConstraints
 
@@ -19,6 +19,10 @@ class Output(BaseModel):
     prompt_id: Any
     timestamp: Any
     output: Any
+    input_tokens: Optional[int] = None
+    output_tokens: Optional[int] = None
+    input_cost: Optional[float] = None
+    output_cost: Optional[float] = None
 
 
 class Prompt(BaseModel):
@@ -28,6 +32,51 @@ class Prompt(BaseModel):
     request: Any
     type: Any
     workspace_id: Optional[str]
+
+
+class TokenUsage(BaseModel):
+    """
+    TokenUsage it's not a table, it's a model to represent the token usage.
+    The data is stored in the outputs table.
+    """
+
+    input_tokens: int = 0
+    output_tokens: int = 0
+    input_cost: float = 0
+    output_cost: float = 0
+
+    @classmethod
+    def from_dict(cls, usage_dict: Dict) -> "TokenUsage":
+        return cls(
+            input_tokens=usage_dict.get("prompt_tokens", 0) or usage_dict.get("input_tokens", 0),
+            output_tokens=usage_dict.get("completion_tokens", 0)
+            or usage_dict.get("output_tokens", 0),
+            input_cost=0,
+            output_cost=0,
+        )
+
+    @classmethod
+    def from_db(
+        cls,
+        input_tokens: Optional[int],
+        output_tokens: Optional[int],
+        input_cost: Optional[float],
+        output_cost: Optional[float],
+    ) -> "TokenUsage":
+        return cls(
+            input_tokens=0 if not input_tokens else input_tokens,
+            output_tokens=0 if not output_tokens else output_tokens,
+            input_cost=0 if not input_cost else input_cost,
+            output_cost=0 if not output_cost else output_cost,
+        )
+
+    def __add__(self, other: "TokenUsage") -> "TokenUsage":
+        return TokenUsage(
+            input_tokens=self.input_tokens + other.input_tokens,
+            output_tokens=self.output_tokens + other.output_tokens,
+            input_cost=self.input_cost + other.input_cost,
+            output_cost=self.output_cost + other.output_cost,
+        )
 
 
 WorkspaceNameStr = Annotated[
@@ -76,6 +125,10 @@ class GetPromptWithOutputsRow(BaseModel):
     output_id: Optional[Any]
     output: Optional[Any]
     output_timestamp: Optional[Any]
+    input_tokens: Optional[int]
+    output_tokens: Optional[int]
+    input_cost: Optional[float]
+    output_cost: Optional[float]
 
 
 class WorkspaceWithSessionInfo(BaseModel):

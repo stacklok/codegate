@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from codegate.api.v1_models import PartialQuestions, TokenUsage
+from codegate.api.v1_models import PartialQuestions
 from codegate.api.v1_processing import (
-    _get_question_answer,
+    _get_partial_question_answer,
     _group_partial_messages,
     _is_system_prompt,
     parse_output,
@@ -133,7 +133,7 @@ async def test_parse_request(request_dict, expected_str_list):
 )
 async def test_parse_output(output_dict, expected_str):
     request_str = json.dumps(output_dict)
-    output_message, _ = await parse_output(request_str)
+    output_message = await parse_output(request_str)
     assert output_message == expected_str
 
 
@@ -155,6 +155,10 @@ timestamp_now = datetime.datetime.now(datetime.timezone.utc)
             output_id="2",
             output="bar",
             output_timestamp=timestamp_now,
+            input_tokens=None,
+            output_tokens=None,
+            input_cost=None,
+            output_cost=None,
         )
     ],
 )
@@ -167,8 +171,8 @@ async def test_get_question_answer(request_msg_list, output_msg_str, row):
         ) as mock_parse_output:
             # Set return values for the mocks
             mock_parse_request.return_value = request_msg_list, "openai"
-            mock_parse_output.return_value = output_msg_str, TokenUsage()
-            result = await _get_question_answer(row)
+            mock_parse_output.return_value = output_msg_str
+            result = await _get_partial_question_answer(row)
 
             mock_parse_request.assert_called_once()
             mock_parse_output.assert_called_once()

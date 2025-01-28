@@ -28,6 +28,7 @@ from codegate.db.models import (
     WorkspaceRow,
     WorkspaceWithSessionInfo,
 )
+from codegate.db.token_usage import TokenUsageParser
 from codegate.pipeline.base import PipelineContext
 
 logger = structlog.get_logger("codegate")
@@ -174,15 +175,34 @@ class DbRecorder(DbCodeGate):
         # Just store the model respnses in the list of JSON objects.
         for output in outputs:
             full_outputs.append(output.output)
+
+        # Parse the token usage from the outputs
+        token_parser = TokenUsageParser()
+        full_token_usage = await token_parser.parse_outputs(outputs)
+
         output_db.output = json.dumps(full_outputs)
+        output_db.input_tokens = full_token_usage.input_tokens
+        output_db.output_tokens = full_token_usage.output_tokens
+        output_db.input_cost = full_token_usage.input_cost
+        output_db.output_cost = full_token_usage.output_cost
 
         sql = text(
             """
-                INSERT INTO outputs (id, prompt_id, timestamp, output)
-                VALUES (:id, :prompt_id, :timestamp, :output)
+                INSERT INTO outputs (
+                    id, prompt_id, timestamp, output, input_tokens, output_tokens, input_cost,
+                    output_cost
+                )
+                VALUES (
+                    :id, :prompt_id, :timestamp, :output, :input_tokens, :output_tokens,
+                    :input_cost, :output_cost
+                )
                 ON CONFLICT (id) DO UPDATE SET
-                timestamp = excluded.timestamp, output = excluded.output,
-                prompt_id = excluded.prompt_id
+                timestamp = excluded.timestamp,
+                output = excluded.output,
+                input_tokens = excluded.input_tokens,
+                output_tokens = excluded.output_tokens,
+                input_cost = excluded.input_cost,
+                output_cost = excluded.output_cost,
                 RETURNING *
                 """
         )
@@ -491,7 +511,11 @@ class DbReader(DbCodeGate):
                 p.id, p.timestamp, p.provider, p.request, p.type,
                 o.id as output_id,
                 o.output,
-                o.timestamp as output_timestamp
+                o.timestamp as output_timestamp,
+                o.input_tokens,
+                o.output_tokens,
+                o.input_cost,
+                o.output_cost
             FROM prompts p
             LEFT JOIN outputs o ON p.id = o.prompt_id
             WHERE p.workspace_id = :workspace_id

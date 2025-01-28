@@ -533,16 +533,19 @@ def version_check():
 )
 async def get_workspace_token_usage(workspace_name: str) -> v1_models.TokenUsageAggregate:
     """Get the token usage of a workspace."""
-    # TODO: This is a dummy implementation. In the future, we should have a proper
-    # implementation that fetches the token usage from the database.
-    return v1_models.TokenUsageAggregate(
-        used_tokens=50,
-        tokens_by_model=[
-            v1_models.TokenUsageByModel(
-                provider_type="openai", model="gpt-4o-mini", used_tokens=20
-            ),
-            v1_models.TokenUsageByModel(
-                provider_type="anthropic", model="claude-3-5-sonnet-20241022", used_tokens=30
-            ),
-        ],
-    )
+
+    try:
+        ws = await wscrud.get_workspace_by_name(workspace_name)
+    except crud.WorkspaceDoesNotExistError:
+        raise HTTPException(status_code=404, detail="Workspace does not exist")
+    except Exception:
+        logger.exception("Error while getting workspace")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    try:
+        prompts_outputs = await dbreader.get_prompts_with_output(ws.id)
+        ws_token_usage = await v1_processing.parse_workspace_token_usage(prompts_outputs)
+        return ws_token_usage
+    except Exception:
+        logger.exception("Error while getting messages")
+        raise HTTPException(status_code=500, detail="Internal server error")

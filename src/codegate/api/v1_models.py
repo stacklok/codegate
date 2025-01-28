@@ -3,8 +3,6 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
 import pydantic
-import requests
-from cachetools import TTLCache
 
 from codegate.db import models as db_models
 from codegate.pipeline.base import CodeSnippet
@@ -122,46 +120,7 @@ class ProviderType(str, Enum):
     vllm = "vllm"
     ollama = "ollama"
     lm_studio = "lm_studio"
-
-
-class TokenUsage(pydantic.BaseModel):
-    input_tokens: int = 0
-    output_tokens: int = 0
-    input_cost: float = 0
-    output_cost: float = 0
-
-    @classmethod
-    def from_dict(cls, usage_dict: Dict) -> "TokenUsage":
-        return cls(
-            input_tokens=usage_dict.get("prompt_tokens", 0) or usage_dict.get("input_tokens", 0),
-            output_tokens=usage_dict.get("completion_tokens", 0)
-            or usage_dict.get("output_tokens", 0),
-            input_cost=0,
-            output_cost=0,
-        )
-
-    def __add__(self, other: "TokenUsage") -> "TokenUsage":
-        return TokenUsage(
-            input_tokens=self.input_tokens + other.input_tokens,
-            output_tokens=self.output_tokens + other.output_tokens,
-            input_cost=self.input_cost + other.input_cost,
-            output_cost=self.output_cost + other.output_cost,
-        )
-
-    def update_token_cost(self, model: str) -> None:
-        if not model_cost_cache:
-            model_cost = requests.get(
-                "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-            )
-            model_cost_cache.update(model_cost.json())
-        model_cost = model_cost_cache.get(model, {})
-        input_cost_per_token = model_cost.get("input_cost_per_token", 0)
-        output_cost_per_token = model_cost.get("output_cost_per_token", 0)
-        self.input_cost = self.input_tokens * input_cost_per_token
-        self.output_cost = self.output_tokens * output_cost_per_token
-
-    def update_costs_based_on_model(self, model: str):
-        pass
+    llamacpp = "llamacpp"
 
 
 class TokenUsageByModel(pydantic.BaseModel):
@@ -171,7 +130,7 @@ class TokenUsageByModel(pydantic.BaseModel):
 
     provider_type: ProviderType
     model: str
-    token_usage: TokenUsage
+    token_usage: db_models.TokenUsage
 
 
 class TokenUsageAggregate(pydantic.BaseModel):
@@ -181,9 +140,20 @@ class TokenUsageAggregate(pydantic.BaseModel):
     """
 
     tokens_by_model: Dict[str, TokenUsageByModel]
-    token_usage: TokenUsage
+    token_usage: db_models.TokenUsage
 
     def add_model_token_usage(self, model_token_usage: TokenUsageByModel) -> None:
+        # Copilot doesn't have a model name and we cannot obtain the tokens used. Skip it.
+        if model_token_usage.model == "":
+            return
+
+        # Skip if the model has not used any tokens.
+        if (
+            model_token_usage.token_usage.input_tokens == 0
+            and model_token_usage.token_usage.output_tokens == 0
+        ):
+            return
+
         if model_token_usage.model in self.tokens_by_model:
             self.tokens_by_model[
                 model_token_usage.model
