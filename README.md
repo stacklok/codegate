@@ -72,8 +72,13 @@ docker run --name codegate -d -p 8989:8989 -p 9090:9090 -p 8990:8990 \
   --restart unless-stopped ghcr.io/stacklok/codegate:latest
 ```
 
-That’s it! CodeGate is now running locally. For advanced configurations and
-parameter references, check out the
+That’s it! CodeGate is now running locally. 
+
+### Get into Action
+Now it's time to configure your preferred AI Coding Assistant to use CodeGate
+[See supported AI Coding Assistants and providers](#-supported-ai-coding-assistants-and-providers)
+
+⚙️ For advanced configurations and parameter references, check out the
 [CodeGate Install and Upgrade](https://docs.codegate.ai/how-to/install)
 documentation.
 
