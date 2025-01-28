@@ -180,17 +180,26 @@ async def _get_question_answer(row: GetPromptWithOutputsRow) -> Optional[Partial
 
 
 def parse_question_answer(input_text: str) -> str:
-    # given a string, detect if we have a pattern of "Context: xxx \n\nQuery: xxx" and strip it
-    pattern = r"^Context:.*?\n\n\s*Query:\s*(.*)$"
+    # Remove the <environment_details>...</environment_details> pattern if present
+    env_details_pattern = r"\n<environment_details>.*?</environment_details>"
+    input_text = re.sub(env_details_pattern, "", input_text, flags=re.DOTALL).strip()
 
-    # Search using the regex pattern
-    match = re.search(pattern, input_text, re.DOTALL)
+    # Check for the <task>...</task> pattern first
+    task_pattern = r"^<task>(.*?)</task>"
+    task_match = re.search(task_pattern, input_text, re.DOTALL)
 
-    # If a match is found, return the captured group after "Query:"
-    if match:
-        return match.group(1)
-    else:
-        return input_text
+    if task_match:
+        return task_match.group(1).strip()
+
+    # If no <task>...</task>, check for "Context: xxx \n\nQuery: xxx"
+    context_query_pattern = r"^Context:.*?\n\n\s*Query:\s*(.*)$"
+    context_query_match = re.search(context_query_pattern, input_text, re.DOTALL)
+
+    if context_query_match:
+        return context_query_match.group(1).strip()
+
+    # If no pattern matches, return the original input text
+    return input_text
 
 
 def _clean_secrets_from_message(message: str) -> str:
@@ -198,7 +207,9 @@ def _clean_secrets_from_message(message: str) -> str:
     return pattern.sub("REDACTED_SECRET", message)
 
 
-def _group_partial_messages(pq_list: List[PartialQuestions]) -> List[List[PartialQuestions]]:
+def _group_partial_messages(
+    pq_list: List[PartialQuestions],
+) -> List[List[PartialQuestions]]:  # noqa: C901
     """
     A PartialQuestion is an object that contains several user messages provided from a
     chat conversation. Example:
