@@ -19,6 +19,11 @@
 
 CodeGate is a **local gateway** that makes AI coding assistants safer. It ensures AI-generated recommendations adhere to best practices while safeguarding your code's integrity and protecting your privacy. With CodeGate, you can confidently leverage AI in your development workflow without sacrificing security or productivity.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./static/diagram-dark.png">
+  <img alt="CodeGate dashboard" src="./static/diagram-light.png" width="1100px" style="max-width: 100%;">
+</picture>
+
 ---
 
 ## ✨ Why Choose CodeGate?
@@ -56,18 +61,18 @@ CodeGate includes a web dashboard that provides:
 - A view of **security risks** detected by CodeGate
 - A **history of interactions** between your AI coding assistant and your LLM
 
-### Accessing the Dashboard
-Ensure port `9090` is bound to a port on your local system when launching CodeGate. For example:
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./static/dashboard-dark.webp">
+  <img alt="CodeGate dashboard" src="./static/dashboard-light.webp" width="1200px" style="max-width: 100%;">
+</picture>
 
-```bash
-docker run --name codegate -d -p 8989:8989 \
-  -p 9090:9090 \
-  --restart unless-stopped ghcr.io/stacklok/codegate:latest
-```
+### Accessing the dashboard
 
-Once CodeGate is running, open [http://localhost:9090](http://localhost:9090) in your web browser to access the dashboard.
+Open [http://localhost:9090](http://localhost:9090) in your web browser to
+access the dashboard.
 
-To learn more, visit the [CodeGate Dashboard documentation](https://docs.codegate.ai/how-to/dashboard).
+To learn more, visit the
+[CodeGate Dashboard documentation](https://docs.codegate.ai/how-to/dashboard).
 
 ---
 
