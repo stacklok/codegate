@@ -5,7 +5,7 @@
 
 ---
 
-![Latest version](https://img.shields.io/github/v/release/stacklok/codegate?style=flat&label=Latest%20version)
+[![Release](https://img.shields.io/github/v/release/stacklok/codegate?style=flat&label=Latest%20version)](https://github.com/stacklok/codegate/releases)
 |
 [![CI](https://github.com/stacklok/codegate/actions/workflows/run-on-push.yml/badge.svg?event=push)](https://github.com/stacklok/codegate/actions/workflows/run-on-push.yml)
 |
@@ -152,7 +152,6 @@ or potential vulnerabilities to help you adopt more secure coding practices.
   - Ollama
   - LM Studio
 - **Hosted:**
-  - OpenRouter
   - Anthropic
   - OpenAI and compatible APIs
 
@@ -163,14 +162,13 @@ or potential vulnerabilities to help you adopt more secure coding practices.
   - llama.cpp
   - vLLM
 - **Hosted:**
-  - OpenRouter
-  - Anthropic API
+  - Anthropic
   - OpenAI and compatible APIs
 
 ### [GitHub Copilot](https://docs.codegate.ai/how-to/use-with-copilot)
 
-- The Copilot plugin works with **Visual Studio Code (VS Code)**.
-- **Support for JetBrains is coming soon.**
+- The Copilot plugin works with **Visual Studio Code (VS Code)** (JetBrains is
+  coming soon!)
 
 ---
 
