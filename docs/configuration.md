@@ -29,6 +29,7 @@ Values from higher-priority sources take precedence over lower-priority values.
   - OpenAI: `"https://api.openai.com/v1"`
   - Anthropic: `"https://api.anthropic.com/v1"`
   - Ollama: `"http://localhost:11434"`
+  - LM Studio: `"http://localhost:1234"`
 - Certificate configuration:
   - Certs directory: `"./certs"`
   - CA certificate: `"ca.crt"`
@@ -59,6 +60,7 @@ provider_urls:
   openai: "https://api.openai.com/v1"
   anthropic: "https://api.anthropic.com/v1"
   ollama: "http://localhost:11434"
+  lm_studio: "http://localhost:1234"
 certs_dir: "./certs"
 ca_cert: "ca.crt"
 ca_key: "ca.key"
@@ -80,6 +82,7 @@ Environment variables are automatically loaded with these mappings:
 - `CODEGATE_PROVIDER_OPENAI_URL`: OpenAI provider URL
 - `CODEGATE_PROVIDER_ANTHROPIC_URL`: Anthropic provider URL
 - `CODEGATE_PROVIDER_OLLAMA_URL`: Ollama provider URL
+- `CODEGATE_PROVIDER_LM_STUDIO_URL`: LM Studio provider URL
 - `CODEGATE_CERTS_DIR`: directory for certificate files
 - `CODEGATE_CA_CERT`: CA certificate file name
 - `CODEGATE_CA_KEY`: CA key file name
@@ -139,6 +142,7 @@ Provider URLs can be configured in several ways:
    export CODEGATE_PROVIDER_OPENAI_URL=https://api.openai.com/v1
    export CODEGATE_PROVIDER_ANTHROPIC_URL=https://api.anthropic.com/v1
    export CODEGATE_PROVIDER_OLLAMA_URL=http://localhost:11434
+   export CODEGATE_PROVIDER_LM_STUDIO_URL=http://localhost:1234
    ```
 
 3. CLI flags:

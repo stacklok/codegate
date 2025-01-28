@@ -193,6 +193,12 @@ def show_prompts(prompts: Optional[Path]) -> None:
     help="Ollama provider URL (default: http://localhost:11434/)",
 )
 @click.option(
+    "--lm-studio-url",
+    type=str,
+    default=None,
+    help="LM Studio provider URL (default: http://localhost:1234/)",
+)
+@click.option(
     "--model-base-path",
     type=str,
     default="./codegate_volume/models",
@@ -246,7 +252,7 @@ def show_prompts(prompts: Optional[Path]) -> None:
     default=None,
     help="Path to the vector SQLite database file (default: ./sqlite_data/vectordb.db)",
 )
-def serve(
+def serve(  # noqa: C901
     port: Optional[int],
     proxy_port: Optional[int],
     host: Optional[str],
@@ -258,6 +264,7 @@ def serve(
     openai_url: Optional[str],
     anthropic_url: Optional[str],
     ollama_url: Optional[str],
+    lm_studio_url: Optional[str],
     model_base_path: Optional[str],
     embedding_model: Optional[str],
     db_path: Optional[str],
@@ -280,6 +287,8 @@ def serve(
             cli_provider_urls["anthropic"] = anthropic_url
         if ollama_url:
             cli_provider_urls["ollama"] = ollama_url
+        if lm_studio_url:
+            cli_provider_urls["lm_studio"] = lm_studio_url
 
         # Load configuration with priority resolution
         cfg = Config.load(
