@@ -7,6 +7,8 @@ import structlog
 from fastapi import Header, HTTPException, Request
 from litellm import atext_completion
 
+from codegate.clients.clients import ClientType
+from codegate.clients.detector import DetectClient
 from codegate.config import Config
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.base import BaseProvider, ModelFetchError
@@ -65,7 +67,13 @@ class VLLMProvider(BaseProvider):
 
         return [model["id"] for model in jsonresp.get("data", [])]
 
-    async def process_request(self, data: dict, api_key: str, request_url_path: str):
+    async def process_request(
+        self,
+        data: dict,
+        api_key: str,
+        request_url_path: str,
+        client_type: ClientType,
+    ):
         is_fim_request = self._is_fim_request(request_url_path, data)
         try:
             # Pass the potentially None api_key to complete
@@ -77,7 +85,7 @@ class VLLMProvider(BaseProvider):
                 logger.error("Error in VLLMProvider completion", error=str(e))
                 raise HTTPException(status_code=e.status_code, detail=str(e))
             raise e
-        return self._completion_handler.create_response(stream)
+        return self._completion_handler.create_response(stream, client_type)
 
     def _setup_routes(self):
         """
@@ -116,6 +124,7 @@ class VLLMProvider(BaseProvider):
 
         @self.router.post(f"/{self.provider_route_name}/chat/completions")
         @self.router.post(f"/{self.provider_route_name}/completions")
+        @DetectClient()
         async def create_completion(
             request: Request,
             authorization: str | None = Header(None, description="Optional Bearer token"),
@@ -135,4 +144,9 @@ class VLLMProvider(BaseProvider):
             base_url = self._get_base_url()
             data["base_url"] = base_url
 
-            return await self.process_request(data, api_key, request.url.path)
+            return await self.process_request(
+                data,
+                api_key,
+                request.url.path,
+                request.state.detected_client,
+            )
