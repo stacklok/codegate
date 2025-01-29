@@ -137,15 +137,16 @@ class BaseProvider(ABC):
         normalized_request: ChatCompletionRequest,
         api_key: Optional[str],
         api_base: Optional[str],
+        client_type: ClientType,
         is_fim_request: bool,
     ) -> PipelineResult:
         # Decide which pipeline processor to use
         if is_fim_request:
-            pipeline_processor = self._pipeline_factory.create_fim_pipeline()
+            pipeline_processor = self._pipeline_factory.create_fim_pipeline(client_type)
             logger.info("FIM pipeline selected for execution.")
             normalized_request = self._fim_normalizer.normalize(normalized_request)
         else:
-            pipeline_processor = self._pipeline_factory.create_input_pipeline()
+            pipeline_processor = self._pipeline_factory.create_input_pipeline(client_type)
             logger.info("Chat completion pipeline selected for execution.")
         if pipeline_processor is None:
             return PipelineResult(request=normalized_request)
@@ -253,7 +254,11 @@ class BaseProvider(ABC):
                 f.write(str(data))
 
     async def complete(
-        self, data: Dict, api_key: Optional[str], is_fim_request: bool
+        self,
+        data: Dict,
+        api_key: Optional[str],
+        is_fim_request: bool,
+        client_type: ClientType,
     ) -> Union[ModelResponse, AsyncIterator[ModelResponse]]:
         """
         Main completion flow with pipeline integration
@@ -272,12 +277,16 @@ class BaseProvider(ABC):
         # Dump the normalized request
         self._dump_request_response("normalized-request", normalized_request)
         streaming = normalized_request.get("stream", False)
+
+        # Get detected client if available
         input_pipeline_result = await self._run_input_pipeline(
             normalized_request,
             api_key,
             data.get("base_url"),
+            client_type,
             is_fim_request,
         )
+
         if input_pipeline_result.response and input_pipeline_result.context:
             return await self._pipeline_response_formatter.handle_pipeline_response(
                 input_pipeline_result.response, streaming, context=input_pipeline_result.context

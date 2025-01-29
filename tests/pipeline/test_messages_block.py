@@ -1,10 +1,11 @@
 import pytest
 
+from codegate.clients.clients import ClientType
 from codegate.pipeline.base import PipelineStep
 
 
 @pytest.mark.parametrize(
-    "input, expected_output",
+    "input, expected_output, client_type",
     [
         # Test case: Consecutive user messages at the end
         (
@@ -16,6 +17,7 @@ from codegate.pipeline.base import PipelineStep
                 ]
             },
             ("Hello!\nHow are you?", 1),
+            ClientType.GENERIC,
         ),
         # Test case: Mixed roles at the end
         (
@@ -28,6 +30,7 @@ from codegate.pipeline.base import PipelineStep
                 ]
             },
             ("Hello!\nHow are you?", 0),
+            ClientType.GENERIC,
         ),
         # Test case: No user messages
         (
@@ -38,9 +41,10 @@ from codegate.pipeline.base import PipelineStep
                 ]
             },
             None,
+            ClientType.GENERIC,
         ),
         # Test case: Empty message list
-        ({"messages": []}, None),
+        ({"messages": []}, None, ClientType.GENERIC),
         # Test case: Consecutive user messages interrupted by system message
         (
             {
@@ -52,6 +56,7 @@ from codegate.pipeline.base import PipelineStep
                 ]
             },
             ("How are you?\nWhat's up?", 2),
+            ClientType.GENERIC,
         ),
         # Test case: aider
         (
@@ -116,6 +121,7 @@ if not github_token:
 evaluate this file""",  # noqa: E501
                 7,
             ),
+            ClientType.GENERIC,
         ),
         # Test case: open interpreter
         (
@@ -172,8 +178,9 @@ def hello():
         return "Hello, Mars! We have no token here"''',  # noqa: E501
                 1,
             ),
+            ClientType.OPEN_INTERPRETER,
         ),
     ],
 )
-def test_get_last_user_message_block(input, expected_output):
-    assert PipelineStep.get_last_user_message_block(input) == expected_output
+def test_get_last_user_message_block(input, expected_output, client_type):
+    assert PipelineStep.get_last_user_message_block(input, client_type) == expected_output

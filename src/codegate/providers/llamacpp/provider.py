@@ -54,7 +54,9 @@ class LlamaCppProvider(BaseProvider):
     ):
         is_fim_request = self._is_fim_request(request_url_path, data)
         try:
-            stream = await self.complete(data, None, is_fim_request=is_fim_request)
+            stream = await self.complete(
+                data, None, is_fim_request=is_fim_request, client_type=client_type
+            )
         except RuntimeError as e:
             # propagate as error 500
             logger.error("Error in LlamaCppProvider completion", error=str(e))

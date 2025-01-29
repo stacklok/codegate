@@ -11,9 +11,9 @@ import structlog
 from litellm import ChatCompletionRequest, ModelResponse
 from pydantic import BaseModel
 
+from codegate.clients.clients import ClientType
 from codegate.db.models import Alert, Output, Prompt
 from codegate.pipeline.secrets.manager import SecretsManager
-from codegate.utils.utils import get_tool_name_from_messages
 
 logger = structlog.get_logger("codegate")
 
@@ -81,6 +81,7 @@ class PipelineContext:
     shortcut_response: bool = False
     bad_packages_found: bool = False
     secrets_found: bool = False
+    client: ClientType = ClientType.GENERIC
 
     def add_code_snippet(self, snippet: CodeSnippet):
         self.code_snippets.append(snippet)
@@ -241,12 +242,14 @@ class PipelineStep(ABC):
     @staticmethod
     def get_last_user_message_block(
         request: ChatCompletionRequest,
+        client: ClientType = ClientType.GENERIC,
     ) -> Optional[tuple[str, int]]:
         """
         Get the last block of consecutive 'user' messages from the request.
 
         Args:
             request (ChatCompletionRequest): The chat completion request to process
+            client (ClientType): The client type to consider when processing the request
 
         Returns:
             Optional[str, int]: A string containing all consecutive user messages in the
@@ -261,9 +264,8 @@ class PipelineStep(ABC):
         messages = request["messages"]
         block_start_index = None
 
-        base_tool = get_tool_name_from_messages(request)
         accepted_roles = ["user", "assistant"]
-        if base_tool == "open interpreter":
+        if client == ClientType.OPEN_INTERPRETER:
             # open interpreter also uses the role "tool"
             accepted_roles.append("tool")
 
@@ -303,12 +305,16 @@ class PipelineStep(ABC):
 
 class InputPipelineInstance:
     def __init__(
-        self, pipeline_steps: List[PipelineStep], secret_manager: SecretsManager, is_fim: bool
+        self,
+        pipeline_steps: List[PipelineStep],
+        secret_manager: SecretsManager,
+        is_fim: bool,
+        client: ClientType = ClientType.GENERIC,
     ):
         self.pipeline_steps = pipeline_steps
         self.secret_manager = secret_manager
         self.is_fim = is_fim
-        self.context = PipelineContext()
+        self.context = PipelineContext(client=client)
 
         # we create the sesitive context here so that it is not shared between individual requests
         # TODO: could we get away with just generating the session ID for an instance?
@@ -367,16 +373,25 @@ class InputPipelineInstance:
 
 class SequentialPipelineProcessor:
     def __init__(
-        self, pipeline_steps: List[PipelineStep], secret_manager: SecretsManager, is_fim: bool
+        self,
+        pipeline_steps: List[PipelineStep],
+        secret_manager: SecretsManager,
+        client_type: ClientType,
+        is_fim: bool,
     ):
         self.pipeline_steps = pipeline_steps
         self.secret_manager = secret_manager
         self.is_fim = is_fim
-        self.instance = self._create_instance()
+        self.instance = self._create_instance(client_type)
 
-    def _create_instance(self) -> InputPipelineInstance:
+    def _create_instance(self, client_type: ClientType) -> InputPipelineInstance:
         """Create a new pipeline instance for processing a request"""
-        return InputPipelineInstance(self.pipeline_steps, self.secret_manager, self.is_fim)
+        return InputPipelineInstance(
+            self.pipeline_steps,
+            self.secret_manager,
+            self.is_fim,
+            client_type,
+        )
 
     async def process_request(
         self,

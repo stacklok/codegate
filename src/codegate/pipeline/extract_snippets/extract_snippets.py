@@ -150,7 +150,7 @@ class CodeSnippetExtractor(PipelineStep):
         request: ChatCompletionRequest,
         context: PipelineContext,
     ) -> PipelineResult:
-        last_message = self.get_last_user_message_block(request)
+        last_message = self.get_last_user_message_block(request, context.client)
         if not last_message:
             return PipelineResult(request=request, context=context)
         msg_content, _ = last_message

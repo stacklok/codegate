@@ -66,7 +66,12 @@ class OllamaProvider(BaseProvider):
     ):
         is_fim_request = self._is_fim_request(request_url_path, data)
         try:
-            stream = await self.complete(data, api_key=None, is_fim_request=is_fim_request)
+            stream = await self.complete(
+                data,
+                api_key=None,
+                is_fim_request=is_fim_request,
+                client_type=client_type,
+            )
         except httpx.ConnectError as e:
             logger.error("Error in OllamaProvider completion", error=str(e))
             raise HTTPException(status_code=503, detail="Ollama service is unavailable")

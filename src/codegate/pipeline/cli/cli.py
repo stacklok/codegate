@@ -4,6 +4,7 @@ from typing import Optional
 
 from litellm import ChatCompletionRequest
 
+from codegate.clients.clients import ClientType
 from codegate.pipeline.base import (
     PipelineContext,
     PipelineResponse,
@@ -11,7 +12,6 @@ from codegate.pipeline.base import (
     PipelineStep,
 )
 from codegate.pipeline.cli.commands import CustomInstructions, Version, Workspace
-from codegate.utils.utils import get_tool_name_from_messages
 
 HELP_TEXT = """
 ## CodeGate CLI\n
@@ -110,12 +110,11 @@ class CodegateCli(PipelineStep):
         if last_user_message is not None:
             last_user_message_str, _ = last_user_message
             last_user_message_str = last_user_message_str.strip()
-            base_tool = get_tool_name_from_messages(request)
             codegate_regex = re.compile(r"^codegate(?:\s+(.*))?", re.IGNORECASE)
 
-            if base_tool and base_tool in ["cline", "kodu"]:
+            if context.client in [ClientType.CLINE, ClientType.KODU]:
                 match = _get_cli_from_cline(codegate_regex, last_user_message_str)
-            elif base_tool == "open interpreter":
+            elif context.client in [ClientType.OPEN_INTERPRETER]:
                 match = _get_cli_from_open_interpreter(last_user_message_str)
             else:
                 # Check if "codegate" is the first word in the message
@@ -130,7 +129,7 @@ class CodegateCli(PipelineStep):
                 if args:
                     context.shortcut_response = True
                     cmd_out = await codegate_cli(args[1:])
-                    if base_tool in ["cline", "kodu"]:
+                    if context.client in [ClientType.CLINE, ClientType.KODU]:
                         cmd_out = (
                             f"<attempt_completion><result>{cmd_out}</result></attempt_completion>\n"
                         )

@@ -62,7 +62,7 @@ class AnthropicProvider(BaseProvider):
     ):
         is_fim_request = self._is_fim_request(request_url_path, data)
         try:
-            stream = await self.complete(data, api_key, is_fim_request)
+            stream = await self.complete(data, api_key, is_fim_request, client_type)
         except Exception as e:
             #  check if we have an status code there
             if hasattr(e, "status_code"):

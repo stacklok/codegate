@@ -1,5 +1,6 @@
 from typing import List
 
+from codegate.clients.clients import ClientType
 from codegate.config import Config
 from codegate.pipeline.base import PipelineStep, SequentialPipelineProcessor
 from codegate.pipeline.cli.cli import CodegateCli
@@ -20,7 +21,7 @@ class PipelineFactory:
     def __init__(self, secrets_manager: SecretsManager):
         self.secrets_manager = secrets_manager
 
-    def create_input_pipeline(self) -> SequentialPipelineProcessor:
+    def create_input_pipeline(self, client_type: ClientType) -> SequentialPipelineProcessor:
         input_steps: List[PipelineStep] = [
             # make sure that this step is always first in the pipeline
             # the other steps might send the request to a LLM for it to be analyzed
@@ -32,13 +33,23 @@ class PipelineFactory:
             CodegateContextRetriever(),
             SystemPrompt(Config.get_config().prompts.default_chat),
         ]
-        return SequentialPipelineProcessor(input_steps, self.secrets_manager, is_fim=False)
+        return SequentialPipelineProcessor(
+            input_steps,
+            self.secrets_manager,
+            client_type,
+            is_fim=False,
+        )
 
-    def create_fim_pipeline(self) -> SequentialPipelineProcessor:
+    def create_fim_pipeline(self, client_type: ClientType) -> SequentialPipelineProcessor:
         fim_steps: List[PipelineStep] = [
             CodegateSecrets(),
         ]
-        return SequentialPipelineProcessor(fim_steps, self.secrets_manager, is_fim=True)
+        return SequentialPipelineProcessor(
+            fim_steps,
+            self.secrets_manager,
+            client_type,
+            is_fim=True,
+        )
 
     def create_output_pipeline(self) -> OutputPipelineProcessor:
         output_steps: List[OutputPipelineStep] = [

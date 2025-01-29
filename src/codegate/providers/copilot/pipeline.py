@@ -8,6 +8,7 @@ from litellm import ModelResponse
 from litellm.types.llms.openai import ChatCompletionRequest
 from litellm.types.utils import Delta, StreamingChoices
 
+from codegate.clients.clients import ClientType
 from codegate.pipeline.base import PipelineContext, PipelineResult, SequentialPipelineProcessor
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.normalizer.completion import CompletionNormalizer
@@ -200,7 +201,7 @@ class CopilotFimPipeline(CopilotPipeline):
         return CopilotFimNormalizer()
 
     def _create_pipeline(self) -> SequentialPipelineProcessor:
-        return self.pipeline_factory.create_fim_pipeline()
+        return self.pipeline_factory.create_fim_pipeline(ClientType.COPILOT)
 
 
 class CopilotChatPipeline(CopilotPipeline):
@@ -216,4 +217,4 @@ class CopilotChatPipeline(CopilotPipeline):
         return CopilotChatNormalizer()
 
     def _create_pipeline(self) -> SequentialPipelineProcessor:
-        return self.pipeline_factory.create_input_pipeline()
+        return self.pipeline_factory.create_input_pipeline(ClientType.COPILOT)
