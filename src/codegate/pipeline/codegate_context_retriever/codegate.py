@@ -53,7 +53,7 @@ class CodegateContextRetriever(PipelineStep):
             )
         return context_str
 
-    async def process(
+    async def process(  # noqa: C901
         self, request: ChatCompletionRequest, context: PipelineContext
     ) -> PipelineResult:
         """

@@ -117,6 +117,62 @@ evaluate this file""",  # noqa: E501
                 7,
             ),
         ),
+        # Test case: open interpreter
+        (
+            {
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are Open Interpreter, a world-class programmer that can complete any goal by executing code.\nFor advanced requests, start by writing a plan.\nWhen you execute code, it will be executed **on the user's machine**. The user has given you **full and complete permission** to execute any code necessary to complete the task. Execute the code.\nYou can access the internet. Run **any code** to achieve the goal, and if at first you don't succeed, try again and again.\nYou can install new packages.\nWhen a user refers to a filename, they're likely referring to an existing file in the directory you're currently executing code in.\nWrite messages to the user in Markdown.\nIn general, try to **make plans** with as few steps as possible. As for actually executing code to carry out that plan, for *stateful* languages (like python, javascript, shell, but NOT for html which starts from 0 every time) **it's critical not to try to do everything in one code block.** You should try something, print information about it, then continue from there in tiny, informed steps. You will never get it on the first try, and attempting it in one go will often lead to errors you cant see.\nYou are capable of **any** task.\n\nUser's Name: yolanda\nUser's OS: Darwin\n\n# THE COMPUTER API\n\nA python `computer` module is ALREADY IMPORTED, and can be used for many tasks:\n\n```python\ncomputer.mouse.click(button='left', clicks=1, interval=0.1) # Clicks the mouse at the specified coordinates, icon, or text.\ncomputer.mouse.double_click(button='left', interval=0.1) # Double-clicks the mouse at the specified coordinates, icon, or text.\ncomputer.mouse.down() # Presses the mouse button down.\ncomputer.mouse.move(x=None, y=None, icon=None, text=None, screenshot=None) # Moves the mouse to specified coordinates, an icon, or text.\ncomputer.mouse.position() # Get the current mouse position.\n\n        Returns:\n            tuple: A tuple (x, y) representing the mouse's current position on the screen.\ncomputer.mouse.right_click() # Right-clicks the mouse at the specified coordinates, icon, or text.\ncomputer.mouse.scroll(clicks) # Scrolls the mouse wheel up or down the specified number of clicks.\ncomputer.mouse.triple_click(button='left', interval=0.1) # Triple-clicks the mouse at the specified coordinates, icon, or text.\ncomputer.mouse.up() # Releases the mouse button.\ncomputer.keyboard.down(key) # Press down a key.\ncomputer.keyboard.hotkey(interval=0.1) # Press a sequence of keys in the order they are provided, and then release them in reverse order.\ncomputer.keyboard.press(presses=1, interval=0.1) # \ncomputer.keyboard.press_and_release(presses=1, interval=0.1) # Press and release a key or a sequence of keys.\n\n        This method is a perfect proxy for the press method.\ncomputer.keyboard.up(key) # Release a key.\ncomputer.keyboard.write(text, interval=None, delay=0.3) # Type out a string of characters with some realistic delay.\ncomputer.display.center() # Calculates and returns the center point of the screen as a tuple (x, y).\ncomputer.display.find(description, screenshot=None) # \ncomputer.display.find_text(text, screenshot=None) # Searches for specified text within a screenshot or the current screen if no screenshot is provided.\ncomputer.display.get_text_as_list_of_lists(screenshot=None) # Extracts and returns text from a screenshot or the current screen as a list of lists, each representing a line of text.\ncomputer.display.info() # Returns a list of all connected monitor/displays and their information\ncomputer.display.screenshot(screen=0, show=True, quadrant=None, active_app_only=True, combine_screens=True) # Shows you what's on the screen by taking a screenshot of the entire screen or a specified quadrant. Returns a `pil_image` `in case you need it (rarely). **You almost always want to do this first!**\n        :param screen: specify which display; 0 for primary and 1 and above for secondary.\n        :param combine_screens: If True, a collage of all display screens will be returned. Otherwise, a list of display screens will be returned.\ncomputer.display.size() # Returns the current screen size as a tuple (width, height).\ncomputer.display.view(show=True, quadrant=None, screen=0, combine_screens=True, active_app_only=True) # Redirects to self.screenshot\ncomputer.clipboard.copy(text=None) # Copies the given text to the clipboard.\ncomputer.clipboard.paste() # Pastes the current content of the clipboard.\ncomputer.clipboard.view() # Returns the current content of on the clipboard.\ncomputer.mail.calculate_upload_delay(attachments) # \ncomputer.mail.format_path_for_applescript(file_path) # \ncomputer.mail.get(number=5, unread=False) # Retrieves the last {number} emails from the inbox, optionally filtering for only unread emails.\ncomputer.mail.send(to, subject, body, attachments=None) # Sends an email with the given parameters using the default mail app.\ncomputer.mail.unread_count() # Retrieves the count of unread emails in the inbox, limited to 50.\ncomputer.sms.can_access_database() # \ncomputer.sms.get(contact=None, limit=10, substring=None) # \ncomputer.sms.prompt_full_disk_access() # \ncomputer.sms.resolve_database_path() # \ncomputer.sms.send(to, message) # \ncomputer.calendar.create_event(title, start_date, end_date, location='', notes='', calendar=None) # Creates a new calendar event in the default calendar with the given parameters using AppleScript.\ncomputer.calendar.delete_event(event_title, start_date, calendar=None) # \ncomputer.calendar.get_events(start_date=datetime.date(2025, 1, 29), end_date=None) # Fetches calendar events for the given date or date range.\ncomputer.calendar.get_first_calendar() # \ncomputer.contacts.get_email_address(contact_name) # Returns the email address of a contact by name.\ncomputer.contacts.get_full_names_from_first_name(first_name) # Returns a list of full names of contacts that contain the first name provided.\ncomputer.contacts.get_phone_number(contact_name) # Returns the phone number of a contact by name.\ncomputer.browser.analyze_page(self, intent) # Extract HTML, list interactive elements, and analyze with AI\ncomputer.browser.fast_search(self, query) # Searches the web for the specified query and returns the results.\ncomputer.browser.go_to_url(self, url) # Navigate to a URL\ncomputer.browser.quit(self) # Close the browser\ncomputer.browser.search(self, query) # Searches the web for the specified query and returns the results.\ncomputer.browser.search_google(self, query, delays) # Perform a Google search\ncomputer.browser.setup(self, headless) # \ncomputer.os.get_selected_text() # Returns the currently selected text.\ncomputer.os.notify(text) # Displays a notification on the computer.\ncomputer.vision.load(load_moondream=True, load_easyocr=True) # \ncomputer.vision.ocr(base_64=None, path=None, lmc=None, pil_image=None) # Gets OCR of image.\ncomputer.vision.query(query='Describe this image. Also tell me what text is in the image, if any.', base_64=None, path=None, lmc=None, pil_image=None) # Uses Moondream to ask query of the image (which can be a base64, path, or lmc message)\ncomputer.skills.import_skills() # \ncomputer.skills.list() # \ncomputer.skills.run(skill) # \ncomputer.skills.search(query) # This just lists all for now.\ncomputer.docs.search(query, module=None, paths=None) # \ncomputer.ai.chat(text, base64=None) # \ncomputer.ai.query(text, query, custom_reduce_query=None) # \ncomputer.ai.summarize(text) # \ncomputer.files.edit(path, original_text, replacement_text) # Edits a file on the filesystem, replacing the original text with the replacement text.\ncomputer.files.search() # Search the filesystem for the given query.\n```\n\nDo not import the computer module, or any of its sub-modules. They are already imported.\n\nThe files in the context contain sensitive information that has been redacted. Do not warn the user\nabout any tokens, passwords or similar sensitive information in the context whose value begins with\nthe string \"REDACTED\".\n",  # noqa: E501
+                    },
+                    {"role": "user", "content": "can you review app.py file?"},
+                    {
+                        "role": "assistant",
+                        "content": "Sure! To review the `app.py` file, I'll need to read its contents first. I'll search for the file in the current directory and then display its contents for review. Let's proceed with that.",  # noqa: E501
+                    },
+                    {
+                        "role": "assistant",
+                        "content": "",
+                        "tool_calls": [
+                            {
+                                "id": "toolu_1",
+                                "type": "function",
+                                "function": {
+                                    "name": "execute",
+                                    "arguments": '{"language": "shell", "code": "cat app.py"}',
+                                },
+                            }
+                        ],
+                    },
+                    {
+                        "role": "tool",
+                        "name": "execute",
+                        "content": 'import malicious-pypi-dummy\n\n@app.route(\'/\')\ndef hello():\n    """\n    Returns a greeting message. Checks for the presence of a GitHub token\n    and returns a specific message if the token is found.\n    """\n    GITHUB_TOKEN="REDACTED<$WzXiUbKhfwLm0Nedy06vrCMKJ777onJCVL5Nvw0iMPmkChOp3CFYeyRBiKU82kMS/7/voOgRGo6qGLzh0A5QmyaF3qjhY39AWm3CDrWTgg==>"\n    AWS_ACCESS_KEY_ID="REDACTED<$s0qm0cFbxUmEd/OKM3M8Gl+0sIYafV6YvXbRti+lCZcW2Lf1vkY4HNQi6jXZLaIIoYLWRyePIAN3qlo=>"\n    AWS_SECRET_ACCESS_KEY="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"\n    GITHUB_TOKEN="REDACTED<$LKRbZJ0hWiec20nTZfEVo9ZYT05irf6cN+vETZmSIF4y+xBRSlcmBbWBYkEGQ4BxHts4Zvf70RlUwzUZVLhL6vFx9GnyAJffW4KCFr1Ihw==>"\n    if GITHUB_TOKEN:\n        return "Hello from Python 3.8 inside an EC2 instance running on Fargate, with a Github Token like this one in the code base!!"\n    else:\n        return "Hello, Mars! We have no token here"',  # noqa: E501
+                        "tool_call_id": "toolu_1",
+                    },
+                ]
+            },
+            (
+                '''can you review app.py file?
+import malicious-pypi-dummy
+
+@app.route('/')
+def hello():
+    """
+    Returns a greeting message. Checks for the presence of a GitHub token
+    and returns a specific message if the token is found.
+    """
+    GITHUB_TOKEN="REDACTED<$WzXiUbKhfwLm0Nedy06vrCMKJ777onJCVL5Nvw0iMPmkChOp3CFYeyRBiKU82kMS/7/voOgRGo6qGLzh0A5QmyaF3qjhY39AWm3CDrWTgg==>"
+    AWS_ACCESS_KEY_ID="REDACTED<$s0qm0cFbxUmEd/OKM3M8Gl+0sIYafV6YvXbRti+lCZcW2Lf1vkY4HNQi6jXZLaIIoYLWRyePIAN3qlo=>"
+    AWS_SECRET_ACCESS_KEY="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+    GITHUB_TOKEN="REDACTED<$LKRbZJ0hWiec20nTZfEVo9ZYT05irf6cN+vETZmSIF4y+xBRSlcmBbWBYkEGQ4BxHts4Zvf70RlUwzUZVLhL6vFx9GnyAJffW4KCFr1Ihw==>"
+    if GITHUB_TOKEN:
+        return "Hello from Python 3.8 inside an EC2 instance running on Fargate, with a Github Token like this one in the code base!!"
+    else:
+        return "Hello, Mars! We have no token here"''',  # noqa: E501
+                1,
+            ),
+        ),
     ],
 )
 def test_get_last_user_message_block(input, expected_output):

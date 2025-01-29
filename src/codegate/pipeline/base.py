@@ -279,11 +279,7 @@ class PipelineStep(ABC):
                     block_start_index = i
 
                 # Specifically for Aider, when "Ok." block is found, stop
-                if (
-                    base_tool == "aider"
-                    and content_str == "Ok."
-                    and messages[i]["role"] == "assistant"
-                ):
+                if content_str == "Ok." and messages[i]["role"] == "assistant":
                     break
             else:
                 # Stop when a message with a different role is encountered
