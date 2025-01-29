@@ -1,6 +1,9 @@
 import asyncio
+import datetime
+import os
 import re
 import ssl
+import tempfile
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import unquote, urljoin, urlparse
@@ -25,6 +28,41 @@ from codegate.providers.copilot.streaming import SSEProcessor
 
 setup_logging()
 logger = structlog.get_logger("codegate").bind(origin="copilot_proxy")
+
+
+TEMPDIR = None
+if os.getenv("CODEGATE_DUMP_DIR"):
+    basedir = os.getenv("CODEGATE_DUMP_DIR")
+    TEMPDIR = tempfile.TemporaryDirectory(prefix="codegate-", dir=basedir, delete=False)
+
+
+def _dump_data(suffix, func):
+    if os.getenv("CODEGATE_DUMP_DIR"):
+        buf = bytearray(b"")
+
+        def inner(self, data: bytes):
+            nonlocal buf
+            func(self, data)
+            buf.extend(data)
+
+            if data == b"0\r\n\r\n":
+                ts = datetime.datetime.now()
+                fname = os.path.join(TEMPDIR.name, ts.strftime(f"{suffix}-%Y%m%dT%H%M%S%f.txt"))
+                with open(fname, mode="wb") as fd:
+                    fd.write(buf)
+                buf = bytearray()
+
+        return inner
+    return func
+
+
+def _dump_request(func):
+    return _dump_data("request", func)
+
+
+def _dump_response(func):
+    return _dump_data("response", func)
+
 
 # Constants
 MAX_BUFFER_SIZE = 10 * 1024 * 1024  # 10MB
@@ -812,7 +850,7 @@ class CopilotProxyTargetProtocol(asyncio.Protocol):
             input_context=self.proxy.context_tracking,
         )
 
-    async def _process_stream(self):
+    async def _process_stream(self):  # noqa: C901
         try:
 
             async def stream_iterator():
@@ -914,6 +952,7 @@ class CopilotProxyTargetProtocol(asyncio.Protocol):
 
             self.stream_queue.put_nowait(record)
 
+    @_dump_response
     def _proxy_transport_write(self, data: bytes):
         # For debugging only
         # self.data_sent.append(data)

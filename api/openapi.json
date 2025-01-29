@@ -121,6 +121,82 @@
         }
       }
     },
+    "/api/v1/provider-endpoints/models": {
+      "get": {
+        "tags": [
+          "CodeGate API",
+          "Providers"
+        ],
+        "summary": "List All Models For All Providers",
+        "description": "List all models for all providers.",
+        "operationId": "v1_list_all_models_for_all_providers",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ModelByProvider"
+                  },
+                  "type": "array",
+                  "title": "Response V1 List All Models For All Providers"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/provider-endpoints/{provider_id}/models": {
+      "get": {
+        "tags": [
+          "CodeGate API",
+          "Providers"
+        ],
+        "summary": "List Models By Provider",
+        "description": "List models by provider.",
+        "operationId": "v1_list_models_by_provider",
+        "parameters": [
+          {
+            "name": "provider_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Provider Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ModelByProvider"
+                  },
+                  "title": "Response V1 List Models By Provider"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/provider-endpoints/{provider_id}": {
       "get": {
         "tags": [
@@ -136,7 +212,8 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer",
+              "type": "string",
+              "format": "uuid",
               "title": "Provider Id"
             }
           }
@@ -178,7 +255,8 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer",
+              "type": "string",
+              "format": "uuid",
               "title": "Provider Id"
             }
           }
@@ -230,7 +308,8 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer",
+              "type": "string",
+              "format": "uuid",
               "title": "Provider Id"
             }
           }
@@ -257,40 +336,40 @@
         }
       }
     },
-    "/api/v1/provider-endpoints/{provider_name}/models": {
-      "get": {
+    "/api/v1/provider-endpoints/{provider_id}/auth-material": {
+      "put": {
         "tags": [
           "CodeGate API",
           "Providers"
         ],
-        "summary": "List Models By Provider",
-        "description": "List models by provider.",
-        "operationId": "v1_list_models_by_provider",
+        "summary": "Configure Auth Material",
+        "description": "Configure auth material for a provider.",
+        "operationId": "v1_configure_auth_material",
         "parameters": [
           {
-            "name": "provider_name",
+            "name": "provider_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Provider Name"
+              "format": "uuid",
+              "title": "Provider Id"
             }
           }
         ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ModelByProvider"
-                  },
-                  "title": "Response V1 List Models By Provider"
-                }
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigureAuthMaterial"
               }
             }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -298,33 +377,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/provider-endpoints/models": {
-      "get": {
-        "tags": [
-          "CodeGate API",
-          "Providers"
-        ],
-        "summary": "List All Models For All Providers",
-        "description": "List all models for all providers.",
-        "operationId": "v1_list_all_models_for_all_providers",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/ModelByProvider"
-                  },
-                  "type": "array",
-                  "title": "Response V1 List All Models For All Providers"
                 }
               }
             }
@@ -1005,7 +1057,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TokenUsage"
+                  "$ref": "#/components/schemas/TokenUsageAggregate"
                 }
               }
             }
@@ -1197,6 +1249,30 @@
         ],
         "title": "CodeSnippet"
       },
+      "ConfigureAuthMaterial": {
+        "properties": {
+          "auth_type": {
+            "$ref": "#/components/schemas/ProviderAuthType"
+          },
+          "api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "auth_type"
+        ],
+        "title": "ConfigureAuthMaterial",
+        "description": "Represents a request to configure auth material for a provider."
+      },
       "Conversation": {
         "properties": {
           "question_answers": {
@@ -1229,10 +1305,10 @@
             "format": "date-time",
             "title": "Conversation Timestamp"
           },
-          "token_usage": {
+          "token_usage_agg": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/TokenUsage"
+                "$ref": "#/components/schemas/TokenUsageAggregate"
               },
               {
                 "type": "null"
@@ -1247,7 +1323,7 @@
           "type",
           "chat_id",
           "conversation_timestamp",
-          "token_usage"
+          "token_usage_agg"
         ],
         "title": "Conversation",
         "description": "Represents a conversation."
@@ -1340,15 +1416,20 @@
             "type": "string",
             "title": "Name"
           },
-          "provider": {
+          "provider_id": {
             "type": "string",
-            "title": "Provider"
+            "title": "Provider Id"
+          },
+          "provider_name": {
+            "type": "string",
+            "title": "Provider Name"
           }
         },
         "type": "object",
         "required": [
           "name",
-          "provider"
+          "provider_id",
+          "provider_name"
         ],
         "title": "ModelByProvider",
         "description": "Represents a model supported by a provider.\n\nNote that these are auto-discovered by the provider."
@@ -1410,8 +1491,16 @@
       "ProviderEndpoint": {
         "properties": {
           "id": {
-            "type": "integer",
-            "title": "Id"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id",
+            "default": ""
           },
           "name": {
             "type": "string",
@@ -1430,16 +1519,22 @@
             "title": "Endpoint"
           },
           "auth_type": {
-            "$ref": "#/components/schemas/ProviderAuthType"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProviderAuthType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "none"
           }
         },
         "type": "object",
         "required": [
-          "id",
           "name",
           "provider_type",
-          "endpoint",
-          "auth_type"
+          "endpoint"
         ],
         "title": "ProviderEndpoint",
         "description": "Represents a provider's endpoint configuration. This\nallows us to persist the configuration for each provider,\nso we can use this for muxing messages."
@@ -1449,7 +1544,10 @@
         "enum": [
           "openai",
           "anthropic",
-          "vllm"
+          "vllm",
+          "ollama",
+          "lm_studio",
+          "llamacpp"
         ],
         "title": "ProviderType",
         "description": "Represents the different types of providers we support."
@@ -1488,24 +1586,50 @@
       },
       "TokenUsage": {
         "properties": {
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens",
+            "default": 0
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens",
+            "default": 0
+          },
+          "input_cost": {
+            "type": "number",
+            "title": "Input Cost",
+            "default": 0
+          },
+          "output_cost": {
+            "type": "number",
+            "title": "Output Cost",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "TokenUsage",
+        "description": "TokenUsage it's not a table, it's a model to represent the token usage.\nThe data is stored in the outputs table."
+      },
+      "TokenUsageAggregate": {
+        "properties": {
           "tokens_by_model": {
-            "items": {
+            "additionalProperties": {
               "$ref": "#/components/schemas/TokenUsageByModel"
             },
-            "type": "array",
+            "type": "object",
             "title": "Tokens By Model"
           },
-          "used_tokens": {
-            "type": "integer",
-            "title": "Used Tokens"
+          "token_usage": {
+            "$ref": "#/components/schemas/TokenUsage"
           }
         },
         "type": "object",
         "required": [
           "tokens_by_model",
-          "used_tokens"
+          "token_usage"
         ],
-        "title": "TokenUsage",
+        "title": "TokenUsageAggregate",
         "description": "Represents the tokens used. Includes the information of the tokens used by model.\n`used_tokens` are the total tokens used in the `tokens_by_model` list."
       },
       "TokenUsageByModel": {
@@ -1517,16 +1641,15 @@
             "type": "string",
             "title": "Model"
           },
-          "used_tokens": {
-            "type": "integer",
-            "title": "Used Tokens"
+          "token_usage": {
+            "$ref": "#/components/schemas/TokenUsage"
           }
         },
         "type": "object",
         "required": [
           "provider_type",
           "model",
-          "used_tokens"
+          "token_usage"
         ],
         "title": "TokenUsageByModel",
         "description": "Represents the tokens used by a model."

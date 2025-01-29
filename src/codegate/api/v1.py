@@ -1,21 +1,24 @@
 from typing import List, Optional
+from uuid import UUID
 
 import requests
 import structlog
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import StreamingResponse
 from fastapi.routing import APIRoute
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from codegate import __version__
 from codegate.api import v1_models, v1_processing
 from codegate.db.connection import AlreadyExistsError, DbReader
+from codegate.providers import crud as provendcrud
 from codegate.workspaces import crud
 
 logger = structlog.get_logger("codegate")
 
 v1 = APIRouter()
 wscrud = crud.WorkspaceCrud()
+pcrud = provendcrud.ProviderCrud()
 
 # This is a singleton object
 dbreader = DbReader()
@@ -25,38 +28,78 @@ def uniq_name(route: APIRoute):
     return f"v1_{route.name}"
 
 
+class FilterByNameParams(BaseModel):
+    name: Optional[str] = None
+
+
 @v1.get("/provider-endpoints", tags=["Providers"], generate_unique_id_function=uniq_name)
-async def list_provider_endpoints(name: Optional[str] = None) -> List[v1_models.ProviderEndpoint]:
+async def list_provider_endpoints(
+    filter_query: FilterByNameParams = Depends(),
+) -> List[v1_models.ProviderEndpoint]:
     """List all provider endpoints."""
-    # NOTE: This is a dummy implementation. In the future, we should have a proper
-    # implementation that fetches the provider endpoints from the database.
-    return [
-        v1_models.ProviderEndpoint(
-            id=1,
-            name="dummy",
-            description="Dummy provider endpoint",
-            endpoint="http://example.com",
-            provider_type=v1_models.ProviderType.openai,
-            auth_type=v1_models.ProviderAuthType.none,
-        )
-    ]
+    if filter_query.name is None:
+        try:
+            return await pcrud.list_endpoints()
+        except Exception:
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    try:
+        provend = await pcrud.get_endpoint_by_name(filter_query.name)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    if provend is None:
+        raise HTTPException(status_code=404, detail="Provider endpoint not found")
+    return [provend]
+
+
+# This needs to be above /provider-endpoints/{provider_id} to avoid conflict
+@v1.get(
+    "/provider-endpoints/models",
+    tags=["Providers"],
+    generate_unique_id_function=uniq_name,
+)
+async def list_all_models_for_all_providers() -> List[v1_models.ModelByProvider]:
+    """List all models for all providers."""
+    try:
+        return await pcrud.get_all_models()
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@v1.get(
+    "/provider-endpoints/{provider_id}/models",
+    tags=["Providers"],
+    generate_unique_id_function=uniq_name,
+)
+async def list_models_by_provider(
+    provider_id: UUID,
+) -> List[v1_models.ModelByProvider]:
+    """List models by provider."""
+
+    try:
+        return await pcrud.models_by_provider(provider_id)
+    except provendcrud.ProviderNotFoundError:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @v1.get(
     "/provider-endpoints/{provider_id}", tags=["Providers"], generate_unique_id_function=uniq_name
 )
-async def get_provider_endpoint(provider_id: int) -> v1_models.ProviderEndpoint:
+async def get_provider_endpoint(
+    provider_id: UUID,
+) -> v1_models.ProviderEndpoint:
     """Get a provider endpoint by ID."""
-    # NOTE: This is a dummy implementation. In the future, we should have a proper
-    # implementation that fetches the provider endpoint from the database.
-    return v1_models.ProviderEndpoint(
-        id=provider_id,
-        name="dummy",
-        description="Dummy provider endpoint",
-        endpoint="http://example.com",
-        provider_type=v1_models.ProviderType.openai,
-        auth_type=v1_models.ProviderAuthType.none,
-    )
+    try:
+        provend = await pcrud.get_endpoint_by_id(provider_id)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    if provend is None:
+        raise HTTPException(status_code=404, detail="Provider endpoint not found")
+    return provend
 
 
 @v1.post(
@@ -65,57 +108,84 @@ async def get_provider_endpoint(provider_id: int) -> v1_models.ProviderEndpoint:
     generate_unique_id_function=uniq_name,
     status_code=201,
 )
-async def add_provider_endpoint(request: v1_models.ProviderEndpoint) -> v1_models.ProviderEndpoint:
+async def add_provider_endpoint(
+    request: v1_models.ProviderEndpoint,
+) -> v1_models.ProviderEndpoint:
     """Add a provider endpoint."""
-    # NOTE: This is a dummy implementation. In the future, we should have a proper
-    # implementation that adds the provider endpoint to the database.
-    return request
+    try:
+        provend = await pcrud.add_endpoint(request)
+    except AlreadyExistsError:
+        raise HTTPException(status_code=409, detail="Provider endpoint already exists")
+    except ValidationError as e:
+        # TODO: This should be more specific
+        raise HTTPException(
+            status_code=400,
+            detail=str(e),
+        )
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    return provend
+
+
+@v1.put(
+    "/provider-endpoints/{provider_id}/auth-material",
+    tags=["Providers"],
+    generate_unique_id_function=uniq_name,
+    status_code=204,
+)
+async def configure_auth_material(
+    provider_id: UUID,
+    request: v1_models.ConfigureAuthMaterial,
+):
+    """Configure auth material for a provider."""
+    try:
+        await pcrud.configure_auth_material(provider_id, request)
+    except provendcrud.ProviderNotFoundError:
+        raise HTTPException(status_code=404, detail="Provider endpoint not found")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    return Response(status_code=204)
 
 
 @v1.put(
     "/provider-endpoints/{provider_id}", tags=["Providers"], generate_unique_id_function=uniq_name
 )
 async def update_provider_endpoint(
-    provider_id: int, request: v1_models.ProviderEndpoint
+    provider_id: UUID,
+    request: v1_models.ProviderEndpoint,
 ) -> v1_models.ProviderEndpoint:
     """Update a provider endpoint by ID."""
-    # NOTE: This is a dummy implementation. In the future, we should have a proper
-    # implementation that updates the provider endpoint in the database.
-    return request
+    try:
+        request.id = provider_id
+        provend = await pcrud.update_endpoint(request)
+    except ValidationError as e:
+        # TODO: This should be more specific
+        raise HTTPException(
+            status_code=400,
+            detail=str(e),
+        )
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    return provend
 
 
 @v1.delete(
     "/provider-endpoints/{provider_id}", tags=["Providers"], generate_unique_id_function=uniq_name
 )
-async def delete_provider_endpoint(provider_id: int):
+async def delete_provider_endpoint(
+    provider_id: UUID,
+):
     """Delete a provider endpoint by id."""
-    # NOTE: This is a dummy implementation. In the future, we should have a proper
-    # implementation that deletes the provider endpoint from the database.
+    try:
+        await pcrud.delete_endpoint(provider_id)
+    except provendcrud.ProviderNotFoundError:
+        raise HTTPException(status_code=404, detail="Provider endpoint not found")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
     return Response(status_code=204)
-
-
-@v1.get(
-    "/provider-endpoints/{provider_name}/models",
-    tags=["Providers"],
-    generate_unique_id_function=uniq_name,
-)
-async def list_models_by_provider(provider_name: str) -> List[v1_models.ModelByProvider]:
-    """List models by provider."""
-    # NOTE: This is a dummy implementation. In the future, we should have a proper
-    # implementation that fetches the models by provider from the database.
-    return [v1_models.ModelByProvider(name="dummy", provider="dummy")]
-
-
-@v1.get(
-    "/provider-endpoints/models",
-    tags=["Providers"],
-    generate_unique_id_function=uniq_name,
-)
-async def list_all_models_for_all_providers() -> List[v1_models.ModelByProvider]:
-    """List all models for all providers."""
-    # NOTE: This is a dummy implementation. In the future, we should have a proper
-    # implementation that fetches all the models for all providers from the database.
-    return [v1_models.ModelByProvider(name="dummy", provider="dummy")]
 
 
 @v1.get("/workspaces", tags=["Workspaces"], generate_unique_id_function=uniq_name)
@@ -394,7 +464,9 @@ async def delete_workspace_custom_instructions(workspace_name: str):
     tags=["Workspaces", "Muxes"],
     generate_unique_id_function=uniq_name,
 )
-async def get_workspace_muxes(workspace_name: str) -> List[v1_models.MuxRule]:
+async def get_workspace_muxes(
+    workspace_name: str,
+) -> List[v1_models.MuxRule]:
     """Get the mux rules of a workspace.
 
     The list is ordered in order of priority. That is, the first rule in the list
@@ -403,13 +475,14 @@ async def get_workspace_muxes(workspace_name: str) -> List[v1_models.MuxRule]:
     # implementation that fetches the mux rules from the database.
     return [
         v1_models.MuxRule(
-            provider="openai",
+            # Hardcode some UUID just for mocking purposes
+            provider_id="00000000-0000-0000-0000-000000000001",
             model="gpt-3.5-turbo",
             matcher_type=v1_models.MuxMatcherType.file_regex,
             matcher=".*\\.txt",
         ),
         v1_models.MuxRule(
-            provider="anthropic",
+            provider_id="00000000-0000-0000-0000-000000000002",
             model="davinci",
             matcher_type=v1_models.MuxMatcherType.catch_all,
         ),
@@ -422,7 +495,10 @@ async def get_workspace_muxes(workspace_name: str) -> List[v1_models.MuxRule]:
     generate_unique_id_function=uniq_name,
     status_code=204,
 )
-async def set_workspace_muxes(workspace_name: str, request: List[v1_models.MuxRule]):
+async def set_workspace_muxes(
+    workspace_name: str,
+    request: List[v1_models.MuxRule],
+):
     """Set the mux rules of a workspace."""
     # TODO: This is a dummy implementation. In the future, we should have a proper
     # implementation that sets the mux rules in the database.
@@ -477,18 +553,21 @@ def version_check():
     tags=["Workspaces", "Token Usage"],
     generate_unique_id_function=uniq_name,
 )
-async def get_workspace_token_usage(workspace_name: str) -> v1_models.TokenUsage:
+async def get_workspace_token_usage(workspace_name: str) -> v1_models.TokenUsageAggregate:
     """Get the token usage of a workspace."""
-    # TODO: This is a dummy implementation. In the future, we should have a proper
-    # implementation that fetches the token usage from the database.
-    return v1_models.TokenUsage(
-        used_tokens=50,
-        tokens_by_model=[
-            v1_models.TokenUsageByModel(
-                provider_type="openai", model="gpt-4o-mini", used_tokens=20
-            ),
-            v1_models.TokenUsageByModel(
-                provider_type="anthropic", model="claude-3-5-sonnet-20241022", used_tokens=30
-            ),
-        ],
-    )
+
+    try:
+        ws = await wscrud.get_workspace_by_name(workspace_name)
+    except crud.WorkspaceDoesNotExistError:
+        raise HTTPException(status_code=404, detail="Workspace does not exist")
+    except Exception:
+        logger.exception("Error while getting workspace")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    try:
+        prompts_outputs = await dbreader.get_prompts_with_output(ws.id)
+        ws_token_usage = await v1_processing.parse_workspace_token_usage(prompts_outputs)
+        return ws_token_usage
+    except Exception:
+        logger.exception("Error while getting messages")
+        raise HTTPException(status_code=500, detail="Internal server error")

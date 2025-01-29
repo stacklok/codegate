@@ -23,9 +23,8 @@ class ModelInputNormalizer(ABC):
         messages = normalized_data["messages"]
         converted_messages = []
         for msg in messages:
-            role = msg.get("role", "")
+            new_msg = msg.copy()
             content = msg.get("content", "")
-            new_msg = {"role": role, "content": content}
             if isinstance(content, list):
                 # Convert list format to string
                 content_parts = []

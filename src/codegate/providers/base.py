@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, AsyncIterator, Callable, Dict, Optional, Union
+from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Union
 
 import structlog
 from fastapi import APIRouter, Request
@@ -52,6 +52,10 @@ class BaseProvider(ABC):
 
     @abstractmethod
     def _setup_routes(self) -> None:
+        pass
+
+    @abstractmethod
+    def models(self) -> List[str]:
         pass
 
     @property
@@ -193,8 +197,6 @@ class BaseProvider(ABC):
                 yield item
         finally:
             if context:
-                # Record to DB the objects captured during the stream
-                await self._db_recorder.record_context(context)
                 # Ensure sensitive data is cleaned up after the stream is consumed
                 if context.sensitive:
                     context.sensitive.secure_cleanup()

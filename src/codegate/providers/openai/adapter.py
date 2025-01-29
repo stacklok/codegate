@@ -14,6 +14,8 @@ class OpenAIInputNormalizer(ModelInputNormalizer):
         No normalizing needed, already OpenAI format
         """
         normalized_data = self._normalize_content_messages(data)
+        if normalized_data.get("stream", False):
+            normalized_data["stream_options"] = {"include_usage": True}
         return ChatCompletionRequest(**normalized_data)
 
     def denormalize(self, data: ChatCompletionRequest) -> Dict:

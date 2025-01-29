@@ -21,7 +21,10 @@ class CompletionNormalizer(ModelInputNormalizer):
             # We can add as many parameters as we like to data. ChatCompletionRequest is not strict.
             data["had_prompt_before"] = True
         try:
-            return ChatCompletionRequest(**data)
+            normalized_data = ChatCompletionRequest(**data)
+            if normalized_data.get("stream", False):
+                normalized_data["stream_options"] = {"include_usage": True}
+            return normalized_data
         except Exception as e:
             raise ValueError(f"Invalid completion parameters: {str(e)}")
 

@@ -14,9 +14,11 @@ from codegate.api.v1_models import (
     PartialQuestionAnswer,
     PartialQuestions,
     QuestionAnswer,
+    TokenUsageAggregate,
+    TokenUsageByModel,
 )
 from codegate.db.connection import alert_queue
-from codegate.db.models import Alert, GetPromptWithOutputsRow
+from codegate.db.models import Alert, GetPromptWithOutputsRow, TokenUsage
 
 logger = structlog.get_logger("codegate")
 
@@ -57,16 +59,17 @@ async def _is_system_prompt(message: str) -> bool:
     return False
 
 
-async def parse_request(request_str: str) -> Optional[str]:
+async def parse_request(request_str: str) -> Tuple[Optional[List[str]], str]:
     """
-    Parse the request string from the pipeline and return the message.
+    Parse the request string from the pipeline and return the message and the model.
     """
     try:
         request = json.loads(request_str)
     except Exception as e:
         logger.warning(f"Error parsing request: {request_str}. {e}")
-        return None
+        return None, ""
 
+    model = request.get("model", "")
     messages = []
     for message in request.get("messages", []):
         role = message.get("role")
@@ -91,12 +94,12 @@ async def parse_request(request_str: str) -> Optional[str]:
         if message_prompt and not await _is_system_prompt(message_prompt):
             messages.append(message_prompt)
 
-    # If still we don't have anything, return empty string
+    # If still we don't have anything, return None string
     if not messages:
-        return None
+        return None, model
 
-    # Only respond with the latest message
-    return messages
+    # Respond with the messages and the model
+    return messages, model
 
 
 async def parse_output(output_str: str) -> Optional[str]:
@@ -144,7 +147,9 @@ async def parse_output(output_str: str) -> Optional[str]:
     return full_output_message
 
 
-async def _get_question_answer(row: GetPromptWithOutputsRow) -> Optional[PartialQuestionAnswer]:
+async def _get_partial_question_answer(
+    row: GetPromptWithOutputsRow,
+) -> Optional[PartialQuestionAnswer]:
     """
     Parse a row from the get_prompt_with_outputs query and return a PartialConversation
 
@@ -154,7 +159,7 @@ async def _get_question_answer(row: GetPromptWithOutputsRow) -> Optional[Partial
         request_task = tg.create_task(parse_request(row.request))
         output_task = tg.create_task(parse_output(row.output))
 
-    request_user_msgs = request_task.result()
+    request_user_msgs, model = request_task.result()
     output_msg_str = output_task.result()
 
     # If we couldn't parse the request, return None
@@ -176,21 +181,51 @@ async def _get_question_answer(row: GetPromptWithOutputsRow) -> Optional[Partial
         )
     else:
         output_message = None
-    return PartialQuestionAnswer(partial_questions=request_message, answer=output_message)
+
+    token_usage = TokenUsage.from_db(
+        input_cost=row.input_cost,
+        input_tokens=row.input_tokens,
+        output_tokens=row.output_tokens,
+        output_cost=row.output_cost,
+    )
+    # Use the model to update the token cost
+    provider = row.provider
+    # TODO: This should come from the database. For now, we are manually changing copilot to openai
+    # Change copilot provider to openai
+    if provider == "copilot":
+        provider = "openai"
+    model_token_usage = TokenUsageByModel(
+        model=model, token_usage=token_usage, provider_type=provider
+    )
+
+    return PartialQuestionAnswer(
+        partial_questions=request_message,
+        answer=output_message,
+        model_token_usage=model_token_usage,
+    )
 
 
 def parse_question_answer(input_text: str) -> str:
-    # given a string, detect if we have a pattern of "Context: xxx \n\nQuery: xxx" and strip it
-    pattern = r"^Context:.*?\n\n\s*Query:\s*(.*)$"
+    # Remove the <environment_details>...</environment_details> pattern if present
+    env_details_pattern = r"\n<environment_details>.*?</environment_details>"
+    input_text = re.sub(env_details_pattern, "", input_text, flags=re.DOTALL).strip()
 
-    # Search using the regex pattern
-    match = re.search(pattern, input_text, re.DOTALL)
+    # Check for the <task>...</task> pattern first
+    task_pattern = r"^<task>(.*?)</task>"
+    task_match = re.search(task_pattern, input_text, re.DOTALL)
 
-    # If a match is found, return the captured group after "Query:"
-    if match:
-        return match.group(1)
-    else:
-        return input_text
+    if task_match:
+        return task_match.group(1).strip()
+
+    # If no <task>...</task>, check for "Context: xxx \n\nQuery: xxx"
+    context_query_pattern = r"^Context:.*?\n\n\s*Query:\s*(.*)$"
+    context_query_match = re.search(context_query_pattern, input_text, re.DOTALL)
+
+    if context_query_match:
+        return context_query_match.group(1).strip()
+
+    # If no pattern matches, return the original input text
+    return input_text
 
 
 def _clean_secrets_from_message(message: str) -> str:
@@ -198,7 +233,9 @@ def _clean_secrets_from_message(message: str) -> str:
     return pattern.sub("REDACTED_SECRET", message)
 
 
-def _group_partial_messages(pq_list: List[PartialQuestions]) -> List[List[PartialQuestions]]:
+def _group_partial_messages(
+    pq_list: List[PartialQuestions],
+) -> List[List[PartialQuestions]]:  # noqa: C901
     """
     A PartialQuestion is an object that contains several user messages provided from a
     chat conversation. Example:
@@ -274,7 +311,8 @@ def _get_question_answer_from_partial(
     partial_question_answer: PartialQuestionAnswer,
 ) -> QuestionAnswer:
     """
-    Get a QuestionAnswer object from a PartialQuestionAnswer object.
+    Get a QuestionAnswer object from a PartialQuestionAnswer object. PartialQuestionAnswer
+    contains a list of messages as question. QuestionAnswer contains a single message as question.
     """
     # Get the last user message as the question
     question = ChatMessage(
@@ -292,11 +330,8 @@ async def match_conversations(
     """
     Match partial conversations to form a complete conversation.
     """
-    valid_partial_qas = [
-        partial_qas for partial_qas in partial_question_answers if partial_qas is not None
-    ]
     grouped_partial_questions = _group_partial_messages(
-        [partial_qs_a.partial_questions for partial_qs_a in valid_partial_qas]
+        [partial_qs_a.partial_questions for partial_qs_a in partial_question_answers]
     )
 
     # Create the conversation objects
@@ -304,12 +339,13 @@ async def match_conversations(
     map_q_id_to_conversation = {}
     for group in grouped_partial_questions:
         questions_answers: List[QuestionAnswer] = []
+        token_usage_agg = TokenUsageAggregate(tokens_by_model={}, token_usage=TokenUsage())
         first_partial_qa = None
         for partial_question in sorted(group, key=lambda x: x.timestamp):
             # Partial questions don't contain the answer, so we need to find the corresponding
             # valid partial question answer
             selected_partial_qa = None
-            for partial_qa in valid_partial_qas:
+            for partial_qa in partial_question_answers:
                 if partial_question.message_id == partial_qa.partial_questions.message_id:
                     selected_partial_qa = partial_qa
                     break
@@ -322,16 +358,19 @@ async def match_conversations(
                 qa = _get_question_answer_from_partial(selected_partial_qa)
                 qa.question.message = parse_question_answer(qa.question.message)
                 questions_answers.append(qa)
+                token_usage_agg.add_model_token_usage(selected_partial_qa.model_token_usage)
 
         # only add conversation if we have some answers
         if len(questions_answers) > 0 and first_partial_qa is not None:
+            if token_usage_agg.token_usage.input_tokens == 0:
+                token_usage_agg = None
             conversation = Conversation(
                 question_answers=questions_answers,
                 provider=first_partial_qa.partial_questions.provider,
                 type=first_partial_qa.partial_questions.type,
                 chat_id=first_partial_qa.partial_questions.message_id,
                 conversation_timestamp=first_partial_qa.partial_questions.timestamp,
-                token_usage=None,
+                token_usage_agg=token_usage_agg,
             )
             for qa in questions_answers:
                 map_q_id_to_conversation[qa.question.message_id] = conversation
@@ -340,17 +379,25 @@ async def match_conversations(
     return conversations, map_q_id_to_conversation
 
 
+async def _process_prompt_output_to_partial_qa(
+    prompts_outputs: List[GetPromptWithOutputsRow],
+) -> List[PartialQuestionAnswer]:
+    """
+    Process the prompts and outputs to PartialQuestionAnswer objects.
+    """
+    # Parse the prompts and outputs in parallel
+    async with asyncio.TaskGroup() as tg:
+        tasks = [tg.create_task(_get_partial_question_answer(row)) for row in prompts_outputs]
+    return [task.result() for task in tasks if task.result() is not None]
+
+
 async def parse_messages_in_conversations(
     prompts_outputs: List[GetPromptWithOutputsRow],
 ) -> Tuple[List[Conversation], Dict[str, Conversation]]:
     """
     Get all the messages from the database and return them as a list of conversations.
     """
-
-    # Parse the prompts and outputs in parallel
-    async with asyncio.TaskGroup() as tg:
-        tasks = [tg.create_task(_get_question_answer(row)) for row in prompts_outputs]
-    partial_question_answers = [task.result() for task in tasks]
+    partial_question_answers = await _process_prompt_output_to_partial_qa(prompts_outputs)
 
     conversations, map_q_id_to_conversation = await match_conversations(partial_question_answers)
     return conversations, map_q_id_to_conversation
@@ -403,3 +450,16 @@ async def parse_get_alert_conversation(
             for row in alerts
         ]
     return [task.result() for task in tasks if task.result() is not None]
+
+
+async def parse_workspace_token_usage(
+    prompts_outputs: List[GetPromptWithOutputsRow],
+) -> TokenUsageAggregate:
+    """
+    Parse the token usage from the workspace.
+    """
+    partial_question_answers = await _process_prompt_output_to_partial_qa(prompts_outputs)
+    token_usage_agg = TokenUsageAggregate(tokens_by_model={}, token_usage=TokenUsage())
+    for p_qa in partial_question_answers:
+        token_usage_agg.add_model_token_usage(p_qa.model_token_usage)
+    return token_usage_agg

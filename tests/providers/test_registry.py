@@ -93,6 +93,9 @@ class MockProvider(BaseProvider):
     def provider_route_name(self) -> str:
         return "mock_provider"
 
+    def models(self):
+        return []
+
     def _setup_routes(self) -> None:
         @self.router.get(f"/{self.provider_route_name}/test")
         def test_route():

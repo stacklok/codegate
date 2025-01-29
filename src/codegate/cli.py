@@ -17,6 +17,7 @@ from codegate.config import Config, ConfigurationError
 from codegate.db.connection import init_db_sync, init_session_if_not_exists
 from codegate.pipeline.factory import PipelineFactory
 from codegate.pipeline.secrets.manager import SecretsManager
+from codegate.providers import crud as provendcrud
 from codegate.providers.copilot.provider import CopilotProvider
 from codegate.server import init_app
 from codegate.storage.utils import restore_storage_backup
@@ -337,6 +338,9 @@ def serve(  # noqa: C901
         # Set up event loop
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
+
+        registry = app.provider_registry
+        loop.run_until_complete(provendcrud.initialize_provider_endpoints(registry))
 
         # Run the server
         try:
