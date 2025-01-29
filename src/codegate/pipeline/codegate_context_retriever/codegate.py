@@ -100,9 +100,9 @@ class CodegateContextRetriever(PipelineStep):
         )
 
         # split messages into double newlines, to avoid passing so many content in the search
-        split_messages = re.split(r"</?task>|(\n\n)", user_messages)
+        split_messages = re.split(r"</?task>|\n|\\n", user_messages)
         collected_bad_packages = []
-        for item_message in split_messages:
+        for item_message in filter(None, map(str.strip, split_messages)):
             # Vector search to find bad packages
             bad_packages = await storage_engine.search(query=item_message, distance=0.5, limit=100)
             if bad_packages and len(bad_packages) > 0:
@@ -128,12 +128,12 @@ class CodegateContextRetriever(PipelineStep):
             new_request = request.copy()
 
             # perform replacement in all the messages starting from this index
+            base_tool = get_tool_name_from_messages(request)
             for i in range(last_user_idx, len(new_request["messages"])):
                 message = new_request["messages"][i]
                 message_str = str(message["content"])  # type: ignore
                 context_msg = message_str
                 # Add the context to the last user message
-                base_tool = get_tool_name_from_messages(request)
                 if base_tool in ["cline", "kodu"]:
                     match = re.search(r"<task>\s*(.*?)\s*</task>(.*)", message_str, re.DOTALL)
                     if match:
@@ -149,6 +149,14 @@ class CodegateContextRetriever(PipelineStep):
                         # Combine updated task content with the rest of the message
                         context_msg = updated_task_content + rest_of_message
 
+                elif base_tool == "open interpreter":
+                    # if we find the context in a "tool" role, move it to the previous message
+                    context_msg = f"Context: {context_str} \n\n Query: {message_str}"  # type: ignore
+                    if message["role"] == "tool":
+                        if i > 0:
+                            message_str = str(new_request["messages"][i-1]["content"])  # type: ignore
+                            context_msg = f"Context: {context_str} \n\n Query: {message_str}"  # type: ignore
+                            new_request["messages"][i-1]["content"] = context_msg
                 else:
                     context_msg = f"Context: {context_str} \n\n Query: {message_str}"  # type: ignore
 

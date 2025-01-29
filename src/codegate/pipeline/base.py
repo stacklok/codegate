@@ -13,6 +13,7 @@ from pydantic import BaseModel
 
 from codegate.db.models import Alert, Output, Prompt
 from codegate.pipeline.secrets.manager import SecretsManager
+from codegate.utils.utils import get_tool_name_from_messages
 
 logger = structlog.get_logger("codegate")
 
@@ -260,19 +261,25 @@ class PipelineStep(ABC):
         messages = request["messages"]
         block_start_index = None
 
+        base_tool = get_tool_name_from_messages(request)
+        accepted_roles = ["user", "assistant"]
+        if base_tool == "open interpreter":
+            # open interpreter also uses the role "tool"
+            accepted_roles.append("tool")
+
         # Iterate in reverse to find the last block of consecutive 'user' messages
         for i in reversed(range(len(messages))):
-            if messages[i]["role"] == "user" or messages[i]["role"] == "assistant":
-                content_str = messages[i].get("content")
+            if messages[i]["role"] in accepted_roles:
+                content_str = messages[i].get("content")                
                 if content_str is None:
                     continue
 
-                if messages[i]["role"] == "user":
+                if messages[i]["role"] in ["user", "tool"]:
                     user_messages.append(content_str)
                     block_start_index = i
 
                 # Specifically for Aider, when "Ok." block is found, stop
-                if content_str == "Ok." and messages[i]["role"] == "assistant":
+                if base_tool == "aider" and content_str == "Ok." and messages[i]["role"] == "assistant":
                     break
             else:
                 # Stop when a message with a different role is encountered
