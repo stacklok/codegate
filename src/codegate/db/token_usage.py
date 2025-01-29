@@ -19,7 +19,9 @@ class TokenUsageParser:
     def __init__(self):
         current_dir = Path(__file__).parent
         filemodel_path = (
-            current_dir.parent.parent.parent / "data" / "model_prices_and_context_window.json"
+            current_dir.parent.parent.parent
+            / "model_cost_data"
+            / "model_prices_and_context_window.json"
         )
         with open(filemodel_path) as file:
             self.model_cost_mapping: Dict[str, Dict] = json.load(file)

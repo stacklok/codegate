@@ -1,4 +1,4 @@
-# This workflow updates the file in /data/model_prices_and_context_window.json
+# This workflow updates the file in /model_cost_data/model_prices_and_context_window.json
 name: Update model prices and context window JSON file
 
 on:
@@ -18,12 +18,12 @@ jobs:
 
     - name: Get the latest file
       run: |
-        curl -Ss 'https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json' > data/model_prices_and_context_window.json
+        curl -Ss 'https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json' > model_cost_data/model_prices_and_context_window.json
 
     - name: Check if file changed
       id: check-model-prices
       run: |
-          if ! git diff --quiet data/model_prices_and_context_window.json ; then
+          if ! git diff --quiet model_cost_data/model_prices_and_context_window.json ; then
               echo "changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -44,7 +44,7 @@ jobs:
       run: |
         git checkout -b update-model-prices-$GITHUB_SHA
 
-        git add data/model_prices_and_context_window.json
+        git add model_cost_data/model_prices_and_context_window.json
         git commit -m "Update model_prices_and_context_window.json to version generated on ${{ env.CURRENT_DATETIME }}"
 
         echo "Pushing branch so we can create a PR..."
