@@ -21,7 +21,7 @@
 
 ---
 
-# CodeGate: secure AI coding assistance
+# CodeGate: making AI coding assistance secure
 
 **By [Stacklok](https://stacklok.com)**
 
