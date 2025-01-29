@@ -121,6 +121,82 @@
         }
       }
     },
+    "/api/v1/provider-endpoints/models": {
+      "get": {
+        "tags": [
+          "CodeGate API",
+          "Providers"
+        ],
+        "summary": "List All Models For All Providers",
+        "description": "List all models for all providers.",
+        "operationId": "v1_list_all_models_for_all_providers",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ModelByProvider"
+                  },
+                  "type": "array",
+                  "title": "Response V1 List All Models For All Providers"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/provider-endpoints/{provider_id}/models": {
+      "get": {
+        "tags": [
+          "CodeGate API",
+          "Providers"
+        ],
+        "summary": "List Models By Provider",
+        "description": "List models by provider.",
+        "operationId": "v1_list_models_by_provider",
+        "parameters": [
+          {
+            "name": "provider_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Provider Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ModelByProvider"
+                  },
+                  "title": "Response V1 List Models By Provider"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/provider-endpoints/{provider_id}": {
       "get": {
         "tags": [
@@ -136,7 +212,8 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer",
+              "type": "string",
+              "format": "uuid",
               "title": "Provider Id"
             }
           }
@@ -178,7 +255,8 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer",
+              "type": "string",
+              "format": "uuid",
               "title": "Provider Id"
             }
           }
@@ -230,7 +308,8 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer",
+              "type": "string",
+              "format": "uuid",
               "title": "Provider Id"
             }
           }
@@ -250,81 +329,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/provider-endpoints/{provider_name}/models": {
-      "get": {
-        "tags": [
-          "CodeGate API",
-          "Providers"
-        ],
-        "summary": "List Models By Provider",
-        "description": "List models by provider.",
-        "operationId": "v1_list_models_by_provider",
-        "parameters": [
-          {
-            "name": "provider_name",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Provider Name"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ModelByProvider"
-                  },
-                  "title": "Response V1 List Models By Provider"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/provider-endpoints/models": {
-      "get": {
-        "tags": [
-          "CodeGate API",
-          "Providers"
-        ],
-        "summary": "List All Models For All Providers",
-        "description": "List all models for all providers.",
-        "operationId": "v1_list_all_models_for_all_providers",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/ModelByProvider"
-                  },
-                  "type": "array",
-                  "title": "Response V1 List All Models For All Providers"
                 }
               }
             }
@@ -1340,15 +1344,20 @@
             "type": "string",
             "title": "Name"
           },
-          "provider": {
+          "provider_id": {
             "type": "string",
-            "title": "Provider"
+            "title": "Provider Id"
+          },
+          "provider_name": {
+            "type": "string",
+            "title": "Provider Name"
           }
         },
         "type": "object",
         "required": [
           "name",
-          "provider"
+          "provider_id",
+          "provider_name"
         ],
         "title": "ModelByProvider",
         "description": "Represents a model supported by a provider.\n\nNote that these are auto-discovered by the provider."
@@ -1410,8 +1419,16 @@
       "ProviderEndpoint": {
         "properties": {
           "id": {
-            "type": "integer",
-            "title": "Id"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id",
+            "default": ""
           },
           "name": {
             "type": "string",
@@ -1435,7 +1452,6 @@
         },
         "type": "object",
         "required": [
-          "id",
           "name",
           "provider_type",
           "endpoint",
@@ -1449,7 +1465,9 @@
         "enum": [
           "openai",
           "anthropic",
-          "vllm"
+          "vllm",
+          "ollama",
+          "lm_studio"
         ],
         "title": "ProviderType",
         "description": "Represents the different types of providers we support."
