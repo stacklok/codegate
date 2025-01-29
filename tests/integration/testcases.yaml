@@ -1,6 +1,6 @@
 headers:
   vllm:
-    Authorization: Bearer ENV_VLLM_KEY
+    Content-Type: application/json
   openai:
     Authorization: Bearer ENV_OPENAI_KEY
   ollama:
@@ -161,12 +161,12 @@ testcases:
               "role":"user"
             }
         ],
-        "model":"Qwen/Qwen2.5-Coder-14B-Instruct",
+        "model":"Qwen/Qwen2.5-Coder-1.5B-Instruct",
         "stream":true,
         "temperature":0
       }
     likes: |
-      Hello! How can I assist you today? If you have any questions about software security, package analysis, or need guidance on secure coding practices, feel free to ask.
+      Hello! How can I assist you today?
 
   vllm_fim:
     name: VLLM FIM
@@ -174,7 +174,7 @@ testcases:
     url: http://127.0.0.1:8989/vllm/completions
     data: |
       {
-        "model": "Qwen/Qwen2.5-Coder-14B",
+        "model": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
         "max_tokens": 4096,
         "temperature": 0,
         "stream": true,
