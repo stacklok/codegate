@@ -138,6 +138,7 @@ class CopilotPipeline(ABC):
                 body = self.normalizer.denormalize(result.request)
                 # Uncomment the below to debug the request
                 # logger.debug(f"Pipeline processed request: {body}")
+
                 return body, result.context
             except Exception as e:
                 logger.error(f"Pipeline processing error: {e}")

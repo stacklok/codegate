@@ -1,3 +1,4 @@
+import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import AsyncIterator, List, Optional
@@ -113,6 +114,17 @@ class OutputPipelineInstance:
             if choice.delta is not None and choice.delta.content is not None:
                 self._context.processed_content.append(choice.delta.content)
 
+    def _record_to_db(self) -> None:
+        """
+        Record the context to the database
+
+        Important: We cannot use `await` in the finally statement. Otherwise, the stream
+        will transmmitted properly. Hence we get the running loop and create a task to
+        record the context.
+        """
+        loop = asyncio.get_running_loop()
+        loop.create_task(self._db_recorder.record_context(self._input_context))
+
     async def process_stream(
         self, stream: AsyncIterator[ModelResponse], cleanup_sensitive: bool = True
     ) -> AsyncIterator[ModelResponse]:
@@ -152,9 +164,10 @@ class OutputPipelineInstance:
             logger.error(f"Error processing stream: {e}")
             raise e
         finally:
+            # NOTE: Don't use await in finally block, it will break the stream
             # Don't flush the buffer if we assume we'll call the pipeline again
             if cleanup_sensitive is False:
-                await self._db_recorder.record_context(self._input_context)
+                self._record_to_db()
                 return
 
             # Process any remaining content in buffer when stream ends
@@ -180,7 +193,7 @@ class OutputPipelineInstance:
                 yield chunk
                 self._context.buffer.clear()
 
-            await self._db_recorder.record_context(self._input_context)
+            self._record_to_db()
             # Cleanup sensitive data through the input context
             if cleanup_sensitive and self._input_context and self._input_context.sensitive:
                 self._input_context.sensitive.secure_cleanup()

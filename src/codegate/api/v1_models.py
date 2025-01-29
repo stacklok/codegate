@@ -9,9 +9,6 @@ from codegate.pipeline.base import CodeSnippet
 from codegate.providers.base import BaseProvider
 from codegate.providers.registry import ProviderRegistry
 
-# 1 day cache. Not keep all the models in the cache. Just the ones we have used recently.
-model_cost_cache = TTLCache(maxsize=2000, ttl=1 * 24 * 60 * 60)
-
 
 class Workspace(pydantic.BaseModel):
     name: str
