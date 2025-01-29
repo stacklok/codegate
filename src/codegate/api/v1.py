@@ -129,6 +129,27 @@ async def add_provider_endpoint(
 
 
 @v1.put(
+    "/provider-endpoints/{provider_id}/auth-material",
+    tags=["Providers"],
+    generate_unique_id_function=uniq_name,
+    status_code=204,
+)
+async def configure_auth_material(
+    provider_id: UUID,
+    request: v1_models.ConfigureAuthMaterial,
+):
+    """Configure auth material for a provider."""
+    try:
+        await pcrud.configure_auth_material(provider_id, request)
+    except provendcrud.ProviderNotFoundError:
+        raise HTTPException(status_code=404, detail="Provider endpoint not found")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    return Response(status_code=204)
+
+
+@v1.put(
     "/provider-endpoints/{provider_id}", tags=["Providers"], generate_unique_id_function=uniq_name
 )
 async def update_provider_endpoint(

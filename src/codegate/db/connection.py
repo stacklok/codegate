@@ -441,8 +441,10 @@ class DbRecorder(DbCodeGate):
             UPDATE provider_endpoints
             SET auth_type = :auth_type, auth_blob = :auth_blob
             WHERE id = :provider_endpoint_id
+            RETURNING id as provider_endpoint_id, auth_type, auth_blob
             """
         )
+        # Here we DONT want to return the result
         _ = await self._execute_update_pydantic_model(auth_material, sql, should_raise=True)
         return
 
