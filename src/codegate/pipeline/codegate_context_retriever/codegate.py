@@ -154,9 +154,9 @@ class CodegateContextRetriever(PipelineStep):
                     context_msg = f"Context: {context_str} \n\n Query: {message_str}"  # type: ignore
                     if message["role"] == "tool":
                         if i > 0:
-                            message_str = str(new_request["messages"][i-1]["content"])  # type: ignore
+                            message_str = str(new_request["messages"][i - 1]["content"])  # type: ignore
                             context_msg = f"Context: {context_str} \n\n Query: {message_str}"  # type: ignore
-                            new_request["messages"][i-1]["content"] = context_msg
+                            new_request["messages"][i - 1]["content"] = context_msg
                 else:
                     context_msg = f"Context: {context_str} \n\n Query: {message_str}"  # type: ignore
 
