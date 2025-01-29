@@ -11,6 +11,8 @@ from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.ollama.adapter import OllamaInputNormalizer, OllamaOutputNormalizer
 from codegate.providers.ollama.completion_handler import OllamaShim
 
+logger = structlog.get_logger("codegate")
+
 
 class OllamaProvider(BaseProvider):
     def __init__(
@@ -52,6 +54,24 @@ class OllamaProvider(BaseProvider):
         jsonresp = resp.json()
 
         return [model["name"] for model in jsonresp.get("models", [])]
+
+    async def process_request(self, data: dict, api_key: str, request_url_path: str):
+        is_fim_request = self._is_fim_request(request_url_path, data)
+        try:
+            stream = await self.complete(data, api_key=None, is_fim_request=is_fim_request)
+        except httpx.ConnectError as e:
+            logger.error("Error in OllamaProvider completion", error=str(e))
+            raise HTTPException(status_code=503, detail="Ollama service is unavailable")
+        except Exception as e:
+            #  check if we have an status code there
+            if hasattr(e, "status_code"):
+                # log the exception
+                logger.error("Error in OllamaProvider completion", error=str(e))
+                raise HTTPException(status_code=e.status_code, detail=str(e))  # type: ignore
+            else:
+                # just continue raising the exception
+                raise e
+        return self._completion_handler.create_response(stream)
 
     def _setup_routes(self):
         """
@@ -100,25 +120,9 @@ class OllamaProvider(BaseProvider):
         async def create_completion(request: Request):
             body = await request.body()
             data = json.loads(body)
+
             # `base_url` is used in the providers pipeline to do the packages lookup.
             # Force it to be the one that comes in the configuration.
             data["base_url"] = self.base_url
 
-            is_fim_request = self._is_fim_request(request, data)
-            try:
-                stream = await self.complete(data, api_key=None, is_fim_request=is_fim_request)
-            except httpx.ConnectError as e:
-                logger = structlog.get_logger("codegate")
-                logger.error("Error in OllamaProvider completion", error=str(e))
-                raise HTTPException(status_code=503, detail="Ollama service is unavailable")
-            except Exception as e:
-                #  check if we have an status code there
-                if hasattr(e, "status_code"):
-                    # log the exception
-                    logger = structlog.get_logger("codegate")
-                    logger.error("Error in OllamaProvider completion", error=str(e))
-                    raise HTTPException(status_code=e.status_code, detail=str(e))  # type: ignore
-                else:
-                    # just continue raising the exception
-                    raise e
-            return self._completion_handler.create_response(stream)
+            return await self.process_request(data, None, request.url.path)

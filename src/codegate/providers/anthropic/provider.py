@@ -51,6 +51,22 @@ class AnthropicProvider(BaseProvider):
 
         return [model["id"] for model in respjson.get("data", [])]
 
+    async def process_request(self, data: dict, api_key: str, request_url_path: str):
+        is_fim_request = self._is_fim_request(request_url_path, data)
+        try:
+            stream = await self.complete(data, api_key, is_fim_request)
+        except Exception as e:
+            #  check if we have an status code there
+            if hasattr(e, "status_code"):
+                # log the exception
+                logger = structlog.get_logger("codegate")
+                logger.error("Error in AnthropicProvider completion", error=str(e))
+                raise HTTPException(status_code=e.status_code, detail=str(e))  # type: ignore
+            else:
+                # just continue raising the exception
+                raise e
+        return self._completion_handler.create_response(stream)
+
     def _setup_routes(self):
         """
         Sets up the /messages route for the provider as expected by the Anthropic
@@ -74,17 +90,4 @@ class AnthropicProvider(BaseProvider):
             body = await request.body()
             data = json.loads(body)
 
-            is_fim_request = self._is_fim_request(request, data)
-            try:
-                stream = await self.complete(data, x_api_key, is_fim_request)
-            except Exception as e:
-                #  check if we have an status code there
-                if hasattr(e, "status_code"):
-                    # log the exception
-                    logger = structlog.get_logger("codegate")
-                    logger.error("Error in AnthropicProvider completion", error=str(e))
-                    raise HTTPException(status_code=e.status_code, detail=str(e))  # type: ignore
-                else:
-                    # just continue raising the exception
-                    raise e
-            return self._completion_handler.create_response(stream)
+            return await self.process_request(data, x_api_key, request.url.path)

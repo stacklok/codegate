@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Union
 
 import structlog
-from fastapi import APIRouter, Request
+from fastapi import APIRouter
 from litellm import ModelResponse
 from litellm.types.llms.openai import ChatCompletionRequest
 
@@ -71,6 +71,10 @@ class BaseProvider(ABC):
 
     @abstractmethod
     def models(self, endpoint, str=None, api_key: str = None) -> List[str]:
+        pass
+
+    @abstractmethod
+    async def process_request(self, data: dict, api_key: str, request_url_path: str):
         pass
 
     @property
@@ -154,18 +158,17 @@ class BaseProvider(ABC):
 
         return result
 
-    def _is_fim_request_url(self, request: Request) -> bool:
+    def _is_fim_request_url(self, request_url_path: str) -> bool:
         """
         Checks the request URL to determine if a request is FIM or chat completion.
         Used by: llama.cpp
         """
-        request_path = request.url.path
         # Evaluate first a larger substring.
-        if request_path.endswith("/chat/completions"):
+        if request_url_path.endswith("/chat/completions"):
             return False
 
         # /completions is for OpenAI standard. /api/generate is for ollama.
-        if request_path.endswith("/completions") or request_path.endswith("/api/generate"):
+        if request_url_path.endswith("/completions") or request_url_path.endswith("/api/generate"):
             return True
 
         return False
@@ -193,12 +196,12 @@ class BaseProvider(ABC):
             return False
         return all([stop_sequence in msg_prompt for stop_sequence in fim_stop_sequences])
 
-    def _is_fim_request(self, request: Request, data: Dict) -> bool:
+    def _is_fim_request(self, request_url_path: str, data: Dict) -> bool:
         """
         Determine if the request is FIM by the URL or the data of the request.
         """
         # Avoid more expensive inspection of body by just checking the URL.
-        if self._is_fim_request_url(request):
+        if self._is_fim_request_url(request_url_path):
             return True
 
         return self._is_fim_request_body(data)

@@ -107,25 +107,12 @@ class PartialQuestions(pydantic.BaseModel):
     type: QuestionType
 
 
-class ProviderType(str, Enum):
-    """
-    Represents the different types of providers we support.
-    """
-
-    openai = "openai"
-    anthropic = "anthropic"
-    vllm = "vllm"
-    ollama = "ollama"
-    lm_studio = "lm_studio"
-    llamacpp = "llamacpp"
-
-
 class TokenUsageByModel(pydantic.BaseModel):
     """
     Represents the tokens used by a model.
     """
 
-    provider_type: ProviderType
+    provider_type: db_models.ProviderType
     model: str
     token_usage: db_models.TokenUsage
 
@@ -221,7 +208,7 @@ class ProviderEndpoint(pydantic.BaseModel):
     id: Optional[str] = ""
     name: str
     description: str = ""
-    provider_type: ProviderType
+    provider_type: db_models.ProviderType
     endpoint: str = ""  # Some providers have defaults we can leverage
     auth_type: Optional[ProviderAuthType] = ProviderAuthType.none
 

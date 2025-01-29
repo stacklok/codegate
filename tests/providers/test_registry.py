@@ -93,13 +93,16 @@ class MockProvider(BaseProvider):
     def provider_route_name(self) -> str:
         return "mock_provider"
 
+    async def process_request(self, data: dict, api_key: str, request_url_path: str):
+        return {"message": "test"}
+
     def models(self):
         return []
 
     def _setup_routes(self) -> None:
         @self.router.get(f"/{self.provider_route_name}/test")
-        def test_route():
-            return {"message": "test"}
+        async def test_route():
+            return await self.process_request({})
 
 
 @pytest.fixture

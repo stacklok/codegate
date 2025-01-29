@@ -10,6 +10,8 @@ from starlette.middleware.errors import ServerErrorMiddleware
 
 from codegate import __description__, __version__
 from codegate.api.v1 import v1
+from codegate.db.models import ProviderType
+from codegate.mux.router import MuxRouter
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.anthropic.provider import AnthropicProvider
 from codegate.providers.llamacpp.provider import LlamaCppProvider
@@ -70,39 +72,42 @@ def init_app(pipeline_factory: PipelineFactory) -> CodeGateServer:
 
     # Register all known providers
     registry.add_provider(
-        "openai",
+        ProviderType.openai,
         OpenAIProvider(pipeline_factory),
     )
     registry.add_provider(
-        "anthropic",
+        ProviderType.anthropic,
         AnthropicProvider(
             pipeline_factory,
         ),
     )
     registry.add_provider(
-        "llamacpp",
+        ProviderType.llamacpp,
         LlamaCppProvider(
             pipeline_factory,
         ),
     )
     registry.add_provider(
-        "vllm",
+        ProviderType.vllm,
         VLLMProvider(
             pipeline_factory,
         ),
     )
     registry.add_provider(
-        "ollama",
+        ProviderType.ollama,
         OllamaProvider(
             pipeline_factory,
         ),
     )
     registry.add_provider(
-        "lm_studio",
+        ProviderType.lm_studio,
         LmStudioProvider(
             pipeline_factory,
         ),
     )
+
+    mux_router = MuxRouter(registry)
+    app.include_router(mux_router.get_routes(), include_in_schema=False)
 
     # Create and add system routes
     system_router = APIRouter(tags=["System"])
