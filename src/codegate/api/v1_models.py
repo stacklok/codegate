@@ -293,10 +293,10 @@ class MuxRule(pydantic.BaseModel):
     Represents a mux rule for a provider.
     """
 
-    provider: str
+    provider_id: str
     model: str
     # The type of matcher to use
     matcher_type: MuxMatcherType
     # The actual matcher to use. Note that
     # this depends on the matcher type.
-    matcher: Optional[str]
+    matcher: Optional[str] = None

@@ -475,13 +475,14 @@ async def get_workspace_muxes(
     # implementation that fetches the mux rules from the database.
     return [
         v1_models.MuxRule(
-            provider="openai",
+            # Hardcode some UUID just for mocking purposes
+            provider_id="00000000-0000-0000-0000-000000000001",
             model="gpt-3.5-turbo",
             matcher_type=v1_models.MuxMatcherType.file_regex,
             matcher=".*\\.txt",
         ),
         v1_models.MuxRule(
-            provider="anthropic",
+            provider_id="00000000-0000-0000-0000-000000000002",
             model="davinci",
             matcher_type=v1_models.MuxMatcherType.catch_all,
         ),
