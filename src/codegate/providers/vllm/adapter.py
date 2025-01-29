@@ -128,6 +128,8 @@ class VLLMInputNormalizer(ModelInputNormalizer):
             ret_data = self._chat_ml_normalizer.normalize(normalized_data)
         else:
             ret_data = ChatCompletionRequest(**normalized_data)
+        if ret_data.get("stream", False):
+            ret_data["stream_options"] = {"include_usage": True}
         return ret_data
 
     def denormalize(self, data: ChatCompletionRequest) -> Dict:

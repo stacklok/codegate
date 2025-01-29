@@ -58,6 +58,9 @@ class LiteLLMAdapterInputNormalizer(ModelInputNormalizer):
         # so let's just pretend they doesn't exist
         if ret.get("tools") is not None:
             ret["tools"] = []
+
+        if ret.get("stream", False):
+            ret["stream_options"] = {"include_usage": True}
         return ret
 
     def denormalize(self, data: ChatCompletionRequest) -> Dict:

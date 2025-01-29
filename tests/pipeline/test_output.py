@@ -1,5 +1,5 @@
 from typing import List
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 from litellm import ModelResponse
@@ -95,7 +95,7 @@ class TestOutputPipelineInstance:
         """Test processing a stream through a single step"""
         step = MockOutputPipelineStep("test_step", modify_content=True)
         context = MockContext()
-        db_recorder = MagicMock()
+        db_recorder = AsyncMock()
         instance = OutputPipelineInstance([step], context, db_recorder)
 
         async def mock_stream():
@@ -120,7 +120,7 @@ class TestOutputPipelineInstance:
             MockOutputPipelineStep("step2", modify_content=True),
         ]
         context = MockContext()
-        db_recorder = MagicMock()
+        db_recorder = AsyncMock()
         instance = OutputPipelineInstance(steps, context, db_recorder)
 
         async def mock_stream():
@@ -144,7 +144,7 @@ class TestOutputPipelineInstance:
             MockOutputPipelineStep("step2", modify_content=True),
         ]
         context = MockContext()
-        db_recorder = MagicMock()
+        db_recorder = AsyncMock()
         instance = OutputPipelineInstance(steps, context, db_recorder)
 
         async def mock_stream():
@@ -201,7 +201,7 @@ class TestOutputPipelineInstance:
                 return []
 
         context = MockContext()
-        db_recorder = MagicMock()
+        db_recorder = AsyncMock()
         instance = OutputPipelineInstance([ReplacementStep()], context, db_recorder)
 
         async def mock_stream():
@@ -226,7 +226,7 @@ class TestOutputPipelineInstance:
         """Test that content is properly buffered and cleared"""
         step = MockOutputPipelineStep("test_step")
         context = MockContext()
-        db_recorder = MagicMock()
+        db_recorder = AsyncMock()
         instance = OutputPipelineInstance([step], context, db_recorder)
 
         async def mock_stream():
@@ -248,7 +248,7 @@ class TestOutputPipelineInstance:
         """Test handling of an empty stream"""
         step = MockOutputPipelineStep("test_step")
         context = MockContext()
-        db_recorder = MagicMock()
+        db_recorder = AsyncMock()
         instance = OutputPipelineInstance([step], context, db_recorder)
 
         async def mock_stream():
@@ -282,7 +282,7 @@ class TestOutputPipelineInstance:
                 assert input_context.metadata["test"] == "value"
                 return [chunk]
 
-        db_recorder = MagicMock()
+        db_recorder = AsyncMock()
         instance = OutputPipelineInstance(
             [ContextCheckingStep()], input_context=input_context, db_recorder=db_recorder
         )
@@ -298,7 +298,7 @@ class TestOutputPipelineInstance:
         """Test that buffer is properly flushed when stream ends"""
         step = MockOutputPipelineStep("test_step", should_pause=True)
         context = MockContext()
-        db_recorder = MagicMock()
+        db_recorder = AsyncMock()
         instance = OutputPipelineInstance([step], context, db_recorder)
 
         async def mock_stream():

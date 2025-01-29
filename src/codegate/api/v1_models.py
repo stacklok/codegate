@@ -1,11 +1,13 @@
 import datetime
 from enum import Enum
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import pydantic
 
 from codegate.db import models as db_models
 from codegate.pipeline.base import CodeSnippet
+from codegate.providers.base import BaseProvider
+from codegate.providers.registry import ProviderRegistry
 
 
 class Workspace(pydantic.BaseModel):
@@ -105,15 +107,6 @@ class PartialQuestions(pydantic.BaseModel):
     type: QuestionType
 
 
-class PartialQuestionAnswer(pydantic.BaseModel):
-    """
-    Represents a partial conversation.
-    """
-
-    partial_questions: PartialQuestions
-    answer: Optional[ChatMessage]
-
-
 class ProviderType(str, Enum):
     """
     Represents the different types of providers we support.
@@ -122,6 +115,9 @@ class ProviderType(str, Enum):
     openai = "openai"
     anthropic = "anthropic"
     vllm = "vllm"
+    ollama = "ollama"
+    lm_studio = "lm_studio"
+    llamacpp = "llamacpp"
 
 
 class TokenUsageByModel(pydantic.BaseModel):
@@ -131,17 +127,47 @@ class TokenUsageByModel(pydantic.BaseModel):
 
     provider_type: ProviderType
     model: str
-    used_tokens: int
+    token_usage: db_models.TokenUsage
 
 
-class TokenUsage(pydantic.BaseModel):
+class TokenUsageAggregate(pydantic.BaseModel):
     """
     Represents the tokens used. Includes the information of the tokens used by model.
     `used_tokens` are the total tokens used in the `tokens_by_model` list.
     """
 
-    tokens_by_model: List[TokenUsageByModel]
-    used_tokens: int
+    tokens_by_model: Dict[str, TokenUsageByModel]
+    token_usage: db_models.TokenUsage
+
+    def add_model_token_usage(self, model_token_usage: TokenUsageByModel) -> None:
+        # Copilot doesn't have a model name and we cannot obtain the tokens used. Skip it.
+        if model_token_usage.model == "":
+            return
+
+        # Skip if the model has not used any tokens.
+        if (
+            model_token_usage.token_usage.input_tokens == 0
+            and model_token_usage.token_usage.output_tokens == 0
+        ):
+            return
+
+        if model_token_usage.model in self.tokens_by_model:
+            self.tokens_by_model[
+                model_token_usage.model
+            ].token_usage += model_token_usage.token_usage
+        else:
+            self.tokens_by_model[model_token_usage.model] = model_token_usage
+        self.token_usage += model_token_usage.token_usage
+
+
+class PartialQuestionAnswer(pydantic.BaseModel):
+    """
+    Represents a partial conversation.
+    """
+
+    partial_questions: PartialQuestions
+    answer: Optional[ChatMessage]
+    model_token_usage: TokenUsageByModel
 
 
 class Conversation(pydantic.BaseModel):
@@ -154,7 +180,7 @@ class Conversation(pydantic.BaseModel):
     type: QuestionType
     chat_id: str
     conversation_timestamp: datetime.datetime
-    token_usage: Optional[TokenUsage]
+    token_usage_agg: Optional[TokenUsageAggregate]
 
 
 class AlertConversation(pydantic.BaseModel):
@@ -191,12 +217,46 @@ class ProviderEndpoint(pydantic.BaseModel):
     so we can use this for muxing messages.
     """
 
-    id: int
+    #  This will be set on creation
+    id: Optional[str] = ""
     name: str
     description: str = ""
     provider_type: ProviderType
     endpoint: str
+    auth_type: Optional[ProviderAuthType] = ProviderAuthType.none
+
+    @staticmethod
+    def from_db_model(db_model: db_models.ProviderEndpoint) -> "ProviderEndpoint":
+        return ProviderEndpoint(
+            id=db_model.id,
+            name=db_model.name,
+            description=db_model.description,
+            provider_type=db_model.provider_type,
+            endpoint=db_model.endpoint,
+            auth_type=db_model.auth_type,
+        )
+
+    def to_db_model(self) -> db_models.ProviderEndpoint:
+        return db_models.ProviderEndpoint(
+            id=self.id,
+            name=self.name,
+            description=self.description,
+            provider_type=self.provider_type,
+            endpoint=self.endpoint,
+            auth_type=self.auth_type,
+        )
+
+    def get_from_registry(self, registry: ProviderRegistry) -> Optional[BaseProvider]:
+        return registry.get_provider(self.provider_type)
+
+
+class ConfigureAuthMaterial(pydantic.BaseModel):
+    """
+    Represents a request to configure auth material for a provider.
+    """
+
     auth_type: ProviderAuthType
+    api_key: Optional[str] = None
 
 
 class ModelByProvider(pydantic.BaseModel):
@@ -207,10 +267,11 @@ class ModelByProvider(pydantic.BaseModel):
     """
 
     name: str
-    provider: str
+    provider_id: str
+    provider_name: str
 
     def __str__(self):
-        return f"{self.provider}/{self.name}"
+        return f"{self.provider_name} / {self.name}"
 
 
 class MuxMatcherType(str, Enum):

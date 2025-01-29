@@ -21,10 +21,14 @@ from codegate.db.models import (
     GetWorkspaceByNameConditions,
     Output,
     Prompt,
+    ProviderAuthMaterial,
+    ProviderEndpoint,
+    ProviderModel,
     Session,
     WorkspaceRow,
     WorkspaceWithSessionInfo,
 )
+from codegate.db.token_usage import TokenUsageParser
 from codegate.pipeline.base import PipelineContext
 
 logger = structlog.get_logger("codegate")
@@ -171,15 +175,34 @@ class DbRecorder(DbCodeGate):
         # Just store the model respnses in the list of JSON objects.
         for output in outputs:
             full_outputs.append(output.output)
+
+        # Parse the token usage from the outputs
+        token_parser = TokenUsageParser()
+        full_token_usage = await token_parser.parse_outputs(outputs)
+
         output_db.output = json.dumps(full_outputs)
+        output_db.input_tokens = full_token_usage.input_tokens
+        output_db.output_tokens = full_token_usage.output_tokens
+        output_db.input_cost = full_token_usage.input_cost
+        output_db.output_cost = full_token_usage.output_cost
 
         sql = text(
             """
-                INSERT INTO outputs (id, prompt_id, timestamp, output)
-                VALUES (:id, :prompt_id, :timestamp, :output)
+                INSERT INTO outputs (
+                    id, prompt_id, timestamp, output, input_tokens, output_tokens, input_cost,
+                    output_cost
+                )
+                VALUES (
+                    :id, :prompt_id, :timestamp, :output, :input_tokens, :output_tokens,
+                    :input_cost, :output_cost
+                )
                 ON CONFLICT (id) DO UPDATE SET
-                timestamp = excluded.timestamp, output = excluded.output,
-                prompt_id = excluded.prompt_id
+                timestamp = excluded.timestamp,
+                output = excluded.output,
+                input_tokens = excluded.input_tokens,
+                output_tokens = excluded.output_tokens,
+                input_cost = excluded.input_cost,
+                output_cost = excluded.output_cost
                 RETURNING *
                 """
         )
@@ -368,6 +391,74 @@ class DbRecorder(DbCodeGate):
         )
         return recovered_workspace
 
+    async def add_provider_endpoint(self, provider: ProviderEndpoint) -> ProviderEndpoint:
+        sql = text(
+            """
+            INSERT INTO provider_endpoints (
+                id, name, description, provider_type, endpoint, auth_type, auth_blob
+            )
+            VALUES (:id, :name, :description, :provider_type, :endpoint, :auth_type, "")
+            RETURNING *
+            """
+        )
+        added_provider = await self._execute_update_pydantic_model(provider, sql, should_raise=True)
+        return added_provider
+
+    async def update_provider_endpoint(self, provider: ProviderEndpoint) -> ProviderEndpoint:
+        sql = text(
+            """
+            UPDATE provider_endpoints
+            SET name = :name, description = :description, provider_type = :provider_type,
+            endpoint = :endpoint, auth_type = :auth_type
+            WHERE id = :id
+            RETURNING *
+            """
+        )
+        updated_provider = await self._execute_update_pydantic_model(
+            provider, sql, should_raise=True
+        )
+        return updated_provider
+
+    async def delete_provider_endpoint(
+        self,
+        provider: ProviderEndpoint,
+    ) -> Optional[ProviderEndpoint]:
+        sql = text(
+            """
+            DELETE FROM provider_endpoints
+            WHERE id = :id
+            RETURNING *
+            """
+        )
+        deleted_provider = await self._execute_update_pydantic_model(
+            provider, sql, should_raise=True
+        )
+        return deleted_provider
+
+    async def push_provider_auth_material(self, auth_material: ProviderAuthMaterial):
+        sql = text(
+            """
+            UPDATE provider_endpoints
+            SET auth_type = :auth_type, auth_blob = :auth_blob
+            WHERE id = :provider_endpoint_id
+            RETURNING id as provider_endpoint_id, auth_type, auth_blob
+            """
+        )
+        # Here we DONT want to return the result
+        _ = await self._execute_update_pydantic_model(auth_material, sql, should_raise=True)
+        return
+
+    async def add_provider_model(self, model: ProviderModel) -> ProviderModel:
+        sql = text(
+            """
+            INSERT INTO provider_models (provider_endpoint_id, name)
+            VALUES (:provider_endpoint_id, :name)
+            RETURNING *
+            """
+        )
+        added_model = await self._execute_update_pydantic_model(model, sql, should_raise=True)
+        return added_model
+
 
 class DbReader(DbCodeGate):
 
@@ -422,7 +513,11 @@ class DbReader(DbCodeGate):
                 p.id, p.timestamp, p.provider, p.request, p.type,
                 o.id as output_id,
                 o.output,
-                o.timestamp as output_timestamp
+                o.timestamp as output_timestamp,
+                o.input_tokens,
+                o.output_tokens,
+                o.input_cost,
+                o.output_cost
             FROM prompts p
             LEFT JOIN outputs o ON p.id = o.prompt_id
             WHERE p.workspace_id = :workspace_id
@@ -536,6 +631,69 @@ class DbReader(DbCodeGate):
         )
         active_workspace = await self._execute_select_pydantic_model(ActiveWorkspace, sql)
         return active_workspace[0] if active_workspace else None
+
+    async def get_provider_endpoint_by_name(self, provider_name: str) -> Optional[ProviderEndpoint]:
+        sql = text(
+            """
+            SELECT id, name, description, provider_type, endpoint, auth_type, created_at, updated_at
+            FROM provider_endpoints
+            WHERE name = :name
+            """
+        )
+        conditions = {"name": provider_name}
+        provider = await self._exec_select_conditions_to_pydantic(
+            ProviderEndpoint, sql, conditions, should_raise=True
+        )
+        return provider[0] if provider else None
+
+    async def get_provider_endpoint_by_id(self, provider_id: str) -> Optional[ProviderEndpoint]:
+        sql = text(
+            """
+            SELECT id, name, description, provider_type, endpoint, auth_type, created_at, updated_at
+            FROM provider_endpoints
+            WHERE id = :id
+            """
+        )
+        conditions = {"id": provider_id}
+        provider = await self._exec_select_conditions_to_pydantic(
+            ProviderEndpoint, sql, conditions, should_raise=True
+        )
+        return provider[0] if provider else None
+
+    async def get_provider_endpoints(self) -> List[ProviderEndpoint]:
+        sql = text(
+            """
+            SELECT id, name, description, provider_type, endpoint, auth_type, created_at, updated_at
+            FROM provider_endpoints
+            """
+        )
+        providers = await self._execute_select_pydantic_model(ProviderEndpoint, sql)
+        return providers
+
+    async def get_provider_models_by_provider_id(self, provider_id: str) -> List[ProviderModel]:
+        sql = text(
+            """
+            SELECT provider_endpoint_id, name
+            FROM provider_models
+            WHERE provider_endpoint_id = :provider_endpoint_id
+            """
+        )
+        conditions = {"provider_endpoint_id": provider_id}
+        models = await self._exec_select_conditions_to_pydantic(
+            ProviderModel, sql, conditions, should_raise=True
+        )
+        return models
+
+    async def get_all_provider_models(self) -> List[ProviderModel]:
+        sql = text(
+            """
+            SELECT pm.provider_endpoint_id, pm.name, pe.name as provider_endpoint_name
+            FROM provider_models pm
+            INNER JOIN provider_endpoints pe ON pm.provider_endpoint_id = pe.id
+            """
+        )
+        models = await self._execute_select_pydantic_model(ProviderModel, sql)
+        return models
 
 
 def init_db_sync(db_path: Optional[str] = None):

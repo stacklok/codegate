@@ -34,6 +34,12 @@ class OllamaProvider(BaseProvider):
     def provider_route_name(self) -> str:
         return "ollama"
 
+    def models(self):
+        resp = httpx.get(f"{self.base_url}/api/tags")
+        jsonresp = resp.json()
+
+        return [model["name"] for model in jsonresp.get("models", [])]
+
     def _setup_routes(self):
         """
         Sets up Ollama API routes.

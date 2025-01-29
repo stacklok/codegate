@@ -30,9 +30,16 @@ async def custom_error_handler(request, exc: Exception):
     return JSONResponse({"error": str(exc)}, status_code=500)
 
 
-def init_app(pipeline_factory: PipelineFactory) -> FastAPI:
+class CodeGateServer(FastAPI):
+    provider_registry: ProviderRegistry = None
+
+    def set_provider_registry(self, registry: ProviderRegistry):
+        self.provider_registry = registry
+
+
+def init_app(pipeline_factory: PipelineFactory) -> CodeGateServer:
     """Create the FastAPI application."""
-    app = FastAPI(
+    app = CodeGateServer(
         title="CodeGate",
         description=__description__,
         version=__version__,
@@ -58,6 +65,7 @@ def init_app(pipeline_factory: PipelineFactory) -> FastAPI:
 
     # Create provider registry
     registry = ProviderRegistry(app)
+    app.set_provider_registry(registry)
 
     # Register all known providers
     registry.add_provider(
