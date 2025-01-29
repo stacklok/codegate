@@ -114,7 +114,6 @@ class CopilotPipeline(ABC):
                 api_key=headers_dict.get("authorization", "").replace("Bearer ", ""),
                 api_base="https://" + headers_dict.get("host", ""),
                 extra_headers=CopilotPipeline._get_copilot_headers(headers_dict),
-                is_copilot=True,
             )
         except Exception as e:
             logger.error(f"Pipeline processing error: {e}")

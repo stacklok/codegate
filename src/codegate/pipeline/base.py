@@ -332,7 +332,6 @@ class InputPipelineInstance:
         api_key: Optional[str] = None,
         api_base: Optional[str] = None,
         extra_headers: Optional[Dict[str, str]] = None,
-        is_copilot: bool = False,
     ) -> PipelineResult:
         """Process a request through all pipeline steps"""
         self.context.metadata["extra_headers"] = extra_headers
@@ -344,7 +343,9 @@ class InputPipelineInstance:
         self.context.sensitive.api_base = api_base
 
         # For Copilot provider=openai. Use a flag to not clash with other places that may use that.
-        provider_db = "copilot" if is_copilot else provider
+        provider_db = provider
+        if self.context.client == ClientType.COPILOT:
+            provider_db = "copilot"
 
         for step in self.pipeline_steps:
             result = await step.process(current_request, self.context)
@@ -401,9 +402,13 @@ class SequentialPipelineProcessor:
         api_key: Optional[str] = None,
         api_base: Optional[str] = None,
         extra_headers: Optional[Dict[str, str]] = None,
-        is_copilot: bool = False,
     ) -> PipelineResult:
         """Create a new pipeline instance and process the request"""
         return await self.instance.process_request(
-            request, provider, model, api_key, api_base, extra_headers, is_copilot
+            request,
+            provider,
+            model,
+            api_key,
+            api_base,
+            extra_headers,
         )
