@@ -185,6 +185,9 @@ async def try_initialize_provider_endpoints(
 ):
     try:
         models = pimpl.models()
+
+        # If we were able to get the models, we don't need auth
+        provend.auth_type = apimodelsv1.ProviderAuthType.none
     except Exception as err:
         logger.debug(
             "Unable to get models from provider",
