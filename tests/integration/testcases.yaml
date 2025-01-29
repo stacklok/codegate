@@ -195,19 +195,14 @@ testcases:
         "prompt":"<|fim_prefix|>\n# codegate/test.py\nimport invokehttp\nimport requests\n\nkey = \"mysecret-key\"\n\ndef call_api():\n    <|fim_suffix|>\n\n\ndata = {'key1': 'test1', 'key2': 'test2'}\nresponse = call_api('http://localhost:8080', method='post', data='data')\n<|fim_middle|>"
       }
     likes: |
-      # Create an instance of the InvokeHTTP class
-      invoke = invokehttp.InvokeHTTP(key)
+      return response.json()
 
-      # Call the API using the invoke_http method
-      response = invoke.invoke_http(url, method='get', data=data)
+      def test_call_api():
+          response = call_api('http://localhost:8080', method='post', data='data')
+          assert response['key1'] == 'test1' and response['key2'] == 'test2', "Test failed"
 
-      # Check the response status code
-      if response.status_code == 200:
-          # The API call was successful
-          print(response.json())
-      else:
-          # The API call failed
-          print('Error:', response.status_code)
+      if __name__ == '__main__':
+          test_call_api()
 
   anthropic_chat:
     name: Anthropic Chat
