@@ -161,7 +161,7 @@ testcases:
               "role":"user"
             }
         ],
-        "model":"Qwen/Qwen2.5-Coder-0.5B-Instruct",
+        "model":"Qwen/Qwen2.5-Coder-0.5B",
         "stream":true,
         "temperature":0
       }
@@ -174,7 +174,7 @@ testcases:
     url: http://127.0.0.1:8989/vllm/completions
     data: |
       {
-        "model": "Qwen/Qwen2.5-Coder-0.5B-Instruct",
+        "model": "Qwen/Qwen2.5-Coder-0.5B",
         "max_tokens": 4096,
         "temperature": 0,
         "stream": true,
