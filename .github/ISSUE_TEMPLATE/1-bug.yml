@@ -1,6 +1,6 @@
 name: "Bug"
 description: "Report a bug to help us improve the proxy system."
-type: Bug
+type: "Bug 🐞"
 title: "-- Provide a general summary of the issue --"
 labels: ["bug", "needs-triage"]
 assignees: "-"
@@ -104,4 +104,5 @@ body:
     attributes:
       label: "Additional Context"
       description: "Add any other context or details about the problem here (e.g. link to Discussion, etc.)."
-    required: false
+    validations:
+      required: false
