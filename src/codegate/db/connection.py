@@ -459,6 +459,23 @@ class DbRecorder(DbCodeGate):
         added_model = await self._execute_update_pydantic_model(model, sql, should_raise=True)
         return added_model
 
+    async def delete_provider_models(self, provider_id: str) -> Optional[ProviderModel]:
+        sql = text(
+            """
+            DELETE FROM provider_models
+            WHERE provider_endpoint_id = :provider_endpoint_id
+            RETURNING *
+            """
+        )
+        await self._execute_update_pydantic_model(
+            ProviderModel(
+                provider_endpoint_id=provider_id,
+                name="Fake name to respect the signature of the function",
+            ),
+            sql,
+            should_raise=True,
+        )
+
 
 class DbReader(DbCodeGate):
 

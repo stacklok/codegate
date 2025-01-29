@@ -15,7 +15,7 @@ from codegate.providers.anthropic.provider import AnthropicProvider
 from codegate.providers.llamacpp.provider import LlamaCppProvider
 from codegate.providers.ollama.provider import OllamaProvider
 from codegate.providers.openai.provider import OpenAIProvider
-from codegate.providers.registry import ProviderRegistry
+from codegate.providers.registry import ProviderRegistry, get_provider_registry
 from codegate.providers.vllm.provider import VLLMProvider
 
 logger = structlog.get_logger("codegate")
@@ -64,7 +64,7 @@ def init_app(pipeline_factory: PipelineFactory) -> CodeGateServer:
     app.add_middleware(ServerErrorMiddleware, handler=custom_error_handler)
 
     # Create provider registry
-    registry = ProviderRegistry(app)
+    registry = get_provider_registry(app)
     app.set_provider_registry(registry)
 
     # Register all known providers

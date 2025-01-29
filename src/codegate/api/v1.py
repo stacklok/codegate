@@ -109,13 +109,18 @@ async def get_provider_endpoint(
     status_code=201,
 )
 async def add_provider_endpoint(
-    request: v1_models.ProviderEndpoint,
+    request: v1_models.AddProviderEndpointRequest,
 ) -> v1_models.ProviderEndpoint:
     """Add a provider endpoint."""
     try:
         provend = await pcrud.add_endpoint(request)
     except AlreadyExistsError:
         raise HTTPException(status_code=409, detail="Provider endpoint already exists")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e),
+        )
     except ValidationError as e:
         # TODO: This should be more specific
         raise HTTPException(
@@ -123,6 +128,7 @@ async def add_provider_endpoint(
             detail=str(e),
         )
     except Exception:
+        logger.exception("Error while adding provider endpoint")
         raise HTTPException(status_code=500, detail="Internal server error")
 
     return provend
@@ -154,20 +160,24 @@ async def configure_auth_material(
 )
 async def update_provider_endpoint(
     provider_id: UUID,
-    request: v1_models.ProviderEndpoint,
+    request: v1_models.AddProviderEndpointRequest,
 ) -> v1_models.ProviderEndpoint:
     """Update a provider endpoint by ID."""
     try:
-        request.id = provider_id
+        request.id = str(provider_id)
         provend = await pcrud.update_endpoint(request)
+    except provendcrud.ProviderNotFoundError:
+        raise HTTPException(status_code=404, detail="Provider endpoint not found")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except ValidationError as e:
         # TODO: This should be more specific
         raise HTTPException(
             status_code=400,
             detail=str(e),
         )
-    except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
     return provend
 

@@ -222,7 +222,7 @@ class ProviderEndpoint(pydantic.BaseModel):
     name: str
     description: str = ""
     provider_type: ProviderType
-    endpoint: str
+    endpoint: str = ""  # Some providers have defaults we can leverage
     auth_type: Optional[ProviderAuthType] = ProviderAuthType.none
 
     @staticmethod
@@ -248,6 +248,14 @@ class ProviderEndpoint(pydantic.BaseModel):
 
     def get_from_registry(self, registry: ProviderRegistry) -> Optional[BaseProvider]:
         return registry.get_provider(self.provider_type)
+
+
+class AddProviderEndpointRequest(ProviderEndpoint):
+    """
+    Represents a request to add a provider endpoint.
+    """
+
+    api_key: Optional[str] = None
 
 
 class ConfigureAuthMaterial(pydantic.BaseModel):

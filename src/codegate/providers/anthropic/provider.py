@@ -8,7 +8,7 @@ from fastapi import Header, HTTPException, Request
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.anthropic.adapter import AnthropicInputNormalizer, AnthropicOutputNormalizer
 from codegate.providers.anthropic.completion_handler import AnthropicCompletion
-from codegate.providers.base import BaseProvider
+from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.litellmshim import anthropic_stream_generator
 
 
@@ -29,16 +29,23 @@ class AnthropicProvider(BaseProvider):
     def provider_route_name(self) -> str:
         return "anthropic"
 
-    def models(self) -> List[str]:
-        # TODO: This won't work since we need an API Key being set.
-        resp = httpx.get("https://api.anthropic.com/models")
-        # If Anthropic returned 404, it means it's not accepting our
-        # requests. We should throw an error.
-        if resp.status_code == 404:
-            raise HTTPException(
-                status_code=404,
-                detail="The Anthropic API is not accepting requests. Please check your API key.",
-            )
+    def models(self, endpoint: str = None, api_key: str = None) -> List[str]:
+        headers = {
+            "Content-Type": "application/json",
+            "anthropic-version": "2023-06-01",
+        }
+        if api_key:
+            headers["x-api-key"] = api_key
+        if not endpoint:
+            endpoint = "https://api.anthropic.com"
+
+        resp = httpx.get(
+            f"{endpoint}/v1/models",
+            headers=headers,
+        )
+
+        if resp.status_code != 200:
+            raise ModelFetchError(f"Failed to fetch models from Anthropic API: {resp.text}")
 
         respjson = resp.json()
 
