@@ -61,6 +61,7 @@ jobs:
           docker run --name $CONTAINER_NAME -d --network host \
             -v "$(pwd)"/codegate_volume:/app/codegate_volume \
             -e CODEGATE_APP_LOG_LEVEL=DEBUG \
+            -e CODEGATE_OLLAMA_URL=http://localhost:11434 \
             --restart unless-stopped $DOCKER_IMAGE
 
           # Confirm the container started
