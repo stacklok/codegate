@@ -1009,7 +1009,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TokenUsage"
+                  "$ref": "#/components/schemas/TokenUsageAggregate"
                 }
               }
             }
@@ -1233,10 +1233,10 @@
             "format": "date-time",
             "title": "Conversation Timestamp"
           },
-          "token_usage": {
+          "token_usage_agg": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/TokenUsage"
+                "$ref": "#/components/schemas/TokenUsageAggregate"
               },
               {
                 "type": "null"
@@ -1251,7 +1251,7 @@
           "type",
           "chat_id",
           "conversation_timestamp",
-          "token_usage"
+          "token_usage_agg"
         ],
         "title": "Conversation",
         "description": "Represents a conversation."
@@ -1467,7 +1467,8 @@
           "anthropic",
           "vllm",
           "ollama",
-          "lm_studio"
+          "lm_studio",
+          "llamacpp"
         ],
         "title": "ProviderType",
         "description": "Represents the different types of providers we support."
@@ -1506,24 +1507,50 @@
       },
       "TokenUsage": {
         "properties": {
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens",
+            "default": 0
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens",
+            "default": 0
+          },
+          "input_cost": {
+            "type": "number",
+            "title": "Input Cost",
+            "default": 0
+          },
+          "output_cost": {
+            "type": "number",
+            "title": "Output Cost",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "TokenUsage",
+        "description": "TokenUsage it's not a table, it's a model to represent the token usage.\nThe data is stored in the outputs table."
+      },
+      "TokenUsageAggregate": {
+        "properties": {
           "tokens_by_model": {
-            "items": {
+            "additionalProperties": {
               "$ref": "#/components/schemas/TokenUsageByModel"
             },
-            "type": "array",
+            "type": "object",
             "title": "Tokens By Model"
           },
-          "used_tokens": {
-            "type": "integer",
-            "title": "Used Tokens"
+          "token_usage": {
+            "$ref": "#/components/schemas/TokenUsage"
           }
         },
         "type": "object",
         "required": [
           "tokens_by_model",
-          "used_tokens"
+          "token_usage"
         ],
-        "title": "TokenUsage",
+        "title": "TokenUsageAggregate",
         "description": "Represents the tokens used. Includes the information of the tokens used by model.\n`used_tokens` are the total tokens used in the `tokens_by_model` list."
       },
       "TokenUsageByModel": {
@@ -1535,16 +1562,15 @@
             "type": "string",
             "title": "Model"
           },
-          "used_tokens": {
-            "type": "integer",
-            "title": "Used Tokens"
+          "token_usage": {
+            "$ref": "#/components/schemas/TokenUsage"
           }
         },
         "type": "object",
         "required": [
           "provider_type",
           "model",
-          "used_tokens"
+          "token_usage"
         ],
         "title": "TokenUsageByModel",
         "description": "Represents the tokens used by a model."
