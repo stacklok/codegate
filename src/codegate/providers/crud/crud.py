@@ -81,6 +81,27 @@ class ProviderCrud:
         dbendpoint = await self._db_writer.update_provider_endpoint(endpoint.to_db_model())
         return apimodelsv1.ProviderEndpoint.from_db_model(dbendpoint)
 
+    async def configure_auth_material(
+        self, provider_id: UUID, config: apimodelsv1.ConfigureAuthMaterial
+    ):
+        """Add an API key."""
+        if config.auth_type == apimodelsv1.ProviderAuthType.api_key and not config.api_key:
+            raise ValueError("API key must be provided for API auth type")
+        elif config.auth_type != apimodelsv1.ProviderAuthType.api_key and config.api_key:
+            raise ValueError("API key provided for non-API auth type")
+
+        dbendpoint = await self._db_reader.get_provider_endpoint_by_id(str(provider_id))
+        if dbendpoint is None:
+            raise ProviderNotFoundError("Provider not found")
+
+        await self._db_writer.push_provider_auth_material(
+            dbmodels.ProviderAuthMaterial(
+                provider_endpoint_id=dbendpoint.id,
+                auth_type=config.auth_type,
+                auth_blob=config.api_key if config.api_key else "",
+            )
+        )
+
     async def delete_endpoint(self, provider_id: UUID):
         """Delete an endpoint."""
 

@@ -3,6 +3,7 @@ name: Update model prices and context window JSON file
 
 on:
   workflow_call:
+  workflow_dispatch:
   schedule:
     - cron: '0 2 * * 0'   # Run every Sunday at 2:00 AM
 

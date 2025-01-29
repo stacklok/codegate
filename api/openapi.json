@@ -336,6 +336,54 @@
         }
       }
     },
+    "/api/v1/provider-endpoints/{provider_id}/auth-material": {
+      "put": {
+        "tags": [
+          "CodeGate API",
+          "Providers"
+        ],
+        "summary": "Configure Auth Material",
+        "description": "Configure auth material for a provider.",
+        "operationId": "v1_configure_auth_material",
+        "parameters": [
+          {
+            "name": "provider_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Provider Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigureAuthMaterial"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces": {
       "get": {
         "tags": [
@@ -1201,6 +1249,30 @@
         ],
         "title": "CodeSnippet"
       },
+      "ConfigureAuthMaterial": {
+        "properties": {
+          "auth_type": {
+            "$ref": "#/components/schemas/ProviderAuthType"
+          },
+          "api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "auth_type"
+        ],
+        "title": "ConfigureAuthMaterial",
+        "description": "Represents a request to configure auth material for a provider."
+      },
       "Conversation": {
         "properties": {
           "question_answers": {
@@ -1447,15 +1519,22 @@
             "title": "Endpoint"
           },
           "auth_type": {
-            "$ref": "#/components/schemas/ProviderAuthType"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProviderAuthType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "none"
           }
         },
         "type": "object",
         "required": [
           "name",
           "provider_type",
-          "endpoint",
-          "auth_type"
+          "endpoint"
         ],
         "title": "ProviderEndpoint",
         "description": "Represents a provider's endpoint configuration. This\nallows us to persist the configuration for each provider,\nso we can use this for muxing messages."

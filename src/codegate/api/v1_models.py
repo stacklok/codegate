@@ -223,7 +223,7 @@ class ProviderEndpoint(pydantic.BaseModel):
     description: str = ""
     provider_type: ProviderType
     endpoint: str
-    auth_type: ProviderAuthType
+    auth_type: Optional[ProviderAuthType] = ProviderAuthType.none
 
     @staticmethod
     def from_db_model(db_model: db_models.ProviderEndpoint) -> "ProviderEndpoint":
@@ -248,6 +248,15 @@ class ProviderEndpoint(pydantic.BaseModel):
 
     def get_from_registry(self, registry: ProviderRegistry) -> Optional[BaseProvider]:
         return registry.get_provider(self.provider_type)
+
+
+class ConfigureAuthMaterial(pydantic.BaseModel):
+    """
+    Represents a request to configure auth material for a provider.
+    """
+
+    auth_type: ProviderAuthType
+    api_key: Optional[str] = None
 
 
 class ModelByProvider(pydantic.BaseModel):
