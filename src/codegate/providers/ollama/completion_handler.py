@@ -11,7 +11,7 @@ from codegate.providers.base import BaseCompletionHandler
 logger = structlog.get_logger("codegate")
 
 
-async def ollama_stream_generator(
+async def ollama_stream_generator(  # noqa: C901
     stream: AsyncIterator[ChatResponse], base_tool: str
 ) -> AsyncIterator[str]:
     """OpenAI-style SSE format"""
@@ -21,9 +21,7 @@ async def ollama_stream_generator(
                 # TODO We should wire in the client info so we can respond with
                 # the correct format and start to handle multiple clients
                 # in a more robust way.
-                if base_tool != "cline":
-                    yield f"{chunk.model_dump_json()}\n"
-                else:
+                if base_tool in ["cline", "kodu"]:
                     # First get the raw dict from the chunk
                     chunk_dict = chunk.model_dump()
                     # Create response dictionary in OpenAI-like format
@@ -64,6 +62,14 @@ async def ollama_stream_generator(
                             response[field] = chunk_dict[field]
 
                     yield f"\ndata: {json.dumps(response)}\n"
+                else:
+                    # if we do not have response, we set it
+                    chunk_dict = chunk.model_dump()
+                    if "response" not in chunk_dict:
+                        chunk_dict["response"] = chunk_dict.get("message", {}).get("content", "\n")
+                    if not chunk_dict["response"]:
+                        chunk_dict["response"] = "\n"
+                    yield f"{json.dumps(chunk_dict)}\n"
             except Exception as e:
                 logger.error(f"Error in stream generator: {str(e)}")
                 yield f"\ndata: {json.dumps({'error': str(e), 'type': 'error', 'choices': []})}\n"

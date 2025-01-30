@@ -1,5 +1,6 @@
 import re
 import shlex
+from typing import Optional
 
 from litellm import ChatCompletionRequest
 
@@ -46,6 +47,42 @@ async def codegate_cli(command):
     return await out_func(command[1:])
 
 
+def _get_cli_from_cline(
+    codegate_regex: re.Pattern[str], last_user_message_str: str
+) -> Optional[re.Match[str]]:
+    # Check if there are <task> or <feedback> tags
+    tag_match = re.search(r"<(task|feedback)>(.*?)</\1>", last_user_message_str, re.DOTALL)
+    if tag_match:
+        # Extract the content between the tags
+        stripped_message = tag_match.group(2).strip()
+    else:
+        # If no <task> or <feedback> tags, use the entire message
+        stripped_message = last_user_message_str.strip()
+
+    # Remove all other XML tags and trim whitespace
+    stripped_message = re.sub(r"<[^>]+>", "", stripped_message).strip()
+
+    # Check if "codegate" is the first word
+    match = codegate_regex.match(stripped_message)
+
+    return match
+
+
+def _get_cli_from_open_interpreter(last_user_message_str: str) -> Optional[re.Match[str]]:
+    # Find all occurrences of "### User:" blocks
+    user_blocks = re.findall(r"### User:\s*(.*?)(?=\n###|\Z)", last_user_message_str, re.DOTALL)
+
+    if user_blocks:
+        # Extract the last "### User:" block
+        last_user_block = user_blocks[-1].strip()
+
+        # Match "codegate" only in the last "### User:" block
+        codegate_regex = re.compile(r"^codegate\s*(.*?)\s*$", re.IGNORECASE)
+        match = codegate_regex.match(last_user_block)
+        return match
+    return None
+
+
 class CodegateCli(PipelineStep):
     """Pipeline step that handles codegate cli."""
 
@@ -83,30 +120,13 @@ class CodegateCli(PipelineStep):
             codegate_regex = re.compile(r"^codegate(?:\s+(.*))?", re.IGNORECASE)
 
             if base_tool and base_tool in ["cline", "kodu"]:
-                # Check if there are <task> or <feedback> tags
-                tag_match = re.search(
-                    r"<(task|feedback)>(.*?)</\1>", last_user_message_str, re.DOTALL
-                )
-                if tag_match:
-                    # Extract the content between the tags
-                    stripped_message = tag_match.group(2).strip()
-                else:
-                    # If no <task> or <feedback> tags, use the entire message
-                    stripped_message = last_user_message_str.strip()
-
-                # Remove all other XML tags and trim whitespace
-                stripped_message = re.sub(r"<[^>]+>", "", stripped_message).strip()
-
-                # Check if "codegate" is the first word
-                match = codegate_regex.match(stripped_message)
+                match = _get_cli_from_cline(codegate_regex, last_user_message_str)
             elif base_tool == "open interpreter":
-                codegate_regex = re.compile(r"### User:\s*codegate[^\n]*", re.IGNORECASE)
-                match = codegate_regex.match(last_user_message_str)
-                print("match is")
-                print(match)
+                match = _get_cli_from_open_interpreter(last_user_message_str)
             else:
                 # Check if "codegate" is the first word in the message
                 match = codegate_regex.match(last_user_message_str)
+
             if match:
                 command = match.group(1) or ""
                 command = command.strip()

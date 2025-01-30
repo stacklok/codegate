@@ -33,7 +33,6 @@ class OllamaInputNormalizer(ModelInputNormalizer):
         # with a direct HTTP request. Since Ollama is local this is not critical.
         # if normalized_data.get("stream", False):
         #     normalized_data["stream_options"] = {"include_usage": True}
-
         return ChatCompletionRequest(**normalized_data)
 
     def denormalize(self, data: ChatCompletionRequest) -> Dict:
