@@ -41,6 +41,7 @@ async def test_execute_completion_is_fim_request(handler, chat_request):
         stream=False,
         options=chat_request["options"],
         suffix="",
+        raw=False,
     )
 
 

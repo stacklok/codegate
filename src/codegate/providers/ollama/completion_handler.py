@@ -100,6 +100,7 @@ class OllamaShim(BaseCompletionHandler):
             response = await self.client.generate(
                 model=request["model"],
                 prompt=prompt,
+                raw=request.get("raw", False),
                 suffix=request.get("suffix", ""),
                 stream=stream,
                 options=request["options"],  # type: ignore
