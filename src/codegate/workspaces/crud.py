@@ -378,6 +378,11 @@ class WorkspaceCrud:
         if active_ws:
             self._mux_registry.set_active_workspace(active_ws.name)
 
+        return self.repopulate_mux_cache()
+
+    async def repopulate_mux_cache(self):
+        """Repopulate the mux cache with all muxes in the database"""
+
         # Get all workspaces
         workspaces = await self.get_workspaces()
 

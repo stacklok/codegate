@@ -12,6 +12,7 @@ from codegate.db import models as dbmodels
 from codegate.db.connection import DbReader, DbRecorder
 from codegate.providers.base import BaseProvider
 from codegate.providers.registry import ProviderRegistry, get_provider_registry
+from codegate.workspaces import crud as workspace_crud
 
 logger = structlog.get_logger("codegate")
 
@@ -32,6 +33,7 @@ class ProviderCrud:
     def __init__(self):
         self._db_reader = DbReader()
         self._db_writer = DbRecorder()
+        self._ws_crud = workspace_crud.WorkspaceCrud()
 
     async def list_endpoints(self) -> List[apimodelsv1.ProviderEndpoint]:
         """List all the endpoints."""
@@ -176,6 +178,9 @@ class ProviderCrud:
                 )
             )
 
+        # a model might have been deleted, let's repopulate the cache
+        await self._ws_crud.repopulate_mux_cache()
+
         return apimodelsv1.ProviderEndpoint.from_db_model(dbendpoint)
 
     async def configure_auth_material(
@@ -207,6 +212,8 @@ class ProviderCrud:
             raise ProviderNotFoundError("Provider not found")
 
         await self._db_writer.delete_provider_endpoint(dbendpoint)
+
+        await self._ws_crud.repopulate_mux_cache()
 
     async def models_by_provider(self, provider_id: UUID) -> List[apimodelsv1.ModelByProvider]:
         """Get the models by provider."""
