@@ -297,48 +297,32 @@ testcases:
     url: http://127.0.0.1:8989/ollama/api/generate
     data: |
       {
-        "model": "qwen2.5-coder:0.5b",
-        "max_tokens": 4096,
-        "temperature": 0,
         "stream": true,
-        "stop": [
-          "<fim_prefix>",
-          "<fim_suffix>",
-          "<fim_middle>",
-          "<file_sep>",
-          "</fim_middle>",
-          "</code>",
-          "/src/",
-          "#- coding: utf-8",
-          "```",
-          ""
-        ],
+        "model": "qwen2.5-coder:0.5b",
+        "raw": true,
+        "options": {
+          "temperature": 0.01,
+          "num_predict": 4096,
+          "stop": [
+            "<|endoftext|>",
+            "<|fim_prefix|>",
+            "<|fim_middle|>",
+            "<|fim_suffix|>",
+            "<|fim_pad|>",
+            "<|repo_name|>",
+            "<|file_sep|>",
+            "<|im_start|>",
+            "<|im_end|>",
+            "/src/",
+            "#- coding: utf-8",
+            "```"
+          ],
+          "num_ctx": 8096
+        },
         "prompt":"<|fim_prefix|>\n# codegate/test.py\nimport invokehttp\nimport requests\n\nkey = \"mysecret-key\"\n\ndef call_api():\n    <|fim_suffix|>\n\n\ndata = {'key1': 'test1', 'key2': 'test2'}\nresponse = call_api('http://localhost:8080', method='post', data='data')\n<|fim_middle|>"
       }
     likes: |
       ```python
-      import invokehttp
-      import requests
-
-      key = "mysecret-key"
-
-      def call_api(url, method='get', data=None):
-          headers = {
-              'Authorization': f'Bearer {key}'
-          }
-
-          if method == 'get':
-              response = requests.get(url, headers=headers)
-          elif method == 'post':
-              response = requests.post(url, headers=headers, json=data)
-          else:
-              raise ValueError("Unsupported HTTP method")
-
-          return response
-
-      data = {'key1': 'test1', 'key2': 'test2'}
-      response = call_api('http://localhost:8080', method='post', data=data)
-
-      print(response.status_code)
-      print(response.json())
+      if __name__ == '__main__':
+          invokehttp.run(call_api)
       ```
