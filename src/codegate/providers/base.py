@@ -24,6 +24,10 @@ logger = structlog.get_logger("codegate")
 StreamGenerator = Callable[[AsyncIterator[Any]], AsyncIterator[str]]
 
 
+class ModelFetchError(Exception):
+    pass
+
+
 class BaseProvider(ABC):
     """
     The provider class is responsible for defining the API routes and
@@ -55,7 +59,7 @@ class BaseProvider(ABC):
         pass
 
     @abstractmethod
-    def models(self) -> List[str]:
+    def models(self, endpoint, str=None, api_key: str = None) -> List[str]:
         pass
 
     @property

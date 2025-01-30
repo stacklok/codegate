@@ -11,7 +11,7 @@ from codegate.config import Config
 from codegate.db import models as dbmodels
 from codegate.db.connection import DbReader, DbRecorder
 from codegate.providers.base import BaseProvider
-from codegate.providers.registry import ProviderRegistry
+from codegate.providers.registry import ProviderRegistry, get_provider_registry
 
 logger = structlog.get_logger("codegate")
 
@@ -62,23 +62,120 @@ class ProviderCrud:
         return apimodelsv1.ProviderEndpoint.from_db_model(dbendpoint)
 
     async def add_endpoint(
-        self, endpoint: apimodelsv1.ProviderEndpoint
+        self, endpoint: apimodelsv1.AddProviderEndpointRequest
     ) -> apimodelsv1.ProviderEndpoint:
         """Add an endpoint."""
+
+        if not endpoint.endpoint:
+            endpoint.endpoint = provider_default_endpoints(endpoint.provider_type)
+
+        # If we STILL don't have an endpoint, we can't continue
+        if not endpoint.endpoint:
+            raise ValueError("No endpoint provided and no default found for provider type")
+
         dbend = endpoint.to_db_model()
+        provider_registry = get_provider_registry()
 
         # We override the ID here, as we want to generate it.
         dbend.id = str(uuid4())
 
-        dbendpoint = await self._db_writer.add_provider_endpoint()
+        prov = endpoint.get_from_registry(provider_registry)
+        if prov is None:
+            raise ValueError("Unknown provider type: {}".format(endpoint.provider_type))
+
+        models = []
+        if endpoint.auth_type == apimodelsv1.ProviderAuthType.api_key and not endpoint.api_key:
+            raise ValueError("API key must be provided for API auth type")
+        if endpoint.auth_type != apimodelsv1.ProviderAuthType.passthrough:
+            try:
+                models = prov.models(endpoint=endpoint.endpoint, api_key=endpoint.api_key)
+            except Exception as err:
+                raise ValueError("Unable to get models from provider: {}".format(str(err)))
+
+        dbendpoint = await self._db_writer.add_provider_endpoint(dbend)
+
+        await self._db_writer.push_provider_auth_material(
+            dbmodels.ProviderAuthMaterial(
+                provider_endpoint_id=dbendpoint.id,
+                auth_type=endpoint.auth_type,
+                auth_blob=endpoint.api_key if endpoint.api_key else "",
+            )
+        )
+
+        for model in models:
+            await self._db_writer.add_provider_model(
+                dbmodels.ProviderModel(
+                    provider_endpoint_id=dbendpoint.id,
+                    name=model,
+                )
+            )
         return apimodelsv1.ProviderEndpoint.from_db_model(dbendpoint)
 
     async def update_endpoint(
-        self, endpoint: apimodelsv1.ProviderEndpoint
+        self, endpoint: apimodelsv1.AddProviderEndpointRequest
     ) -> apimodelsv1.ProviderEndpoint:
         """Update an endpoint."""
 
+        if not endpoint.endpoint:
+            endpoint.endpoint = provider_default_endpoints(endpoint.provider_type)
+
+        # If we STILL don't have an endpoint, we can't continue
+        if not endpoint.endpoint:
+            raise ValueError("No endpoint provided and no default found for provider type")
+
+        provider_registry = get_provider_registry()
+        prov = endpoint.get_from_registry(provider_registry)
+        if prov is None:
+            raise ValueError("Unknown provider type: {}".format(endpoint.provider_type))
+
+        founddbe = await self._db_reader.get_provider_endpoint_by_id(str(endpoint.id))
+        if founddbe is None:
+            raise ProviderNotFoundError("Provider not found")
+
+        models = []
+        if endpoint.auth_type == apimodelsv1.ProviderAuthType.api_key and not endpoint.api_key:
+            raise ValueError("API key must be provided for API auth type")
+        if endpoint.auth_type != apimodelsv1.ProviderAuthType.passthrough:
+            try:
+                models = prov.models(endpoint=endpoint.endpoint, api_key=endpoint.api_key)
+            except Exception as err:
+                raise ValueError("Unable to get models from provider: {}".format(str(err)))
+
+        models_set = set(models)
+
+        # Get the models from the provider
+        models_in_db = await self._db_reader.get_provider_models_by_provider_id(str(endpoint.id))
+
+        models_in_db_set = set(model.name for model in models_in_db)
+
+        # Add the models that are in the provider but not in the DB
+        for model in models_set - models_in_db_set:
+            await self._db_writer.add_provider_model(
+                dbmodels.ProviderModel(
+                    provider_endpoint_id=founddbe.id,
+                    name=model,
+                )
+            )
+
+        # Remove the models that are in the DB but not in the provider
+        for model in models_in_db_set - models_set:
+            await self._db_writer.delete_provider_model(
+                founddbe.id,
+                model,
+            )
+
         dbendpoint = await self._db_writer.update_provider_endpoint(endpoint.to_db_model())
+
+        # If an API key was provided or we've changed the auth type, we update the auth material
+        if endpoint.auth_type != founddbe.auth_type or endpoint.api_key:
+            await self._db_writer.push_provider_auth_material(
+                dbmodels.ProviderAuthMaterial(
+                    provider_endpoint_id=dbendpoint.id,
+                    auth_type=endpoint.auth_type,
+                    auth_blob=endpoint.api_key if endpoint.api_key else "",
+                )
+            )
+
         return apimodelsv1.ProviderEndpoint.from_db_model(dbendpoint)
 
     async def configure_auth_material(
@@ -175,6 +272,13 @@ async def initialize_provider_endpoints(preg: ProviderRegistry):
             continue
 
         pimpl = provend.get_from_registry(preg)
+        if pimpl is None:
+            logger.warning(
+                "Provider not found in registry",
+                provider=provend.name,
+                endpoint=provend.endpoint,
+            )
+            continue
         await try_initialize_provider_endpoints(provend, pimpl, db_writer)
 
 
@@ -240,7 +344,7 @@ def __provider_endpoint_from_cfg(
             description=("Endpoint for the {} provided via the CodeGate configuration.").format(
                 provider_name
             ),
-            provider_type=provider_name,
+            provider_type=provider_overrides(provider_name),
             auth_type=apimodelsv1.ProviderAuthType.passthrough,
         )
     except ValidationError as err:
@@ -251,3 +355,24 @@ def __provider_endpoint_from_cfg(
             err=str(err),
         )
         return None
+
+
+def provider_default_endpoints(provider_type: str) -> str:
+    defaults = {
+        "openai": "https://api.openai.com",
+        "anthropic": "https://api.anthropic.com",
+    }
+
+    # If we have a default, we return it
+    # Otherwise, we return an empty string
+    return defaults.get(provider_type, "")
+
+
+def provider_overrides(provider_type: str) -> str:
+    overrides = {
+        "lm_studio": "openai",
+    }
+
+    # If we have an override, we return it
+    # Otherwise, we return the type
+    return overrides.get(provider_type, provider_type)

@@ -19,6 +19,7 @@ from codegate.db.models import (
     Alert,
     GetPromptWithOutputsRow,
     GetWorkspaceByNameConditions,
+    MuxRule,
     Output,
     Prompt,
     ProviderAuthMaterial,
@@ -111,6 +112,15 @@ class DbRecorder(DbCodeGate):
             if should_raise:
                 raise e
             return None
+
+    async def _execute_with_no_return(self, sql_command: TextClause, conditions: dict):
+        """Execute a command that doesn't return anything."""
+        try:
+            async with self._async_db_engine.begin() as conn:
+                await conn.execute(sql_command, conditions)
+        except Exception as e:
+            logger.error(f"Failed to execute command: {sql_command}.", error=str(e))
+            raise e
 
     async def record_request(self, prompt_params: Optional[Prompt] = None) -> Optional[Prompt]:
         if prompt_params is None:
@@ -459,6 +469,46 @@ class DbRecorder(DbCodeGate):
         added_model = await self._execute_update_pydantic_model(model, sql, should_raise=True)
         return added_model
 
+    async def delete_provider_model(self, provider_id: str, model: str) -> Optional[ProviderModel]:
+        sql = text(
+            """
+            DELETE FROM provider_models
+            WHERE provider_endpoint_id = :provider_endpoint_id AND name = :name
+            """
+        )
+
+        conditions = {"provider_endpoint_id": provider_id, "name": model}
+        await self._execute_with_no_return(sql, conditions)
+
+    async def delete_muxes_by_workspace(self, workspace_id: str):
+        sql = text(
+            """
+            DELETE FROM muxes
+            WHERE workspace_id = :workspace_id
+            RETURNING *
+            """
+        )
+
+        conditions = {"workspace_id": workspace_id}
+        await self._execute_with_no_return(sql, conditions)
+
+    async def add_mux(self, mux: MuxRule) -> MuxRule:
+        sql = text(
+            """
+            INSERT INTO muxes (
+                id, provider_endpoint_id, provider_model_name, workspace_id, matcher_type,
+                matcher_blob, priority, created_at, updated_at
+            )
+            VALUES (
+                :id, :provider_endpoint_id, :provider_model_name, :workspace_id,
+                :matcher_type, :matcher_blob, :priority, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            )
+            RETURNING *
+            """
+        )
+        added_mux = await self._execute_update_pydantic_model(mux, sql, should_raise=True)
+        return added_mux
+
 
 class DbReader(DbCodeGate):
 
@@ -684,6 +734,22 @@ class DbReader(DbCodeGate):
         )
         return models
 
+    async def get_provider_model_by_provider_id_and_name(
+        self, provider_id: str, model_name: str
+    ) -> Optional[ProviderModel]:
+        sql = text(
+            """
+            SELECT provider_endpoint_id, name
+            FROM provider_models
+            WHERE provider_endpoint_id = :provider_endpoint_id AND name = :name
+            """
+        )
+        conditions = {"provider_endpoint_id": provider_id, "name": model_name}
+        models = await self._exec_select_conditions_to_pydantic(
+            ProviderModel, sql, conditions, should_raise=True
+        )
+        return models[0] if models else None
+
     async def get_all_provider_models(self) -> List[ProviderModel]:
         sql = text(
             """
@@ -694,6 +760,22 @@ class DbReader(DbCodeGate):
         )
         models = await self._execute_select_pydantic_model(ProviderModel, sql)
         return models
+
+    async def get_muxes_by_workspace(self, workspace_id: str) -> List[MuxRule]:
+        sql = text(
+            """
+            SELECT id, provider_endpoint_id, provider_model_name, workspace_id, matcher_type,
+            matcher_blob, priority, created_at, updated_at
+            FROM muxes
+            WHERE workspace_id = :workspace_id
+            ORDER BY priority ASC
+            """
+        )
+        conditions = {"workspace_id": workspace_id}
+        muxes = await self._exec_select_conditions_to_pydantic(
+            MuxRule, sql, conditions, should_raise=True
+        )
+        return muxes
 
 
 def init_db_sync(db_path: Optional[str] = None):

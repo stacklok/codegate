@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 
 from codegate.config import Config
 from codegate.pipeline.factory import PipelineFactory
-from codegate.providers.base import BaseProvider
+from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.litellmshim import LiteLLmShim, sse_stream_generator
 from codegate.providers.openai.adapter import OpenAIInputNormalizer, OpenAIOutputNormalizer
 
@@ -35,9 +35,18 @@ class OpenAIProvider(BaseProvider):
     def provider_route_name(self) -> str:
         return "openai"
 
-    def models(self) -> List[str]:
-        # NOTE: This won't work since we need an API Key being set.
-        resp = httpx.get(f"{self.lm_studio_url}/v1/models")
+    def models(self, endpoint: str = None, api_key: str = None) -> List[str]:
+        headers = {}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        if not endpoint:
+            endpoint = "https://api.openai.com"
+
+        resp = httpx.get(f"{endpoint}/v1/models", headers=headers)
+
+        if resp.status_code != 200:
+            raise ModelFetchError(f"Failed to fetch models from OpenAI API: {resp.text}")
+
         jsonresp = resp.json()
 
         return [model["id"] for model in jsonresp.get("data", [])]

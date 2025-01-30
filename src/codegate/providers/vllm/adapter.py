@@ -102,6 +102,7 @@ class VLLMInputNormalizer(ModelInputNormalizer):
         content = input_chat_request["messages"][0]["content"]
         if isinstance(content, str) and "<|im_start|>" in content:
             return True
+        return False
 
     def normalize(self, data: Dict) -> ChatCompletionRequest:
         """
@@ -116,12 +117,6 @@ class VLLMInputNormalizer(ModelInputNormalizer):
             model_name = normalized_data["model"]
             if not model_name.startswith("hosted_vllm/"):
                 normalized_data["model"] = f"hosted_vllm/{model_name}"
-
-        # Ensure the base_url ends with /v1 if provided
-        if "base_url" in normalized_data:
-            base_url = normalized_data["base_url"].rstrip("/")
-            if not base_url.endswith("/v1"):
-                normalized_data["base_url"] = f"{base_url}/v1"
 
         ret_data = normalized_data
         if self._has_chat_ml_format(normalized_data):

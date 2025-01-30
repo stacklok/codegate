@@ -1,4 +1,5 @@
 import json
+from typing import List
 
 import httpx
 import structlog
@@ -6,7 +7,7 @@ from fastapi import HTTPException, Request
 
 from codegate.config import Config
 from codegate.pipeline.factory import PipelineFactory
-from codegate.providers.base import BaseProvider
+from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.ollama.adapter import OllamaInputNormalizer, OllamaOutputNormalizer
 from codegate.providers.ollama.completion_handler import OllamaShim
 
@@ -34,8 +35,20 @@ class OllamaProvider(BaseProvider):
     def provider_route_name(self) -> str:
         return "ollama"
 
-    def models(self):
-        resp = httpx.get(f"{self.base_url}/api/tags")
+    def models(self, endpoint: str = None, api_key: str = None) -> List[str]:
+        headers = {}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        if not endpoint:
+            endpoint = self.base_url
+        resp = httpx.get(
+            f"{endpoint}/api/tags",
+            headers=headers,
+        )
+
+        if resp.status_code != 200:
+            raise ModelFetchError(f"Failed to fetch models from Ollama API: {resp.text}")
+
         jsonresp = resp.json()
 
         return [model["name"] for model in jsonresp.get("models", [])]
