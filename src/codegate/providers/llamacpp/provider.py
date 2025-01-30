@@ -1,12 +1,11 @@
 import json
 from typing import List
 
-import httpx
 import structlog
 from fastapi import HTTPException, Request
 
 from codegate.pipeline.factory import PipelineFactory
-from codegate.providers.base import BaseProvider, ModelFetchError
+from codegate.providers.base import BaseProvider
 from codegate.providers.llamacpp.completion_handler import LlamaCppCompletionHandler
 from codegate.providers.llamacpp.normalizer import LLamaCppInputNormalizer, LLamaCppOutputNormalizer
 
@@ -29,24 +28,8 @@ class LlamaCppProvider(BaseProvider):
         return "llamacpp"
 
     def models(self, endpoint: str = None, api_key: str = None) -> List[str]:
-        headers = {}
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
-        if not endpoint:
-            endpoint = self.base_url
-
-        # HACK: This is using OpenAI's /v1/models endpoint to get the list of models
-        resp = httpx.get(
-            f"{endpoint}/v1/models",
-            headers=headers,
-        )
-
-        if resp.status_code != 200:
-            raise ModelFetchError(f"Failed to fetch models from Llama API: {resp.text}")
-
-        jsonresp = resp.json()
-
-        return [model["id"] for model in jsonresp.get("data", [])]
+        # TODO: Implement file fetching
+        return []
 
     def _setup_routes(self):
         """
