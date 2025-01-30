@@ -13,6 +13,7 @@ from codegate.api.v1 import v1
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.anthropic.provider import AnthropicProvider
 from codegate.providers.llamacpp.provider import LlamaCppProvider
+from codegate.providers.lm_studio.provider import LmStudioProvider
 from codegate.providers.ollama.provider import OllamaProvider
 from codegate.providers.openai.provider import OpenAIProvider
 from codegate.providers.registry import ProviderRegistry, get_provider_registry
@@ -93,6 +94,12 @@ def init_app(pipeline_factory: PipelineFactory) -> CodeGateServer:
     registry.add_provider(
         "ollama",
         OllamaProvider(
+            pipeline_factory,
+        ),
+    )
+    registry.add_provider(
+        "lm_studio",
+        LmStudioProvider(
             pipeline_factory,
         ),
     )
