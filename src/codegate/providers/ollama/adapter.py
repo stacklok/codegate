@@ -48,6 +48,35 @@ class OLlamaToModel(AsyncIterator[ModelResponse]):
         self.ollama_response = ollama_response
         self._aiter = ollama_response.__aiter__()
 
+    @staticmethod
+    def normalize_chunk(chunk: ChatResponse) -> ModelResponse:
+        finish_reason = None
+        role = "assistant"
+
+        # Convert the datetime object to a timestamp in seconds
+        datetime_obj = datetime.fromisoformat(chunk.created_at)
+        timestamp_seconds = int(datetime_obj.timestamp())
+
+        if chunk.done:
+            finish_reason = "stop"
+            role = None
+
+        model_response = ModelResponse(
+            id=f"ollama-chat-{str(uuid.uuid4())}",
+            created=timestamp_seconds,
+            model=chunk.model,
+            object="chat.completion.chunk",
+            choices=[
+                StreamingChoices(
+                    finish_reason=finish_reason,
+                    index=0,
+                    delta=Delta(content=chunk.message.content, role=role),
+                    logprobs=None,
+                )
+            ],
+        )
+        return model_response
+
     def __aiter__(self):
         return self
 
@@ -57,32 +86,7 @@ class OLlamaToModel(AsyncIterator[ModelResponse]):
             if not isinstance(chunk, ChatResponse):
                 return chunk
 
-            finish_reason = None
-            role = "assistant"
-
-            # Convert the datetime object to a timestamp in seconds
-            datetime_obj = datetime.fromisoformat(chunk.created_at)
-            timestamp_seconds = int(datetime_obj.timestamp())
-
-            if chunk.done:
-                finish_reason = "stop"
-                role = None
-
-            model_response = ModelResponse(
-                id=f"ollama-chat-{str(uuid.uuid4())}",
-                created=timestamp_seconds,
-                model=chunk.model,
-                object="chat.completion.chunk",
-                choices=[
-                    StreamingChoices(
-                        finish_reason=finish_reason,
-                        index=0,
-                        delta=Delta(content=chunk.message.content, role=role),
-                        logprobs=None,
-                    )
-                ],
-            )
-            return model_response
+            return self.normalize_chunk(chunk)
         except StopAsyncIteration:
             raise StopAsyncIteration
 

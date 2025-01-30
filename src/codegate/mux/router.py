@@ -3,8 +3,7 @@ import json
 import structlog
 from fastapi import APIRouter, HTTPException, Request
 
-from codegate.db.models import MuxRuleProviderEndpoint
-from codegate.mux.adapter import BodyAdapter
+from codegate.mux.adapter import BodyAdapter, ResponseAdapter
 from codegate.providers.registry import ProviderRegistry
 from codegate.workspaces.crud import WorkspaceCrud
 
@@ -19,10 +18,11 @@ class MuxRouter:
 
     def __init__(self, provider_registry: ProviderRegistry):
         self._ws_crud = WorkspaceCrud()
-        self._adapter = BodyAdapter()
+        self._body_adapter = BodyAdapter()
         self.router = APIRouter()
         self._setup_routes()
         self._provider_registry = provider_registry
+        self._response_adapter = ResponseAdapter()
 
     @property
     def route_name(self) -> str:
@@ -30,11 +30,6 @@ class MuxRouter:
 
     def get_routes(self) -> APIRouter:
         return self.router
-
-    def _set_destination_info(self, data: dict, mux_and_provider: MuxRuleProviderEndpoint) -> dict:
-        data["model"] = mux_and_provider.provider_model_name
-        data["base_url"] = mux_and_provider.endpoint
-        return data
 
     def _ensure_path_starts_with_slash(self, path: str) -> str:
         return path if path.startswith("/") else f"/{path}"
@@ -49,10 +44,10 @@ class MuxRouter:
             """
             Route the request to the correct destination provider.
 
-            1. Get destination provider from DB and active workspace
-            2. Map the request body to the destination provider format
-            3. Run pipeline. Selecting the correct destination provider
-            4. Transmit the response back to the client
+            1. Get destination provider from DB and active workspace.
+            2. Map the request body to the destination provider format.
+            3. Run pipeline. Selecting the correct destination provider.
+            4. Transmit the response back to the client in the correct format.
             """
 
             body = await request.body()
@@ -70,12 +65,15 @@ class MuxRouter:
                 raise HTTPException(status_code=404, detail="No active workspace muxes found")
             mux_and_provider = active_ws_muxes[0]
 
+            # Parse the input data and map it to the destination provider format
             rest_of_path = self._ensure_path_starts_with_slash(rest_of_path)
-            new_data = self._adapter.map_body_to_dest(mux_and_provider.provider_type, data)
-            new_data = self._set_destination_info(new_data, mux_and_provider)
+            new_data = self._body_adapter.map_body_to_dest(mux_and_provider, data)
             provider = self._provider_registry.get_provider(mux_and_provider.provider_type)
-
-            # TODO: Implement the logic to get the api_key from the DB
             api_key = mux_and_provider.auth_blob
 
-            return await provider.process_request(new_data, api_key, rest_of_path)
+            # Send the request to the destination provider. It will run the pipeline
+            response = await provider.process_request(new_data, api_key, rest_of_path)
+            # Format the response to the client always using the OpenAI format
+            return self._response_adapter.format_response_to_client(
+                response, mux_and_provider.provider_type
+            )
