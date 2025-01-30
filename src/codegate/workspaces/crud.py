@@ -386,6 +386,10 @@ class WorkspaceCrud:
         # Get all workspaces
         workspaces = await self.get_workspaces()
 
+        # TODO: Get workspaces from _mux_registry and
+        # Remove the ones that are not in the workspaces list
+        # We just got from the db.
+
         # For each workspace, get the muxes and set them in the registry
         for ws in workspaces:
             muxes = await self._db_reader.get_muxes_by_workspace(ws.id)
