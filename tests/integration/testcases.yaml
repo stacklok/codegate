@@ -1,6 +1,6 @@
 headers:
   vllm:
-    Authorization: Bearer ENV_VLLM_KEY
+    Content-Type: application/json
   openai:
     Authorization: Bearer ENV_OPENAI_KEY
   ollama:
@@ -161,12 +161,12 @@ testcases:
               "role":"user"
             }
         ],
-        "model":"Qwen/Qwen2.5-Coder-14B-Instruct",
+        "model":"Qwen/Qwen2.5-Coder-0.5B-Instruct",
         "stream":true,
         "temperature":0
       }
     likes: |
-      Hello! How can I assist you today? If you have any questions about software security, package analysis, or need guidance on secure coding practices, feel free to ask.
+      Hello! How can I assist you today?
 
   vllm_fim:
     name: VLLM FIM
@@ -174,27 +174,35 @@ testcases:
     url: http://127.0.0.1:8989/vllm/completions
     data: |
       {
-        "model": "Qwen/Qwen2.5-Coder-14B",
+        "model": "Qwen/Qwen2.5-Coder-0.5B-Instruct",
         "max_tokens": 4096,
         "temperature": 0,
         "stream": true,
-        "stop": ["<|endoftext|>", "<|fim_prefix|>", "<|fim_middle|>", "<|fim_suffix|>", "<|fim_pad|>", "<|repo_name|>", "<|file_sep|>", "<|im_start|>", "<|im_end|>", "/src/", "#- coding: utf-8", "```"],
+        "stop": [
+          "<|endoftext|>",
+          "<|fim_prefix|>",
+          "<|fim_middle|>",
+          "<|fim_suffix|>",
+          "<|fim_pad|>",
+          "<|repo_name|>",
+          "<|file_sep|>",
+          "<|im_start|>",
+          "<|im_end|>",
+          "/src/",
+          "#- coding: utf-8",
+          "```"
+        ],
         "prompt":"<|fim_prefix|>\n# codegate/test.py\nimport invokehttp\nimport requests\n\nkey = \"mysecret-key\"\n\ndef call_api():\n    <|fim_suffix|>\n\n\ndata = {'key1': 'test1', 'key2': 'test2'}\nresponse = call_api('http://localhost:8080', method='post', data='data')\n<|fim_middle|>"
       }
     likes: |
-      # Create an instance of the InvokeHTTP class
-      invoke = invokehttp.InvokeHTTP(key)
+      return response.json()
 
-      # Call the API using the invoke_http method
-      response = invoke.invoke_http(url, method='get', data=data)
+      def test_call_api():
+          response = call_api('http://localhost:8080', method='post', data='data')
+          assert response['key1'] == 'test1' and response['key2'] == 'test2', "Test failed"
 
-      # Check the response status code
-      if response.status_code == 200:
-          # The API call was successful
-          print(response.json())
-      else:
-          # The API call failed
-          print('Error:', response.status_code)
+      if __name__ == '__main__':
+          test_call_api()
 
   anthropic_chat:
     name: Anthropic Chat

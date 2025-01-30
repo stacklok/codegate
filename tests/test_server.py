@@ -97,7 +97,7 @@ def test_version_endpoint(mock_fetch_latest_version, test_client: TestClient) ->
 
 
 @patch("codegate.pipeline.secrets.manager.SecretsManager")
-@patch("codegate.server.ProviderRegistry")
+@patch("codegate.server.get_provider_registry")
 def test_provider_registration(mock_registry, mock_secrets_mgr, mock_pipeline_factory) -> None:
     """Test that all providers are registered correctly."""
     init_app(mock_pipeline_factory)

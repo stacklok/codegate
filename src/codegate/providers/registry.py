@@ -1,8 +1,25 @@
+from threading import Lock
 from typing import Dict, Optional
 
 from fastapi import FastAPI
 
 from codegate.providers.base import BaseProvider
+
+_provider_registry_lock = Lock()
+_provider_registry_singleton: Optional["ProviderRegistry"] = None
+
+
+def get_provider_registry(app: FastAPI = None) -> "ProviderRegistry":
+    global _provider_registry_singleton
+
+    if _provider_registry_singleton is None:
+        if app is None:
+            raise ValueError("Cannot initialize a ProviderRegistry without an app")
+        with _provider_registry_lock:
+            if _provider_registry_singleton is None:
+                _provider_registry_singleton = ProviderRegistry(app)
+
+    return _provider_registry_singleton
 
 
 class ProviderRegistry:

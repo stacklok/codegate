@@ -1,6 +1,6 @@
 import json
+from typing import List
 
-import httpx
 import structlog
 from fastapi import HTTPException, Request
 
@@ -27,12 +27,9 @@ class LlamaCppProvider(BaseProvider):
     def provider_route_name(self) -> str:
         return "llamacpp"
 
-    def models(self):
-        # HACK: This is using OpenAI's /v1/models endpoint to get the list of models
-        resp = httpx.get(f"{self.base_url}/v1/models")
-        jsonresp = resp.json()
-
-        return [model["id"] for model in jsonresp.get("data", [])]
+    def models(self, endpoint: str = None, api_key: str = None) -> List[str]:
+        # TODO: Implement file fetching
+        return []
 
     def _setup_routes(self):
         """

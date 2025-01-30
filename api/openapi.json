@@ -92,7 +92,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ProviderEndpoint"
+                "$ref": "#/components/schemas/AddProviderEndpointRequest"
               }
             }
           }
@@ -266,7 +266,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ProviderEndpoint"
+                "$ref": "#/components/schemas/AddProviderEndpointRequest"
               }
             }
           }
@@ -1113,6 +1113,68 @@
         ],
         "title": "ActiveWorkspace"
       },
+      "AddProviderEndpointRequest": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id",
+            "default": ""
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "provider_type": {
+            "$ref": "#/components/schemas/ProviderType"
+          },
+          "endpoint": {
+            "type": "string",
+            "title": "Endpoint",
+            "default": ""
+          },
+          "auth_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProviderAuthType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "none"
+          },
+          "api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "provider_type"
+        ],
+        "title": "AddProviderEndpointRequest",
+        "description": "Represents a request to add a provider endpoint."
+      },
       "AlertConversation": {
         "properties": {
           "conversation": {
@@ -1437,7 +1499,6 @@
       "MuxMatcherType": {
         "type": "string",
         "enum": [
-          "file_regex",
           "catch_all"
         ],
         "title": "MuxMatcherType",
@@ -1515,7 +1576,8 @@
           },
           "endpoint": {
             "type": "string",
-            "title": "Endpoint"
+            "title": "Endpoint",
+            "default": ""
           },
           "auth_type": {
             "anyOf": [
@@ -1532,8 +1594,7 @@
         "type": "object",
         "required": [
           "name",
-          "provider_type",
-          "endpoint"
+          "provider_type"
         ],
         "title": "ProviderEndpoint",
         "description": "Represents a provider's endpoint configuration. This\nallows us to persist the configuration for each provider,\nso we can use this for muxing messages."
