@@ -89,7 +89,14 @@ class OllamaShim(BaseCompletionHandler):
         """Stream response directly from Ollama API."""
         self.base_tool = base_tool
         if is_fim_request:
-            prompt = request["messages"][0].get("content", "")
+            prompt = ""
+            for i in reversed(range(len(request["messages"]))):
+                if request["messages"][i]["role"] == "user":
+                    prompt = request["messages"][i]["content"]  # type: ignore
+                    break
+            if not prompt:
+                raise ValueError("No user message found in FIM request")
+
             response = await self.client.generate(
                 model=request["model"], prompt=prompt, stream=stream, options=request["options"]  # type: ignore
             )
