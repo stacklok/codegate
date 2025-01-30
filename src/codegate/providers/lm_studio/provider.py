@@ -51,8 +51,6 @@ class LmStudioProvider(OpenAIProvider):
             body = await request.body()
             data = json.loads(body)
 
-            # if model starts with lm_studio, propagate it
-            if data.get("model", "").startswith("lm_studio"):
-                data["base_url"] = self.lm_studio_url + "/v1/"
+            data["base_url"] = self.lm_studio_url + "/v1/"
 
             return await self.process_request(data, api_key, request)
