@@ -98,7 +98,11 @@ class OllamaShim(BaseCompletionHandler):
                 raise ValueError("No user message found in FIM request")
 
             response = await self.client.generate(
-                model=request["model"], prompt=prompt, stream=stream, options=request["options"]  # type: ignore
+                model=request["model"],
+                prompt=prompt,
+                suffix=request.get("suffix", ""),
+                stream=stream,
+                options=request["options"]  # type: ignore
             )
         else:
             response = await self.client.chat(
