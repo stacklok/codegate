@@ -711,6 +711,22 @@ class DbReader(DbCodeGate):
         )
         return provider[0] if provider else None
 
+    async def get_auth_material_by_provider_id(
+        self, provider_id: str
+    ) -> Optional[ProviderAuthMaterial]:
+        sql = text(
+            """
+            SELECT id as provider_endpoint_id, auth_type, auth_blob
+            FROM provider_endpoints
+            WHERE id = :provider_endpoint_id
+            """
+        )
+        conditions = {"provider_endpoint_id": provider_id}
+        auth_material = await self._exec_select_conditions_to_pydantic(
+            ProviderAuthMaterial, sql, conditions, should_raise=True
+        )
+        return auth_material[0] if auth_material else None
+
     async def get_provider_endpoints(self) -> List[ProviderEndpoint]:
         sql = text(
             """

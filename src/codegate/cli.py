@@ -21,6 +21,7 @@ from codegate.providers import crud as provendcrud
 from codegate.providers.copilot.provider import CopilotProvider
 from codegate.server import init_app
 from codegate.storage.utils import restore_storage_backup
+from codegate.workspaces import crud as wscrud
 
 
 class UvicornServer:
@@ -341,6 +342,8 @@ def serve(  # noqa: C901
 
         registry = app.provider_registry
         loop.run_until_complete(provendcrud.initialize_provider_endpoints(registry))
+        wsc = wscrud.WorkspaceCrud()
+        loop.run_until_complete(wsc.initialize_mux_registry())
 
         # Run the server
         try:
