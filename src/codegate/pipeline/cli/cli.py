@@ -99,6 +99,11 @@ class CodegateCli(PipelineStep):
 
                 # Check if "codegate" is the first word
                 match = codegate_regex.match(stripped_message)
+            elif base_tool == "open interpreter":
+                codegate_regex = re.compile(r"### User:\s*codegate[^\n]*", re.IGNORECASE)
+                match = codegate_regex.match(last_user_message_str)
+                print("match is")
+                print(match)
             else:
                 # Check if "codegate" is the first word in the message
                 match = codegate_regex.match(last_user_message_str)

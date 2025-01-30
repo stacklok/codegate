@@ -186,6 +186,13 @@ class BaseProvider(ABC):
         """
         Determine if the request is FIM by the URL or the data of the request.
         """
+        # first check if we are in specific tools to discard FIM
+        prompt = data.get("prompt", "")
+        tools = ["cline", "kodu", "open interpreter"]
+        for tool in tools:
+            if tool in prompt.lower():
+                #  those tools can never be FIM
+                return False
         # Avoid more expensive inspection of body by just checking the URL.
         if self._is_fim_request_url(request):
             return True
