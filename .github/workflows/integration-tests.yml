@@ -175,6 +175,26 @@ jobs:
         env:
           CODEGATE_PROVIDERS: "ollama"
         run: |
+          curl http://localhost:11434/api/generate -d '{
+            "model": "qwen2.5-coder:0.5b",
+            "max_tokens": 4096,
+            "temperature": 0,
+            "stream": false,
+            "stop": [
+              "<fim_prefix>",
+              "<fim_suffix>",
+              "<fim_middle>",
+              "<file_sep>",
+              "</fim_middle>",
+              "</code>",
+              "/src/",
+              "#- coding: utf-8",
+              "```",
+              ""
+            ],
+            "prompt": "<|fim_prefix|>\n# codegate/test.py\nimport invokehttp\nimport requests\n\nkey = \"mysecret-key\"\n\ndef call_api():\n    <|fim_suffix|>\n\n\ndata = {'\''key1'\'': '\''test1'\'', '\''key2'\'': '\''test2'\''}\nresponse = call_api('\''http://localhost:8080'\'', method='\''post'\'', data='\''data'\'')\n<|fim_middle|>"
+          }' | jq .response
+
           poetry run python tests/integration/integration_tests.py
 
       - name: Print the Ollama container logs (useful for debugging)

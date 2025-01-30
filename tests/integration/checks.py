@@ -51,11 +51,12 @@ class DistanceCheck(BaseCheck):
         similarity = await self._calculate_string_similarity(
             parsed_response, test_data[DistanceCheck.KEY]
         )
+        logger.info(f"Test: {self.test_name} - Distance Check")
+        logger.info(f"Similarity: {similarity}")
+        logger.info(f"Response: {parsed_response}")
+        logger.info(f"Expected Response: {test_data[DistanceCheck.KEY]}")
         if similarity < 0.8:
             logger.error(f"Test {self.test_name} failed")
-            logger.error(f"Similarity: {similarity}")
-            logger.error(f"Response: {parsed_response}")
-            logger.error(f"Expected Response: {test_data[DistanceCheck.KEY]}")
             return False
         return True
 
