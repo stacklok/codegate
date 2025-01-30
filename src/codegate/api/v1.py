@@ -481,22 +481,15 @@ async def get_workspace_muxes(
 
     The list is ordered in order of priority. That is, the first rule in the list
     has the highest priority."""
-    # TODO: This is a dummy implementation. In the future, we should have a proper
-    # implementation that fetches the mux rules from the database.
-    return [
-        v1_models.MuxRule(
-            # Hardcode some UUID just for mocking purposes
-            provider_id="00000000-0000-0000-0000-000000000001",
-            model="gpt-3.5-turbo",
-            matcher_type=v1_models.MuxMatcherType.file_regex,
-            matcher=".*\\.txt",
-        ),
-        v1_models.MuxRule(
-            provider_id="00000000-0000-0000-0000-000000000002",
-            model="davinci",
-            matcher_type=v1_models.MuxMatcherType.catch_all,
-        ),
-    ]
+    try:
+        muxes = await wscrud.get_muxes(workspace_name)
+    except crud.WorkspaceDoesNotExistError:
+        raise HTTPException(status_code=404, detail="Workspace does not exist")
+    except Exception:
+        logger.exception("Error while getting workspace")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    return muxes
 
 
 @v1.put(
@@ -510,8 +503,16 @@ async def set_workspace_muxes(
     request: List[v1_models.MuxRule],
 ):
     """Set the mux rules of a workspace."""
-    # TODO: This is a dummy implementation. In the future, we should have a proper
-    # implementation that sets the mux rules in the database.
+    try:
+        await wscrud.set_muxes(workspace_name, request)
+    except crud.WorkspaceDoesNotExistError:
+        raise HTTPException(status_code=404, detail="Workspace does not exist")
+    except crud.WorkspaceCrudError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        logger.exception("Error while setting muxes")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
     return Response(status_code=204)
 
 

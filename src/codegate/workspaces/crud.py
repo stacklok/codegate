@@ -1,8 +1,16 @@
+import asyncio
 import datetime
 from typing import List, Optional, Tuple
+from uuid import uuid4 as uuid
 
 from codegate.db.connection import DbReader, DbRecorder
-from codegate.db.models import ActiveWorkspace, Session, WorkspaceRow, WorkspaceWithSessionInfo
+from codegate.db.models import (
+    ActiveWorkspace,
+    MuxRule,
+    Session,
+    WorkspaceRow,
+    WorkspaceWithSessionInfo,
+)
 
 
 class WorkspaceCrudError(Exception):
@@ -14,6 +22,10 @@ class WorkspaceDoesNotExistError(WorkspaceCrudError):
 
 
 class WorkspaceAlreadyActiveError(WorkspaceCrudError):
+    pass
+
+
+class WorkspaceMuxRuleDoesNotExistError(WorkspaceCrudError):
     pass
 
 
@@ -202,3 +214,72 @@ class WorkspaceCrud:
         if not workspace:
             raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
         return workspace
+
+    # Can't use type hints since the models are not yet defined
+    # Note that I'm explicitly importing the models here to avoid circular imports.
+    async def get_muxes(self, workspace_name: str):
+        from codegate.api import v1_models
+
+        # Verify if workspace exists
+        workspace = await self._db_reader.get_workspace_by_name(workspace_name)
+        if not workspace:
+            raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
+
+        dbmuxes = await self._db_reader.get_muxes_by_workspace(workspace.id)
+
+        muxes = []
+        # These are already sorted by priority
+        for dbmux in dbmuxes:
+            muxes.append(
+                v1_models.MuxRule(
+                    provider_id=dbmux.provider_endpoint_id,
+                    model=dbmux.provider_model_name,
+                    matcher_type=dbmux.matcher_type,
+                    matcher=dbmux.matcher_blob,
+                )
+            )
+
+        return muxes
+
+    # Can't use type hints since the models are not yet defined
+    async def set_muxes(self, workspace_name: str, muxes):
+        # Verify if workspace exists
+        workspace = await self._db_reader.get_workspace_by_name(workspace_name)
+        if not workspace:
+            raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
+
+        # Delete all muxes for the workspace
+        db_recorder = DbRecorder()
+        await db_recorder.delete_muxes_by_workspace(workspace.id)
+
+        tasks = set()
+
+        # Add the new muxes
+        priority = 0
+
+        # Verify all models are valid
+        for mux in muxes:
+            dbm = await self._db_reader.get_provider_model_by_provider_id_and_name(
+                mux.provider_id,
+                mux.model,
+            )
+            if not dbm:
+                raise WorkspaceCrudError(
+                    f"Model {mux.model} does not exist for provider {mux.provider_id}"
+                )
+
+        for mux in muxes:
+            new_mux = MuxRule(
+                id=str(uuid()),
+                provider_endpoint_id=mux.provider_id,
+                provider_model_name=mux.model,
+                workspace_id=workspace.id,
+                matcher_type=mux.matcher_type,
+                matcher_blob=mux.matcher if mux.matcher else "",
+                priority=priority,
+            )
+            tasks.add(db_recorder.add_mux(new_mux))
+
+            priority += 1
+
+        await asyncio.gather(*tasks)
