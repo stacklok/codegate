@@ -1,6 +1,6 @@
 import json
-from urllib.parse import urljoin
 from typing import List
+from urllib.parse import urljoin
 
 import httpx
 import structlog
