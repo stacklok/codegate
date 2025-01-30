@@ -469,14 +469,15 @@ class DbRecorder(DbCodeGate):
         added_model = await self._execute_update_pydantic_model(model, sql, should_raise=True)
         return added_model
 
-    async def delete_provider_models(self, provider_id: str):
+    async def delete_provider_model(self, provider_id: str, model: str) -> Optional[ProviderModel]:
         sql = text(
             """
             DELETE FROM provider_models
-            WHERE provider_endpoint_id = :provider_endpoint_id
+            WHERE provider_endpoint_id = :provider_endpoint_id AND name = :name
             """
         )
-        conditions = {"provider_endpoint_id": provider_id}
+
+        conditions = {"provider_endpoint_id": provider_id, "name": model}
         await self._execute_with_no_return(sql, conditions)
 
     async def delete_muxes_by_workspace(self, workspace_id: str):
