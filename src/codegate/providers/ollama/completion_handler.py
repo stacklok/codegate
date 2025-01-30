@@ -102,7 +102,7 @@ class OllamaShim(BaseCompletionHandler):
                 prompt=prompt,
                 suffix=request.get("suffix", ""),
                 stream=stream,
-                options=request["options"]  # type: ignore
+                options=request["options"],  # type: ignore
             )
         else:
             response = await self.client.chat(
