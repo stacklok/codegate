@@ -139,6 +139,7 @@ class CodegateTestRunner:
 
         try:
             parsed_response = self.parse_response_message(response, streaming=streaming)
+            logger.debug(f"Response message: {parsed_response}")
 
             # Load appropriate checks for this test
             checks = CheckLoader.load(test)
