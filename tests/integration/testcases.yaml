@@ -21,7 +21,7 @@ testcases:
       {
         "messages":[
             {
-              "content":"Hello",
+              "content":"Reply with that exact sentence: Hello from the integration tests!",
               "role":"user"
             }
         ],
@@ -29,7 +29,7 @@ testcases:
         "stream":true
       }
     likes: |
-      Hello! How can I assist you today?
+      Hello from the integration tests!
 
   copilot_malicious_package_question:
     name: Copilot User asks about a malicious package
@@ -64,7 +64,7 @@ testcases:
               "role":"system"
             },
             {
-              "content":"Hello",
+              "content":"Reply with that exact sentence: Hello from the integration tests!",
               "role":"user"
             }
         ],
@@ -73,7 +73,7 @@ testcases:
         "temperature":0
       }
     likes: |
-      Hello! How can I assist you today?
+      Hello from the integration tests!
 
   llamacpp_fim:
     name: LlamaCPP FIM
@@ -107,7 +107,7 @@ testcases:
               "role":"system"
             },
             {
-              "content":"Hello",
+              "content":"Reply with that exact sentence: Hello from the integration tests!",
               "role":"user"
             }
         ],
@@ -116,7 +116,7 @@ testcases:
         "temperature":0
       }
     likes: |
-      Hello! How can I assist you today?
+      Hello from the integration tests!
 
   openai_fim:
     name: OpenAI FIM
@@ -157,7 +157,7 @@ testcases:
               "role":"system"
             },
             {
-              "content":"Hello",
+              "content":"Reply with that exact sentence: Hello from the integration tests!",
               "role":"user"
             }
         ],
@@ -166,7 +166,7 @@ testcases:
         "temperature":0
       }
     likes: |
-      Hello! How can I assist you today?
+      Hello from the integration tests!
 
   vllm_fim:
     name: VLLM FIM
@@ -217,7 +217,7 @@ testcases:
               "role":"system"
             },
             {
-              "content":"Hello",
+              "content":"Reply with that exact sentence: Hello from the integration tests!",
               "role":"user"
             }
         ],
@@ -226,7 +226,7 @@ testcases:
         "temperature":0
       }
     likes: |
-      Hello! How can I assist you today?
+      Hello from the integration tests!
 
   anthropic_fim:
     name: Anthropic FIM
@@ -280,7 +280,7 @@ testcases:
               "role":"system"
             },
             {
-              "content":"Hello",
+              "content":"Reply with that exact sentence: Hello from the integration tests!",
               "role":"user"
             }
         ],
@@ -289,7 +289,7 @@ testcases:
         "temperature":0
       }
     likes: |
-      Hello! How can I assist you today?
+      Hello from the integration tests!
 
   ollama_fim:
     name: Ollama FIM

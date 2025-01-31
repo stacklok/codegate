@@ -53,4 +53,4 @@ class LmStudioProvider(OpenAIProvider):
 
             data["base_url"] = self.lm_studio_url + "/v1/"
 
-            return await self.process_request(data, api_key, request)
+            return await self.process_request(data, api_key, request.url.path)

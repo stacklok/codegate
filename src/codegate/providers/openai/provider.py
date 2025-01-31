@@ -42,11 +42,9 @@ class OpenAIProvider(BaseProvider):
 
         return [model["id"] for model in jsonresp.get("data", [])]
 
-    async def process_request(self, data: dict, api_key: str, request: Request):
-        """
-        Process the request and return the completion stream
-        """
-        is_fim_request = self._is_fim_request(request, data)
+    async def process_request(self, data: dict, api_key: str, request_url_path: str):
+        is_fim_request = self._is_fim_request(request_url_path, data)
+
         try:
             stream = await self.complete(data, api_key, is_fim_request=is_fim_request)
         except Exception as e:
@@ -82,4 +80,4 @@ class OpenAIProvider(BaseProvider):
             body = await request.body()
             data = json.loads(body)
 
-            return await self.process_request(data, api_key, request)
+            return await self.process_request(data, api_key, request.url.path)

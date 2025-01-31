@@ -65,6 +65,20 @@ class VLLMProvider(BaseProvider):
 
         return [model["id"] for model in jsonresp.get("data", [])]
 
+    async def process_request(self, data: dict, api_key: str, request_url_path: str):
+        is_fim_request = self._is_fim_request(request_url_path, data)
+        try:
+            # Pass the potentially None api_key to complete
+            stream = await self.complete(data, api_key, is_fim_request=is_fim_request)
+        except Exception as e:
+            # Check if we have a status code there
+            if hasattr(e, "status_code"):
+                logger = structlog.get_logger("codegate")
+                logger.error("Error in VLLMProvider completion", error=str(e))
+                raise HTTPException(status_code=e.status_code, detail=str(e))
+            raise e
+        return self._completion_handler.create_response(stream)
+
     def _setup_routes(self):
         """
         Sets up the /chat/completions route for the provider as expected by the
@@ -121,16 +135,4 @@ class VLLMProvider(BaseProvider):
             base_url = self._get_base_url()
             data["base_url"] = base_url
 
-            is_fim_request = self._is_fim_request(request, data)
-            try:
-                # Pass the potentially None api_key to complete
-                stream = await self.complete(data, api_key, is_fim_request=is_fim_request)
-            except Exception as e:
-                # Check if we have a status code there
-                if hasattr(e, "status_code"):
-                    logger = structlog.get_logger("codegate")
-                    logger.error("Error in VLLMProvider completion", error=str(e))
-                    raise HTTPException(status_code=e.status_code, detail=str(e))
-                raise e
-
-            return self._completion_handler.create_response(stream)
+            return await self.process_request(data, api_key, request.url.path)

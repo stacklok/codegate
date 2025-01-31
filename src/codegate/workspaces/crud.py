@@ -7,6 +7,7 @@ from codegate.db.connection import DbReader, DbRecorder
 from codegate.db.models import (
     ActiveWorkspace,
     MuxRule,
+    MuxRuleProviderEndpoint,
     Session,
     WorkspaceRow,
     WorkspaceWithSessionInfo,
@@ -241,6 +242,22 @@ class WorkspaceCrud:
 
         return muxes
 
+    async def get_muxes_with_provider_info(
+        self, workspace_name: str
+    ) -> List[MuxRuleProviderEndpoint]:
+
+        # Verify if workspace exists
+        workspace = await self._db_reader.get_workspace_by_name(workspace_name)
+        if not workspace:
+            raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
+
+        try:
+            dbmuxes = await self._db_reader.get_muxes_with_provider_by_workspace(workspace.id)
+        except Exception:
+            raise WorkspaceCrudError(f"Error getting muxes for workspace {workspace_name}")
+
+        return dbmuxes
+
     # Can't use type hints since the models are not yet defined
     async def set_muxes(self, workspace_name: str, muxes):
         # Verify if workspace exists
@@ -283,3 +300,9 @@ class WorkspaceCrud:
             priority += 1
 
         await asyncio.gather(*tasks)
+
+    async def get_active_workspace_muxes(self) -> List[MuxRuleProviderEndpoint]:
+        active_workspace = await self.get_active_workspace()
+        if not active_workspace:
+            raise WorkspaceCrudError("No active workspace found.")
+        return await self.get_muxes_with_provider_info(active_workspace.name)

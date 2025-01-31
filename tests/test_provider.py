@@ -19,6 +19,9 @@ class MockProvider(BaseProvider):
             mocked_factory,
         )
 
+    async def process_request(self, data: dict, api_key: str, request_url_path: str):
+        return {"message": "test"}
+
     def models(self):
         return []
 
@@ -40,9 +43,7 @@ class MockProvider(BaseProvider):
 )
 def test_is_fim_request_url(url, expected_bool):
     mock_provider = MockProvider()
-    request = MagicMock()
-    request.url.path = url
-    assert mock_provider._is_fim_request_url(request) == expected_bool
+    assert mock_provider._is_fim_request_url(url) == expected_bool
 
 
 DATA_CONTENT_STR = {
