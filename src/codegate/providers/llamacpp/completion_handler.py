@@ -59,19 +59,24 @@ class LlamaCppCompletionHandler(BaseCompletionHandler):
         """
         model_path = f"{Config.get_config().model_base_path}/{request['model']}.gguf"
 
+        # Create a copy of the request dict and remove stream_options
+        # Reason - Request error as JSON: {'error': "Llama.create_completion() got an unexpected keyword argument 'stream_options'"}
+        request_dict = dict(request)
+        request_dict.pop("stream_options", None)
+
         if is_fim_request:
             response = await self.inference_engine.complete(
                 model_path,
                 Config.get_config().chat_model_n_ctx,
                 Config.get_config().chat_model_n_gpu_layers,
-                **request,
+                **request_dict,
             )
         else:
             response = await self.inference_engine.chat(
                 model_path,
                 Config.get_config().chat_model_n_ctx,
                 Config.get_config().chat_model_n_gpu_layers,
-                **request,
+                **request_dict,
             )
 
         return convert_to_async_iterator(response) if stream else response

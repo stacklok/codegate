@@ -86,14 +86,11 @@ testcases:
         "max_tokens": 4096,
         "temperature": 0,
         "stream": true,
-        "stop": ["<|endoftext|>", "<|fim_prefix|>", "<|fim_middle|>", "<|fim_suffix|>", "<|fim_pad|>", "<|repo_name|>", "<|file_sep|>", "<|im_start|>", "<|im_end|>", "/src/", "#- coding: utf-8", "```"],
-        "prompt":"<|fim_prefix|>\n# codegate/test.py\nimport invokehttp\nimport requests\n\nkey = \"mysecret-key\"\n\ndef call_api():\n    <|fim_suffix|>\n\n\ndata = {'key1': 'test1', 'key2': 'test2'}\nresponse = call_api('http://localhost:8080', method='post', data='data')\n<|fim_middle|>"
+        "stop": ["<|endoftext|>", "<|fim_prefix|>", "<|fim_middle|>", "<|fim_suffix|>", "<|fim_pad|>", "<|repo_name|>", "<|file_sep|>", "<|im_start|>", "<|im_end|>", "/src/", "#- coding: utf-8", "```", "def test"],
+        "prompt":"# Do not add comments\n<|fim_prefix|>\n# codegate/greet.py\ndef print_hello():\n    <|fim_suffix|>\n\n\nprint_hello()\n<|fim_middle|>"
       }
     likes: |
-      url = 'http://localhost:8080'
-      headers = {'Authorization': f'Bearer {key}'}
-      response = requests.get(url, headers=headers)
-      return response.json()
+      print("Hello, World!")
 
   openai_chat:
     name: OpenAI Chat
