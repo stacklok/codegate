@@ -80,7 +80,7 @@ class LlamaCppToModel(AsyncIterator[ModelResponse]):
     def _create_delta(
         choice_delta: Union[
             ChatCompletionStreamResponseDelta, ChatCompletionStreamResponseDeltaEmpty
-        ]
+        ],
     ) -> Delta:
         if not choice_delta:  # Handles empty dict case
             return Delta(content=None, role=None)
