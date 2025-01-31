@@ -60,7 +60,8 @@ class LlamaCppCompletionHandler(BaseCompletionHandler):
         model_path = f"{Config.get_config().model_base_path}/{request['model']}.gguf"
 
         # Create a copy of the request dict and remove stream_options
-        # Reason - Request error as JSON: {'error': "Llama.create_completion() got an unexpected keyword argument 'stream_options'"}
+        # Reason - Request error as JSON:
+        # {'error': "Llama.create_completion() got an unexpected keyword argument 'stream_options'"}
         request_dict = dict(request)
         request_dict.pop("stream_options", None)
 

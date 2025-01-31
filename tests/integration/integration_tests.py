@@ -67,17 +67,25 @@ class CodegateTestRunner:
                     if "DONE" in decoded_line or "message_stop" in decoded_line:
                         break
 
-                    decoded_line = decoded_line.replace("data:", "")
+                    decoded_line = decoded_line.replace("data:", "").strip()
                     json_line = json.loads(decoded_line)
-
                     message_content = None
+                    # Handle both chat and FIM responses
                     if "choices" in json_line:
-                        if "finish_reason" in json_line["choices"][0]:
+                        choice = json_line["choices"][0]
+                        # Break if the conversation is over
+                        if choice.get("finish_reason") == "stop":
                             break
-                        if "delta" in json_line["choices"][0]:
-                            message_content = json_line["choices"][0]["delta"].get("content", "")
-                        elif "text" in json_line["choices"][0]:
-                            message_content = json_line["choices"][0].get("text", "")
+                        # Handle chat responses
+                        if "delta" in choice:
+                            delta = choice["delta"]
+                            if "content" in delta and delta["content"] is not None:
+                                message_content = delta["content"]
+                        # Handle FIM responses
+                        elif "text" in choice:
+                            text = choice["text"]
+                            if text is not None:
+                                message_content = text
                     elif "delta" in json_line:
                         message_content = json_line["delta"].get("text", "")
                     elif "message" in json_line:
@@ -87,7 +95,6 @@ class CodegateTestRunner:
 
                     if message_content is not None:
                         response_message += message_content
-
             else:
                 if "choices" in response.json():
                     response_message = response.json()["choices"][0]["message"].get("content", "")
@@ -97,7 +104,8 @@ class CodegateTestRunner:
         except Exception as e:
             logger.exception("An error occurred: %s", e)
 
-        return response_message
+        # Remove any trailing newlines and return
+        return response_message.strip()
 
     @staticmethod
     def replace_env_variables(input_string, env):
