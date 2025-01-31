@@ -10,6 +10,7 @@ from litellm.types.utils import Delta, StreamingChoices
 from ollama import ChatResponse
 
 from codegate.db import models as db_models
+from codegate.muxing import rulematcher
 from codegate.providers.ollama.adapter import OLlamaToModel
 
 logger = structlog.get_logger("codegate")
@@ -55,21 +56,17 @@ class BodyAdapter:
             del new_body["system"]
         return new_body
 
-    def _get_provider_formatted_url(
-        self, mux_and_provider: db_models.MuxRuleProviderEndpoint
-    ) -> str:
+    def _get_provider_formatted_url(self, model_route: rulematcher.ModelRoute) -> str:
         """Get the provider formatted URL to use in base_url. Note this value comes from DB"""
-        if mux_and_provider.provider_type == db_models.ProviderType.openai:
-            return f"{mux_and_provider.endpoint}/v1"
-        return mux_and_provider.endpoint
+        if model_route.endpoint.provider_type == db_models.ProviderType.openai:
+            return f"{model_route.endpoint.endpoint}/v1"
+        return model_route.endpoint.endpoint
 
-    def _set_destination_info(
-        self, data: dict, mux_and_provider: db_models.MuxRuleProviderEndpoint
-    ) -> dict:
+    def _set_destination_info(self, data: dict, model_route: rulematcher.ModelRoute) -> dict:
         """Set the destination provider info."""
         new_data = copy.deepcopy(data)
-        new_data["model"] = mux_and_provider.provider_model_name
-        new_data["base_url"] = self._get_provider_formatted_url(mux_and_provider)
+        new_data["model"] = model_route.model.name
+        new_data["base_url"] = self._get_provider_formatted_url(model_route)
         return new_data
 
     def _identify_provider(self, data: dict) -> db_models.ProviderType:
@@ -79,22 +76,20 @@ class BodyAdapter:
         else:
             return db_models.ProviderType.openai
 
-    def map_body_to_dest(
-        self, mux_and_provider: db_models.MuxRuleProviderEndpoint, data: dict
-    ) -> dict:
+    def map_body_to_dest(self, model_route: rulematcher.ModelRoute, data: dict) -> dict:
         """
         Map the body to the destination provider.
 
         We only need to transform the body if the destination or origin provider is Anthropic.
         """
         origin_prov = self._identify_provider(data)
-        if mux_and_provider.provider_type == db_models.ProviderType.anthropic:
+        if model_route.endpoint.provider_type == db_models.ProviderType.anthropic:
             if origin_prov != db_models.ProviderType.anthropic:
                 data = self._from_openai_to_antrhopic(data)
         else:
             if origin_prov == db_models.ProviderType.anthropic:
                 data = self._from_anthropic_to_openai(data)
-        return self._set_destination_info(data, mux_and_provider)
+        return self._set_destination_info(data, model_route)
 
 
 class StreamChunkFormatter:

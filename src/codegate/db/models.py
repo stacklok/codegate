@@ -199,19 +199,3 @@ class MuxRule(BaseModel):
     priority: int
     created_at: Optional[datetime.datetime] = None
     updated_at: Optional[datetime.datetime] = None
-
-
-class MuxRuleProviderEndpoint(BaseModel):
-    id: str
-    provider_endpoint_id: str
-    provider_model_name: str
-    workspace_id: str
-    matcher_type: str
-    matcher_blob: str
-    priority: int
-    created_at: Optional[datetime.datetime] = None
-    updated_at: Optional[datetime.datetime] = None
-    provider_type: ProviderType
-    endpoint: str
-    auth_type: str
-    auth_blob: str

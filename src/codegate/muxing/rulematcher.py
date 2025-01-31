@@ -82,7 +82,7 @@ class CatchAllMuxingRuleMatcher(MuxingRuleMatcher):
 class MuxingRulesinWorkspaces(UserDict):
     """A thread safe dictionary to store the muxing rules in workspaces."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._lock = RLock()
         self._active_workspace = ""
@@ -92,17 +92,17 @@ class MuxingRulesinWorkspaces(UserDict):
             # We return a copy so concurrent modifications don't affect the original
             return copy.deepcopy(super().__getitem__(key))
 
-    def __setitem__(self, key: str, value: List[MuxingRuleMatcher]):
+    def __setitem__(self, key: str, value: List[MuxingRuleMatcher]) -> None:
         with self._lock:
             super().__setitem__(key, value)
 
-    def __delitem__(self, key: str):
+    def __delitem__(self, key: str) -> None:
         with self._lock:
             super().__delitem__(key)
 
-    def set_active_workspace(self, workspace_id: str):
+    def set_active_workspace(self, workspace_name: str) -> None:
         """Set the active workspace."""
-        self._active_workspace = workspace_id
+        self._active_workspace = workspace_name
 
     def get_match_for_active_workspace(self, thing_to_match) -> Optional[ModelRoute]:
         """Get the first match for the given thing_to_match."""

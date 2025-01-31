@@ -20,7 +20,6 @@ from codegate.db.models import (
     GetPromptWithOutputsRow,
     GetWorkspaceByNameConditions,
     MuxRule,
-    MuxRuleProviderEndpoint,
     Output,
     Prompt,
     ProviderAuthMaterial,
@@ -791,26 +790,6 @@ class DbReader(DbCodeGate):
         conditions = {"workspace_id": workspace_id}
         muxes = await self._exec_select_conditions_to_pydantic(
             MuxRule, sql, conditions, should_raise=True
-        )
-        return muxes
-
-    async def get_muxes_with_provider_by_workspace(
-        self, workspace_id: str
-    ) -> List[MuxRuleProviderEndpoint]:
-        sql = text(
-            """
-            SELECT m.id, m.provider_endpoint_id, m.provider_model_name, m.workspace_id,
-            m.matcher_type, m.matcher_blob, m.priority, m.created_at, m.updated_at,
-            pe.provider_type, pe.endpoint, pe.auth_type, pe.auth_blob
-            FROM muxes m
-            INNER JOIN provider_endpoints pe ON pe.id = m.provider_endpoint_id
-            WHERE m.workspace_id = :workspace_id
-            ORDER BY priority ASC
-            """
-        )
-        conditions = {"workspace_id": workspace_id}
-        muxes = await self._exec_select_conditions_to_pydantic(
-            MuxRuleProviderEndpoint, sql, conditions, should_raise=True
         )
         return muxes
 

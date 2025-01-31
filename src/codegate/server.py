@@ -11,7 +11,7 @@ from starlette.middleware.errors import ServerErrorMiddleware
 from codegate import __description__, __version__
 from codegate.api.v1 import v1
 from codegate.db.models import ProviderType
-from codegate.mux.router import MuxRouter
+from codegate.muxing.router import MuxRouter
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.anthropic.provider import AnthropicProvider
 from codegate.providers.llamacpp.provider import LlamaCppProvider

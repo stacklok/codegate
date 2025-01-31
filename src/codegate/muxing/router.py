@@ -3,7 +3,8 @@ import json
 import structlog
 from fastapi import APIRouter, HTTPException, Request
 
-from codegate.mux.adapter import BodyAdapter, ResponseAdapter
+from codegate.muxing import rulematcher
+from codegate.muxing.adapter import BodyAdapter, ResponseAdapter
 from codegate.providers.registry import ProviderRegistry
 from codegate.workspaces.crud import WorkspaceCrud
 
@@ -23,6 +24,7 @@ class MuxRouter:
         self._setup_routes()
         self._provider_registry = provider_registry
         self._response_adapter = ResponseAdapter()
+        self._mux_registry = rulematcher.get_muxing_rules_registry()
 
     @property
     def route_name(self) -> str:
@@ -54,26 +56,25 @@ class MuxRouter:
             data = json.loads(body)
 
             try:
-                active_ws_muxes = await self._ws_crud.get_active_workspace_muxes()
+                # TODO: For future releases we will have to idenify a thing_to_match
+                # and use our registry to get the correct muxes for the active workspace
+                model_route = self._mux_registry.get_match_for_active_workspace(thing_to_match=None)
             except Exception as e:
                 logger.error(f"Error getting active workspace muxes: {e}")
                 raise HTTPException(str(e))
 
-            # TODO: Implement the muxing logic here. For the moment we will assume
-            # that we have a single mux, i.e. a single destination provider.
-            if len(active_ws_muxes) == 0:
-                raise HTTPException(status_code=404, detail="No active workspace muxes found")
-            mux_and_provider = active_ws_muxes[0]
+            if not model_route:
+                raise HTTPException("No rule found for the active workspace", status_code=404)
 
             # Parse the input data and map it to the destination provider format
             rest_of_path = self._ensure_path_starts_with_slash(rest_of_path)
-            new_data = self._body_adapter.map_body_to_dest(mux_and_provider, data)
-            provider = self._provider_registry.get_provider(mux_and_provider.provider_type)
-            api_key = mux_and_provider.auth_blob
+            new_data = self._body_adapter.map_body_to_dest(model_route, data)
+            provider = self._provider_registry.get_provider(model_route.endpoint.provider_type)
+            api_key = model_route.auth_material.auth_blob
 
             # Send the request to the destination provider. It will run the pipeline
             response = await provider.process_request(new_data, api_key, rest_of_path)
             # Format the response to the client always using the OpenAI format
             return self._response_adapter.format_response_to_client(
-                response, mux_and_provider.provider_type
+                response, model_route.endpoint.provider_type
             )

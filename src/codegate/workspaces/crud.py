@@ -6,7 +6,6 @@ from codegate.db.connection import DbReader, DbRecorder
 from codegate.db.models import (
     ActiveWorkspace,
     MuxRule,
-    MuxRuleProviderEndpoint,
     Session,
     WorkspaceRow,
     WorkspaceWithSessionInfo,
@@ -142,7 +141,7 @@ class WorkspaceCrud:
         await db_recorder.update_session(session)
 
         # Ensure the mux registry is updated
-        self._mux_registry.set_active_workspace(workspace.id)
+        self._mux_registry.set_active_workspace(workspace.name)
         return
 
     async def recover_workspace(self, workspace_name: str):
@@ -252,22 +251,6 @@ class WorkspaceCrud:
 
         return muxes
 
-    async def get_muxes_with_provider_info(
-        self, workspace_name: str
-    ) -> List[MuxRuleProviderEndpoint]:
-
-        # Verify if workspace exists
-        workspace = await self._db_reader.get_workspace_by_name(workspace_name)
-        if not workspace:
-            raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
-
-        try:
-            dbmuxes = await self._db_reader.get_muxes_with_provider_by_workspace(workspace.id)
-        except Exception:
-            raise WorkspaceCrudError(f"Error getting muxes for workspace {workspace_name}")
-
-        return dbmuxes
-
     # Can't use type hints since the models are not yet defined
     async def set_muxes(self, workspace_name: str, muxes):
         from codegate.api import v1_models
@@ -371,24 +354,27 @@ class WorkspaceCrud:
             auth_material=dbauth,
         )
 
-    async def initialize_mux_registry(self):
+    async def initialize_mux_registry(self) -> None:
         """Initialize the mux registry with all workspaces in the database"""
 
         active_ws = await self.get_active_workspace()
         if active_ws:
             self._mux_registry.set_active_workspace(active_ws.name)
 
-        return self.repopulate_mux_cache()
+        await self.repopulate_mux_cache()
 
-    async def repopulate_mux_cache(self):
+    async def repopulate_mux_cache(self) -> None:
         """Repopulate the mux cache with all muxes in the database"""
 
         # Get all workspaces
         workspaces = await self.get_workspaces()
 
-        # TODO: Get workspaces from _mux_registry and
-        # Remove the ones that are not in the workspaces list
-        # We just got from the db.
+        # Remove any workspaces from cache that are not in the database
+        ws_names = set(ws.name for ws in workspaces)
+        cached_ws = set(self._mux_registry.keys())
+        ws_to_remove = cached_ws - ws_names
+        for ws in ws_to_remove:
+            del self._mux_registry[ws]
 
         # For each workspace, get the muxes and set them in the registry
         for ws in workspaces:
@@ -401,9 +387,3 @@ class WorkspaceCrud:
                 matchers.append(rulematcher.MuxingMatcherFactory.create(mux, route))
 
             self._mux_registry[ws.name] = matchers
-
-    async def get_active_workspace_muxes(self) -> List[MuxRuleProviderEndpoint]:
-        active_workspace = await self.get_active_workspace()
-        if not active_workspace:
-            raise WorkspaceCrudError("No active workspace found.")
-        return await self.get_muxes_with_provider_info(active_workspace.name)
