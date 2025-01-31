@@ -6,7 +6,7 @@ readme = "README.md"
 authors = []
 
 [tool.poetry.dependencies]
-python = ">=3.12,<4.0"
+python = ">=3.12,<3.13"
 click = "==8.1.8"
 PyYAML = "==6.0.2"
 fastapi = "==0.115.8"
@@ -57,11 +57,11 @@ generate-openapi = "src.codegate.server:generate_openapi"
 
 [tool.black]
 line-length = 100
-target-version = ["py310"]
+target-version = ["py312"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py312"
 fix = true
 exclude = [
     "src/codegate/db/queries.py", # Ignore auto-generated file from sqlc
