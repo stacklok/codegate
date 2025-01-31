@@ -21,7 +21,7 @@
 
 ---
 
-# CodeGate: making AI coding assistance secure
+# CodeGate: secure AI code generation
 
 **By [Stacklok](https://stacklok.com)**
 
@@ -37,7 +37,6 @@ security or productivity.
 </picture>
 
 ---
-
 ## ✨ Why choose CodeGate?
 
 AI coding assistants are powerful, but they can inadvertently introduce risks.
@@ -49,7 +48,6 @@ CodeGate protects your development process by:
 - 🔍 Providing real-time security analysis of AI suggestions
 
 ---
-
 ## 🚀 Quickstart
 
 ### Prerequisites
@@ -83,7 +81,6 @@ Now it's time to configure your preferred AI coding assistant to use CodeGate
 documentation.
 
 ---
-
 ## 🖥️ Dashboard
 
 CodeGate includes a web dashboard that provides:
@@ -105,7 +102,6 @@ To learn more, visit the
 [CodeGate Dashboard documentation](https://docs.codegate.ai/how-to/dashboard).
 
 ---
-
 ## 🔐 Features
 
 ### Secrets encryption
@@ -133,7 +129,6 @@ or potential vulnerabilities to help you adopt more secure coding practices.
 [Learn more](https://docs.codegate.ai/features/security-reviews)
 
 ---
-
 ## 🤖 Supported AI coding assistants and providers
 
 ### [Aider](https://docs.codegate.ai/how-to/use-with-aider)
@@ -171,7 +166,6 @@ or potential vulnerabilities to help you adopt more secure coding practices.
   coming soon!)
 
 ---
-
 ## 🛡️ Privacy first
 
 Unlike other tools, with CodeGate **your code never leaves your machine**.
@@ -183,7 +177,6 @@ CodeGate is built with privacy at its core:
 - 💪 **Complete control over your data**
 
 ---
-
 ## 🛠️ Development
 
 Are you a developer looking to contribute? Dive into our technical resources:
@@ -194,7 +187,20 @@ Are you a developer looking to contribute? Dive into our technical resources:
 - [Logging system](https://github.com/stacklok/codegate/blob/main/docs/logging.md)
 
 ---
+## 📜 License
 
+CodeGate is licensed under the terms specified in the
+[LICENSE file](https://github.com/stacklok/codegate/blob/main/LICENSE).
+
+---
+## 🌟 Support us
+
+Love CodeGate? Starring this repository and sharing it with others helps
+CodeGate grow 🌱
+
+[![Star on GitHub](https://img.shields.io/github/stars/stacklok/codegate.svg?style=social)](https://github.com/stacklok/codegate)
+
+---
 ## 🤝 Contributing
 
 We welcome contributions! Whether you're submitting bug reports, feature
@@ -204,20 +210,12 @@ We thank you ❤️!
 Start by reading our
 [Contributor guidelines](https://github.com/stacklok/codegate/blob/main/CONTRIBUTING.md).
 
----
+### Thank you!
 
-## 🌟 Support us
+<a href="https://github.com/stacklok/codegate/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=stacklok/codegate" />
+</a>
 
-Love CodeGate? Starring this repository and sharing it with others helps
-CodeGate grow 🌱
-
-[![Star on GitHub](https://img.shields.io/github/stars/stacklok/codegate.svg?style=social)](https://github.com/stacklok/codegate)
-
-## 📜 License
-
-CodeGate is licensed under the terms specified in the
-[LICENSE file](https://github.com/stacklok/codegate/blob/main/LICENSE).
-
----
+Made with [contrib.rocks](https://contrib.rocks).
 
 <!-- markdownlint-disable-file first-line-heading no-inline-html -->
