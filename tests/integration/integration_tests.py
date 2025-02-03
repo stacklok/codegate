@@ -243,21 +243,53 @@ async def main():
     providers_env = os.environ.get("CODEGATE_PROVIDERS")
     test_names_env = os.environ.get("CODEGATE_TEST_NAMES")
 
-    providers = None
-    if providers_env:
-        providers = [p.strip() for p in providers_env.split(",") if p.strip()]
+    # Base directory for all test cases
+    base_test_dir = "./tests/integration"
 
+    # Get list of provider directories
+    available_providers = []
+    try:
+        available_providers = [
+            d for d in os.listdir(base_test_dir) if os.path.isdir(os.path.join(base_test_dir, d))
+        ]
+    except FileNotFoundError:
+        logger.error(f"Test directory {base_test_dir} not found")
+        sys.exit(1)
+
+    # Filter providers if specified in environment
+    selected_providers = None
+    if providers_env:
+        selected_providers = [p.strip() for p in providers_env.split(",") if p.strip()]
+        # Validate selected providers exist
+        invalid_providers = [p for p in selected_providers if p not in available_providers]
+        if invalid_providers:
+            logger.error(f"Invalid providers specified: {', '.join(invalid_providers)}")
+            logger.error(f"Available providers: {', '.join(available_providers)}")
+            sys.exit(1)
+    else:
+        selected_providers = available_providers
+
+    # Get test names if specified
     test_names = None
     if test_names_env:
         test_names = [t.strip() for t in test_names_env.split(",") if t.strip()]
 
-    all_tests_passed = await test_runner.run_tests(
-        "./tests/integration/testcases.yaml", providers=providers, test_names=test_names
-    )
+    # Run tests for each provider
+    all_tests_passed = True
+    for provider in selected_providers:
+        provider_test_file = os.path.join(base_test_dir, provider, "testcases.yaml")
 
-    # Exit with status code 1 if any tests failed
-    if not all_tests_passed:
-        sys.exit(1)
+        if not os.path.exists(provider_test_file):
+            logger.warning(f"No testcases.yaml found for provider {provider}")
+            continue
+
+        logger.info(f"Running tests for provider: {provider}")
+        provider_tests_passed = await test_runner.run_tests(
+            provider_test_file,
+            providers=[provider],  # Only run tests for current provider
+            test_names=test_names,
+        )
+        all_tests_passed = all_tests_passed and provider_tests_passed
 
 
 if __name__ == "__main__":

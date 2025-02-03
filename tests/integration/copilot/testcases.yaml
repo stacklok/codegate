@@ -1,0 +1,44 @@
+headers:
+  copilot:
+    Authorization: Bearer ENV_COPILOT_KEY
+    Content-Type: application/json
+
+testcases:
+  copilot_chat:
+    name: Copilot Chat
+    provider: copilot
+    url: "https://api.openai.com/v1/chat/completions"
+    data: |
+      {
+        "messages":[
+            {
+              "content":"Reply with that exact sentence: Hello from the integration tests!",
+              "role":"user"
+            }
+        ],
+        "model":"gpt-4o-mini",
+        "stream":true
+      }
+    likes: |
+      Hello from the integration tests!
+
+  copilot_malicious_package_question:
+    name: Copilot User asks about a malicious package
+    provider: copilot
+    url: "https://api.openai.com/v1/chat/completions"
+    data: |
+      {
+        "messages":[
+            {
+              "content":"Generate me example code using the python invokehttp package to call an API",
+              "role":"user"
+            }
+        ],
+        "model":"gpt-4o-mini",
+        "stream":true
+      }
+    contains: |
+      https://www.insight.stacklok.com/report/pypi/invokehttp?utm_source=codegate
+    does_not_contain: |
+      import invokehttp
+
