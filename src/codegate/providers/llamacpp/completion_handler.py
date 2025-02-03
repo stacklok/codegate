@@ -57,13 +57,16 @@ class LlamaCppCompletionHandler(BaseCompletionHandler):
         """
         Execute the completion request with inference engine API
         """
-        model_path = f"{Config.get_config().model_base_path}/{request['model']}.gguf"
+        model_path = f"{request['base_url']}/{request['model']}.gguf"
 
         # Create a copy of the request dict and remove stream_options
         # Reason - Request error as JSON:
         # {'error': "Llama.create_completion() got an unexpected keyword argument 'stream_options'"}
         request_dict = dict(request)
         request_dict.pop("stream_options", None)
+        # Remove base_url from the request dict. We use this field as a standard across
+        # all providers to specify the base URL of the model.
+        request_dict.pop("base_url", None)
 
         if is_fim_request:
             response = await self.inference_engine.complete(

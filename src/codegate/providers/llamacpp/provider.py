@@ -1,11 +1,13 @@
 import json
+from pathlib import Path
 from typing import List
 
 import structlog
 from fastapi import HTTPException, Request
 
+from codegate.config import Config
 from codegate.pipeline.factory import PipelineFactory
-from codegate.providers.base import BaseProvider
+from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.llamacpp.completion_handler import LlamaCppCompletionHandler
 from codegate.providers.llamacpp.normalizer import LLamaCppInputNormalizer, LLamaCppOutputNormalizer
 
@@ -30,8 +32,16 @@ class LlamaCppProvider(BaseProvider):
         return "llamacpp"
 
     def models(self, endpoint: str = None, api_key: str = None) -> List[str]:
-        # TODO: Implement file fetching
-        return []
+        models_path = Path(Config.get_config().model_base_path)
+        if not models_path.is_dir():
+            raise ModelFetchError(f"llamacpp model path does not exist: {models_path}")
+
+        # return all models except the all-minilm-L6-v2-q5_k_m model which we use for embeddings
+        return [
+            model.stem
+            for model in models_path.glob("*.gguf")
+            if model.is_file() and model.stem != "all-minilm-L6-v2-q5_k_m"
+        ]
 
     async def process_request(self, data: dict, api_key: str, request_url_path: str):
         is_fim_request = self._is_fim_request(request_url_path, data)
@@ -66,5 +76,6 @@ class LlamaCppProvider(BaseProvider):
         ):
             body = await request.body()
             data = json.loads(body)
+            data["base_url"] = Config.get_config().model_base_path
 
             return await self.process_request(data, None, request.url.path)

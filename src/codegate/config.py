@@ -21,6 +21,7 @@ DEFAULT_PROVIDER_URLS = {
     "vllm": "http://localhost:8000",  # Base URL without /v1 path
     "ollama": "http://localhost:11434",  # Default Ollama server URL
     "lm_studio": "http://localhost:1234",
+    "llamacpp": "./codegate_volume/models",  # Default LlamaCpp model path
 }
 
 

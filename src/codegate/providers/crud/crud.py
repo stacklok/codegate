@@ -365,6 +365,7 @@ def __provider_endpoint_from_cfg(
 
 
 def provider_default_endpoints(provider_type: str) -> str:
+    # TODO: These providers default endpoints should come from config.py
     defaults = {
         "openai": "https://api.openai.com",
         "anthropic": "https://api.anthropic.com",
