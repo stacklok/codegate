@@ -69,22 +69,12 @@ def _get_cli_from_cline(
 
 
 def _get_cli_from_open_interpreter(last_user_message_str: str) -> Optional[re.Match[str]]:
-    # Find all occurrences of "### User:" blocks
+    # Extract the last "### User:" block
     user_blocks = re.findall(r"### User:\s*(.*?)(?=\n###|\Z)", last_user_message_str, re.DOTALL)
+    last_user_block = user_blocks[-1].strip() if user_blocks else last_user_message_str.strip()
 
-    if user_blocks:
-        # Extract the last "### User:" block
-        last_user_block = user_blocks[-1].strip()
-
-        # Match "codegate" only in the last "### User:" block
-        codegate_regex = re.compile(r"^codegate\s*(.*?)\s*$", re.IGNORECASE)
-        match = codegate_regex.match(last_user_block)
-        return match
-    else:
-        # try to just get from the regex
-        codegate_regex = re.compile(r"^codegate\s*(.*?)\s*$", re.IGNORECASE)
-        match = codegate_regex.match(last_user_message_str)
-        return match
+    # Match "codegate" only in the last user block or entire input
+    return re.match(r"^codegate\s*(.*?)\s*$", last_user_block, re.IGNORECASE)
 
 
 class CodegateCli(PipelineStep):
