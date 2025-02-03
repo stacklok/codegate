@@ -37,12 +37,8 @@ RESERVED_WORKSPACE_KEYWORDS = [DEFAULT_WORKSPACE_NAME, "active", "archived"]
 
 class WorkspaceCrud:
 
-    def __init__(
-        self,
-        mux_registry: rulematcher.MuxingRulesinWorkspaces = rulematcher.get_muxing_rules_registry(),
-    ):
+    def __init__(self):
         self._db_reader = DbReader()
-        self._mux_registry = mux_registry
 
     async def add_workspace(self, new_workspace_name: str) -> WorkspaceRow:
         """
@@ -141,7 +137,8 @@ class WorkspaceCrud:
         await db_recorder.update_session(session)
 
         # Ensure the mux registry is updated
-        self._mux_registry.set_active_workspace(workspace.name)
+        mux_registry = await rulematcher.get_muxing_rules_registry()
+        await mux_registry.set_active_workspace(workspace.name)
         return
 
     async def recover_workspace(self, workspace_name: str):
@@ -198,7 +195,8 @@ class WorkspaceCrud:
             raise WorkspaceCrudError(f"Error deleting workspace {workspace_name}")
 
         # Remove the muxes from the registry
-        del self._mux_registry[workspace_name]
+        mux_registry = await rulematcher.get_muxing_rules_registry()
+        await mux_registry.delete_ws_rules(workspace_name)
         return
 
     async def hard_delete_workspace(self, workspace_name: str):
@@ -293,7 +291,8 @@ class WorkspaceCrud:
             priority += 1
 
         # Set routing list for the workspace
-        self._mux_registry[workspace_name] = matchers
+        mux_registry = await rulematcher.get_muxing_rules_registry()
+        await mux_registry.set_ws_rules(workspace_name, matchers)
 
     async def get_routing_for_mux(self, mux) -> rulematcher.ModelRoute:
         """Get the routing for a mux
@@ -359,7 +358,8 @@ class WorkspaceCrud:
 
         active_ws = await self.get_active_workspace()
         if active_ws:
-            self._mux_registry.set_active_workspace(active_ws.name)
+            mux_registry = await rulematcher.get_muxing_rules_registry()
+            await mux_registry.set_active_workspace(active_ws.name)
 
         await self.repopulate_mux_cache()
 
@@ -369,12 +369,14 @@ class WorkspaceCrud:
         # Get all workspaces
         workspaces = await self.get_workspaces()
 
+        mux_registry = await rulematcher.get_muxing_rules_registry()
+
         # Remove any workspaces from cache that are not in the database
         ws_names = set(ws.name for ws in workspaces)
-        cached_ws = set(self._mux_registry.keys())
+        cached_ws = set(await mux_registry.get_registries())
         ws_to_remove = cached_ws - ws_names
         for ws in ws_to_remove:
-            del self._mux_registry[ws]
+            await mux_registry.delete_ws_rules(ws)
 
         # For each workspace, get the muxes and set them in the registry
         for ws in workspaces:
@@ -386,4 +388,4 @@ class WorkspaceCrud:
                 route = await self.get_routing_for_db_mux(mux)
                 matchers.append(rulematcher.MuxingMatcherFactory.create(mux, route))
 
-            self._mux_registry[ws.name] = matchers
+            await mux_registry.set_ws_rules(ws.name, matchers)

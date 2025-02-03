@@ -1,7 +1,6 @@
 import copy
 from abc import ABC, abstractmethod
-from collections import UserDict
-from threading import Lock, RLock
+from asyncio import Lock
 from typing import List, Optional
 
 from codegate.db import models as db_models
@@ -11,13 +10,13 @@ _muxrules_sgtn = None
 _singleton_lock = Lock()
 
 
-def get_muxing_rules_registry():
+async def get_muxing_rules_registry():
     """Returns a singleton instance of the muxing rules registry."""
 
     global _muxrules_sgtn
 
     if _muxrules_sgtn is None:
-        with _singleton_lock:
+        async with _singleton_lock:
             if _muxrules_sgtn is None:
                 _muxrules_sgtn = MuxingRulesinWorkspaces()
 
@@ -79,38 +78,47 @@ class CatchAllMuxingRuleMatcher(MuxingRuleMatcher):
         return True
 
 
-class MuxingRulesinWorkspaces(UserDict):
+class MuxingRulesinWorkspaces:
     """A thread safe dictionary to store the muxing rules in workspaces."""
 
     def __init__(self) -> None:
         super().__init__()
-        self._lock = RLock()
+        self._lock = Lock()
         self._active_workspace = ""
+        self._ws_rules = {}
 
-    def __getitem__(self, key: str) -> List[MuxingRuleMatcher]:
-        with self._lock:
-            # We return a copy so concurrent modifications don't affect the original
-            return copy.deepcopy(super().__getitem__(key))
+    async def get_ws_rules(self, workspace_name: str) -> List[MuxingRuleMatcher]:
+        """Get the rules for the given workspace."""
+        async with self._lock:
+            return copy.deepcopy(self._ws_rules.get(workspace_name, []))
 
-    def __setitem__(self, key: str, value: List[MuxingRuleMatcher]) -> None:
-        with self._lock:
-            super().__setitem__(key, value)
+    async def set_ws_rules(self, workspace_name: str, rules: List[MuxingRuleMatcher]) -> None:
+        """Set the rules for the given workspace."""
+        async with self._lock:
+            self._ws_rules[workspace_name] = rules
 
-    def __delitem__(self, key: str) -> None:
-        with self._lock:
-            super().__delitem__(key)
+    async def delete_ws_rules(self, workspace_name: str) -> None:
+        """Delete the rules for the given workspace."""
+        async with self._lock:
+            del self._ws_rules[workspace_name]
 
-    def set_active_workspace(self, workspace_name: str) -> None:
+    async def set_active_workspace(self, workspace_name: str) -> None:
         """Set the active workspace."""
         self._active_workspace = workspace_name
 
-    def get_match_for_active_workspace(self, thing_to_match) -> Optional[ModelRoute]:
+    async def get_registries(self) -> List[str]:
+        """Get the list of workspaces."""
+        async with self._lock:
+            return list(self._ws_rules.keys())
+
+    async def get_match_for_active_workspace(self, thing_to_match) -> Optional[ModelRoute]:
         """Get the first match for the given thing_to_match."""
 
         # We iterate over all the rules and return the first match
         # Since we already do a deepcopy in __getitem__, we don't need to lock here
         try:
-            for rule in self[self._active_workspace]:
+            rules = await self.get_ws_rules(self._active_workspace)
+            for rule in rules:
                 if rule.match(thing_to_match):
                     return rule.destination()
             return None

@@ -24,7 +24,6 @@ class MuxRouter:
         self._setup_routes()
         self._provider_registry = provider_registry
         self._response_adapter = ResponseAdapter()
-        self._mux_registry = rulematcher.get_muxing_rules_registry()
 
     @property
     def route_name(self) -> str:
@@ -55,10 +54,11 @@ class MuxRouter:
             body = await request.body()
             data = json.loads(body)
 
+            mux_registry = await rulematcher.get_muxing_rules_registry()
             try:
                 # TODO: For future releases we will have to idenify a thing_to_match
                 # and use our registry to get the correct muxes for the active workspace
-                model_route = self._mux_registry.get_match_for_active_workspace(thing_to_match=None)
+                model_route = await mux_registry.get_match_for_active_workspace(thing_to_match=None)
             except Exception as e:
                 logger.error(f"Error getting active workspace muxes: {e}")
                 raise HTTPException(str(e))
