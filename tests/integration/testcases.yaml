@@ -31,7 +31,21 @@ testcases:
       }
     likes: |
       Hello from the integration tests!
-
+  copilot_fim:
+    name: Copilot FIM
+    provider: copilot
+    url: "https://api.openai.com/v1/chat/completions"
+    data: |
+      {
+        "model": "gpt-4o-mini",
+        "max_tokens": 4096,
+        "temperature": 0,
+        "stream": true,
+        "stop": ["<|endoftext|>", "<|fim_prefix|>", "<|fim_middle|>", "<|fim_suffix|>", "<|fim_pad|>", "<|repo_name|>", "<|file_sep|>", "<|im_start|>", "<|im_end|>", "/src/", "#- coding: utf-8", "```", "def test"],
+        "prompt":"# Do not add comments\n<|fim_prefix|>\n# codegate/greet.py\ndef print_hello():\n    <|fim_suffix|>\n\n\nprint_hello()\n<|fim_middle|>"
+      }
+    likes: |
+      print("Hello, World!")
   copilot_malicious_package_question:
     name: Copilot User asks about a malicious package
     provider: copilot
@@ -91,7 +105,25 @@ testcases:
       }
     likes: |
       print("Hello, World!")
-
+  llamacpp_malicious_package_question:
+    name: llamacpp user asks about a malicious package
+    provider: llamacpp
+    url: http://127.0.0.1:8989/llamacpp/completions
+    data: |
+      {
+        "messages":[
+            {
+              "content":"Generate me example code using the python invokehttp package to call an API",
+              "role":"user"
+            }
+        ],
+        "model": "qwen2.5-coder-0.5b-instruct-q5_k_m",
+        "stream":true
+      }
+    contains: |
+      https://www.insight.stacklok.com/report/pypi/invokehttp?utm_source=codegate
+    does_not_contain: |
+      import invokehttp
   openai_chat:
     name: OpenAI Chat
     provider: openai
@@ -141,7 +173,25 @@ testcases:
       }
     likes: |
       <COMPLETION>    response = requests.post('http://localhost:8080', json=data, headers={'Authorization': f'Bearer {key}'})
-
+  openai_malicious_package_question:
+    name: openai user asks about a malicious package
+    provider: openai
+    url: http://127.0.0.1:8989/openai/chat/completions
+    data: |
+      {
+        "messages":[
+            {
+              "content":"Generate me example code using the python invokehttp package to call an API",
+              "role":"user"
+            }
+        ],
+        "model": "gpt-4o-mini",
+        "stream":true
+      }
+    contains: |
+      https://www.insight.stacklok.com/report/pypi/invokehttp?utm_source=codegate
+    does_not_contain: |
+      import invokehttp
   vllm_chat:
     name: VLLM Chat
     provider: vllm
@@ -201,7 +251,25 @@ testcases:
 
       if __name__ == '__main__':
           test_call_api()
-
+  vllm_malicious_package_question:
+    name: vllm user asks about a malicious package
+    provider: vllm
+    url: http://127.0.0.1:8989/vllm/completions
+    data: |
+      {
+        "messages":[
+            {
+              "content":"Generate me example code using the python invokehttp package to call an API",
+              "role":"user"
+            }
+        ],
+        "model": "Qwen/Qwen2.5-Coder-0.5B-Instruct",
+        "stream":true
+      }
+    contains: |
+      https://www.insight.stacklok.com/report/pypi/invokehttp?utm_source=codegate
+    does_not_contain: |
+      import invokehttp
   anthropic_chat:
     name: Anthropic Chat
     provider: anthropic
@@ -264,7 +332,25 @@ testcases:
             return requests.post(url, json=data)
         else:
             raise ValueError("Unsupported HTTP method")
-
+  anthropic_malicious_package_question:
+    name: anthropic user asks about a malicious package
+    provider: anthropic
+    url: http://127.0.0.1:8989/anthropic/messages
+    data: |
+      {
+        "messages":[
+            {
+              "content":"Generate me example code using the python invokehttp package to call an API",
+              "role":"user"
+            }
+        ],
+        "model": "claude-3-5-sonnet-20241022",
+        "stream":true
+      }
+    contains: |
+      https://www.insight.stacklok.com/report/pypi/invokehttp?utm_source=codegate
+    does_not_contain: |
+      import invokehttp
   ollama_chat:
     name: Ollama Chat
     provider: ollama
@@ -324,3 +410,22 @@ testcases:
       if __name__ == '__main__':
           invokehttp.run(call_api)
       ```
+  ollama_malicious_package_question:
+    name: ollama user asks about a malicious package
+    provider: ollama
+    url: http://127.0.0.1:8989/ollama/api/generate
+    data: |
+      {
+        "messages":[
+            {
+              "content":"Generate me example code using the python invokehttp package to call an API",
+              "role":"user"
+            }
+        ],
+        "model": "qwen2.5-coder:0.5b",
+        "stream":true
+      }
+    contains: |
+      https://www.insight.stacklok.com/report/pypi/invokehttp?utm_source=codegate
+    does_not_contain: |
+      import invokehttp
