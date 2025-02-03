@@ -230,7 +230,7 @@ jobs:
           poetry run python tests/integration/integration_tests.py
 
       - name: Print the CodeGate container logs
-        if: always()
+        if: success() || failure()
         run: |
           docker logs $CODEGATE_CONTAINER_NAME
           echo "Models contents:"
@@ -244,11 +244,11 @@ jobs:
           docker exec $CODEGATE_CONTAINER_NAME ls -la /app/codegate_volume/db
 
       - name: Print the vllm container logs (vllm-only)
-        if: ${{ matrix.test-provider == 'vllm' }} # This is only needed for VLLM
+        if: (success() || failure()) && ${{ matrix.test-provider == 'vllm' }} # This is only needed for VLLM
         run: |
           docker logs vllm
 
       - name: Print the Ollama container logs (ollama-only)
-        if: ${{ matrix.test-provider == 'ollama' }} # This is only needed for Ollama
+        if: (success() || failure()) && ${{ matrix.test-provider == 'ollama' }} # This is only needed for Ollama
         run: |
           docker logs ollama
