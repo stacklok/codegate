@@ -112,25 +112,27 @@ async def acompletion(
             print(f"CODEGATE_DEBUG_ANTHROPIC: acompletion: {json.dumps(copy)}")
             print(f"CODEGATE_DEBUG_ANTHROPIC: acompletion: {resp.text}")
 
-    # return spacer(printer(anthropic_chunk_wrapper(printer(resp.aiter_lines()))))
-    return anthropic_chunk_wrapper(resp.aiter_lines())
+        # return spacer(printer(anthropic_chunk_wrapper(printer(resp.aiter_lines()))))
+        return anthropic_chunk_wrapper(resp.aiter_lines())
 
 
-async def get_data_line(lines):
-    # Get the `event: <type>` line.
-    _ = await anext(lines)
-    # Get the `data: <json>` line.
-    data_line = await anext(lines)
-    # Get the empty line.
-    _ = await anext(lines)
+async def get_data_lines(lines):
+    while True:
+        # Get the `event: <type>` line.
+        _ = await anext(lines)
+        # Get the `data: <json>` line.
+        data_line = await anext(lines)
+        # Get the empty line.
+        _ = await anext(lines)
 
-    # Data lines always begin with `data: `, so we can skip the first
-    # few characters and just deserialized the payload.
-    return json.loads(data_line[5:])
+        # Data lines always begin with `data: `, so we can skip the first
+        # few characters and just deserialized the payload.
+        yield json.loads(data_line[5:])
 
 
 async def anthropic_chunk_wrapper(lines):
-    payload = await get_data_line(lines)
+    payloads = get_data_lines(lines)
+    payload = await anext(payloads)
 
     # We expect the first line to always be `event: message_start`.
     if payload["type"] != "message_start":
@@ -139,16 +141,12 @@ async def anthropic_chunk_wrapper(lines):
     model = payload["message"]["model"]
     yield make_empty_response(payload, model)
 
-    while True:
-        payload = await get_data_line(lines)
-
+    async for payload in payloads:
         if os.getenv("CODEGATE_DEBUG_ANTHROPIC") is not None:
-            print(f"CODEGATE_DEBUG_ANTHROPIC: anthropic_chunk_wrapper: {data_line[5:]}")
+            print(f"CODEGATE_DEBUG_ANTHROPIC: anthropic_chunk_wrapper: {payload}")
 
         if payload["type"] == "ping":
             pass # ignored
-        elif payload["type"] == "error":
-            raise ValueError(f"anthropic: {payload['error']['message']}")
         elif payload["type"] == "content_block_start":
             content_block_type = payload["content_block"]["type"]
 
@@ -157,7 +155,7 @@ async def anthropic_chunk_wrapper(lines):
                 yield item
                 # Procesing `text` block type is done by purely
                 # yielding block deltas as they are received.
-                async for item in anthropic_content_chunk_wrapper(lines, model):
+                async for item in anthropic_content_chunk_wrapper(payloads, model):
                     yield item
 
             elif content_block_type == "tool_use":
@@ -190,7 +188,7 @@ async def anthropic_chunk_wrapper(lines):
                 item = make_response(payload, model, choice)
                 yield item
 
-                async for item in anthropic_tool_chunk_wrapper(lines, model):
+                async for item in anthropic_tool_chunk_wrapper(payloads, model):
                     yield item
             else:
                 raise ValueError(
@@ -215,6 +213,8 @@ async def anthropic_chunk_wrapper(lines):
             item = make_empty_response(payload, model)
             yield item
             break
+        elif payload["type"] == "error":
+            yield make_response(payload, model)
         else:
             # TODO this should be a log entry, as per
             # https://docs.anthropic.com/en/api/messages-streaming#other-events
@@ -225,12 +225,10 @@ async def anthropic_chunk_wrapper(lines):
     return
 
 
-async def anthropic_content_chunk_wrapper(lines, model):
-    while True:
-        payload = await get_data_line(lines)
-
+async def anthropic_content_chunk_wrapper(payloads, model):
+    async for payload in payloads:
         if os.getenv("CODEGATE_DEBUG_ANTHROPIC") is not None:
-            print(f"CODEGATE_DEBUG_ANTHROPIC: anthropic_chunk_wrapper: {data_line[5:]}")
+            print(f"CODEGATE_DEBUG_ANTHROPIC: anthropic_chunk_wrapper: {payload}")
 
         if payload["type"] == "content_block_delta":
             pdelta = payload["delta"]
@@ -256,14 +254,14 @@ async def anthropic_content_chunk_wrapper(lines, model):
             # We break the loop at this point since we have to go back
             # processing the rest of the state machine.
             return
+        elif payload["type"] == "error":
+            yield make_response(payload, model)
 
 
-async def anthropic_tool_chunk_wrapper(lines, model):
-    while True:
-        payload = await get_data_line(lines)
-
+async def anthropic_tool_chunk_wrapper(payloads, model):
+    async for payload in payloads:
         if os.getenv("CODEGATE_DEBUG_ANTHROPIC") is not None:
-            print(f"CODEGATE_DEBUG_ANTHROPIC: anthropic_chunk_wrapper: {data_line[5:]}")
+            print(f"CODEGATE_DEBUG_ANTHROPIC: anthropic_chunk_wrapper: {payload}")
 
         if payload["type"] == "content_block_delta":
             pdelta = payload["delta"]
@@ -303,6 +301,8 @@ async def anthropic_tool_chunk_wrapper(lines, model):
             # We break the loop at this point since we have to go back
             # processing the rest of the state machine.
             return
+        elif payload["type"] == "error":
+            yield make_response(payload, model)
 
 
 def make_empty_response(payload: str, model: str):
