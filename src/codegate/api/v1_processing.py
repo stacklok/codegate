@@ -317,8 +317,22 @@ def _get_question_answer_from_partial(
     contains a list of messages as question. QuestionAnswer contains a single message as question.
     """
     # Get the last user message as the question
+    message_str = partial_question_answer.partial_questions.messages[-1]
+    if (
+        partial_question_answer.partial_questions.provider == "copilot"
+        and partial_question_answer.partial_questions.type == "chat"
+    ):
+        message_str = "\n".join(partial_question_answer.partial_questions.messages)
+
+    # sanitize answer from reserved words
+    if partial_question_answer.answer and partial_question_answer.answer.message:
+        partial_question_answer.answer.message = re.sub(
+            r"(question_about_specific_files|question_about_specific_code|unknown)\s*",
+            "",
+            partial_question_answer.answer.message,
+        ).strip()
     question = ChatMessage(
-        message=partial_question_answer.partial_questions.messages[-1],
+        message=message_str,
         timestamp=partial_question_answer.partial_questions.timestamp,
         message_id=partial_question_answer.partial_questions.message_id,
     )
