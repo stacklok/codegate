@@ -51,6 +51,11 @@ jobs:
           echo "Loaded image:"
           docker images
 
+      - name: Download the Qwen2.5-Coder-0.5B-Instruct-GGUF model
+        run: |
+          # This is needed for the llamacpp integration tests
+          wget -P ./codegate_volume/models https://huggingface.co/Qwen/Qwen2.5-Coder-0.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-0.5b-instruct-q5_k_m.gguf
+
       - name: Run container from the loaded image
         run: |
           # Get the image name
@@ -232,6 +237,12 @@ jobs:
       - name: Run integration tests - vllm
         env:
           CODEGATE_PROVIDERS: "vllm"
+        run: |
+          poetry run python tests/integration/integration_tests.py
+
+      - name: Run integration tests - llamacpp
+        env:
+          CODEGATE_PROVIDERS: "llamacpp"
         run: |
           poetry run python tests/integration/integration_tests.py
 
