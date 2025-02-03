@@ -18,14 +18,23 @@ on:
 
 jobs:
   integration-tests:
-    name: Run
+    name: Test
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false # Continue running other tests if one fails
       matrix:
         python-version: [ "3.12" ]
+        test-provider: [ "copilot", "openai", "anthropic", "ollama", "vllm", "llamacpp" ]
     env:
-      CONTAINER_NAME: "codegate"
-      CERT_FILE: "/app/codegate_volume/certs/ca.crt"
+      ENV_COPILOT_KEY: ${{ secrets.copilot-key }}
+      ENV_OPENAI_KEY: ${{ secrets.copilot-key }} # We use the same key for OpenAI as the Copilot tests
+      ENV_ANTHROPIC_KEY: ${{ secrets.anthropic-key }}
+      CA_CERT_FILE: "/home/runner/work/codegate/codegate/codegate_volume/certs/ca.crt"
+      CODEGATE_CONTAINER_NAME: "codegate"
+      CODEGATE_MOUNT_PATH_CERT_FILE: "/app/codegate_volume/certs/ca.crt"
+      CODEGATE_LOG_LEVEL: "DEBUG"
+      LOCAL_OLLAMA_URL: "http://localhost:11434"
+      LOCAL_VLLM_URL: "http://localhost:8000"
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -40,34 +49,34 @@ jobs:
           mkdir -p ./codegate_volume/certs ./codegate_volume/models ./codegate_volume/db
           chmod -R 777 ./codegate_volume
 
-      - name: Download Docker image artifact
+      - name: Download the CodeGate container image
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
         with:
           name: ${{ inputs.artifact-name }}
 
-      - name: Load Docker image
+      - name: Load the CodeGate container image
         run: |
           docker load -i image.tar
           echo "Loaded image:"
           docker images
 
-      - name: Download the Qwen2.5-Coder-0.5B-Instruct-GGUF model
+      - name: Download the Qwen2.5-Coder-0.5B-Instruct-GGUF model (llamacpp only)
+        if: ${{ matrix.test-provider == 'llamacpp' }} # This is only needed for llamacpp
         run: |
-          # This is needed for the llamacpp integration tests
           wget -P ./codegate_volume/models https://huggingface.co/Qwen/Qwen2.5-Coder-0.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-0.5b-instruct-q5_k_m.gguf
 
-      - name: Run container from the loaded image
+      - name: Start the CodeGate container
         run: |
           # Get the image name
           DOCKER_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | head -n 1)
           echo "Running container from image: $DOCKER_IMAGE"
 
           # Run the container
-          docker run --name $CONTAINER_NAME -d --network host \
+          docker run --name $CODEGATE_CONTAINER_NAME -d --network host \
             -v "$(pwd)"/codegate_volume:/app/codegate_volume \
-            -e CODEGATE_APP_LOG_LEVEL=DEBUG \
-            -e CODEGATE_OLLAMA_URL=http://localhost:11434 \
-            -e CODEGATE_VLLM_URL=http://localhost:8000 \
+            -e CODEGATE_APP_LOG_LEVEL=$CODEGATE_LOG_LEVEL \
+            -e CODEGATE_OLLAMA_URL=$LOCAL_OLLAMA_URL \
+            -e CODEGATE_VLLM_URL=$LOCAL_VLLM_URL \
             --restart unless-stopped $DOCKER_IMAGE
 
           # Confirm the container started
@@ -75,20 +84,20 @@ jobs:
           docker ps
 
           # Verify container is running with correct ports
-          docker ps -f name=$CONTAINER_NAME
+          docker ps -f name=$CODEGATE_CONTAINER_NAME
 
           # Check mount configuration
-          docker inspect $CONTAINER_NAME -f '{{ json .Mounts }}' | jq
+          docker inspect $CODEGATE_CONTAINER_NAME -f '{{ json .Mounts }}' | jq
 
       - name: Ensure certificates are available in the container
         timeout-minutes: 4
         run: |
           # Wait for the cert file to be available in the container
           while true; do
-            echo "Checking for $CERT_FILE in container $CONTAINER_NAME..."
+            echo "Checking for $CODEGATE_MOUNT_PATH_CERT_FILE in container $CODEGATE_CONTAINER_NAME..."
 
-            if docker exec "$CONTAINER_NAME" test -f "$CERT_FILE"; then
-              echo "Cert file found: $CERT_FILE"
+            if docker exec "$CODEGATE_CONTAINER_NAME" test -f "$CODEGATE_MOUNT_PATH_CERT_FILE"; then
+              echo "Cert file found: $CODEGATE_MOUNT_PATH_CERT_FILE"
               break
             else
               echo "Cert file not found. Retrying in 5 seconds..."
@@ -97,12 +106,9 @@ jobs:
           done
 
           # Verify volume contents are accessible
-          docker exec $CONTAINER_NAME ls -la /app/codegate_volume
+          docker exec $CODEGATE_CONTAINER_NAME ls -la /app/codegate_volume
 
-          # Print the container logs we got so far
-          docker logs $CONTAINER_NAME
-
-      - name: Install the CodeGate certificate
+      - name: Copy and install the CodeGate certificate
         run: |
           docker cp codegate:/app/codegate_volume/certs/ca.crt ./codegate.crt
           sudo cp ./codegate.crt /usr/local/share/ca-certificates/codegate.crt
@@ -130,29 +136,8 @@ jobs:
       - name: Install dependencies
         run: poetry install --with dev
 
-      - name: Run integration tests - Copilot
-        env:
-          CODEGATE_PROVIDERS: "copilot"
-          CA_CERT_FILE: "/home/runner/work/codegate/codegate/codegate_volume/certs/ca.crt"
-          ENV_COPILOT_KEY: ${{ secrets.copilot-key }}
-        run: |
-          poetry run python tests/integration/integration_tests.py
-
-      - name: Run integration tests - OpenAI
-        env:
-          CODEGATE_PROVIDERS: "openai"
-          ENV_OPENAI_KEY: ${{ secrets.copilot-key }} # We use the same key for OpenAI as the Copilot tests
-        run: |
-          poetry run python tests/integration/integration_tests.py
-
-      - name: Run integration tests - Anthropic
-        env:
-          CODEGATE_PROVIDERS: "anthropic"
-          ENV_ANTHROPIC_KEY: ${{ secrets.anthropic-key }}
-        run: |
-          poetry run python tests/integration/integration_tests.py
-
-      - name: Run Ollama
+      - name: Run the Ollama container (ollama-only)
+        if: ${{ matrix.test-provider == 'ollama' }} # This is only needed for Ollama
         run: |
           docker run -d -v ollama:/root/.ollama --network host --name ollama ollama/ollama
           docker ps -f name=ollama
@@ -162,10 +147,28 @@ jobs:
             sleep 2
           done
           echo "Ollama is now available!"
+
+          # Run the model
           docker exec -d ollama ollama run qwen2.5-coder:0.5b
 
-          sleep 120 # Sleep for 2 minutes to allow Ollama to download the model. TODO: Improve this
-          docker logs ollama
+          echo "Waiting for model to be ready..."
+          while true; do
+            # Try to make a test query to the model
+            response=$(curl -s http://localhost:11434/api/generate -d '{
+              "model": "qwen2.5-coder:0.5b",
+              "prompt": "Why is the sky blue?",
+              "stream": false
+            }' 2>&1)
+
+            # Check if the response contains an error
+            if echo "$response" | grep -q "error"; then
+              echo "Model not ready yet. Retrying in 5 seconds..."
+              sleep 5
+            else
+              echo "Model is ready!"
+              break
+            fi
+          done
 
           # Verify the Ollama API is working
           curl http://localhost:11434/api/generate -d '{
@@ -174,21 +177,10 @@ jobs:
             "stream": false
           }'
 
-          docker logs ollama
-
-      - name: Run integration tests - Ollama
-        env:
-          CODEGATE_PROVIDERS: "ollama"
+      - name: Build and run the vllm container (vllm-only)
+        if: ${{ matrix.test-provider == 'vllm' }} # This is only needed for VLLM
         run: |
-          poetry run python tests/integration/integration_tests.py
-
-      - name: Print the Ollama container logs (useful for debugging)
-        if: always()
-        run: |
-          docker logs ollama
-
-      - name: Build and run the vllm container
-        run: |
+          # We clone the VLLM repo and build the container because the CPU-mode container is not published
           git clone https://github.com/vllm-project/vllm.git
           cd vllm
           docker build -f Dockerfile.cpu -t vllm-cpu-env --shm-size=4g .
@@ -196,8 +188,6 @@ jobs:
              --network="host" \
              vllm-cpu-env --model Qwen/Qwen2.5-Coder-0.5B-Instruct
 
-      - name: Verify the vllm container is running
-        run: |
           echo -e "\nVerify the vllm container is serving\n"
           docker ps -f name=vllm
 
@@ -230,37 +220,35 @@ jobs:
                 "extra_body": {}
               }'
 
-          # Print a new line and then the message in a single echo
           echo -e "\nPrint the vllm container logs\n"
           docker logs vllm
 
-      - name: Run integration tests - vllm
+      - name: Tests - ${{ matrix.test-provider }}
         env:
-          CODEGATE_PROVIDERS: "vllm"
+          CODEGATE_PROVIDERS: ${{ matrix.test-provider }}
         run: |
           poetry run python tests/integration/integration_tests.py
 
-      - name: Run integration tests - llamacpp
-        env:
-          CODEGATE_PROVIDERS: "llamacpp"
-        run: |
-          poetry run python tests/integration/integration_tests.py
-
-      - name: Print the CodeGate container logs (useful for debugging)
+      - name: Print the CodeGate container logs
         if: always()
         run: |
-          docker logs $CONTAINER_NAME
+          docker logs $CODEGATE_CONTAINER_NAME
           echo "Models contents:"
           ls -la codegate_volume/models
-          docker exec $CONTAINER_NAME ls -la /app/codegate_volume/models
+          docker exec $CODEGATE_CONTAINER_NAME ls -la /app/codegate_volume/models
           echo "Certs contents:"
           ls -la codegate_volume/certs
-          docker exec $CONTAINER_NAME ls -la /app/codegate_volume/certs
+          docker exec $CODEGATE_CONTAINER_NAME ls -la /app/codegate_volume/certs
           echo "DB contents:"
           ls -la codegate_volume/db
-          docker exec $CONTAINER_NAME ls -la /app/codegate_volume/db
+          docker exec $CODEGATE_CONTAINER_NAME ls -la /app/codegate_volume/db
 
-      - name: Print the vllm container logs (useful for debugging)
-        if: always()
+      - name: Print the vllm container logs (vllm-only)
+        if: ${{ matrix.test-provider == 'vllm' }} # This is only needed for VLLM
         run: |
           docker logs vllm
+
+      - name: Print the Ollama container logs (ollama-only)
+        if: ${{ matrix.test-provider == 'ollama' }} # This is only needed for Ollama
+        run: |
+          docker logs ollama
