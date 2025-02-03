@@ -80,7 +80,11 @@ def _get_cli_from_open_interpreter(last_user_message_str: str) -> Optional[re.Ma
         codegate_regex = re.compile(r"^codegate\s*(.*?)\s*$", re.IGNORECASE)
         match = codegate_regex.match(last_user_block)
         return match
-    return None
+    else:
+        # try to just get from the regex
+        codegate_regex = re.compile(r"^codegate\s*(.*?)\s*$", re.IGNORECASE)
+        match = codegate_regex.match(last_user_message_str)
+        return match
 
 
 class CodegateCli(PipelineStep):
