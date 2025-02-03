@@ -293,31 +293,6 @@ class PipelineStep(ABC):
 
         return None
 
-    @staticmethod
-    def get_last_user_message_idx(request: ChatCompletionRequest) -> int:
-        if request.get("messages") is None:
-            return -1
-
-        for idx, message in reversed(list(enumerate(request["messages"]))):
-            if message.get("role", "") == "user":
-                return idx
-
-        return -1
-
-    @staticmethod
-    def get_latest_user_messages(request: ChatCompletionRequest) -> str:
-        latest_user_messages = ""
-
-        for message in reversed(request.get("messages", [])):
-            if message["role"] == "user":
-                # if found we can stop here, if not we continue until we find it
-                message_str = message.get("content", "")
-                if message_str:
-                    latest_user_messages += "\n" + str(message_str)
-                    break
-
-        return latest_user_messages
-
     @abstractmethod
     async def process(
         self, request: ChatCompletionRequest, context: PipelineContext
