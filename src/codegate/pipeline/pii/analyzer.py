@@ -1,9 +1,9 @@
 import uuid
 from typing import Any, Dict, List, Tuple
 
+import structlog
 from presidio_analyzer import AnalyzerEngine
 from presidio_anonymizer import AnonymizerEngine
-import structlog
 
 logger = structlog.get_logger("codegate.pii.analyzer")
 
@@ -98,7 +98,7 @@ class PiiAnalyzer:
             text=text,
             entities=entities,
             language="en",
-            score_threshold=0.3  # Lower threshold to catch more potential matches
+            score_threshold=0.3,  # Lower threshold to catch more potential matches
         )
 
         # Track found PII
@@ -121,7 +121,7 @@ class PiiAnalyzer:
                 }
                 found_pii.append(pii_info)
                 anonymized_text = anonymized_text.replace(pii_value, uuid_placeholder)
-                
+
                 # Log each PII detection with its UUID mapping
                 logger.info(
                     "PII detected and mapped",
@@ -130,7 +130,7 @@ class PiiAnalyzer:
                     uuid=uuid_placeholder,
                     # Don't log the actual PII value for security
                     value_length=len(pii_value),
-                    session_id=self.session_store.session_id
+                    session_id=self.session_store.session_id,
                 )
 
             # Log summary of all PII found in this analysis
@@ -139,7 +139,7 @@ class PiiAnalyzer:
                     "PII analysis complete",
                     total_pii_found=len(found_pii),
                     pii_types=[p["type"] for p in found_pii],
-                    session_id=self.session_store.session_id
+                    session_id=self.session_store.session_id,
                 )
 
             # Return the anonymized text, PII details, and session store
