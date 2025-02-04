@@ -22,8 +22,27 @@ testcases:
     likes: |
       Hello from the integration tests!
 
+  copilot_fim:
+    name: Copilot FIM
+    provider: copilot
+    url: "https://api.openai.com/v1/chat/completions"
+    data: |
+      {
+        "messages":[
+            {
+              "content":"# Do not add comments\n<|fim_prefix|>\n# codegate/greet.py\ndef print_hello():\n    <|fim_suffix|>\n\n\nprint_hello()\n<|fim_middle|>",
+              "role":"user"
+            }
+        ],
+        "model":"gpt-4o-mini",
+        "stream":true,
+        "stop": ["<|fim_prefix|>", "<|fim_middle|>", "<|fim_suffix|>"],
+        "temperature": 0
+      }
+    likes: |
+      print("Hello, World!")
   copilot_malicious_package_question:
-    name: Copilot User asks about a malicious package
+    name: Copilot Malicious Package
     provider: copilot
     url: "https://api.openai.com/v1/chat/completions"
     data: |
@@ -41,4 +60,3 @@ testcases:
       https://www.insight.stacklok.com/report/pypi/invokehttp?utm_source=codegate
     does_not_contain: |
       import invokehttp
-

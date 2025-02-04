@@ -42,4 +42,19 @@ testcases:
       }
     likes: |
       print("Hello, World!")
-
+  llamacpp_malicious_package_question:
+    name: Llamacpp Malicious Package
+    provider: llamacpp
+    url: http://127.0.0.1:8989/llamacpp/completions
+    data: |
+      {
+        "model": "qwen2.5-coder-0.5b-instruct-q5_k_m",
+        "max_tokens": 4096,
+        "temperature": 0,
+        "prompt":"Generate me example code using the python invokehttp package to call an API",
+        "stream":true
+      }
+    contains: |
+      https://www.insight.stacklok.com/report/pypi/invokehttp?utm_source=codegate
+    does_not_contain: |
+      import invokehttp
