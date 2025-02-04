@@ -161,7 +161,7 @@ async def configure_auth_material(
 )
 async def update_provider_endpoint(
     provider_id: UUID,
-    request: v1_models.AddProviderEndpointRequest,
+    request: v1_models.ProviderEndpoint,
 ) -> v1_models.ProviderEndpoint:
     """Update a provider endpoint by ID."""
     try:
