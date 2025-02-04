@@ -1307,6 +1307,7 @@ version = "2.6.2"
 description = "Fork of the standard library cgi and cgitb modules, being deprecated in PEP-594"
 optional = false
 python-versions = ">=3.10"
+groups = ["main"]
 files = [
     {file = "legacy_cgi-2.6.2-py3-none-any.whl", hash = "sha256:a7b83afb1baf6ebeb56522537c5943ef9813cf933f6715e88a803f7edbce0bff"},
     {file = "legacy_cgi-2.6.2.tar.gz", hash = "sha256:9952471ceb304043b104c22d00b4f333cac27a6abe446d8a528fc437cf13c85f"},
@@ -3725,4 +3726,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<4.0"
-content-hash = "5228c445df64a9fb9dd683d5d22b623ea792854f48c9395b9d532a45dc548ecc"
+content-hash = "d51df35e864f692064bc13d185652f7e90d950d528d624385799042d673fdfe0"
