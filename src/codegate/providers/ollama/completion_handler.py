@@ -6,13 +6,15 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from litellm import ChatCompletionRequest
 from ollama import AsyncClient, ChatResponse, GenerateResponse
 
+from codegate.clients.clients import ClientType
 from codegate.providers.base import BaseCompletionHandler
 
 logger = structlog.get_logger("codegate")
 
 
 async def ollama_stream_generator(  # noqa: C901
-    stream: AsyncIterator[ChatResponse], base_tool: str
+    stream: AsyncIterator[ChatResponse],
+    client_type: ClientType,
 ) -> AsyncIterator[str]:
     """OpenAI-style SSE format"""
     try:
@@ -21,7 +23,7 @@ async def ollama_stream_generator(  # noqa: C901
                 # TODO We should wire in the client info so we can respond with
                 # the correct format and start to handle multiple clients
                 # in a more robust way.
-                if base_tool in ["cline", "kodu"]:
+                if client_type in [ClientType.CLINE, ClientType.KODU]:
                     # First get the raw dict from the chunk
                     chunk_dict = chunk.model_dump()
                     # Create response dictionary in OpenAI-like format
@@ -82,7 +84,6 @@ class OllamaShim(BaseCompletionHandler):
 
     def __init__(self, base_url):
         self.client = AsyncClient(host=base_url, timeout=300)
-        self.base_tool = ""
 
     async def execute_completion(
         self,
@@ -90,10 +91,8 @@ class OllamaShim(BaseCompletionHandler):
         api_key: Optional[str],
         stream: bool = False,
         is_fim_request: bool = False,
-        base_tool: Optional[str] = "",
     ) -> Union[ChatResponse, GenerateResponse]:
         """Stream response directly from Ollama API."""
-        self.base_tool = base_tool
         if is_fim_request:
             prompt = ""
             for i in reversed(range(len(request["messages"]))):
@@ -120,13 +119,17 @@ class OllamaShim(BaseCompletionHandler):
             )  # type: ignore
         return response
 
-    def _create_streaming_response(self, stream: AsyncIterator[ChatResponse]) -> StreamingResponse:
+    def _create_streaming_response(
+        self,
+        stream: AsyncIterator[ChatResponse],
+        client_type: ClientType,
+    ) -> StreamingResponse:
         """
         Create a streaming response from a stream generator. The StreamingResponse
         is the format that FastAPI expects for streaming responses.
         """
         return StreamingResponse(
-            ollama_stream_generator(stream, self.base_tool or ""),
+            ollama_stream_generator(stream, client_type),
             media_type="application/x-ndjson; charset=utf-8",
             headers={
                 "Cache-Control": "no-cache",

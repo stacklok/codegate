@@ -10,6 +10,7 @@ from fastapi import APIRouter
 from litellm import ModelResponse
 from litellm.types.llms.openai import ChatCompletionRequest
 
+from codegate.clients.clients import ClientType
 from codegate.codegate_logging import setup_logging
 from codegate.db.connection import DbRecorder
 from codegate.pipeline.base import (
@@ -22,7 +23,6 @@ from codegate.providers.completion.base import BaseCompletionHandler
 from codegate.providers.formatting.input_pipeline import PipelineResponseFormatter
 from codegate.providers.normalizer.base import ModelInputNormalizer, ModelOutputNormalizer
 from codegate.providers.normalizer.completion import CompletionNormalizer
-from codegate.utils.utils import get_tool_name_from_messages
 
 setup_logging()
 logger = structlog.get_logger("codegate")
@@ -74,7 +74,13 @@ class BaseProvider(ABC):
         pass
 
     @abstractmethod
-    async def process_request(self, data: dict, api_key: str, request_url_path: str):
+    async def process_request(
+        self,
+        data: dict,
+        api_key: str,
+        request_url_path: str,
+        client_type: ClientType,
+    ):
         pass
 
     @property
@@ -131,15 +137,16 @@ class BaseProvider(ABC):
         normalized_request: ChatCompletionRequest,
         api_key: Optional[str],
         api_base: Optional[str],
+        client_type: ClientType,
         is_fim_request: bool,
     ) -> PipelineResult:
         # Decide which pipeline processor to use
         if is_fim_request:
-            pipeline_processor = self._pipeline_factory.create_fim_pipeline()
+            pipeline_processor = self._pipeline_factory.create_fim_pipeline(client_type)
             logger.info("FIM pipeline selected for execution.")
             normalized_request = self._fim_normalizer.normalize(normalized_request)
         else:
-            pipeline_processor = self._pipeline_factory.create_input_pipeline()
+            pipeline_processor = self._pipeline_factory.create_input_pipeline(client_type)
             logger.info("Chat completion pipeline selected for execution.")
         if pipeline_processor is None:
             return PipelineResult(request=normalized_request)
@@ -247,7 +254,11 @@ class BaseProvider(ABC):
                 f.write(str(data))
 
     async def complete(
-        self, data: Dict, api_key: Optional[str], is_fim_request: bool
+        self,
+        data: Dict,
+        api_key: Optional[str],
+        is_fim_request: bool,
+        client_type: ClientType,
     ) -> Union[ModelResponse, AsyncIterator[ModelResponse]]:
         """
         Main completion flow with pipeline integration
@@ -266,12 +277,16 @@ class BaseProvider(ABC):
         # Dump the normalized request
         self._dump_request_response("normalized-request", normalized_request)
         streaming = normalized_request.get("stream", False)
+
+        # Get detected client if available
         input_pipeline_result = await self._run_input_pipeline(
             normalized_request,
             api_key,
             data.get("base_url"),
+            client_type,
             is_fim_request,
         )
+
         if input_pipeline_result.response and input_pipeline_result.context:
             return await self._pipeline_response_formatter.handle_pipeline_response(
                 input_pipeline_result.response, streaming, context=input_pipeline_result.context
@@ -287,14 +302,11 @@ class BaseProvider(ABC):
         # Execute the completion and translate the response
         # This gives us either a single response or a stream of responses
         # based on the streaming flag
-        base_tool = get_tool_name_from_messages(data)
-
         model_response = await self._completion_handler.execute_completion(
             provider_request,
             api_key=api_key,
             stream=streaming,
             is_fim_request=is_fim_request,
-            base_tool=base_tool,
         )
         if not streaming:
             normalized_response = self._output_normalizer.normalize(model_response)

@@ -4,6 +4,7 @@ import re
 import structlog
 from litellm import ChatCompletionRequest
 
+from codegate.clients.clients import ClientType
 from codegate.pipeline.base import (
     AlertSeverity,
     PipelineContext,
@@ -13,7 +14,7 @@ from codegate.pipeline.base import (
 from codegate.pipeline.extract_snippets.extract_snippets import extract_snippets
 from codegate.storage.storage_engine import StorageEngine
 from codegate.utils.package_extractor import PackageExtractor
-from codegate.utils.utils import generate_vector_string, get_tool_name_from_messages
+from codegate.utils.utils import generate_vector_string
 
 logger = structlog.get_logger("codegate")
 
@@ -60,7 +61,7 @@ class CodegateContextRetriever(PipelineStep):
         Use RAG DB to add context to the user request
         """
         # Get the latest user message
-        last_message = self.get_last_user_message_block(request)
+        last_message = self.get_last_user_message_block(request, context.client)
         if not last_message:
             return PipelineResult(request=request)
         user_message, last_user_idx = last_message
@@ -128,14 +129,13 @@ class CodegateContextRetriever(PipelineStep):
             new_request = request.copy()
 
             # perform replacement in all the messages starting from this index
-            base_tool = get_tool_name_from_messages(request)
-            if base_tool != "open interpreter":
+            if context.client != ClientType.OPEN_INTERPRETER:
                 for i in range(last_user_idx, len(new_request["messages"])):
                     message = new_request["messages"][i]
                     message_str = str(message["content"])  # type: ignore
                     context_msg = message_str
                     # Add the context to the last user message
-                    if base_tool in ["cline", "kodu"]:
+                    if context.client in [ClientType.CLINE, ClientType.KODU]:
                         match = re.search(r"<task>\s*(.*?)\s*</task>(.*)", message_str, re.DOTALL)
                         if match:
                             task_content = match.group(1)  # Content within <task>...</task>

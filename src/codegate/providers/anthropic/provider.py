@@ -5,6 +5,8 @@ import httpx
 import structlog
 from fastapi import Header, HTTPException, Request
 
+from codegate.clients.clients import ClientType
+from codegate.clients.detector import DetectClient
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.anthropic.adapter import AnthropicInputNormalizer, AnthropicOutputNormalizer
 from codegate.providers.anthropic.completion_handler import AnthropicCompletion
@@ -51,10 +53,16 @@ class AnthropicProvider(BaseProvider):
 
         return [model["id"] for model in respjson.get("data", [])]
 
-    async def process_request(self, data: dict, api_key: str, request_url_path: str):
+    async def process_request(
+        self,
+        data: dict,
+        api_key: str,
+        request_url_path: str,
+        client_type: ClientType,
+    ):
         is_fim_request = self._is_fim_request(request_url_path, data)
         try:
-            stream = await self.complete(data, api_key, is_fim_request)
+            stream = await self.complete(data, api_key, is_fim_request, client_type)
         except Exception as e:
             #  check if we have an status code there
             if hasattr(e, "status_code"):
@@ -65,7 +73,7 @@ class AnthropicProvider(BaseProvider):
             else:
                 # just continue raising the exception
                 raise e
-        return self._completion_handler.create_response(stream)
+        return self._completion_handler.create_response(stream, client_type)
 
     def _setup_routes(self):
         """
@@ -80,6 +88,7 @@ class AnthropicProvider(BaseProvider):
 
         @self.router.post(f"/{self.provider_route_name}/messages")
         @self.router.post(f"/{self.provider_route_name}/v1/messages")
+        @DetectClient()
         async def create_message(
             request: Request,
             x_api_key: str = Header(None),
@@ -90,4 +99,9 @@ class AnthropicProvider(BaseProvider):
             body = await request.body()
             data = json.loads(body)
 
-            return await self.process_request(data, x_api_key, request.url.path)
+            return await self.process_request(
+                data,
+                x_api_key,
+                request.url.path,
+                request.state.detected_client,
+            )

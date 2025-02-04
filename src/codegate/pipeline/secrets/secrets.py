@@ -272,7 +272,7 @@ class CodegateSecrets(PipelineStep):
         total_matches = []
 
         # get last user message block to get index for the first relevant user message
-        last_user_message = self.get_last_user_message_block(new_request)
+        last_user_message = self.get_last_user_message_block(new_request, context.client)
         last_assistant_idx = -1
         if last_user_message:
             _, user_idx = last_user_message

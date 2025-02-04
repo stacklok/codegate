@@ -9,6 +9,7 @@ from litellm import (
     acompletion,
 )
 
+from codegate.clients.clients import ClientType
 from codegate.providers.base import BaseCompletionHandler, StreamGenerator
 
 logger = structlog.get_logger("codegate")
@@ -43,7 +44,6 @@ class LiteLLmShim(BaseCompletionHandler):
         api_key: Optional[str],
         stream: bool = False,
         is_fim_request: bool = False,
-        base_tool: Optional[str] = "",
     ) -> Union[ModelResponse, AsyncIterator[ModelResponse]]:
         """
         Execute the completion request with LiteLLM's API
@@ -53,7 +53,11 @@ class LiteLLmShim(BaseCompletionHandler):
             return await self._fim_completion_func(**request)
         return await self._completion_func(**request)
 
-    def _create_streaming_response(self, stream: AsyncIterator[Any]) -> StreamingResponse:
+    def _create_streaming_response(
+        self,
+        stream: AsyncIterator[Any],
+        _: ClientType = ClientType.GENERIC,
+    ) -> StreamingResponse:
         """
         Create a streaming response from a stream generator. The StreamingResponse
         is the format that FastAPI expects for streaming responses.

@@ -8,6 +8,7 @@ from llama_cpp.llama_types import (
     CreateChatCompletionStreamResponse,
 )
 
+from codegate.clients.clients import ClientType
 from codegate.config import Config
 from codegate.inference.inference_engine import LlamaCppInferenceEngine
 from codegate.providers.base import BaseCompletionHandler
@@ -52,7 +53,6 @@ class LlamaCppCompletionHandler(BaseCompletionHandler):
         api_key: Optional[str],
         stream: bool = False,
         is_fim_request: bool = False,
-        base_tool: Optional[str] = "",
     ) -> Union[ModelResponse, AsyncIterator[ModelResponse]]:
         """
         Execute the completion request with inference engine API
@@ -85,7 +85,11 @@ class LlamaCppCompletionHandler(BaseCompletionHandler):
 
         return convert_to_async_iterator(response) if stream else response
 
-    def _create_streaming_response(self, stream: AsyncIterator[Any]) -> StreamingResponse:
+    def _create_streaming_response(
+        self,
+        stream: AsyncIterator[Any],
+        client_type: ClientType = ClientType.GENERIC,
+    ) -> StreamingResponse:
         """
         Create a streaming response from a stream generator. The StreamingResponse
         is the format that FastAPI expects for streaming responses.

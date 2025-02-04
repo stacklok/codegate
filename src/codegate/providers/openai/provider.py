@@ -5,6 +5,8 @@ import httpx
 import structlog
 from fastapi import Header, HTTPException, Request
 
+from codegate.clients.clients import ClientType
+from codegate.clients.detector import DetectClient
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.litellmshim import LiteLLmShim, sse_stream_generator
@@ -42,11 +44,22 @@ class OpenAIProvider(BaseProvider):
 
         return [model["id"] for model in jsonresp.get("data", [])]
 
-    async def process_request(self, data: dict, api_key: str, request_url_path: str):
+    async def process_request(
+        self,
+        data: dict,
+        api_key: str,
+        request_url_path: str,
+        client_type: ClientType,
+    ):
         is_fim_request = self._is_fim_request(request_url_path, data)
 
         try:
-            stream = await self.complete(data, api_key, is_fim_request=is_fim_request)
+            stream = await self.complete(
+                data,
+                api_key,
+                is_fim_request=is_fim_request,
+                client_type=client_type,
+            )
         except Exception as e:
             #  check if we have an status code there
             if hasattr(e, "status_code"):
@@ -57,7 +70,7 @@ class OpenAIProvider(BaseProvider):
             else:
                 # just continue raising the exception
                 raise e
-        return self._completion_handler.create_response(stream)
+        return self._completion_handler.create_response(stream, client_type)
 
     def _setup_routes(self):
         """
@@ -69,6 +82,7 @@ class OpenAIProvider(BaseProvider):
         @self.router.post(f"/{self.provider_route_name}/chat/completions")
         @self.router.post(f"/{self.provider_route_name}/completions")
         @self.router.post(f"/{self.provider_route_name}/v1/chat/completions")
+        @DetectClient()
         async def create_completion(
             request: Request,
             authorization: str = Header(..., description="Bearer token"),
@@ -80,4 +94,9 @@ class OpenAIProvider(BaseProvider):
             body = await request.body()
             data = json.loads(body)
 
-            return await self.process_request(data, api_key, request.url.path)
+            return await self.process_request(
+                data,
+                api_key,
+                request.url.path,
+                request.state.detected_client,
+            )

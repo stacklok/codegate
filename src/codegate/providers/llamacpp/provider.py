@@ -5,6 +5,8 @@ from typing import List
 import structlog
 from fastapi import HTTPException, Request
 
+from codegate.clients.clients import ClientType
+from codegate.clients.detector import DetectClient
 from codegate.config import Config
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.base import BaseProvider, ModelFetchError
@@ -43,10 +45,18 @@ class LlamaCppProvider(BaseProvider):
             if model.is_file() and model.stem != "all-minilm-L6-v2-q5_k_m"
         ]
 
-    async def process_request(self, data: dict, api_key: str, request_url_path: str):
+    async def process_request(
+        self,
+        data: dict,
+        api_key: str,
+        request_url_path: str,
+        client_type: ClientType,
+    ):
         is_fim_request = self._is_fim_request(request_url_path, data)
         try:
-            stream = await self.complete(data, None, is_fim_request=is_fim_request)
+            stream = await self.complete(
+                data, None, is_fim_request=is_fim_request, client_type=client_type
+            )
         except RuntimeError as e:
             # propagate as error 500
             logger.error("Error in LlamaCppProvider completion", error=str(e))
@@ -61,7 +71,7 @@ class LlamaCppProvider(BaseProvider):
             else:
                 # just continue raising the exception
                 raise e
-        return self._completion_handler.create_response(stream)
+        return self._completion_handler.create_response(stream, client_type)
 
     def _setup_routes(self):
         """
@@ -71,11 +81,16 @@ class LlamaCppProvider(BaseProvider):
 
         @self.router.post(f"/{self.provider_route_name}/completions")
         @self.router.post(f"/{self.provider_route_name}/chat/completions")
+        @DetectClient()
         async def create_completion(
             request: Request,
         ):
             body = await request.body()
             data = json.loads(body)
             data["base_url"] = Config.get_config().model_base_path
-
-            return await self.process_request(data, None, request.url.path)
+            return await self.process_request(
+                data,
+                None,
+                request.url.path,
+                request.state.detected_client,
+            )
