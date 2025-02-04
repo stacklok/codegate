@@ -235,9 +235,9 @@ def _clean_secrets_from_message(message: str) -> str:
     return pattern.sub("REDACTED_SECRET", message)
 
 
-def _group_partial_messages(
+def _group_partial_messages(  # noqa: C901
     pq_list: List[PartialQuestions],
-) -> List[List[PartialQuestions]]:  # noqa: C901
+) -> List[List[PartialQuestions]]:
     """
     A PartialQuestion is an object that contains several user messages provided from a
     chat conversation. Example:
@@ -272,9 +272,7 @@ def _group_partial_messages(
         # (If sup's messages == sub's messages, that also counts, because sub ⊆ sup)
         possible_subsets: List[PartialQuestions] = []
         for sub in pq_list_sorted:
-            if sub.message_id == sup.message_id:
-                continue
-            if sub.message_id in used:
+            if sub.message_id == sup.message_id or sub.message_id in used:
                 continue
             if (
                 set(sub.messages).issubset(set(sup.messages))
@@ -283,10 +281,23 @@ def _group_partial_messages(
             ):
                 possible_subsets.append(sub)
 
-        # 3) If there are no subsets, this sup stands alone
+        # 3) If there are no subsets, check for time-based grouping
         if not possible_subsets:
-            groups.append([sup])
+            new_group = [sup]
             used.add(sup.message_id)
+
+            for other in pq_list_sorted:
+                if other.message_id in used or other.message_id == sup.message_id:
+                    continue
+                if abs((other.timestamp - sup.timestamp).total_seconds()) <= 5 and set(
+                    other.messages
+                ) & set(
+                    sup.messages
+                ):  # At least one message in common
+                    new_group.append(other)
+                    used.add(other.message_id)
+
+            groups.append(new_group)
         else:
             # 4) Group subsets by messages to discard duplicates e.g.: 2 subsets with single 'hello'
             subs_group_by_messages = defaultdict(list)
