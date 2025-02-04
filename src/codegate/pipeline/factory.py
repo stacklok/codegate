@@ -8,6 +8,11 @@ from codegate.pipeline.codegate_context_retriever.codegate import CodegateContex
 from codegate.pipeline.extract_snippets.extract_snippets import CodeSnippetExtractor
 from codegate.pipeline.extract_snippets.output import CodeCommentStep
 from codegate.pipeline.output import OutputPipelineProcessor, OutputPipelineStep
+from codegate.pipeline.pii.pii import (
+    CodegatePii,
+    PiiRedactionNotifier,
+    PiiUnRedactionStep,
+)
 from codegate.pipeline.secrets.manager import SecretsManager
 from codegate.pipeline.secrets.secrets import (
     CodegateSecrets,
@@ -28,6 +33,7 @@ class PipelineFactory:
             # and without obfuscating the secrets, we'd leak the secrets during those
             # later steps
             CodegateSecrets(),
+            CodegatePii(),
             CodegateCli(),
             CodeSnippetExtractor(),
             CodegateContextRetriever(),
@@ -43,6 +49,7 @@ class PipelineFactory:
     def create_fim_pipeline(self, client_type: ClientType) -> SequentialPipelineProcessor:
         fim_steps: List[PipelineStep] = [
             CodegateSecrets(),
+            CodegatePii(),
         ]
         return SequentialPipelineProcessor(
             fim_steps,
@@ -55,6 +62,8 @@ class PipelineFactory:
         output_steps: List[OutputPipelineStep] = [
             SecretRedactionNotifier(),
             SecretUnredactionStep(),
+            PiiRedactionNotifier(),
+            PiiUnRedactionStep(),
             CodeCommentStep(),
         ]
         return OutputPipelineProcessor(output_steps)
