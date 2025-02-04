@@ -1,11 +1,9 @@
 from typing import List, NamedTuple
 
 import pytest
-from litellm.types.llms.openai import ChatCompletionRequest
 
-from codegate.pipeline.base import CodeSnippet, PipelineContext
+from codegate.pipeline.base import CodeSnippet
 from codegate.pipeline.extract_snippets.extract_snippets import (
-    CodeSnippetExtractor,
     ecosystem_from_filepath,
     extract_snippets,
 )
@@ -186,81 +184,3 @@ def test_valid_extensions(filepath, expected):
 )
 def test_no_or_unknown_extensions(filepath):
     assert ecosystem_from_filepath(filepath) is None
-
-
-@pytest.mark.asyncio
-async def test_code_snippet_extractor():
-    # Create a mock ChatCompletionRequest with a code snippet in the message
-    mock_request = {
-        "messages": [
-            {
-                "role": "user",
-                "content": """
-                Here's a Python snippet:
-                ```main.py
-                def hello():
-                    print("Hello, world!")
-                ```
-                """,
-            }
-        ]
-    }
-
-    # Create a pipeline context
-    context = PipelineContext()
-
-    # Instantiate the extractor
-    extractor = CodeSnippetExtractor()
-
-    # Process the request
-    result = await extractor.process(ChatCompletionRequest(**mock_request), context)
-
-    # Assertions
-    assert result.context is not None
-    assert len(result.context.code_snippets) == 1
-
-    # Verify the extracted snippet
-    snippet = result.context.code_snippets[0]
-    assert snippet.language == "python"
-    assert snippet.filepath == "main.py"
-    assert 'print("Hello, world!")' in snippet.code
-
-
-@pytest.mark.asyncio
-async def test_code_snippet_extractor_no_snippets():
-    # Create a mock ChatCompletionRequest without code snippets
-    mock_request = {
-        "messages": [{"role": "user", "content": "Just a plain text message with no code"}]
-    }
-
-    # Create a pipeline context
-    context = PipelineContext()
-
-    # Instantiate the extractor
-    extractor = CodeSnippetExtractor()
-
-    # Process the request
-    result = await extractor.process(ChatCompletionRequest(**mock_request), context)
-
-    # Assertions
-    assert result.context is not None
-    assert len(result.context.code_snippets) == 0
-
-
-@pytest.mark.asyncio
-async def test_code_snippet_extractor_no_messages():
-    # Create a mock ChatCompletionRequest with no messages
-    mock_request = {}
-
-    # Create a pipeline context
-    context = PipelineContext()
-
-    # Instantiate the extractor
-    extractor = CodeSnippetExtractor()
-
-    # Process the request
-    result = await extractor.process(ChatCompletionRequest(**mock_request), context)
-
-    # Assertions
-    assert result.context is not None
-    assert len(result.context.code_snippets) == 0

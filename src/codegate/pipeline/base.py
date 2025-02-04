@@ -71,7 +71,6 @@ class PipelineSensitiveData:
 
 @dataclass
 class PipelineContext:
-    code_snippets: List[CodeSnippet] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
     sensitive: Optional[PipelineSensitiveData] = field(default_factory=lambda: None)
     alerts_raised: List[Alert] = field(default_factory=list)
@@ -82,12 +81,6 @@ class PipelineContext:
     bad_packages_found: bool = False
     secrets_found: bool = False
     client: ClientType = ClientType.GENERIC
-
-    def add_code_snippet(self, snippet: CodeSnippet):
-        self.code_snippets.append(snippet)
-
-    def get_snippets_by_language(self, language: str) -> List[CodeSnippet]:
-        return [s for s in self.code_snippets if s.language.lower() == language.lower()]
 
     def add_alert(
         self,

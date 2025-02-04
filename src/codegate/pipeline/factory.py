@@ -5,7 +5,6 @@ from codegate.config import Config
 from codegate.pipeline.base import PipelineStep, SequentialPipelineProcessor
 from codegate.pipeline.cli.cli import CodegateCli
 from codegate.pipeline.codegate_context_retriever.codegate import CodegateContextRetriever
-from codegate.pipeline.extract_snippets.extract_snippets import CodeSnippetExtractor
 from codegate.pipeline.extract_snippets.output import CodeCommentStep
 from codegate.pipeline.output import OutputPipelineProcessor, OutputPipelineStep
 from codegate.pipeline.secrets.manager import SecretsManager
@@ -29,7 +28,6 @@ class PipelineFactory:
             # later steps
             CodegateSecrets(),
             CodegateCli(),
-            CodeSnippetExtractor(),
             CodegateContextRetriever(),
             SystemPrompt(Config.get_config().prompts.default_chat),
         ]

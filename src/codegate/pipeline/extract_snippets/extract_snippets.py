@@ -3,10 +3,9 @@ import re
 from typing import List, Optional
 
 import structlog
-from litellm.types.llms.openai import ChatCompletionRequest
 from pygments.lexers import guess_lexer
 
-from codegate.pipeline.base import CodeSnippet, PipelineContext, PipelineResult, PipelineStep
+from codegate.pipeline.base import CodeSnippet
 
 CODE_BLOCK_PATTERN = re.compile(
     r"```"  # Opening backticks, no whitespace after backticks and before language
@@ -130,40 +129,3 @@ def extract_snippets(message: str) -> List[CodeSnippet]:
         snippets.append(CodeSnippet(filepath=filename, code=content, language=lang))
 
     return snippets
-
-
-class CodeSnippetExtractor(PipelineStep):
-    """
-    Pipeline step that merely extracts code snippets from the user message.
-    """
-
-    def __init__(self):
-        """Initialize the CodeSnippetExtractor pipeline step."""
-        super().__init__()
-
-    @property
-    def name(self) -> str:
-        return "code-snippet-extractor"
-
-    async def process(
-        self,
-        request: ChatCompletionRequest,
-        context: PipelineContext,
-    ) -> PipelineResult:
-        last_message = self.get_last_user_message_block(request, context.client)
-        if not last_message:
-            return PipelineResult(request=request, context=context)
-        msg_content, _ = last_message
-        snippets = extract_snippets(msg_content)
-
-        logger.info(f"Extracted {len(snippets)} code snippets from the user message")
-
-        if len(snippets) > 0:
-            for snippet in snippets:
-                context.add_alert(self.name, code_snippet=snippet)
-                logger.debug(f"Code snippet: {snippet}")
-                context.add_code_snippet(snippet)
-
-        return PipelineResult(
-            context=context,
-        )
