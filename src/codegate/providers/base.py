@@ -12,6 +12,7 @@ from litellm.types.llms.openai import ChatCompletionRequest
 
 from codegate.clients.clients import ClientType
 from codegate.codegate_logging import setup_logging
+from codegate.config import Config
 from codegate.db.connection import DbRecorder
 from codegate.pipeline.base import (
     PipelineContext,
@@ -87,6 +88,13 @@ class BaseProvider(ABC):
     @abstractmethod
     def provider_route_name(self) -> str:
         pass
+
+    def _get_base_url(self) -> str:
+        """
+        Get the base URL from config with proper formatting
+        """
+        config = Config.get_config()
+        return config.provider_urls.get(self.provider_route_name) if config else ""
 
     async def _run_output_stream_pipeline(
         self,

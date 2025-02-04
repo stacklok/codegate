@@ -39,8 +39,7 @@ class VLLMProvider(BaseProvider):
         """
         Get the base URL from config with proper formatting
         """
-        config = Config.get_config()
-        base_url = config.provider_urls.get("vllm") if config else ""
+        base_url = super()._get_base_url()
         if base_url:
             base_url = base_url.rstrip("/")
             # Add /v1 if not present
