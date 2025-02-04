@@ -160,13 +160,14 @@ class OpenInterpreter(BaseClientDetector):
         return ClientType.OPEN_INTERPRETER
 
 
-class CopilotDetector(HeaderDetector):
+class CopilotDetector(BaseClientDetector):
     """
     Detector for Copilot client based on user agent
     """
 
     def __init__(self):
-        super().__init__("user-agent", "Copilot")
+        super().__init__()
+        self.user_agent_detector = UserAgentDetector("Copilot")
 
     @property
     def client_name(self) -> ClientType:
