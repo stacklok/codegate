@@ -291,6 +291,9 @@ async def main():
         )
         all_tests_passed = all_tests_passed and provider_tests_passed
 
+    # Exit with status code 1 if any tests failed
+    if not all_tests_passed:
+        sys.exit(1)
 
 if __name__ == "__main__":
     asyncio.run(main())
