@@ -2,6 +2,7 @@ from typing import List, Optional
 from uuid import UUID
 
 import requests
+from codegate.pipeline.base import AlertSeverity
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import StreamingResponse
@@ -379,7 +380,7 @@ async def get_workspace_alerts(workspace_name: str) -> List[Optional[v1_models.A
         raise HTTPException(status_code=500, detail="Internal server error")
 
     try:
-        alerts = await dbreader.get_alerts_by_workspace(ws.id)
+        alerts = await dbreader.get_alerts_by_workspace(ws.id, AlertSeverity.CRITICAL.value)
         prompts_outputs = await dbreader.get_prompts_with_output(ws.id)
         return await v1_processing.parse_get_alert_conversation(alerts, prompts_outputs)
     except Exception:

@@ -580,7 +580,9 @@ class DbReader(DbCodeGate):
         )
         return prompts
 
-    async def get_alerts_by_workspace(self, workspace_id: str) -> List[Alert]:
+    async def get_alerts_by_workspace(
+        self, workspace_id: str, trigger_category: Optional[str] = None
+    ) -> List[Alert]:
         sql = text(
             """
             SELECT
@@ -594,10 +596,16 @@ class DbReader(DbCodeGate):
             FROM alerts a
             INNER JOIN prompts p ON p.id = a.prompt_id
             WHERE p.workspace_id = :workspace_id
-            ORDER BY a.timestamp DESC
-            """
+        """
         )
         conditions = {"workspace_id": workspace_id}
+
+        if trigger_category:
+            sql = text(sql.text + " AND a.trigger_category = :trigger_category")
+            conditions["trigger_category"] = trigger_category
+
+        sql = text(sql.text + " ORDER BY a.timestamp DESC")
+
         prompts = await self._exec_select_conditions_to_pydantic(
             Alert, sql, conditions, should_raise=True
         )
