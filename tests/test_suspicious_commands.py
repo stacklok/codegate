@@ -3,8 +3,10 @@
 Testing the suspicious commands
 """
 import os
-import pytest
+
 import pandas as pd
+import pytest
+
 from codegate.pipeline.suspicious_commands.suspicious_commands import (
     SuspiciousCommands,
 )

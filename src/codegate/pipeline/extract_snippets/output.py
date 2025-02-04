@@ -53,7 +53,7 @@ class CodeCommentStep(OutputPipelineStep):
                 liklihood = "likely"
             if snippet.language is not None:
                 language = snippet.language
-            comment = f"{comment}\n\n🛡️ CodeGate: The {language} supplied is {liklihood} unsafe. Please check carefully!\n\n"
+            comment = f"{comment}\n\n🛡️ CodeGate: The {language} supplied is {liklihood} unsafe. Please check carefully!\n\n"  # noqa: E501
 
         snippet.libraries = PackageExtractor.extract_packages(snippet.code, snippet.language)
 

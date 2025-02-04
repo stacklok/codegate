@@ -3,12 +3,14 @@ A module for spotting suspicious commands using the embeddings
 from our local LLM and a futher ANN categorisier.
 """
 
+import os
+
 import h5py
 import torch
 from torch import nn
+
 from codegate.config import Config
 from codegate.inference.inference_engine import LlamaCppInferenceEngine
-import os
 
 
 class SimpleNN(nn.Module):
