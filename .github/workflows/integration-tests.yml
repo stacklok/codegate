@@ -138,47 +138,92 @@ jobs:
 
       - name: Run the Ollama container (ollama-only)
         if: ${{ matrix.test-provider == 'ollama' }} # This is only needed for Ollama
+        timeout-minutes: 15
+        env:
+          MAX_RETRIES: 3
         run: |
-          docker run -d -v ollama:/root/.ollama --network host --name ollama ollama/ollama
-          docker ps -f name=ollama
-          echo "Loop until the endpoint responds successfully"
-          while ! curl --silent --fail --get "http://localhost:11434" >/dev/null; do
-            echo "Ollama not available yet. Retrying in 2 seconds..."
-            sleep 2
-          done
-          echo "Ollama is now available!"
-
-          # Run the model
-          docker exec -d ollama ollama run qwen2.5-coder:0.5b
-
-          echo "Waiting for model to be ready..."
-          while true; do
-            # Try to make a test query to the model
+          function check_model_ready() {
             response=$(curl -s http://localhost:11434/api/generate -d '{
               "model": "qwen2.5-coder:0.5b",
               "prompt": "Why is the sky blue?",
               "stream": false
             }' 2>&1)
 
-            # Check if the response contains an error
-            if echo "$response" | grep -q "error"; then
-              echo "Model not ready yet. Retrying in 5 seconds..."
+            if ! echo "$response" | grep -q "error"; then
+              return 0  # Success
+            fi
+            return 1  # Not ready/error
+          }
+
+          function cleanup_container() {
+            docker stop ollama >/dev/null 2>&1 || true
+            docker rm ollama >/dev/null 2>&1 || true
+            sleep 2
+          }
+
+          retry_count=0
+          while [ $retry_count -lt $MAX_RETRIES ]; do
+            # Cleanup any existing container
+            cleanup_container
+
+            echo "Starting Ollama container (Attempt $(($retry_count + 1))/$MAX_RETRIES)"
+            docker run -d -v ollama:/root/.ollama --network host --name ollama ollama/ollama
+
+            # Wait for endpoint to be available
+            endpoint_wait=0
+            while [ $endpoint_wait -lt 30 ]; do
+              if curl --silent --fail --get "http://localhost:11434" >/dev/null; then
+                echo "Ollama endpoint is available"
+                break
+              fi
+              sleep 2
+              endpoint_wait=$((endpoint_wait + 1))
+            done
+
+            if [ $endpoint_wait -eq 30 ]; then
+              echo "Endpoint never became available, retrying..."
+              retry_count=$((retry_count + 1))
+              continue
+            fi
+
+            echo "Starting model download/initialization..."
+            docker exec -d ollama ollama run qwen2.5-coder:0.5b
+
+            # Monitor container and model status
+            monitor_count=0
+            while [ $monitor_count -lt 60 ]; do  # 5 minute timeout per attempt
+              # Check if container is still running
+              if ! docker ps | grep -q ollama; then
+                echo "Container crashed, logs:"
+                docker logs ollama
+                retry_count=$((retry_count + 1))
+                break
+              fi
+
+              # Check if model is ready
+              if check_model_ready; then
+                echo "Model is ready!"
+                exit 0  # Success!
+              fi
+
+              echo "Model not ready yet. Waiting... ($(($monitor_count + 1))/60)"
               sleep 5
-            else
-              echo "Model is ready!"
-              break
+              monitor_count=$((monitor_count + 1))
+            done
+
+            if [ $monitor_count -eq 60 ]; then
+              echo "Timeout waiting for model, container logs:"
+              docker logs ollama
+              retry_count=$((retry_count + 1))
             fi
           done
 
-          # Verify the Ollama API is working
-          curl http://localhost:11434/api/generate -d '{
-            "model": "qwen2.5-coder:0.5b",
-            "prompt": "Why is the sky blue?",
-            "stream": false
-          }'
+          echo "Failed after $MAX_RETRIES attempts"
+          exit 1
 
       - name: Build and run the vllm container (vllm-only)
         if: ${{ matrix.test-provider == 'vllm' }} # This is only needed for VLLM
+        timeout-minutes: 10
         run: |
           # We clone the VLLM repo and build the container because the CPU-mode container is not published
           git clone https://github.com/vllm-project/vllm.git
