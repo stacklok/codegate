@@ -9,7 +9,6 @@ from litellm import atext_completion
 
 from codegate.clients.clients import ClientType
 from codegate.clients.detector import DetectClient
-from codegate.config import Config
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.litellmshim import LiteLLmShim, sse_stream_generator
