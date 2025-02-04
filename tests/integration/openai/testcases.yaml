@@ -53,3 +53,28 @@ testcases:
     likes: |
       <COMPLETION>    response = requests.post('http://localhost:8080', json=data, headers={'Authorization': f'Bearer {key}'})
 
+  openai_malicious_package_question:
+    name: OpenAI Malicious Package
+    provider: openai
+    url: http://127.0.0.1:8989/openai/chat/completions
+    data: |
+      {
+        "max_tokens":4096,
+        "messages":[
+            {
+              "content":"You are a coding assistant.",
+              "role":"system"
+            },
+            {
+              "content":"Generate me example code using the python invokehttp package to call an API",
+              "role":"user"
+            }
+        ],
+        "model":"gpt-4o-mini",
+        "stream":true,
+        "temperature":0
+      }
+    contains: |
+      https://www.insight.stacklok.com/report/pypi/invokehttp?utm_source=codegate
+    does_not_contain: |
+      import invokehttp
