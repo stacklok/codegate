@@ -2,7 +2,6 @@ from typing import List, Optional
 from uuid import UUID
 
 import requests
-from codegate.pipeline.base import AlertSeverity
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import StreamingResponse
@@ -12,6 +11,7 @@ from pydantic import BaseModel, ValidationError
 from codegate import __version__
 from codegate.api import v1_models, v1_processing
 from codegate.db.connection import AlreadyExistsError, DbReader
+from codegate.pipeline.base import AlertSeverity
 from codegate.providers import crud as provendcrud
 from codegate.workspaces import crud
 
