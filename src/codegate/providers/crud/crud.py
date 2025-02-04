@@ -114,7 +114,7 @@ class ProviderCrud:
         return apimodelsv1.ProviderEndpoint.from_db_model(dbendpoint)
 
     async def update_endpoint(
-        self, endpoint: apimodelsv1.AddProviderEndpointRequest
+        self, endpoint: apimodelsv1.ProviderEndpoint
     ) -> apimodelsv1.ProviderEndpoint:
         """Update an endpoint."""
 
@@ -134,52 +134,7 @@ class ProviderCrud:
         if founddbe is None:
             raise ProviderNotFoundError("Provider not found")
 
-        models = []
-        if endpoint.auth_type == apimodelsv1.ProviderAuthType.api_key and not endpoint.api_key:
-            raise ValueError("API key must be provided for API auth type")
-        if endpoint.auth_type != apimodelsv1.ProviderAuthType.passthrough:
-            try:
-                models = prov.models(endpoint=endpoint.endpoint, api_key=endpoint.api_key)
-            except Exception as err:
-                raise ValueError("Unable to get models from provider: {}".format(str(err)))
-
-        models_set = set(models)
-
-        # Get the models from the provider
-        models_in_db = await self._db_reader.get_provider_models_by_provider_id(str(endpoint.id))
-
-        models_in_db_set = set(model.name for model in models_in_db)
-
-        # Add the models that are in the provider but not in the DB
-        for model in models_set - models_in_db_set:
-            await self._db_writer.add_provider_model(
-                dbmodels.ProviderModel(
-                    provider_endpoint_id=founddbe.id,
-                    name=model,
-                )
-            )
-
-        # Remove the models that are in the DB but not in the provider
-        for model in models_in_db_set - models_set:
-            await self._db_writer.delete_provider_model(
-                founddbe.id,
-                model,
-            )
-
         dbendpoint = await self._db_writer.update_provider_endpoint(endpoint.to_db_model())
-
-        # If an API key was provided or we've changed the auth type, we update the auth material
-        if endpoint.auth_type != founddbe.auth_type or endpoint.api_key:
-            await self._db_writer.push_provider_auth_material(
-                dbmodels.ProviderAuthMaterial(
-                    provider_endpoint_id=dbendpoint.id,
-                    auth_type=endpoint.auth_type,
-                    auth_blob=endpoint.api_key if endpoint.api_key else "",
-                )
-            )
-
-        # a model might have been deleted, let's repopulate the cache
-        await self._ws_crud.repopulate_mux_cache()
 
         return apimodelsv1.ProviderEndpoint.from_db_model(dbendpoint)
 
@@ -203,6 +158,44 @@ class ProviderCrud:
                 auth_blob=config.api_key if config.api_key else "",
             )
         )
+
+        endpoint = apimodelsv1.ProviderEndpoint.from_db_model(dbendpoint)
+        endpoint.auth_type = config.auth_type
+        provider_registry = get_provider_registry()
+        prov = endpoint.get_from_registry(provider_registry)
+
+        models = []
+        if config.auth_type != apimodelsv1.ProviderAuthType.passthrough:
+            try:
+                models = prov.models(endpoint=endpoint.endpoint, api_key=config.api_key)
+            except Exception as err:
+                raise ValueError("Unable to get models from provider: {}".format(str(err)))
+
+        models_set = set(models)
+
+        # Get the models from the provider
+        models_in_db = await self._db_reader.get_provider_models_by_provider_id(str(endpoint.id))
+
+        models_in_db_set = set(model.name for model in models_in_db)
+
+        # Add the models that are in the provider but not in the DB
+        for model in models_set - models_in_db_set:
+            await self._db_writer.add_provider_model(
+                dbmodels.ProviderModel(
+                    provider_endpoint_id=dbendpoint.id,
+                    name=model,
+                )
+            )
+
+        # Remove the models that are in the DB but not in the provider
+        for model in models_in_db_set - models_set:
+            await self._db_writer.delete_provider_model(
+                dbendpoint.id,
+                model,
+            )
+
+        # a model might have been deleted, let's repopulate the cache
+        await self._ws_crud.repopulate_mux_cache()
 
     async def delete_endpoint(self, provider_id: UUID):
         """Delete an endpoint."""
