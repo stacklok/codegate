@@ -43,17 +43,17 @@ class CodeCommentStep(OutputPipelineStep):
 
     async def _snippet_comment(self, snippet: CodeSnippet, context: PipelineContext) -> str:
         """Create a comment for a snippet"""
-        comment = ''
+        comment = ""
         sc = SuspiciousCommands.get_instance()
         class_, prob = await sc.classify_phrase(snippet.code)
         if class_ == 1:
-            liklihood = 'possibly'
-            language = 'code'
+            liklihood = "possibly"
+            language = "code"
             if prob > 0.9:
-                liklihood = 'likely'
+                liklihood = "likely"
             if snippet.language is not None:
                 language = snippet.language
-            comment = f'{comment}\n\n🛡️ CodeGate: The {language} supplied is {liklihood} unsafe. Please check carefully!\n\n'
+            comment = f"{comment}\n\n🛡️ CodeGate: The {language} supplied is {liklihood} unsafe. Please check carefully!\n\n"
 
         snippet.libraries = PackageExtractor.extract_packages(snippet.code, snippet.language)
 
