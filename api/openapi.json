@@ -266,7 +266,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AddProviderEndpointRequest"
+                "$ref": "#/components/schemas/ProviderEndpoint"
               }
             }
           }
