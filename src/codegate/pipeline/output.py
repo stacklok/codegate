@@ -8,7 +8,8 @@ from litellm import ModelResponse
 from litellm.types.utils import Delta, StreamingChoices
 
 from codegate.db.connection import DbRecorder
-from codegate.pipeline.base import CodeSnippet, PipelineContext
+from codegate.extract_snippets.message_extractor import CodeSnippet
+from codegate.pipeline.base import PipelineContext
 
 logger = structlog.get_logger("codegate")
 
