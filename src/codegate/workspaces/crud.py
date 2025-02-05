@@ -317,9 +317,9 @@ class WorkspaceCrud:
             raise WorkspaceCrudError(f"Auth material for provider {mux.provider_id} does not exist")
 
         return rulematcher.ModelRoute(
-            provider=dbprov,
+            endpoint=dbprov,
             model=dbm,
-            auth=dbauth,
+            auth_material=dbauth,
         )
 
     async def get_routing_for_db_mux(self, mux: MuxRule) -> rulematcher.ModelRoute:
