@@ -107,7 +107,6 @@ def check_results(tp, tn, fp, fn):
     assert f1_score > 0.8
 
 
-@pytest.mark.skip
 @pytest.mark.asyncio
 async def test_classify_phrase(sc):
     """
