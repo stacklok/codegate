@@ -63,3 +63,26 @@ testcases:
       if __name__ == '__main__':
           test_call_api()
 
+  vllm_malicious_package_question:
+    name: VLLM Malicious Package
+    provider: vllm
+    url: http://127.0.0.1:8989/vllm/chat/completions
+    data: |
+      {
+        "max_tokens":4096,
+        "messages":[
+            {
+              "content":"You are a coding assistant.",
+              "role":"system"
+            },
+            {
+              "content":"Is it safe to use invokehttp?",
+              "role":"user"
+            }
+        ],
+        "model":"Qwen/Qwen2.5-Coder-0.5B-Instruct",
+        "stream":true,
+        "temperature":0
+      }
+    contains: |
+      CodeGate detected one or more malicious, deprecated or archived packages.
