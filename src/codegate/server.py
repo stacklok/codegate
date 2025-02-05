@@ -73,11 +73,11 @@ def init_app(pipeline_factory: PipelineFactory) -> CodeGateServer:
 
     # Register all known providers
     registry.add_provider(
-        ProviderType.openrouter,
+        ProviderType.openai,
         OpenAIProvider(pipeline_factory),
     )
     registry.add_provider(
-        ProviderType.openai,
+        ProviderType.openrouter,
         OpenRouterProvider(pipeline_factory),
     )
     registry.add_provider(
