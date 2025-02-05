@@ -50,16 +50,9 @@ class LiteLLmShim(BaseCompletionHandler):
         """
         Execute the completion request with LiteLLM's API
         """
-        request["api_key"] = api_key
-        request["base_url"] = base_url
         if is_fim_request:
-            # We need to force atext_completion if there is "prompt" in the request.
-            # The default function acompletion can only handle "messages" in the request.
-            if "prompt" in request:
-                logger.debug("Forcing atext_completion in FIM")
-                return await atext_completion(**request)
-            return await self._fim_completion_func(**request)
-        return await self._completion_func(**request)
+            return await self._fim_completion_func(request, api_key=api_key)
+        return await self._completion_func(request, api_key=api_key)
 
     def _create_streaming_response(
         self,
