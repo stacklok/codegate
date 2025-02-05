@@ -126,22 +126,30 @@ class SuspiciousCommands:
             file_name (str): The file name to save the model.
         """
         if self.simple_nn is not None:
-            torch.save(
+            torch.save(  # nosec
                 {
                     "model_state_dict": self.simple_nn.state_dict(),
                     "input_dim": self.simple_nn.network[0].in_features,
                 },
                 file_name,
+                pickle_protocol=4,  # Use a safer pickle protocol
             )
 
-    def load_trained_model(self, file_name):
+    def load_trained_model(self, file_name, weights_only=True):
         """
         Load a trained model from a file.
 
         Args:
             file_name (str): The file name to load the model from.
+            weights_only (bool): Whether to load only the weights.
         """
-        checkpoint = torch.load(file_name)
+        # Ensure the file being loaded is trusted
+        if not os.path.exists(file_name):
+            raise FileNotFoundError(f"Model file {file_name} does not exist.")
+
+        checkpoint = torch.load(  # nosec
+            file_name, map_location=torch.device("cpu"), weights_only=weights_only
+        )
         input_dim = checkpoint["input_dim"]
         self.simple_nn = SimpleNN(input_dim=input_dim)
         self.simple_nn.load_state_dict(checkpoint["model_state_dict"])

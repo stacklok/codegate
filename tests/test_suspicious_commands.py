@@ -47,8 +47,7 @@ def sc():
         SuspiciousCommands: Initialized instance with loaded model.
     """
     sc1 = SuspiciousCommands()
-    if os.path.exists(MODEL_FILE):
-        sc1.load_trained_model(MODEL_FILE)
+    sc1.load_trained_model(MODEL_FILE, weights_only=False)
     return sc1
 
 
@@ -59,8 +58,7 @@ def test_initialization(sc):
         sc (SuspiciousCommands): The instance to test.
     """
     assert sc.inference_engine is not None
-    if os.path.exists(MODEL_FILE):
-        assert sc.simple_nn is not None
+    assert sc.simple_nn is not None
 
 
 @pytest.mark.asyncio
@@ -85,7 +83,7 @@ async def test_save_and_load_model():
     Test saving and loading the trained model.
     """
     sc2 = SuspiciousCommands()
-    sc2.load_trained_model(MODEL_FILE)
+    sc2.load_trained_model(MODEL_FILE, weights_only=False)
     assert sc2.simple_nn is not None
     class_, prob = await sc2.classify_phrase("brew list")
     assert 0 == class_
