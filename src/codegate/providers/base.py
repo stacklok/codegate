@@ -173,7 +173,7 @@ class BaseProvider(ABC):
         result = await pipeline_processor.process_request(
             request=normalized_request,
             provider=self.provider_route_name,
-            model=normalized_request.get("model"),
+            model=normalized_request.get_model(),
             api_key=api_key,
             api_base=api_base,
         )
@@ -240,13 +240,13 @@ class BaseProvider(ABC):
         normalized_request = self._input_normalizer.normalize(data)
         # Dump the normalized request
         self._dump_request_response("normalized-request", normalized_request)
-        streaming = normalized_request.get("stream", False)
+        streaming = normalized_request.get_stream()
 
         # Get detected client if available
         input_pipeline_result = await self._run_input_pipeline(
             normalized_request,
             api_key,
-            data.get("base_url"),
+            None, # data.get("base_url"),
             client_type,
             is_fim_request,
         )
