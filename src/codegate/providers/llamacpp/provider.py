@@ -38,12 +38,16 @@ class LlamaCppProvider(BaseProvider):
         if not models_path.is_dir():
             raise ModelFetchError(f"llamacpp model path does not exist: {models_path}")
 
-        # return all models except the all-minilm-L6-v2-q5_k_m model which we use for embeddings
-        return [
+        # get all models except the all-minilm-L6-v2-q5_k_m model which we use for embeddings
+        found_models = [
             model.stem
             for model in models_path.glob("*.gguf")
             if model.is_file() and model.stem != "all-minilm-L6-v2-q5_k_m"
         ]
+        if len(found_models) == 0:
+            raise ModelFetchError("Not found models for llamacpp provider")
+
+        return found_models
 
     async def process_request(
         self,
