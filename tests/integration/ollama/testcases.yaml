@@ -76,7 +76,7 @@ testcases:
               "role":"system"
             },
             {
-              "content":"Generate me example code using the python invokehttp package to call an API",
+              "content":"Is it safe to use invokehttp?",
               "role":"user"
             }
         ],

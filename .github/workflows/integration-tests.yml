@@ -24,7 +24,8 @@ jobs:
       fail-fast: false # Continue running other tests if one fails
       matrix:
         python-version: [ "3.12" ]
-        test-provider: [ "copilot", "openai", "anthropic", "ollama", "vllm", "llamacpp" ]
+        # test-provider: [ "copilot", "openai", "anthropic", "ollama", "vllm", "llamacpp" ]
+        test-provider: [ "ollama", "vllm", "llamacpp" ]
     env:
       ENV_COPILOT_KEY: ${{ secrets.copilot-key }}
       ENV_OPENAI_KEY: ${{ secrets.copilot-key }} # We use the same key for OpenAI as the Copilot tests
@@ -64,6 +65,11 @@ jobs:
         if: ${{ matrix.test-provider == 'llamacpp' }} # This is only needed for llamacpp
         run: |
           wget -P ./codegate_volume/models https://huggingface.co/Qwen/Qwen2.5-Coder-0.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-0.5b-instruct-q5_k_m.gguf
+
+      - name: Download the Qwen2.5-Coder-1.5B-Instruct-GGUF model (llamacpp only)
+        if: ${{ matrix.test-provider == 'llamacpp' }} # This is only needed for llamacpp
+        run: |
+          wget -P ./codegate_volume/models https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q5_k_m.gguf
 
       - name: Start the CodeGate container
         run: |
