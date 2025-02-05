@@ -9,6 +9,7 @@ from litellm.types.utils import Delta, StreamingChoices
 from codegate.config import Config
 from codegate.pipeline.base import (
     AlertSeverity,
+    CodeSnippet,
     PipelineContext,
     PipelineResult,
     PipelineStep,
@@ -44,7 +45,9 @@ class SecretsModifier:
         pass
 
     @abstractmethod
-    def _notify_secret(self, match: Match, protected_text: List[str]) -> None:
+    def _notify_secret(
+        self, match: Match, code_snippet: Optional[CodeSnippet], protected_text: List[str]
+    ) -> None:
         """
         Notify about a found secret
         TODO: If the secret came from a CodeSnippet we should notify about that. This would
@@ -185,11 +188,23 @@ class SecretsEncryptor(SecretsModifier):
         )
         return f"REDACTED<${encrypted_value}>"
 
-    def _notify_secret(self, match: Match, protected_text: List[str]) -> None:
+    def _notify_secret(
+        self, match: Match, code_snippet: Optional[CodeSnippet], protected_text: List[str]
+    ) -> None:
         secret_lines = self._get_surrounding_secret_lines(protected_text, match.line_number)
-        notify_string = f"{match.service} - {match.type}:\n{secret_lines}"
+        notify_string = (
+            f"**Secret Detected** 🔒\n"
+            f"- Service: {match.service}\n"
+            f"- Type: {match.type}\n"
+            f"- Key: {match.key if match.key else '(Unknown)'}\n"
+            f"- Line Number: {match.line_number}\n"
+            f"- Context:\n```\n{secret_lines}\n```"
+        )
         self._context.add_alert(
-            self._name, trigger_string=notify_string, severity_category=AlertSeverity.CRITICAL
+            self._name,
+            trigger_string=notify_string,
+            severity_category=AlertSeverity.CRITICAL,
+            code_snippet=code_snippet,
         )
 
 
@@ -206,7 +221,9 @@ class SecretsObfuscator(SecretsModifier):
         """
         return "*" * 32
 
-    def _notify_secret(self, match: Match, protected_text: List[str]) -> None:
+    def _notify_secret(
+        self, match: Match, code_snippet: Optional[CodeSnippet], protected_text: List[str]
+    ) -> None:
         pass
 
 
@@ -282,6 +299,9 @@ class CodegateSecrets(PipelineStep):
         # Process all messages
         for i, message in enumerate(new_request["messages"]):
             if "content" in message and message["content"]:
+                # check if we can extract snippets from the text
+                # snippets = extract_snippets(user_message)
+
                 # Protect the text
                 protected_string, secrets_matched = self._redact_text(
                     str(message["content"]), secrets_manager, session_id, context
