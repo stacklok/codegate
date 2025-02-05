@@ -5,7 +5,6 @@ from our local LLM and a futher ANN categorisier.
 
 import os
 
-import h5py
 import torch
 from torch import nn
 
@@ -77,7 +76,7 @@ class SuspiciousCommands:
             SuspiciousCommands._instance = SuspiciousCommands()
             if model_file is None:
                 current_file_path = os.path.dirname(os.path.abspath(__file__))
-                model_file = os.path.join(current_file_path, "simple_nn_model.h5")
+                model_file = os.path.join(current_file_path, "simple_nn_model.pt")
             SuspiciousCommands._instance.load_trained_model(model_file)
         return SuspiciousCommands._instance
 
@@ -127,9 +126,13 @@ class SuspiciousCommands:
             file_name (str): The file name to save the model.
         """
         if self.simple_nn is not None:
-            with h5py.File(file_name, "w") as f:
-                for name, param in self.simple_nn.named_parameters():
-                    f.create_dataset(name, data=param.detach().numpy())
+            torch.save(
+                {
+                    "model_state_dict": self.simple_nn.state_dict(),
+                    "input_dim": self.simple_nn.network[0].in_features,
+                },
+                file_name,
+            )
 
     def load_trained_model(self, file_name):
         """
@@ -138,9 +141,10 @@ class SuspiciousCommands:
         Args:
             file_name (str): The file name to load the model from.
         """
-        with h5py.File(file_name, "r") as f:
-            for name, param in self.simple_nn.named_parameters():
-                param.data = torch.tensor(f[name][:])
+        checkpoint = torch.load(file_name)
+        input_dim = checkpoint["input_dim"]
+        self.simple_nn = SimpleNN(input_dim=input_dim)
+        self.simple_nn.load_state_dict(checkpoint["model_state_dict"])
 
     async def compute_embeddings(self, phrases):
         """
