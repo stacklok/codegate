@@ -456,6 +456,8 @@ class SecretRedactionNotifier(OutputPipelineStep):
                 for tool in ["Cline", "Kodu"]
                 for message in input_context.alerts_raised or []
                 if tool in str(message.trigger_string or "")
+                and "If you are Kodu"
+                not in str(message.trigger_string or "")  # this comes from our prompts
             ),
             "",
         )
