@@ -128,6 +128,7 @@ class ProviderType(str, Enum):
     ollama = "ollama"
     lm_studio = "lm_studio"
     llamacpp = "llamacpp"
+    openrouter = "openai"
 
 
 class GetPromptWithOutputsRow(BaseModel):

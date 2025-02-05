@@ -106,6 +106,8 @@ class StreamChunkFormatter:
             db_models.ProviderType.anthropic: self._format_antropic,
             # Our Lllamacpp provider emits OpenAI chunks
             db_models.ProviderType.llamacpp: self._format_openai,
+            # OpenRouter is a dialect of OpenAI
+            db_models.ProviderType.openrouter: self._format_openai,
         }
 
     def _format_ollama(self, chunk: str) -> str:
