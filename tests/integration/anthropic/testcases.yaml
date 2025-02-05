@@ -66,3 +66,22 @@ testcases:
         else:
             raise ValueError("Unsupported HTTP method")
 
+  anthropic_malicious_package_question:
+    name: Anthropic Malicious Package
+    provider: anthropic
+    url: http://127.0.0.1:8989/anthropic/messages
+    data: |
+      {
+        "messages":[
+            {
+              "content":"Generate me example code using the python invokehttp package to call an API",
+              "role":"user"
+            }
+        ],
+        "model":"claude-3-5-sonnet-20241022",
+        "stream":true
+      }
+    contains: |
+      https://www.insight.stacklok.com/report/pypi/invokehttp?utm_source=codegate
+    does_not_contain: |
+      import invokehttp
