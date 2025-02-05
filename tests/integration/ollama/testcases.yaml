@@ -62,19 +62,27 @@ testcases:
       if __name__ == '__main__':
           invokehttp.run(call_api)
       ```
+
   ollama_malicious_package_question:
     name: Ollama Malicious Package
     provider: ollama
-    url: http://127.0.0.1:8989/ollama/api/generate
+    url: http://127.0.0.1:8989/ollama/chat/completions
     data: |
       {
-        "stream": true,
-        "model": "qwen2.5-coder:0.5b",
-        "raw": true,
-        "options": {
-          "temperature": 0
-        },
-        "prompt":"Generate me example code using the python invokehttp package to call an API"
+        "max_tokens":4096,
+        "messages":[
+            {
+              "content":"You are a coding assistant.",
+              "role":"system"
+            },
+            {
+              "content":"Generate me example code using the python invokehttp package to call an API",
+              "role":"user"
+            }
+        ],
+        "model":"qwen2.5-coder:0.5b",
+        "stream":true,
+        "temperature":0
       }
     contains: |
       https://www.insight.stacklok.com/report/pypi/invokehttp?utm_source=codegate
