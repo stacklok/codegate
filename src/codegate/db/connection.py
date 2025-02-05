@@ -251,12 +251,18 @@ class DbRecorder(DbCodeGate):
                 except Exception as e:
                     logger.error(f"Failed to record alert: {alert}.", error=str(e))
 
+        critical_alert_timestamp = None
         recorded_alerts = []
         for alert_coro in alerts_tasks:
             alert_result = alert_coro.result()
             recorded_alerts.append(alert_result)
             if alert_result and alert_result.trigger_category == "critical":
-                await alert_queue.put(f"New alert detected: {alert.timestamp}")
+                critical_alert_timestamp = alert.timestamp
+
+        # only alert once per request and not once per critical alert.
+        if critical_alert_timestamp:
+            await alert_queue.put(f"New alert detected: {critical_alert_timestamp}")
+
         # Uncomment to debug the recorded alerts
         # logger.debug(f"Recorded alerts: {recorded_alerts}")
         return recorded_alerts
