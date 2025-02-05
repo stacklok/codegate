@@ -20,7 +20,7 @@ testcases:
               "role":"user"
             }
         ],
-        "model":"claude-3-5-sonnet-20241022",
+        "model":"claude-3-5-haiku-20241022",
         "stream":true,
         "temperature":0
       }
@@ -36,7 +36,7 @@ testcases:
         "top_k": 50,
         "temperature": 0,
         "max_tokens": 4096,
-        "model": "claude-3-5-sonnet-20241022",
+        "model": "claude-3-5-haiku-20241022",
         "stop_sequences": [
           "</COMPLETION>",
           "/src/",
@@ -78,7 +78,7 @@ testcases:
               "role":"user"
             }
         ],
-        "model":"claude-3-5-sonnet-20241022",
+        "model":"claude-3-5-haiku-20241022",
         "stream":true
       }
     contains: |
