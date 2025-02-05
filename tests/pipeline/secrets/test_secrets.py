@@ -131,8 +131,6 @@ class TestSecretsObfuscator:
         # Test text with multiple secrets
         text = "API_KEY=AKIAIOSFODNN7EXAMPLE\nPASSWORD=AKIAIOSFODNN7EXAMPLE"
         protected, matched_secrets = self.obfuscator.obfuscate(text)
-        print(protected)
-        print(matched_secrets)
 
         assert len(matched_secrets) == 2
         assert "AKIAIOSFODNN7EXAMPLE" not in protected
