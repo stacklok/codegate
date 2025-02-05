@@ -1,4 +1,5 @@
 # signatures.py
+import math
 import re
 from pathlib import Path
 from threading import Lock
@@ -15,6 +16,7 @@ class Match(NamedTuple):
 
     service: str
     type: str
+    key: str
     value: str
     line_number: int
     start_index: int
@@ -42,6 +44,16 @@ class CodegateSignatures:
     _signature_groups: ClassVar[List[SignatureGroup]] = []
     _compiled_regexes: ClassVar[Dict[str, re.Pattern]] = {}
     _yaml_path: ClassVar[Optional[str]] = None
+    HIGH_ENTROPY_THRESHOLD: ClassVar[float] = 4.0
+
+    @classmethod
+    def _calculate_entropy(cls, text: str) -> float:
+        """Calculate Shannon entropy for a given string."""
+        if not text:
+            return 0.0
+
+        prob = {char: text.count(char) / len(text) for char in set(text)}
+        return -sum(p * math.log2(p) for p in prob.values())
 
     @classmethod
     def reset(cls) -> None:
@@ -180,22 +192,11 @@ class CodegateSignatures:
             # Clear existing signatures before loading new ones
             cls._signature_groups = []
             cls._compiled_regexes = {}
-
             yaml_data = cls._load_yaml(cls._yaml_path)
-
-            # Add custom GitHub token patterns
-            github_patterns = {
-                "Access Token": r"ghp_[0-9a-zA-Z]{32}",
-                "Personal Token": r"github_pat_[a-zA-Z0-9]{22}_[a-zA-Z0-9]{59}",
-            }
-            cls._add_signature_group("GitHub", github_patterns)
 
             # Process patterns from YAML
             for item in yaml_data:
                 for service_name, patterns in item.items():
-                    if service_name == "GitHub":
-                        continue
-
                     service_patterns = {}
                     for pattern_dict in patterns:
                         for pattern_name, pattern in pattern_dict.items():
@@ -224,6 +225,7 @@ class CodegateSignatures:
             raise RuntimeError("SecretFinder not initialized.")
 
         matches = []
+        found_values = set()
 
         # Split text into lines for processing
         try:
@@ -233,32 +235,74 @@ class CodegateSignatures:
             return []
 
         for line_num, line in enumerate(lines, start=1):
-            for group in cls._signature_groups:
-                for pattern_name in group.patterns:
-                    regex_key = f"{group.name}:{pattern_name}"
-                    regex = cls._compiled_regexes.get(regex_key)
+            matches.extend(cls._find_regex_matches(line, line_num, found_values))
+            matches.extend(cls._find_high_entropy_matches(line, line_num, found_values))
+        return matches
 
-                    if not regex:
+    @classmethod
+    def _find_regex_matches(cls, line: str, line_num: int, found_values: set) -> List[Match]:
+        """Find matches using regex patterns."""
+        matches = []
+        for group in cls._signature_groups:
+            for pattern_name, regex in group.patterns.items():
+                regex_key = f"{group.name}:{pattern_name}"
+                regex = cls._compiled_regexes.get(regex_key)
+                if not regex:
+                    continue
+                for match in regex.finditer(line):
+                    value = match.group()
+                    key = cls._extract_key_from_line(line, value)
+                    pattern = f"{key}:{value}"
+                    if value.lower() == "token" or pattern in found_values:
                         continue
+                    found_values.add(pattern)
+                    matches.append(
+                        Match(
+                            group.name,
+                            pattern_name,
+                            key,
+                            value,
+                            line_num,
+                            match.start(),
+                            match.end(),
+                        )
+                    )
+        return matches
 
-                    try:
-                        for match in regex.finditer(line):
-                            value = match.group()
-                            if value.lower() == "token":
-                                continue
+    @staticmethod
+    def _extract_key_from_line(line: str, secret_value: str) -> Optional[str]:
+        """
+        Extract the key associated with a secret value if it follows a key=value pattern.
+        """
+        match = re.search(
+            r'([A-Za-z_][A-Za-z0-9_]*)\s*=\s*["\']?' + re.escape(secret_value) + r'["\']?', line
+        )
+        return match.group(1) if match else None
 
-                            matches.append(
-                                Match(
-                                    service=group.name,
-                                    type=pattern_name,
-                                    value=value,
-                                    line_number=line_num,
-                                    start_index=match.start(),
-                                    end_index=match.end(),
-                                )
-                            )
-                    except Exception as e:
-                        logger.warning(f"Error matching pattern {regex_key}: {e}")
-                        continue
+    @classmethod
+    def _find_high_entropy_matches(cls, line: str, line_num: int, found_values: set) -> List[Match]:
+        """Find matches based on high entropy values."""
+        matches = []
+        assignment_pattern = re.findall(
+            r"([A-Za-z_][A-Za-z0-9_]*)\s*=\s*([\"']?([A-Za-z0-9_\-\.+/=]{8,})[\"']?)", line
+        )
+
+        for key, _, word in assignment_pattern:
+            pattern = f"{key}:{word}"
+            if pattern in found_values or word.startswith("REDACTED"):
+                continue
+            if cls._calculate_entropy(word) >= cls.HIGH_ENTROPY_THRESHOLD:
+                found_values.add(pattern)
+                matches.append(
+                    Match(
+                        "High Entropy",
+                        "Potential Secret",
+                        key,
+                        word,
+                        line_num,
+                        line.find(word),
+                        line.find(word) + len(word),
+                    )
+                )
 
         return matches

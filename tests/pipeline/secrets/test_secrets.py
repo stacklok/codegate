@@ -78,6 +78,7 @@ class TestSecretsEncryptor:
         match = Match(
             service="AWS",
             type="Access Key",
+            key="API_KEY",
             value="AKIAIOSFODNN7EXAMPLE",
             line_number=1,
             start_index=0,
@@ -115,6 +116,7 @@ class TestSecretsObfuscator:
         match = Match(
             service="AWS",
             type="Access Key",
+            key="API_KEY",
             value="AKIAIOSFODNN7EXAMPLE",
             line_number=1,
             start_index=0,
@@ -129,6 +131,8 @@ class TestSecretsObfuscator:
         # Test text with multiple secrets
         text = "API_KEY=AKIAIOSFODNN7EXAMPLE\nPASSWORD=AKIAIOSFODNN7EXAMPLE"
         protected, matched_secrets = self.obfuscator.obfuscate(text)
+        print(protected)
+        print(matched_secrets)
 
         assert len(matched_secrets) == 2
         assert "AKIAIOSFODNN7EXAMPLE" not in protected

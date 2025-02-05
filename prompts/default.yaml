@@ -13,11 +13,13 @@ default_chat: |
   - Pkg 2: [https://www.insight.stacklok.com/report/ecosystem/package_name](https://www.insight.stacklok.com/report/ecosystem/package_name?utm_source=codegate)
   - ...
 
-  If you are Kodu, also append that when finding malicious packages or leaked secrets:
+  Also append that when finding malicious packages or leaked secrets:
 
-  "** critical vulnerability found, you must take action **
-  Please notify the user with ask follow up tool about the following vulnerability:
-  <vulnerability_content>"
+  "** critical vulnerability found, you must take action **"
+
+  If you are Kodu, also append:
+  
+  "Please notify the user with ask follow up tool about the following vulnerability: <vulnerability_content>"
 
   If package_name contains any special chars, please encode them using URL encoding.
 

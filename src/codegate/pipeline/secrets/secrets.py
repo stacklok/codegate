@@ -147,6 +147,7 @@ class SecretsModifier:
             logger.info(
                 f"\nService: {match.service}"
                 f"\nType: {match.type}"
+                f"\nKey: {match.key}"
                 f"\nOriginal: {match.value}"
                 f"\nEncrypted: {hidden_secret}"
             )
@@ -450,6 +451,7 @@ class SecretRedactionNotifier(OutputPipelineStep):
             or input_context.metadata.get("redacted_secrets_count", 0) == 0
         ):
             return [chunk]
+
         tool_name = next(
             (
                 tool.lower()
