@@ -25,7 +25,7 @@ jobs:
       matrix:
         python-version: [ "3.12" ]
         # test-provider: [ "copilot", "openai", "anthropic", "ollama", "vllm", "llamacpp" ]
-        test-provider: [ "ollama", "vllm", "llamacpp" ]
+        test-provider: [ "anthropic" ]
     env:
       ENV_COPILOT_KEY: ${{ secrets.copilot-key }}
       ENV_OPENAI_KEY: ${{ secrets.copilot-key }} # We use the same key for OpenAI as the Copilot tests

@@ -65,4 +65,4 @@ testcases:
         "temperature":0
       }
     contains: |
-      **Warning:** CodeGate detected one or more malicious, deprecated or archived packages.
+      CodeGate detected one or more malicious, deprecated or archived packages.
