@@ -13,6 +13,7 @@ from codegate.providers.anthropic.completion_handler import AnthropicCompletion
 from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.fim_analyzer import FIMAnalyzer
 from codegate.types.generators import anthropic_stream_generator
+from codegate.types.anthropic import ChatCompletionRequest
 
 logger = structlog.get_logger("codegate")
 
@@ -98,11 +99,11 @@ class AnthropicProvider(BaseProvider):
                 raise HTTPException(status_code=401, detail="No API key provided")
 
             body = await request.body()
-            data = json.loads(body)
-            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, data)
+            req = ChatCompletionRequest.parse_raw(body)
+            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, req)
 
             return await self.process_request(
-                data,
+                req,
                 x_api_key,
                 is_fim_request,
                 request.state.detected_client,
