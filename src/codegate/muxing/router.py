@@ -3,6 +3,7 @@ import json
 import structlog
 from fastapi import APIRouter, HTTPException, Request
 
+from codegate.clients.detector import DetectClient
 from codegate.muxing import rulematcher
 from codegate.muxing.adapter import BodyAdapter, ResponseAdapter
 from codegate.providers.registry import ProviderRegistry
@@ -38,6 +39,7 @@ class MuxRouter:
     def _setup_routes(self):
 
         @self.router.post(f"/{self.route_name}/{{rest_of_path:path}}")
+        @DetectClient()
         async def route_to_dest_provider(
             request: Request,
             rest_of_path: str = "",
@@ -73,7 +75,9 @@ class MuxRouter:
             api_key = model_route.auth_material.auth_blob
 
             # Send the request to the destination provider. It will run the pipeline
-            response = await provider.process_request(new_data, api_key, rest_of_path)
+            response = await provider.process_request(
+                new_data, api_key, rest_of_path, request.state.detected_client
+            )
             # Format the response to the client always using the OpenAI format
             return self._response_adapter.format_response_to_client(
                 response, model_route.endpoint.provider_type
