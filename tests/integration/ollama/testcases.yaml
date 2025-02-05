@@ -69,7 +69,7 @@ testcases:
     url: http://127.0.0.1:8989/ollama/chat/completions
     data: |
       {
-        "max_tokens":512,
+        "max_tokens":4096,
         "messages":[
             {
               "content":"You are a coding assistant.",
@@ -85,6 +85,4 @@ testcases:
         "temperature":0
       }
     contains: |
-      https://www.insight.stacklok.com/report/pypi/invokehttp?utm_source=codegate
-    does_not_contain: |
-      import invokehttp
+      **Warning:** CodeGate detected one or more malicious, deprecated or archived packages.

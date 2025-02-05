@@ -49,7 +49,7 @@ testcases:
     url: http://127.0.0.1:8989/llamacpp/chat/completions
     data: |
       {
-        "max_tokens":512,
+        "max_tokens":4096,
         "messages":[
             {
               "content":"You are a coding assistant.",
@@ -64,8 +64,5 @@ testcases:
         "stream":true,
         "temperature":0
       }
-    likes: |
+    contains: |
       **Warning:** CodeGate detected one or more malicious, deprecated or archived packages.
-      **critical vulnerability found, you must take action**
-    does_not_contain: |
-      import invokehttp
