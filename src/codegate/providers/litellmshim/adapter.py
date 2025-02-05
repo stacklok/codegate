@@ -1,10 +1,15 @@
 from abc import ABC, abstractmethod
 from typing import Any, AsyncIterable, AsyncIterator, Dict, Iterable, Iterator, Optional, Union
 
+import structlog
+
 from codegate.providers.base import StreamGenerator
 from codegate.providers.normalizer.base import ModelInputNormalizer, ModelOutputNormalizer
 from codegate.types.common import CodegateModelResponseStream, ModelResponse
 from codegate.types.anthropic import ChatCompletionRequest
+
+
+logger = structlog.get_logger("codegate")
 
 
 class BaseAdapter(ABC):
@@ -54,14 +59,6 @@ class LiteLLMAdapterInputNormalizer(ModelInputNormalizer):
         normalized_data = self._normalize_content_messages(data)
         ret = self._adapter.translate_completion_input_params(normalized_data)
 
-        # this is a HACK - either we or liteLLM doesn't handle tools properly
-        # so let's just pretend they doesn't exist
-        # if ret.get("tools") is not None:
-        #     ret["tools"] = []
-
-        # if ret.get("stream", False):
-        #     ret["stream_options"] = {"include_usage": True}
-
         return ret
 
     def denormalize(self, data: ChatCompletionRequest) -> Dict:
@@ -69,19 +66,6 @@ class LiteLLMAdapterInputNormalizer(ModelInputNormalizer):
         For LiteLLM, we don't have to de-normalize as the input format is
         always ChatCompletionRequest which is a TypedDict which is a Dict
         """
-        try:
-            system_prompt = bytearray(data["system"].encode("utf-8") if data["system"] else bytes())
-            filtered_messages = []
-            for msg in data["messages"]:
-                if msg["role"] == "system":
-                    system_prompt.extend(msg["content"].encode("utf-8"))
-                else:
-                    filtered_messages.append(msg)
-            data["messages"] = filtered_messages
-            data["system"] = system_prompt.decode("utf-8")
-        except Exception as e:
-            logger.error(f"anthropic: failed mapping system prompt: {repr(e)}", exc_info=e)
-            raise e
 
         return data
 

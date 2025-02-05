@@ -16,6 +16,7 @@ from litellm import (
 from pydantic import BaseModel
 import structlog
 
+from codegate.types.anthropic import ChatCompletionRequest
 from codegate.types.common import (
     CodegateFunction,
     CodegateChatCompletionDeltaToolCall,
@@ -90,27 +91,31 @@ async def anthropic_stream_generator(stream: AsyncIterator[Any]) -> AsyncIterato
 
 
 async def acompletion(
-        **request,
+        request,
+        api_key,
 ): # -> Union[ModelResponse, CustomStreamWrapper]:
     headers = {
         "anthropic-version": "2023-06-01",
-        "x-api-key": request.get("api_key"),
+        "x-api-key": api_key,
         "accept": "application/json",
         "content-type": "application/json",
     }
+    payload = request.json(exclude_defaults=True)
 
-    copy = dict(request)
-    del copy["api_key"]
     async with httpx.AsyncClient() as client:
         resp = await client.post(
             "https://api.anthropic.com/v1/messages",
             headers=headers,
-            json=copy,
+            content=payload,
         )
 
         if os.getenv("CODEGATE_DEBUG_ANTHROPIC") is not None:
             print(f"CODEGATE_DEBUG_ANTHROPIC: acompletion: {json.dumps(copy)}")
             print(f"CODEGATE_DEBUG_ANTHROPIC: acompletion: {resp.text}")
+
+        # TODO figure out how to best return failures
+        if resp.status_code != 200:
+            print(resp.text)
 
         # return spacer(printer(anthropic_chunk_wrapper(printer(resp.aiter_lines()))))
         return anthropic_chunk_wrapper(resp.aiter_lines())
