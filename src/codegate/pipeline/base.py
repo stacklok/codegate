@@ -96,7 +96,7 @@ class PipelineContext:
             if self.prompt_id is None:
                 self.prompt_id = str(uuid.uuid4())
 
-            request_str = json.dumps(normalized_request)
+            request_str = normalized_request.json()
 
             self.input_request = Prompt(
                 id=self.prompt_id,
@@ -197,14 +197,15 @@ class PipelineStep(ABC):
             Optional[tuple[str, int]]: A tuple containing the message content and
                                        its index, or None if no user message is found
         """
-        if request.get("messages") is None:
-            return None
-        for i in reversed(range(len(request["messages"]))):
-            if request["messages"][i]["role"] == "user":
-                content = request["messages"][i]["content"]  # type: ignore
-                return str(content), i
+        msg = request.last_user_message()
 
-        return None
+        if msg is None:
+            return None
+
+        # unpack the tuple
+        msg, idx = msg
+        return "".join([txt for txt in msg.text()]), idx
+
 
     @staticmethod
     def get_last_user_message_block(
@@ -224,43 +225,16 @@ class PipelineStep(ABC):
                         no user message block is found.
                         Index of the first message detected in the block.
         """
-        if request.get("messages") is None:
-            return None
-
         user_messages = []
-        messages = request["messages"]
-        block_start_index = None
+        last_idx = -1
+        for msg, idx in request.last_user_block():
+            for content in msg.text():
+                user_messages.append(content)
+                last_idx = idx
 
-        accepted_roles = ["user", "assistant"]
-        if client == ClientType.OPEN_INTERPRETER:
-            # open interpreter also uses the role "tool"
-            accepted_roles.append("tool")
-
-        # Iterate in reverse to find the last block of consecutive 'user' messages
-        for i in reversed(range(len(messages))):
-            if messages[i]["role"] in accepted_roles:
-                content_str = messages[i].get("content")
-                if content_str is None:
-                    continue
-
-                if messages[i]["role"] in ["user", "tool"]:
-                    user_messages.append(content_str)
-                    block_start_index = i
-
-                # Specifically for Aider, when "Ok." block is found, stop
-                if content_str == "Ok." and messages[i]["role"] == "assistant":
-                    break
-            else:
-                # Stop when a message with a different role is encountered
-                if user_messages:
-                    break
-
-        # Reverse the collected user messages to preserve the original order
-        if user_messages and block_start_index is not None:
-            content = "\n".join(reversed(user_messages))
-            return content, block_start_index
-
-        return None
+        if user_messages == []:
+            return None
+        return "\n".join(reversed(user_messages)), last_idx
 
     @abstractmethod
     async def process(
