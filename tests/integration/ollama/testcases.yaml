@@ -84,8 +84,7 @@ testcases:
         "stream":true,
         "temperature":0
       }
-    likes: |
-      **Warning:** CodeGate detected one or more malicious, deprecated or archived packages.
-      **critical vulnerability found, you must take action**
+    contains: |
+      https://www.insight.stacklok.com/report/pypi/invokehttp?utm_source=codegate
     does_not_contain: |
       import invokehttp
