@@ -1,4 +1,5 @@
 import json
+import os
 from typing import List
 
 import httpx
@@ -99,6 +100,10 @@ class AnthropicProvider(BaseProvider):
                 raise HTTPException(status_code=401, detail="No API key provided")
 
             body = await request.body()
+
+            if os.getenv("CODEGATE_DEBUG_ANTHROPIC") is not None:
+                print(f"{create_message.__name__}: {body}")
+
             req = ChatCompletionRequest.parse_raw(body)
             is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, req)
 
