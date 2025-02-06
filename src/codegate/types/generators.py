@@ -16,7 +16,27 @@ from litellm import (
 from pydantic import BaseModel
 import structlog
 
-from codegate.types.anthropic import ChatCompletionRequest
+from codegate.types.anthropic import (
+    # request objects
+    ChatCompletionRequest,
+    # response objects
+    ApiError,
+    AuthenticationError,
+    ContentBlockDelta,
+    ContentBlockStart,
+    ContentBlockStop,
+    InvalidRequestError,
+    MessageDelta,
+    MessageError,
+    MessagePing,
+    MessageStart,
+    MessageStop,
+    NotFoundError,
+    OverloadedError,
+    PermissionError,
+    RateLimitError,
+    RequestTooLargeError,
+)
 from codegate.types.common import (
     CodegateFunction,
     CodegateChatCompletionDeltaToolCall,
@@ -58,9 +78,10 @@ async def anthropic_stream_generator(stream: AsyncIterator[Any]) -> AsyncIterato
     """Anthropic-style SSE format"""
     try:
         async for chunk in stream:
-            if isinstance(chunk, CodegateModelResponseStream):
-                event_type = chunk.payload["type"]
-                body = json.dumps(chunk.payload)
+            if isinstance(chunk, CodegateModelResponseStream) and chunk.payload:
+                if chunk.payload:
+                    event_type = chunk.payload["type"]
+                    body = json.dumps(chunk.payload)
             else:
                 event_type = chunk.get("type", "content_block_delta")
                 body = json.dumps(chunk)
@@ -78,22 +99,14 @@ async def anthropic_stream_generator(stream: AsyncIterator[Any]) -> AsyncIterato
         yield f"data: {str(e)}\n\n"
 
 
-# async def spacer(stream):
-#     async for item in stream:
-#         print("\n\n\n\n")
-#         yield item
+async def acompletion(request, api_key):
+    return _inner(request, api_key)
 
 
-# async def printer(stream):
-#     async for item in stream:
-#         print(f"{item}")
-#         yield item
-
-
-async def acompletion(
-        request,
-        api_key,
-): # -> Union[ModelResponse, CustomStreamWrapper]:
+# This function is here only to prevent more changes in the callers,
+# but it's totally redundant. We should try to get rid of this wrapper
+# eventually.
+async def _inner(request, api_key):
     headers = {
         "anthropic-version": "2023-06-01",
         "x-api-key": api_key,
@@ -110,225 +123,87 @@ async def acompletion(
         )
 
         if os.getenv("CODEGATE_DEBUG_ANTHROPIC") is not None:
-            print(f"CODEGATE_DEBUG_ANTHROPIC: acompletion: {json.dumps(copy)}")
+            print(f"CODEGATE_DEBUG_ANTHROPIC: acompletion: {payload}")
             print(f"CODEGATE_DEBUG_ANTHROPIC: acompletion: {resp.text}")
 
         # TODO figure out how to best return failures
-        if resp.status_code != 200:
-            print(resp.text)
-
-        # return spacer(printer(anthropic_chunk_wrapper(printer(resp.aiter_lines()))))
-        return anthropic_chunk_wrapper(resp.aiter_lines())
+        match resp.status_code:
+            case 400: # invalid_request_error
+                yield InvalidRequestError.parse_raw(resp.text)
+            case 401: # authentication_error
+                yield AuthenticationError.parse_raw(resp.text)
+            case 403: # permission_error
+                yield PermissionError.parse_raw(resp.text)
+            case 404: # not_found_error
+                yield NotFoundError.parse_raw(resp.text)
+            case 413: # request_too_large
+                yield RequestTooLargeError.parse_raw(resp.text)
+            case 429: # rate_limit_error
+                yield RateLimitError.parse_raw(resp.text)
+            case 500: # api_error
+                yield ApiError.parse_raw(resp.text)
+            case 529: # overloaded_error
+                yield OverloadedError.parse_raw(resp.text)
+            case 200: # happy path
+                async for event in anthropic_message_wrapper(resp.aiter_lines()):
+                    yield event
+            case _:
+                raise ValueError(f"anthropic: unexpected status code {resp.status_code}")
 
 
 async def get_data_lines(lines):
     while True:
         # Get the `event: <type>` line.
-        _ = await anext(lines)
+        event_line = await anext(lines)
         # Get the `data: <json>` line.
         data_line = await anext(lines)
         # Get the empty line.
         _ = await anext(lines)
 
-        # Data lines always begin with `data: `, so we can skip the first
-        # few characters and just deserialized the payload.
-        yield json.loads(data_line[5:])
+        # Event lines always begin with `event: `, and Data lines
+        # always begin with `data: `, so we can skip the first few
+        # characters and just return the payload.
+        yield event_line[7:], data_line[6:]
 
 
-async def anthropic_chunk_wrapper(lines):
-    payloads = get_data_lines(lines)
-    payload = await anext(payloads)
+async def anthropic_message_wrapper(lines):
+    events = get_data_lines(lines)
+    event_type, payload = await anext(events)
 
     # We expect the first line to always be `event: message_start`.
-    if payload["type"] != "message_start":
-        raise ValueError(f"anthropic: unexpected event type '{payload['type']}'")
+    if event_type != "message_start":
+        raise ValueError(f"anthropic: unexpected event type '{event_type}'")
 
-    model = payload["message"]["model"]
-    yield make_empty_response(payload, model)
+    yield MessageStart.parse_raw(payload)
 
-    async for payload in payloads:
+    async for event_type, payload in events:
         if os.getenv("CODEGATE_DEBUG_ANTHROPIC") is not None:
-            print(f"CODEGATE_DEBUG_ANTHROPIC: anthropic_chunk_wrapper: {payload}")
+            print(f"{anthropic_message_wrapper.__name__}: {payload}")
 
-        if payload["type"] == "ping":
-            pass # ignored
-        elif payload["type"] == "content_block_start":
-            content_block_type = payload["content_block"]["type"]
-
-            if content_block_type == "text":
-                item = make_empty_response(payload, model)
-                yield item
-                # Procesing `text` block type is done by purely
-                # yielding block deltas as they are received.
-                async for item in anthropic_content_chunk_wrapper(payloads, model):
-                    yield item
-
-            elif content_block_type == "tool_use":
-                content_block = payload["content_block"]
-                assert content_block["type"] == "tool_use"
-
-                # Processing `tool_use` block type is done by emitting
-                # a single message for the start and one message for
-                # each additional block delta entry.
-                function = CodegateFunction(
-                    name=content_block["name"],
-                    arguments=None,
-                )
-                tool_call = CodegateChatCompletionDeltaToolCall(
-                    id=content_block["id"],
-                    function=function,
-                    type="function",
-                    index=payload["index"],
-                )
-                delta = CodegateDelta(
-                    role="assistant",
-                    content=None,
-                    tool_calls=[tool_call],
-                )
-                choice = CodegateStreamingChoices(
-                    index=payload["index"],
-                    delta=delta,
-                )
-
-                item = make_response(payload, model, choice)
-                yield item
-
-                async for item in anthropic_tool_chunk_wrapper(payloads, model):
-                    yield item
-            else:
-                raise ValueError(
-                    f"anthropic: unexpected block type '{payload['content_block']['type']}'",
-                )
-        elif payload["type"] == "message_delta":
-            pdelta = payload["delta"]
-            if pdelta["stop_reason"] == "tool_use":
-                choice = CodegateStreamingChoices(
-                    delta=CodegateDelta(
-                        role="assistant",
-                    ),
-                    # Confusingly enough, Anthropic's finish
-                    # reason `tool_use` maps to OpenAI's
-                    # `tool_calls`.
-                    finish_reason="tool_calls",
-                )
-
-                item = make_response(payload, model, choice)
-                yield item
-        elif payload["type"] == "message_stop":
-            item = make_empty_response(payload, model)
-            yield item
-            break
-        elif payload["type"] == "error":
-            yield make_response(payload, model)
-        else:
-            # TODO this should be a log entry, as per
-            # https://docs.anthropic.com/en/api/messages-streaming#other-events
-            raise ValueError(f"anthropic: unexpected event type '{payload['type']}'")
+        match event_type:
+            case "message_delta":
+                yield MessageDelta.parse_raw(payload)
+            case "content_block_start":
+                yield ContentBlockStart.parse_raw(payload)
+            case "content_block_delta":
+                yield ContentBlockDelta.parse_raw(payload)
+            case "content_block_stop":
+                yield ContentBlockStop.parse_raw(payload)
+            case "message_stop":
+                yield MessageStop.parse_raw(payload)
+                # We break the loop at this poiunt since this is the
+                # final payload defined by the protocol.
+                break
+            case "ping":
+                yield MessagePing.parse_raw(payload)
+            case "error":
+                yield MessageError.parse_raw(payload)
+                break
+            case _:
+                # TODO this should be a log entry, as per
+                # https://docs.anthropic.com/en/api/messages-streaming#other-events
+                raise ValueError(f"anthropic: unexpected event type '{event_type}'")
 
     # The following should always hold when we get here
-    assert payload["type"] == "message_stop"
+    assert event_type == "message_stop" or event_type == "error"
     return
-
-
-async def anthropic_content_chunk_wrapper(payloads, model):
-    async for payload in payloads:
-        if os.getenv("CODEGATE_DEBUG_ANTHROPIC") is not None:
-            print(f"CODEGATE_DEBUG_ANTHROPIC: anthropic_chunk_wrapper: {payload}")
-
-        if payload["type"] == "content_block_delta":
-            pdelta = payload["delta"]
-            # We assume that if we have to process text completion if
-            # we got into this function.
-            assert pdelta["type"] == "text_delta"
-
-            delta = CodegateDelta(
-                role="assistant",
-                content=pdelta["text"],
-                tool_calls=None,
-            )
-            choice = CodegateStreamingChoices(
-                index=payload["index"],
-                delta=delta,
-            )
-
-            item = make_response(payload, model, choice)
-            yield item
-        elif payload["type"] == "content_block_stop":
-            item = make_empty_response(payload, model)
-            yield item
-            # We break the loop at this point since we have to go back
-            # processing the rest of the state machine.
-            return
-        elif payload["type"] == "error":
-            yield make_response(payload, model)
-
-
-async def anthropic_tool_chunk_wrapper(payloads, model):
-    async for payload in payloads:
-        if os.getenv("CODEGATE_DEBUG_ANTHROPIC") is not None:
-            print(f"CODEGATE_DEBUG_ANTHROPIC: anthropic_chunk_wrapper: {payload}")
-
-        if payload["type"] == "content_block_delta":
-            pdelta = payload["delta"]
-            # We assume that if we have to process json completion if
-            # we got into this function.
-            assert pdelta["type"] == "input_json_delta"
-
-            function = CodegateFunction(
-                # Function name is emitted as part of the
-                # `content_block_start`.
-                name=None,
-                arguments=pdelta["partial_json"],
-            )
-            tool_call = CodegateChatCompletionDeltaToolCall(
-                # id=delta["id"],
-                function=function,
-                type="function",
-                index=0,
-            )
-            delta = CodegateDelta(
-                role="assistant",
-                content=None,
-                tool_calls=[
-                    tool_call,
-                ],
-            )
-            choice = CodegateStreamingChoices(
-                index=payload["index"],
-                delta=delta,
-            )
-
-            item = make_response(payload, model, choice)
-            yield item
-        elif payload["type"] == "content_block_stop":
-            item = make_empty_response(payload, model)
-            yield item
-            # We break the loop at this point since we have to go back
-            # processing the rest of the state machine.
-            return
-        elif payload["type"] == "error":
-            yield make_response(payload, model)
-
-
-def make_empty_response(payload: str, model: str):
-    delta = CodegateDelta(
-        role="assistant",
-        content=None,
-        tool_calls=None,
-    )
-    choice = CodegateStreamingChoices(
-        index=payload.get("index", 0),
-        delta=delta,
-    )
-    return make_response(payload, model, choice)
-
-
-def make_response(payload: str, model: str, *choices):
-    return CodegateModelResponseStream(
-        # id=None,
-        created=None,
-        model=model,
-        object='chat.completion.chunk',
-        choices=list(choices),
-        payload=payload,
-    )
