@@ -167,7 +167,7 @@ jobs:
             cleanup_container
 
             echo "Starting Ollama container (Attempt $(($retry_count + 1))/$MAX_RETRIES)"
-            docker run -d -v ollama:/root/.ollama --network host --name ollama ollama/ollama
+            docker run -d -v ollama:/root/.ollama --network host --name ollama -e OLLAMA_LOG_LEVEL=DEBUG ollama/ollama
 
             # Wait for endpoint to be available
             endpoint_wait=0
