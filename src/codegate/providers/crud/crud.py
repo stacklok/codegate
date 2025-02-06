@@ -20,8 +20,10 @@ logger = structlog.get_logger("codegate")
 class ProviderNotFoundError(Exception):
     pass
 
+
 class ProviderModelsNotFoundError(Exception):
     pass
+
 
 class ProviderInvalidAuthConfigError(Exception):
     pass
