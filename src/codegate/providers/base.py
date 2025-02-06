@@ -40,6 +40,21 @@ class ModelFetchError(Exception):
     pass
 
 
+class PassThroughNormalizer:
+
+    def normalize(self, arg):
+        return arg
+
+    def denormalize(self, arg):
+        return arg
+
+    def normalize_streaming(self, arg):
+        return arg
+
+    def denormalize_streaming(self, arg):
+        return arg
+
+
 class BaseProvider(ABC):
     """
     The provider class is responsible for defining the API routes and
@@ -55,8 +70,8 @@ class BaseProvider(ABC):
     ):
         self.router = APIRouter()
         self._completion_handler = completion_handler
-        self._input_normalizer = input_normalizer
-        self._output_normalizer = output_normalizer
+        self._input_normalizer = input_normalizer if input_normalizer else PassThroughNormalizer()
+        self._output_normalizer = output_normalizer if output_normalizer else PassThroughNormalizer()
         self._pipeline_factory = pipeline_factory
         self._db_recorder = DbRecorder()
         self._pipeline_response_formatter = PipelineResponseFormatter(
