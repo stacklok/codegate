@@ -35,10 +35,10 @@ jobs:
         virtualenvs-in-project: true
 
     - name: Install dependencies
-      run: . `poetry env info --path`/bin/activate; poetry install --with dev
+      run: poetry install --with dev
 
     - name: Install torch
-      run: pip install --upgrade torch==2.6.0 -f https://download.pytorch.org/whl/cpu
+      run: . `poetry env info --path`/bin/activate; pip install --upgrade torch==2.6.0 -f https://download.pytorch.org/whl/cpu
         
     - name: Run linting
       run: make lint
