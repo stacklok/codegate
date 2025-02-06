@@ -8,6 +8,7 @@ import cachetools.func
 import requests
 import structlog
 
+from codegate.api import v1_models
 from codegate.api.v1_models import (
     AlertConversation,
     ChatMessage,
@@ -200,10 +201,15 @@ async def _get_partial_question_answer(
         model=model, token_usage=token_usage, provider_type=provider
     )
 
+    alerts: List[v1_models.Alert] = [
+        v1_models.Alert.from_db_model(db_alert) for db_alert in row.alerts
+    ]
+
     return PartialQuestionAnswer(
         partial_questions=request_message,
         answer=output_message,
         model_token_usage=model_token_usage,
+        alerts=alerts,
     )
 
 
@@ -367,6 +373,7 @@ async def match_conversations(
     for group in grouped_partial_questions:
         questions_answers: List[QuestionAnswer] = []
         token_usage_agg = TokenUsageAggregate(tokens_by_model={}, token_usage=TokenUsage())
+        alerts: List[v1_models.Alert] = []
         first_partial_qa = None
         for partial_question in sorted(group, key=lambda x: x.timestamp):
             # Partial questions don't contain the answer, so we need to find the corresponding
@@ -385,6 +392,7 @@ async def match_conversations(
                 qa = _get_question_answer_from_partial(selected_partial_qa)
                 qa.question.message = parse_question_answer(qa.question.message)
                 questions_answers.append(qa)
+                alerts.extend(selected_partial_qa.alerts)
                 token_usage_agg.add_model_token_usage(selected_partial_qa.model_token_usage)
 
         # only add conversation if we have some answers
@@ -398,6 +406,7 @@ async def match_conversations(
                 chat_id=first_partial_qa.partial_questions.message_id,
                 conversation_timestamp=first_partial_qa.partial_questions.timestamp,
                 token_usage_agg=token_usage_agg,
+                alerts=alerts,
             )
             for qa in questions_answers:
                 map_q_id_to_conversation[qa.question.message_id] = conversation

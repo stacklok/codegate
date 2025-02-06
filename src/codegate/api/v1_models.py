@@ -147,6 +147,32 @@ class TokenUsageAggregate(pydantic.BaseModel):
         self.token_usage += model_token_usage.token_usage
 
 
+class Alert(pydantic.BaseModel):
+    """
+    Represents an alert.
+    """
+
+    @staticmethod
+    def from_db_model(db_model: db_models.Alert) -> "Alert":
+        return Alert(
+            id=db_model.id,
+            prompt_id=db_model.prompt_id,
+            code_snippet=db_model.code_snippet,
+            trigger_string=db_model.trigger_string,
+            trigger_type=db_model.trigger_type,
+            trigger_category=db_model.trigger_category,
+            timestamp=db_model.timestamp,
+        )
+
+    id: str
+    prompt_id: str
+    code_snippet: Optional[CodeSnippet]
+    trigger_string: Optional[Union[str, dict]]
+    trigger_type: str
+    trigger_category: Optional[str]
+    timestamp: datetime.datetime
+
+
 class PartialQuestionAnswer(pydantic.BaseModel):
     """
     Represents a partial conversation.
@@ -155,6 +181,7 @@ class PartialQuestionAnswer(pydantic.BaseModel):
     partial_questions: PartialQuestions
     answer: Optional[ChatMessage]
     model_token_usage: TokenUsageByModel
+    alerts: List[Alert] = []
 
 
 class Conversation(pydantic.BaseModel):
@@ -168,6 +195,7 @@ class Conversation(pydantic.BaseModel):
     chat_id: str
     conversation_timestamp: datetime.datetime
     token_usage_agg: Optional[TokenUsageAggregate]
+    alerts: List[Alert] = []
 
 
 class AlertConversation(pydantic.BaseModel):
@@ -210,7 +238,7 @@ class ProviderEndpoint(pydantic.BaseModel):
     description: str = ""
     provider_type: db_models.ProviderType
     endpoint: str = ""  # Some providers have defaults we can leverage
-    auth_type: Optional[ProviderAuthType] = ProviderAuthType.none
+    auth_type: ProviderAuthType = ProviderAuthType.none
 
     @staticmethod
     def from_db_model(db_model: db_models.ProviderEndpoint) -> "ProviderEndpoint":

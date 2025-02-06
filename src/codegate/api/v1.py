@@ -123,6 +123,10 @@ async def add_provider_endpoint(
             status_code=400,
             detail=str(e),
         )
+    except provendcrud.ProviderModelsNotFoundError:
+        raise HTTPException(status_code=401, detail="Provider models could not be found")
+    except provendcrud.ProviderInvalidAuthConfigError:
+        raise HTTPException(status_code=400, detail="Invalid auth configuration")
     except ValidationError as e:
         # TODO: This should be more specific
         raise HTTPException(
@@ -151,6 +155,10 @@ async def configure_auth_material(
         await pcrud.configure_auth_material(provider_id, request)
     except provendcrud.ProviderNotFoundError:
         raise HTTPException(status_code=404, detail="Provider endpoint not found")
+    except provendcrud.ProviderModelsNotFoundError:
+        raise HTTPException(status_code=401, detail="Provider models could not be found")
+    except provendcrud.ProviderInvalidAuthConfigError:
+        raise HTTPException(status_code=400, detail="Invalid auth configuration")
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -405,8 +413,12 @@ async def get_workspace_messages(workspace_name: str) -> List[v1_models.Conversa
         raise HTTPException(status_code=500, detail="Internal server error")
 
     try:
-        prompts_outputs = await dbreader.get_prompts_with_output(ws.id)
-        conversations, _ = await v1_processing.parse_messages_in_conversations(prompts_outputs)
+        prompts_with_output_alerts_usage = (
+            await dbreader.get_prompts_with_output_alerts_usage_by_workspace_id(ws.id)
+        )
+        conversations, _ = await v1_processing.parse_messages_in_conversations(
+            prompts_with_output_alerts_usage
+        )
         return conversations
     except Exception:
         logger.exception("Error while getting messages")
