@@ -1,8 +1,8 @@
 from typing import Optional
 
-from codegate.clients.clients import ClientType
 from litellm import ChatCompletionRequest, ChatCompletionSystemMessage
 
+from codegate.clients.clients import ClientType
 from codegate.pipeline.base import (
     PipelineContext,
     PipelineResult,
