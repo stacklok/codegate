@@ -593,7 +593,6 @@ class DbReader(DbCodeGate):
         Get all prompts with their outputs, alerts and token usage by workspace_id.
         """
 
-        # Single query to get prompts, outputs, and alerts
         sql = text(
             """
             SELECT
@@ -612,7 +611,6 @@ class DbReader(DbCodeGate):
             IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
         )
 
-        # Process the results into the desired structure
         prompts_dict: Dict[str, GetPromptWithOutputsRow] = {}
         for row in rows:
             prompt_id = row.prompt_id
