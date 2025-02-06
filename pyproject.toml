@@ -32,7 +32,6 @@ sqlite-vec-sl-tmp = "==0.0.4"
 greenlet = "==3.1.1"
 cachetools = "==5.5.1"
 legacy-cgi = "==2.6.2"
-torch = "==2.6.0"
 pandas = "==2.2.3"
 
 [tool.poetry.group.dev.dependencies]

@@ -16,6 +16,10 @@ RUN pip install poetry==1.8.4 && rm -rf /root/.cache/pip
 WORKDIR /app
 COPY pyproject.toml poetry.lock* /app/
 
+
+# There doesn't seem to be a way for poetry to do this
+RUN pip install --upgrade torch==2.6.0 -f https://download.pytorch.org/whl/cpu
+
 # Configure Poetry and install dependencies
 RUN poetry config virtualenvs.create false && \
     poetry install --no-dev
