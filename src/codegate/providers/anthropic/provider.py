@@ -5,11 +5,11 @@ from typing import List
 import httpx
 import structlog
 from fastapi import Header, HTTPException, Request
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from codegate.clients.clients import ClientType
 from codegate.clients.detector import DetectClient
 from codegate.pipeline.factory import PipelineFactory
-from codegate.providers.anthropic.adapter import AnthropicInputNormalizer, AnthropicOutputNormalizer
 from codegate.providers.anthropic.completion_handler import AnthropicCompletion
 from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.fim_analyzer import FIMAnalyzer
@@ -26,8 +26,8 @@ class AnthropicProvider(BaseProvider):
     ):
         completion_handler = AnthropicCompletion(stream_generator=anthropic_stream_generator)
         super().__init__(
-            AnthropicInputNormalizer(),
-            AnthropicOutputNormalizer(),
+            None,
+            None,
             completion_handler,
             pipeline_factory,
         )
@@ -113,3 +113,12 @@ class AnthropicProvider(BaseProvider):
                 is_fim_request,
                 request.state.detected_client,
             )
+
+
+async def dumper(stream):
+    print("==========")
+    async for event in stream:
+        res = f"event: {event.type}\ndata: {event.json(exclude_defaults=True, exclude_unset=True)}\n"
+        print(res)
+        yield res
+    print("==========")

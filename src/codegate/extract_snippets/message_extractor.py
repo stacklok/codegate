@@ -253,10 +253,16 @@ class CodeSnippetExtractor(ABC):
         """
         regexes = self._choose_regex(require_filepath)
         # Find all code block matches
+        if isinstance(message, str):
+            return [
+                self._get_snippet_for_match(match)
+                for regex in regexes
+                for match in regex.finditer(message)
+            ]
         return [
             self._get_snippet_for_match(match)
             for regex in regexes
-            for match in regex.finditer(message)
+            for match in regex.finditer(message.get_text())
         ]
 
     def extract_unique_snippets(self, message: str) -> Dict[str, CodeSnippet]:
