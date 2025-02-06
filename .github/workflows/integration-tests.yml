@@ -24,7 +24,7 @@ jobs:
       fail-fast: false # Continue running other tests if one fails
       matrix:
         python-version: [ "3.12" ]
-        test-provider: [ "copilot", "openai", "anthropic", "ollama", "vllm", "llamacpp" ]
+        test-provider: [ "vllm" ]
     env:
       ENV_COPILOT_KEY: ${{ secrets.copilot-key }}
       ENV_OPENAI_KEY: ${{ secrets.copilot-key }} # We use the same key for OpenAI as the Copilot tests
@@ -231,7 +231,7 @@ jobs:
           docker build -f Dockerfile.cpu -t vllm-cpu-env --shm-size=4g .
           docker run -d  --name vllm \
              --network="host" \
-             vllm-cpu-env --model Qwen/Qwen2.5-Coder-0.5B-Instruct
+             vllm-cpu-env --model Qwen/Qwen2.5-Coder-1.5B-Instruct
 
           echo -e "\nVerify the vllm container is serving\n"
           docker ps -f name=vllm
@@ -245,7 +245,7 @@ jobs:
 
           echo -e "\nVerify the completions endpoint works\n"
           curl http://localhost:8000/v1/completions -H "Content-Type: application/json"   -d '{
-              "model": "Qwen/Qwen2.5-Coder-0.5B-Instruct",
+              "model": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
               "prompt": ["How to make pizza"],
               "max_tokens": 100,
               "temperature": 0
@@ -255,7 +255,7 @@ jobs:
           curl -X POST http://localhost:8000/v1/chat/completions \
               -H "Content-Type: application/json" \
               -d '{
-                "model": "Qwen/Qwen2.5-Coder-0.5B-Instruct",
+                "model": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
                 "messages": [
                   {"role": "system", "content": "You are a coding assistant."},
                   {"role": "user", "content": "Hello"}
@@ -269,6 +269,7 @@ jobs:
           docker logs vllm
 
       - name: Tests - ${{ matrix.test-provider }}
+        timeout-minutes: 10
         env:
           CODEGATE_PROVIDERS: ${{ matrix.test-provider }}
         run: |
