@@ -1,17 +1,28 @@
-name: Create Documentation Issue (when needed) on PR Approval 
+name: Create Documentation Issue on PR Approval
 
 on:
   pull_request_review:
     types:
-      - submitted
+      - submitted  # Normal trigger on PR approval
+
+  workflow_dispatch:  # Allows manual triggering for testing
+    inputs:
+      pr_number:
+        description: 'Test PR Number'
+        required: true
+        default: '9999'
+      pr_title:
+        description: 'Test PR Title'
+        required: true
+        default: 'Test PR for Documentation Updates'
 
 jobs:
   create-issue:
     runs-on: ubuntu-latest
-    if: github.event.review.state == 'approved'
     steps:
-      - name: Check PR Labels
-        id: check-labels
+      - name: Fetch PR Data (For PR-Triggered Runs)
+        id: fetch-pr
+        if: github.event_name == 'pull_request_review'
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -24,20 +35,31 @@ jobs:
               core.setOutput('should_create_issue', 'false');
             } else {
               core.setOutput('should_create_issue', 'true');
+              core.setOutput('pr_number', pr.number);
+              core.setOutput('pr_title', pr.title);
+              core.setOutput('pr_url', pr.html_url);
             }
 
+      - name: Use Test Data for Manual Runs
+        id: test-data
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "should_create_issue=true" >> $GITHUB_ENV
+          echo "pr_number=${{ inputs.pr_number }}" >> $GITHUB_ENV
+          echo "pr_title=${{ inputs.pr_title }}" >> $GITHUB_ENV
+          echo "pr_url=https://github.com/stacklok/codegate/pull/${{ inputs.pr_number }}" >> $GITHUB_ENV
+
       - name: Create Issue in Documentation Repo
-        if: steps.check-labels.outputs.should_create_issue == 'true'
+        if: env.should_create_issue == 'true'
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const repoOwner = 'stacklok';
             const repoName = 'codegate-docs';
-            const pr = context.payload.pull_request;
 
-            const issueTitle = `Docs update needed for PR #${pr.number}`;
-            const issueBody = `A documentation update is needed for the following PR:\n\n${pr.html_url}\n\n**Summary:**\n${pr.title}`;
+            const issueTitle = `Docs update needed for PR #${process.env.pr_number}`;
+            const issueBody = `A documentation update is needed for the following PR:\n\n${process.env.pr_url}\n\n**Summary:**\n${process.env.pr_title}`;
 
             github.rest.issues.create({
               owner: repoOwner,
