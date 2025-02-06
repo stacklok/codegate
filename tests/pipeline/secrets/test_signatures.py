@@ -16,6 +16,8 @@ def valid_yaml_content():
     return """
 - AWS:
     - Access Key: '[A-Z0-9]{20}'
+- GitHub:
+    - Access Token: '\\b(?i)ghp_[A-Za-z0-9_]{35,38}'
 """
 
 
@@ -31,6 +33,7 @@ def test_match_creation():
     match = Match(
         service="AWS",
         type="Access Key",
+        secret_key="AWS_ACCESS_KEY",
         value="AKIAIOSFODNN7EXAMPLE",
         line_number=1,
         start_index=0,
@@ -38,6 +41,7 @@ def test_match_creation():
     )
     assert match.service == "AWS"
     assert match.type == "Access Key"
+    assert match.secret_key == "AWS_ACCESS_KEY"
     assert match.value == "AKIAIOSFODNN7EXAMPLE"
     assert match.line_number == 1
     assert match.start_index == 0
@@ -89,31 +93,6 @@ def test_find_in_string_with_aws_credentials(temp_yaml_file):
     assert match.service == "AWS"
     assert match.type == "Access Key"
     assert match.value == "AKIAIOSFODNN7EXAMPLE"
-
-
-def test_find_in_string_with_github_token():
-    # Create a temporary file with empty content since GitHub patterns are hardcoded
-    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".yaml") as f:
-        f.write("[]")  # Empty YAML list
-
-    try:
-        CodegateSignatures.initialize(f.name)
-
-        test_string = "github_token = 'ghp_1234567890abcdef1234567890abcdef123456'"
-        matches = CodegateSignatures.find_in_string(test_string)
-
-        # Get unique matches by value and service
-        unique_matches = {
-            (m.service, m.value): m for m in matches if m.service == "GitHub"
-        }.values()
-        assert len(unique_matches) == 1
-
-        match = next(iter(unique_matches))
-        assert match.service == "GitHub"
-        assert match.type == "Access Token"
-        assert "ghp_" in match.value
-    finally:
-        os.unlink(f.name)
 
 
 def test_find_in_string_with_no_matches(temp_yaml_file):

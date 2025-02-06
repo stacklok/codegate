@@ -32,6 +32,10 @@
     - API Key: \bSK[0-9a-fA-F]{32}\b
     - Access Token: \b(?i)55[0-9a-fA-F]{32}\b
 
+- Twitter:
+    - Client ID: (?i)twitter(.{0,20})?['\"][0-9a-z]{18,25}
+    - Secret: (?i)twitter(.{0,20})?['\"][0-9a-z]{35,44}
+
 - Atlassian:
     - JIRA Token: (?i)(jira_token)
     - Bitbucket Data Center Access Token: BBDC-[a-zA-Z0-9+]{44}
@@ -40,6 +44,7 @@
 
 - Google:
     - Cloud API Key: AIza[0-9A-Za-z_-]{35}
+    - Cloud Platform API Key: (?i)(google|gcp|youtube|drive|yt)(.{0,20})?['\"][AIza[0-9a-z\\-_]{35}]['\"]
     - Cloud OAuth Secret: (?i)(GOCSPX-[-0-9A-Za-z_]{24,32})
     #- reCaptcha Key: 6L([A-Za-z0-9_-]{6})AAAAA([A-Za-z0-9_-]{27})
     - OAuth Key: ya29\.[0-9A-Za-z_-]{64,256}
@@ -58,7 +63,7 @@
     - App Installation Token: \b(?i)ghu_[A-Za-z0-9_]{35,38}
     - App user Token: \b(?i)ghs_[A-Za-z0-9_]{35,38}
     - Device Code: \bGH_[a-zA-Z0-9_]{9,30}
-    - Refresh Token: (\b?i)ghr_[A-Za-z0-9_]{35,38}
+    - Refresh Token: \b(?i)ghr_[A-Za-z0-9_]{35,38}
     - Webhook Secret: (?i)whsec_[A-Za-z0-9]{31,38}
     - Authentication URL: (?i)(?:(http|https):)//[\S]{1,256}:[\S]{1,256}@github.com[\S]+
 
@@ -98,6 +103,8 @@
 - Meta:
     - Page Access Token: (?i)(EAAG[0-9A-Za-z]{10,128})
     - Facebook Access Token: EAACEdEose0cBA[0-9A-Za-z]+
+    - Facebook Client ID: (?i)(facebook|fb)(.{0,20})?['\"][0-9]{13,17}
+    - Facebook Secret Key: (?i)(facebook|fb)(.{0,20})?(?-i)['\"][0-9a-f]{32}
     #- Client Token: (?i)fb[a-zA-Z0-9]{24,32}
     - Instagram Access Token: (?i)(IGQV[0-9A-Za-z-_]{10,255})
     - Instagram App Secret: (?i)(ig_[a-f0-9]{32})
@@ -157,6 +164,9 @@
     - Project API Key: (?i)sk-proj-[\w-]+T3BlbkFJ[\w-]+
     - User API Key: (?i)sk-[^proj]\w.+T3BlbkFJ[\w-]+
 
+- Claude:
+    - Claude API Key: (?i)sk-ant-[a-zA-Z0-9]{8,32}
+
 - Groq:
     - API Key: (?i)gsk_[A-Za-z0-9]+
 
@@ -192,6 +202,7 @@
 
 - Artifactory:
     - Token: AKCp[0-9][a-zA-Z0-9]{64,128}
+    - Password: AP[\dABCDEF][a-zA-Z0-9]{8,}
 
 - Figma:
     - Personal Access Token: (figd_[a-zA-Z0-9-_]{14,32}_[a-zA-Z0-9-_]{14,32})
@@ -265,13 +276,6 @@
 - Postgresql:
     - URL: (?i)(?:pgsql:|postgres:|postgresql:)//[\S]{1,256}:[\S]{1,256}@[-.%\w\/:]+\.[\S]+
 
-- GitHub:
-    - Access Token: (?i)\bghp_[A-Za-z0-9]{36}\b
-    - OAuth Token: (?i)\bgho_[A-Za-z0-9]{36}\b
-    - App Installation Token: (?i)\bghu_[A-Za-z0-9]{36}\b
-    - App user Token: (?i)\bghs_[A-Za-z0-9]{36}\b
-    - Refresh Token: (?i)\bghr_[A-Za-z0-9]{36}\b
-
 - Addresses:
     - Bitcoin Legacy: \b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b
     - Bitcoin SegWit: \b(bc1)[a-zA-HJ-NP-Z0-9]{39,59}\b
@@ -299,7 +303,8 @@
     - Advanced Message Queuing Protocol (AMQP) URL: amqp://[a-zA-Z0-9-_+.@]+:[^@]+@[^/]+
     # Private Keys
     - JSON Web Key Block: /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/gm
-    - Private Key Block: -{0,5} ?BEGIN (?:RSA |ENCRYPTED |OPENSSH |SSH2 )?PRIVATE KEY ?-{0,5} ?([\s\S]*?)-{0,5} ?END (?:RSA |ENCRYPTED |OPENSSH |SSH2 )?PRIVATE KEY ?-{0,5}
+    - Private Key Block: -{0,5} ?BEGIN (?:RSA |ENCRYPTED |OPENSSH |SSH2 |DSA |EC )?PRIVATE KEY ?-{0,5} ?([\s\S]*?)-{0,5} ?END (?:RSA |ENCRYPTED |OPENSSH |SSH2 |DSA |EC )?PRIVATE KEY ?-{0,5}
+    - PGP: -{0,5}BEGIN PGP PRIVATE KEY BLOCK-{0,5}[\s\S]*?-{0,5}END PGP PRIVATE KEY BLOCK-{0,5}
     - Bitcoin Private Key: \b[5KL][1-9A-HJ-NP-Za-km-z]{50,51}\b
     - Ethereum Private Key: \b0x[a-fA-F0-9]{64}\b
     - Litecoin Private Key: \b[5KL][1-9A-HJ-NP-Za-km-z]{50,51}\b
