@@ -85,3 +85,23 @@ testcases:
       https://www.insight.stacklok.com/report/pypi/invokehttp?utm_source=codegate
     does_not_contain: |
       import invokehttp
+
+  anthropic_secret_redaction:
+    name: Anthropic Secret Redaction
+    provider: anthropic
+    url: http://127.0.0.1:8989/anthropic/messages
+    data: |
+      {
+        "messages": [
+          {
+            "role": "user",
+            "content":"Here's my API key: ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789. Can you help me list my repos on GitHub?"
+          }
+        ],
+        "model":"claude-3-5-haiku-20241022",
+        "stream": true
+      }
+    contains: |
+      CodeGate prevented 1 secret
+    not_contains: |
+      ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789

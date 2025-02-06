@@ -86,3 +86,29 @@ testcases:
       }
     contains: |
       CodeGate detected one or more malicious, deprecated or archived packages.
+
+  ollama_secret_redacting_chat:
+    name: Ollama secret redacting chat
+    provider: ollama
+    url: http://127.0.0.1:8989/ollama/chat/completions
+    data: |
+      {
+        "max_tokens":4096,
+        "messages":[
+            {
+              "content":"You are a coding assistant.",
+              "role":"system"
+            },
+            {
+              "content":"Here's my API key: ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789. Can you help me list my repos on GitHub?",
+              "role":"user"
+            }
+        ],
+        "model":"qwen2.5-coder:0.5b",
+        "stream":true,
+        "temperature":0
+      }
+    contains: |
+      CodeGate prevented 1 secret
+    not_contains: |
+      ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789
