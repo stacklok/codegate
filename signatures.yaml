@@ -63,7 +63,7 @@
     - App Installation Token: \b(?i)ghu_[A-Za-z0-9_]{35,38}
     - App user Token: \b(?i)ghs_[A-Za-z0-9_]{35,38}
     - Device Code: \bGH_[a-zA-Z0-9_]{9,30}
-    - Refresh Token: (\b?i)ghr_[A-Za-z0-9_]{35,38}
+    - Refresh Token: \b(?i)ghr_[A-Za-z0-9_]{35,38}
     - Webhook Secret: (?i)whsec_[A-Za-z0-9]{31,38}
     - Authentication URL: (?i)(?:(http|https):)//[\S]{1,256}:[\S]{1,256}@github.com[\S]+
 
