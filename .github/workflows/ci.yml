@@ -41,6 +41,9 @@ jobs:
         path: .venv
         key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
 
+    - name: Install torch
+      run: pip install --upgrade torch==2.6.0 -f https://download.pytorch.org/whl/cpu
+
     - name: Install dependencies
       run: poetry install --with dev
 
