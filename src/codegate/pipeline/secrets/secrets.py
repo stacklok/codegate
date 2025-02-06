@@ -2,7 +2,7 @@ import re
 from abc import abstractmethod
 from typing import List, Optional, Tuple
 
-from codegate.pipeline.extract_snippets.extract_snippets import extract_snippets
+from codegate.extract_snippets.factory import MessageCodeExtractorFactory
 import structlog
 from litellm import ChatCompletionRequest, ChatCompletionSystemMessage, ModelResponse
 from litellm.types.utils import Delta, StreamingChoices
@@ -314,7 +314,9 @@ class CodegateSecrets(PipelineStep):
         return PipelineResult(request=new_request, context=context)
 
     def _redact_message_content(self, message_content, secrets_manager, session_id, context):
-        snippets = extract_snippets(message_content)
+        # Extract any code snippets
+        extractor = MessageCodeExtractorFactory.create_snippet_extractor(context.client)
+        snippets = extractor.extract_snippets(message_content)
         redacted_snippets = {}
         total_matches = []
 
