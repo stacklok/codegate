@@ -164,6 +164,9 @@
     - Project API Key: (?i)sk-proj-[\w-]+T3BlbkFJ[\w-]+
     - User API Key: (?i)sk-[^proj]\w.+T3BlbkFJ[\w-]+
 
+- Claude:
+    - Claude API Key: (?i)sk-ant-[a-zA-Z0-9]{8,32}
+
 - Groq:
     - API Key: (?i)gsk_[A-Za-z0-9]+
 
