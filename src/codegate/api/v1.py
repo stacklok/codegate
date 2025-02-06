@@ -408,7 +408,9 @@ async def get_workspace_messages(workspace_name: str) -> List[v1_models.Conversa
         prompts_with_output_alerts_usage = (
             await dbreader.get_prompts_with_output_alerts_usage_by_workspace_id(ws.id)
         )
-        conversations, _ = await v1_processing.parse_messages_in_conversations(prompts_with_output_alerts_usage)
+        conversations, _ = await v1_processing.parse_messages_in_conversations(
+            prompts_with_output_alerts_usage
+        )
         return conversations
     except Exception:
         logger.exception("Error while getting messages")

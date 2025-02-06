@@ -136,6 +136,7 @@ class IntermediatePromptWithOutputUsageAlerts(BaseModel):
     An intermediate model to represent the result of a query
     for a prompt and related outputs, usage stats & alerts.
     """
+
     prompt_id: Any
     prompt_timestamp: Any
     provider: Optional[Any]

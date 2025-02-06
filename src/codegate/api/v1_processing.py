@@ -297,7 +297,9 @@ def _group_partial_messages(  # noqa: C901
                     continue
                 if abs((other.timestamp - sup.timestamp).total_seconds()) <= 5 and set(
                     other.messages
-                ) & set(sup.messages):  # At least one message in common
+                ) & set(
+                    sup.messages
+                ):  # At least one message in common
                     new_group.append(other)
                     used.add(other.message_id)
 

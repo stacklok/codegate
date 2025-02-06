@@ -8,7 +8,7 @@ import structlog
 from alembic import command as alembic_command
 from alembic.config import Config as AlembicConfig
 from pydantic import BaseModel
-from sqlalchemy import CursorResult, TextClause, bindparam, event, text
+from sqlalchemy import CursorResult, TextClause, event, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -18,12 +18,11 @@ from codegate.db.models import (
     ActiveWorkspace,
     Alert,
     GetPromptWithOutputsRow,
-    GetPromptWithOutputsRow,
     GetWorkspaceByNameConditions,
+    IntermediatePromptWithOutputUsageAlerts,
     MuxRule,
     Output,
     Prompt,
-    IntermediatePromptWithOutputUsageAlerts,
     ProviderAuthMaterial,
     ProviderEndpoint,
     ProviderModel,
@@ -91,7 +90,6 @@ class DbCodeGate:
 
 
 class DbRecorder(DbCodeGate):
-
     def __init__(self, sqlite_path: Optional[str] = None):
         super().__init__(sqlite_path)
 
@@ -519,7 +517,6 @@ class DbRecorder(DbCodeGate):
 
 
 class DbReader(DbCodeGate):
-
     def __init__(self, sqlite_path: Optional[str] = None):
         super().__init__(sqlite_path)
 
@@ -588,7 +585,9 @@ class DbReader(DbCodeGate):
         )
         return prompts
 
-    async def get_prompts_with_output_alerts_usage_by_workspace_id(self, workspace_id: str) -> List[GetPromptWithOutputsRow]:
+    async def get_prompts_with_output_alerts_usage_by_workspace_id(
+        self, workspace_id: str
+    ) -> List[GetPromptWithOutputsRow]:
         """
         Get all prompts with their outputs, alerts and token usage by workspace_id.
         """
@@ -604,7 +603,7 @@ class DbReader(DbCodeGate):
             LEFT JOIN alerts a ON p.id = a.prompt_id
             WHERE p.workspace_id = :workspace_id
             ORDER BY o.timestamp DESC, a.timestamp DESC
-            """
+            """  # noqa: E501
         )
         conditions = {"workspace_id": workspace_id}
         rows = await self._exec_select_conditions_to_pydantic(
@@ -628,7 +627,7 @@ class DbReader(DbCodeGate):
                     output_tokens=row.output_tokens,
                     input_cost=row.input_cost,
                     output_cost=row.output_cost,
-                    alerts=[]
+                    alerts=[],
                 )
             if row.alert_id:
                 alert = Alert(
@@ -638,7 +637,7 @@ class DbReader(DbCodeGate):
                     trigger_string=row.trigger_string,
                     trigger_type=row.trigger_type,
                     trigger_category=row.trigger_category,
-                    timestamp=row.alert_timestamp
+                    timestamp=row.alert_timestamp,
                 )
                 prompts_dict[prompt_id].alerts.append(alert)
 
