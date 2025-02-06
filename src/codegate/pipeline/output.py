@@ -103,20 +103,18 @@ class OutputPipelineInstance:
         when a pipeline pauses streaming.
         """
         self._buffered_chunk = chunk
-        for choice in chunk.choices:
-            # the last choice has no delta or content, let's not buffer it
-            if choice.delta is not None and choice.delta.content is not None:
-                self._context.buffer.append(choice.delta.content)
+        for content in chunk.get_content():
+            for text in content.get_text():
+                self._context.buffer.append(text)
 
     def _store_chunk_content(self, chunk: ModelResponse) -> None:
         """
         Store chunk content in processed content. This keeps track of the content that has been
         streamed through the pipeline.
         """
-        for choice in chunk.choices:
-            # the last choice has no delta or content, let's not buffer it
-            if choice.delta is not None and choice.delta.content is not None:
-                self._context.processed_content.append(choice.delta.content)
+        for content in chunk.get_content():
+            for text in content.get_text():
+                self._context.processed_content.append(text)
 
     def _record_to_db(self) -> None:
         """
@@ -177,28 +175,29 @@ class OutputPipelineInstance:
                 self._record_to_db()
                 return
 
-            # Process any remaining content in buffer when stream ends
-            if self._context.buffer:
-                final_content = "".join(self._context.buffer)
-                chunk = ModelResponse(
-                    id=self._buffered_chunk.id,
-                    choices=[
-                        StreamingChoices(
-                            finish_reason=None,
-                            # we just put one choice in the buffer, so 0 is fine
-                            index=0,
-                            delta=Delta(content=final_content, role="assistant"),
-                            # umm..is this correct?
-                            logprobs=self._buffered_chunk.choices[0].logprobs,
-                        )
-                    ],
-                    created=self._buffered_chunk.created,
-                    model=self._buffered_chunk.model,
-                    object="chat.completion.chunk",
-                )
-                self._input_context.add_output(chunk)
-                yield chunk
-                self._context.buffer.clear()
+            # TODO figure out what's the logic here.
+            # # Process any remaining content in buffer when stream ends
+            # if self._context.buffer:
+            #     final_content = "".join(self._context.buffer)
+            #     chunk = ModelResponse(
+            #         id=self._buffered_chunk.id,
+            #         choices=[
+            #             StreamingChoices(
+            #                 finish_reason=None,
+            #                 # we just put one choice in the buffer, so 0 is fine
+            #                 index=0,
+            #                 delta=Delta(content=final_content, role="assistant"),
+            #                 # umm..is this correct?
+            #                 logprobs=self._buffered_chunk.choices[0].logprobs,
+            #             )
+            #         ],
+            #         created=self._buffered_chunk.created,
+            #         model=self._buffered_chunk.model,
+            #         object="chat.completion.chunk",
+            #     )
+            #     self._input_context.add_output(chunk)
+            #     yield chunk
+            #     self._context.buffer.clear()
 
             if finish_stream:
                 self._record_to_db()
