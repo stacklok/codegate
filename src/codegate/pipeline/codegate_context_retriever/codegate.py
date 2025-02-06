@@ -5,7 +5,7 @@ import structlog
 from litellm import ChatCompletionRequest
 
 from codegate.clients.clients import ClientType
-from codegate.extract_snippets.message_extractor import DefaultCodeSnippetExtractor
+from codegate.extract_snippets.factory import MessageCodeExtractorFactory
 from codegate.pipeline.base import (
     AlertSeverity,
     PipelineContext,
@@ -24,9 +24,6 @@ class CodegateContextRetriever(PipelineStep):
     Pipeline step that adds a context message to the completion request when it detects
     the word "codegate" in the user message.
     """
-
-    def __init__(self):
-        self.extractor = DefaultCodeSnippetExtractor()
 
     @property
     def name(self) -> str:
@@ -73,7 +70,8 @@ class CodegateContextRetriever(PipelineStep):
         storage_engine = StorageEngine()
 
         # Extract any code snippets
-        snippets = self.extractor.extract_snippets(user_message)
+        extractor = MessageCodeExtractorFactory.create_snippet_extractor(context.client)
+        snippets = extractor.extract_snippets(user_message)
 
         bad_snippet_packages = []
         if len(snippets) > 0:

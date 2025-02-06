@@ -5,7 +5,8 @@ from fastapi import APIRouter, HTTPException, Request
 
 from codegate.clients.clients import ClientType
 from codegate.clients.detector import DetectClient
-from codegate.extract_snippets.factory import CodeSnippetExtractorFactory
+from codegate.extract_snippets.body_extractor import BodyCodeSnippetExtractorError
+from codegate.extract_snippets.factory import BodyCodeExtractorFactory
 from codegate.muxing import rulematcher
 from codegate.muxing.adapter import BodyAdapter, ResponseAdapter
 from codegate.providers.registry import ProviderRegistry
@@ -42,8 +43,12 @@ class MuxRouter:
         """
         Extract filenames from the request data.
         """
-        body_extractor = CodeSnippetExtractorFactory.create_snippet_extractor(detected_client)
-        return body_extractor.extract_unique_snippets(data)
+        try:
+            body_extractor = BodyCodeExtractorFactory.create_snippet_extractor(detected_client)
+            return body_extractor.extract_unique_filenames(data)
+        except BodyCodeSnippetExtractorError as e:
+            logger.error(f"Error extracting filenames from request: {e}")
+            return set()
 
     async def _get_model_routes(self, filenames: set[str]) -> list[rulematcher.ModelRoute]:
         """

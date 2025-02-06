@@ -64,7 +64,7 @@ def _evaluate_actual_filenames(filenames: set[str], test_case: BodyCodeSnippetTe
 )
 def test_body_extract_openinterpreter_snippets(test_case: BodyCodeSnippetTest):
     extractor = OpenInterpreterBodySnippetExtractor()
-    filenames = extractor.extract_unique_snippets(test_case.input_body_dict)
+    filenames = extractor.extract_unique_filenames(test_case.input_body_dict)
     _evaluate_actual_filenames(filenames, test_case)
 
 
@@ -155,5 +155,5 @@ async def _process_prompt_output_to_partial_qa(
 )
 def test_body_extract_cline_snippets(test_case: BodyCodeSnippetTest):
     extractor = ClineBodySnippetExtractor()
-    filenames = extractor.extract_unique_snippets(test_case.input_body_dict)
+    filenames = extractor.extract_unique_filenames(test_case.input_body_dict)
     _evaluate_actual_filenames(filenames, test_case)

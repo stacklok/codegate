@@ -6,9 +6,16 @@ from codegate.extract_snippets.body_extractor import (
     ContinueBodySnippetExtractor,
     OpenInterpreterBodySnippetExtractor,
 )
+from codegate.extract_snippets.message_extractor import (
+    AiderCodeSnippetExtractor,
+    ClineCodeSnippetExtractor,
+    CodeSnippetExtractor,
+    DefaultCodeSnippetExtractor,
+    OpenInterpreterCodeSnippetExtractor,
+)
 
 
-class CodeSnippetExtractorFactory:
+class BodyCodeExtractorFactory:
 
     @staticmethod
     def create_snippet_extractor(detected_client: ClientType) -> BodyCodeSnippetExtractor:
@@ -19,3 +26,16 @@ class CodeSnippetExtractorFactory:
             ClientType.OPEN_INTERPRETER: OpenInterpreterBodySnippetExtractor(),
         }
         return mapping_client_extractor.get(detected_client, ContinueBodySnippetExtractor())
+
+
+class MessageCodeExtractorFactory:
+
+    @staticmethod
+    def create_snippet_extractor(detected_client: ClientType) -> CodeSnippetExtractor:
+        mapping_client_extractor = {
+            ClientType.GENERIC: DefaultCodeSnippetExtractor(),
+            ClientType.CLINE: ClineCodeSnippetExtractor(),
+            ClientType.AIDER: AiderCodeSnippetExtractor(),
+            ClientType.OPEN_INTERPRETER: OpenInterpreterCodeSnippetExtractor(),
+        }
+        return mapping_client_extractor.get(detected_client, DefaultCodeSnippetExtractor())
