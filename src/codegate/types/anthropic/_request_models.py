@@ -8,12 +8,10 @@ from typing import (
     Iterable,
     List,
     Literal,
-    Optional,
     TypedDict,
     Union,
 )
 
-from litellm.adapters.anthropic_adapter import AnthropicStreamWrapper
 from litellm.types.llms.anthropic import (
     AnthropicMessagesRequest,
     ContentBlockDelta,
@@ -35,7 +33,13 @@ class CacheControl(pydantic.BaseModel):
 class TextContent(pydantic.BaseModel):
     type: Literal["text"]
     text: str
-    cache_control: Optional[CacheControl] = None
+    cache_control: CacheControl | None = None
+
+    def get_text(self) -> str | None:
+        return self.text
+
+    def set_text(self, text) -> None:
+        self.text = text
 
 
 class ToolUseContent(pydantic.BaseModel):
@@ -43,15 +47,27 @@ class ToolUseContent(pydantic.BaseModel):
     input: dict
     name: str
     type: Literal["tool_use"]
-    cache_control: Optional[CacheControl] = None
+    cache_control: CacheControl | None = None
+
+    def get_text(self) -> str | None:
+        return None
+
+    def set_text(self, text) -> None:
+        pass
 
 
 class ToolResultContent(pydantic.BaseModel):
     tool_use_id: str
     type: Literal["tool_result"]
     content: str
-    is_error: Optional[bool] = False
-    cache_control: Optional[CacheControl] = None
+    is_error: bool | None = False
+    cache_control: CacheControl | None = None
+
+    def get_text(self) -> str | None:
+        return self.content
+
+    def set_text(self, text) -> None:
+        self.content = text
 
 
 MessageContent = Union[
@@ -65,34 +81,38 @@ class UserMessage(pydantic.BaseModel):
     role: Literal["user"]
     content: str | List[MessageContent]
 
-    def text(self) -> Iterable[str]:
+    def get_text(self) -> Iterable[str]:
         if isinstance(self.content, str):
             yield self.content
         else: # list
             for content in self.content:
-                if isinstance(content, TextContent):
-                    yield content.text
-                # if isinstance(content, ToolResultContent):
-                #     return content.input # this is an object
-                if isinstance(content, ToolResultContent):
-                    yield content.content
+                yield content.get_text()
+
+    def get_content(self) -> Iterable[MessageContent]:
+        if isinstance(self.content, str):
+            yield self
+        else: # list
+            for content in self.content:
+                yield content
 
 
 class AssistantMessage(pydantic.BaseModel):
     role: Literal["assistant"]
     content: str | List[MessageContent]
 
-    def text(self) -> Iterable[str]:
+    def get_text(self) -> Iterable[str]:
         if isinstance(self.content, str):
             yield self.content
         else: # list
             for content in self.content:
-                if isinstance(content, TextContent):
-                    return content.text
-                # if isinstance(content, ToolResultContent):
-                #     return content.input # this is an object
-                if isinstance(content, ToolResultContent):
-                    return content.content
+                yield content.get_text()
+
+    def get_content(self) -> Iterable[MessageContent]:
+        if isinstance(self.content, str):
+            yield self
+        else: # list
+            for content in self.content:
+                yield content
 
 
 Message = Union[
@@ -124,21 +144,15 @@ ResponseFormat = Union[
 class SystemPrompt(pydantic.BaseModel):
     text: str
     type: Literal["text"] = "text"
-    cache_control: Optional[CacheControl] = None
-
-
-class InputSchema(pydantic.BaseModel):
-    type: Literal["object"]
-    properties: Optional[Dict] = None
-    required: Optional[List[str]] = None
+    cache_control: CacheControl | None = None
 
 
 class ToolDef(pydantic.BaseModel):
     name: str
-    description: Optional[str] = None
-    cache_control: Optional[CacheControl] = None
-    type: Optional[Literal["custom"]] = "custom"
-    input_schema: Optional[InputSchema]
+    description: str | None = None
+    cache_control: CacheControl | None = None
+    type: Literal["custom"] | None = "custom"
+    input_schema: Any | None
 
 
 ToolChoiceType = Union[
@@ -150,23 +164,23 @@ ToolChoiceType = Union[
 
 class ToolChoice(pydantic.BaseModel):
     type: ToolChoiceType = "auto"
-    name: Optional[str] = None
-    disable_parallel_tool_use: Optional[bool] = False
+    name: str | None = None
+    disable_parallel_tool_use: bool | None = False
 
 
 class ChatCompletionRequest(pydantic.BaseModel):
     max_tokens: int
     messages: List[Message]
     model: str
-    metadata: Optional[Dict] = None
-    stop_sequences: Optional[List[str]] = None
+    metadata: Dict | None = None
+    stop_sequences: List[str] | None = None
     stream: bool = False
-    system: Optional[Union[str, SystemPrompt]] = None
-    temperature: Optional[float] = None
-    tool_choice: Optional[ToolChoice] = None
-    tools: Optional[List[ToolDef]] = None
-    top_k: Optional[int] = None
-    top_p: Optional[Union[int, float]] = None
+    system: Union[str, SystemPrompt] | None = None
+    temperature: float | None = None
+    tool_choice: ToolChoice | None = None
+    tools: List[ToolDef] | None = None
+    top_k: int | None = None
+    top_p: Union[int, float] | None = None
 
     def get_stream(self) -> bool:
         return self.stream
@@ -174,34 +188,26 @@ class ChatCompletionRequest(pydantic.BaseModel):
     def get_model(self) -> str:
         return self.model
 
+    def get_messages(self) -> Iterable[Message]:
+        for msg in self.messages:
+            yield msg
+
     def first_message(self) -> Message | None:
         return self.messages[0]
 
     def last_user_message(self) -> Message | None:
         for idx, msg in enumerate(reversed(self.messages)):
             if isinstance(msg, UserMessage):
-                return msg, len(self.messages) - idx
+                return msg, len(self.messages) - 1 - idx
 
-    def last_user_block(self) -> Iterable[Message] | None:
+    def last_user_block(self) -> Iterable[Message]:
         for idx, msg in enumerate(reversed(self.messages)):
             if isinstance(msg, UserMessage):
-                yield  msg, len(self.messages) - idx
+                yield  msg, len(self.messages) - 1 - idx
             else:
                 break
 
-    def user_text(self) -> Iterable[str]:
-        for msg in reversed(self.messages):
-            if isinstance(msg, UserMessage):
-                yield msg.text()
-            else:
-                return
-
-    def all_text(self) -> Iterable[str]:
-        for msg in self.messages:
-            for txt in msg.text():
-                yield txt
-
-    def system_prompt(self) -> Iterable[str]:
+    def get_system_prompt(self) -> Iterable[str]:
         if isinstance(self.system, str):
             yield self.system
         if isinstance(self.system, SystemPrompt):
@@ -212,6 +218,12 @@ class ChatCompletionRequest(pydantic.BaseModel):
             self.system = text
         if isinstance(self.system, SystemPrompt):
             self.system.text = text
+
+    def add_system_prompt(self, text, sep="\n") -> None:
+        if isinstance(self.system, str):
+            self.system = f"{self.system}{sep}{text}"
+        if isinstance(self.system, SystemPrompt):
+            self.system.text = f"{self.system.text}{sep}{text}"
 
     def prompt(self, default=None):
         if default is not None:

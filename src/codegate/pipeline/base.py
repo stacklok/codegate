@@ -204,7 +204,7 @@ class PipelineStep(ABC):
 
         # unpack the tuple
         msg, idx = msg
-        return "".join([txt for txt in msg.text()]), idx
+        return "".join([txt for txt in msg.get_text()]), idx
 
 
     @staticmethod
@@ -228,7 +228,7 @@ class PipelineStep(ABC):
         user_messages = []
         last_idx = -1
         for msg, idx in request.last_user_block():
-            for content in msg.text():
+            for content in msg.get_text():
                 user_messages.append(content)
                 last_idx = idx
 
