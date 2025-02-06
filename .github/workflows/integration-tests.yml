@@ -191,7 +191,7 @@ jobs:
 
             # Monitor container and model status
             monitor_count=0
-            while [ $monitor_count -lt 60 ]; do  # 5 minute timeout per attempt
+            while [ $monitor_count -lt 90 ]; do  # 7.5 minutes
               # Check if container is still running
               if ! docker ps | grep -q ollama; then
                 echo "Container crashed, logs:"
@@ -206,12 +206,12 @@ jobs:
                 exit 0  # Success!
               fi
 
-              echo "Model not ready yet. Waiting... ($(($monitor_count + 1))/60)"
+              echo "Model not ready yet. Waiting... ($(($monitor_count + 1))/90)"
               sleep 5
               monitor_count=$((monitor_count + 1))
             done
 
-            if [ $monitor_count -eq 60 ]; then
+            if [ $monitor_count -eq 90 ]; then
               echo "Timeout waiting for model, container logs:"
               docker logs ollama
               retry_count=$((retry_count + 1))
