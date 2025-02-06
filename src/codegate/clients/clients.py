@@ -11,3 +11,4 @@ class ClientType(Enum):
     KODU = "kodu"  # Kodu client
     COPILOT = "copilot"  # Copilot client
     OPEN_INTERPRETER = "open_interpreter"  # Open Interpreter client
+    AIDER = "aider"  # Aider client
