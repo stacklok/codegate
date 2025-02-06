@@ -1607,7 +1607,8 @@
           "vllm",
           "ollama",
           "lm_studio",
-          "llamacpp"
+          "llamacpp",
+          "openai"
         ],
         "title": "ProviderType",
         "description": "Represents the different types of providers we support."
