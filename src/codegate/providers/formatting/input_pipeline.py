@@ -61,7 +61,6 @@ def _create_model_response(
             model=model,
         )
 
-
 async def _convert_to_stream(
     content: str,
     step_name: str,
