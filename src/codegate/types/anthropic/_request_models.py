@@ -13,7 +13,6 @@ from typing import (
 )
 
 from litellm.types.llms.anthropic import (
-    AnthropicMessagesRequest,
     ContentBlockDelta,
     ContentBlockStart,
     ContentTextBlockDelta,
@@ -143,7 +142,7 @@ ResponseFormat = Union[
 
 class SystemPrompt(pydantic.BaseModel):
     text: str
-    type: Literal["text"] = "text"
+    type: Literal["text"]
     cache_control: CacheControl | None = None
 
 
@@ -175,7 +174,7 @@ class ChatCompletionRequest(pydantic.BaseModel):
     metadata: Dict | None = None
     stop_sequences: List[str] | None = None
     stream: bool = False
-    system: Union[str, SystemPrompt] | None = None
+    system: Union[str, List[SystemPrompt]] | None = None
     temperature: float | None = None
     tool_choice: ToolChoice | None = None
     tools: List[ToolDef] | None = None
@@ -210,20 +209,27 @@ class ChatCompletionRequest(pydantic.BaseModel):
     def get_system_prompt(self) -> Iterable[str]:
         if isinstance(self.system, str):
             yield self.system
-        if isinstance(self.system, SystemPrompt):
-            yield self.system.text
+        if isinstance(self.system, list):
+            for sp in self.system:
+                yield sp.text
+                break # TODO this must be changed
 
     def set_system_prompt(self, text) -> None:
         if isinstance(self.system, str):
             self.system = text
-        if isinstance(self.system, SystemPrompt):
-            self.system.text = text
+        if isinstance(self.system, list):
+            self.system[0].text = text
 
     def add_system_prompt(self, text, sep="\n") -> None:
         if isinstance(self.system, str):
             self.system = f"{self.system}{sep}{text}"
-        if isinstance(self.system, SystemPrompt):
-            self.system.text = f"{self.system.text}{sep}{text}"
+        if isinstance(self.system, list):
+            self.system.append(
+                SystemPrompt(
+                    text=text,
+                    type="text",
+                )
+            )
 
     def prompt(self, default=None):
         if default is not None:

@@ -94,11 +94,15 @@ class SystemPrompt(PipelineStep):
 
         if type(request) != ChatCompletionRequest and isinstance(request, CodegateChatCompletionRequest):
             request_system_message = {}
+            req_sys_prompt = ""
             for sysprompt in request.get_system_prompt():
                 req_sys_prompt = sysprompt
 
             system_prompt = await self._construct_system_prompt(
-                wrksp_custom_instructions, req_sys_prompt, should_add_codegate_sys_prompt
+                context.client,
+                wrksp_custom_instructions,
+                req_sys_prompt,
+                should_add_codegate_sys_prompt,
             )
             context.add_alert(self.name, trigger_string=system_prompt)
             request.set_system_prompt(system_prompt)
