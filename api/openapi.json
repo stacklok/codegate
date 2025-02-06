@@ -1175,6 +1175,74 @@
         "title": "AddProviderEndpointRequest",
         "description": "Represents a request to add a provider endpoint."
       },
+      "Alert": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "prompt_id": {
+            "type": "string",
+            "title": "Prompt Id"
+          },
+          "code_snippet": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CodeSnippet"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trigger_string": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trigger String"
+          },
+          "trigger_type": {
+            "type": "string",
+            "title": "Trigger Type"
+          },
+          "trigger_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trigger Category"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "prompt_id",
+          "code_snippet",
+          "trigger_string",
+          "trigger_type",
+          "trigger_category",
+          "timestamp"
+        ],
+        "title": "Alert",
+        "description": "Represents an alert."
+      },
       "AlertConversation": {
         "properties": {
           "conversation": {
@@ -1389,6 +1457,14 @@
                 "type": "null"
               }
             ]
+          },
+          "alerts": {
+            "items": {
+              "$ref": "#/components/schemas/Alert"
+            },
+            "type": "array",
+            "title": "Alerts",
+            "default": []
           }
         },
         "type": "object",
