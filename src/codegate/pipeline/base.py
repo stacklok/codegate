@@ -13,29 +13,10 @@ from pydantic import BaseModel
 
 from codegate.clients.clients import ClientType
 from codegate.db.models import Alert, Output, Prompt
+from codegate.extract_snippets.message_extractor import CodeSnippet
 from codegate.pipeline.secrets.manager import SecretsManager
 
 logger = structlog.get_logger("codegate")
-
-
-@dataclass
-class CodeSnippet:
-    """
-    Represents a code snippet with its programming language.
-
-    Args:
-        language: The programming language identifier (e.g., 'python', 'javascript')
-        code: The actual code content
-    """
-
-    code: str
-    language: Optional[str]
-    filepath: Optional[str]
-    libraries: List[str] = field(default_factory=list)
-
-    def __post_init__(self):
-        if self.language is not None:
-            self.language = self.language.strip().lower()
 
 
 class AlertSeverity(Enum):

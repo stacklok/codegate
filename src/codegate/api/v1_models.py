@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Union
 import pydantic
 
 from codegate.db import models as db_models
-from codegate.pipeline.base import CodeSnippet
+from codegate.extract_snippets.message_extractor import CodeSnippet
 from codegate.providers.base import BaseProvider
 from codegate.providers.registry import ProviderRegistry
 
