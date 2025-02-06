@@ -8,6 +8,9 @@ from codegate.pipeline.base import (
 )
 from codegate.workspaces.crud import WorkspaceCrud
 from codegate.types.common import ChatCompletionRequest, ChatCompletionSystemMessage
+from codegate.types.anthropic import (
+    ChatCompletionRequest as CodegateChatCompletionRequest
+)
 
 
 class SystemPrompt(PipelineStep):
@@ -41,11 +44,11 @@ class SystemPrompt(PipelineStep):
         wrksp_custom_instr: str,
         req_sys_prompt: Optional[str],
         should_add_codegate_sys_prompt: bool,
-    ) -> ChatCompletionSystemMessage:
+    ) -> str:
 
         def _start_or_append(existing_prompt: str, new_prompt: str) -> str:
             if existing_prompt:
-                return existing_prompt + "\n\nHere are additional instructions:\n\n" + new_prompt
+                return f"{existing_prompt}\n\nHere are additional instructions:\n\n{new_prompt}"
             return new_prompt
 
         system_prompt = ""
@@ -85,6 +88,24 @@ class SystemPrompt(PipelineStep):
         # system prompt
         if not should_add_codegate_sys_prompt and not wrksp_custom_instructions:
             return PipelineResult(request=request, context=context)
+
+        
+        ##### NEW CODE PATH #####
+
+        if type(request) != ChatCompletionRequest and isinstance(request, CodegateChatCompletionRequest):
+            request_system_message = {}
+            for sysprompt in request.get_system_prompt():
+                req_sys_prompt = sysprompt
+
+            system_prompt = await self._construct_system_prompt(
+                wrksp_custom_instructions, req_sys_prompt, should_add_codegate_sys_prompt
+            )
+            context.add_alert(self.name, trigger_string=system_prompt)
+            request.set_system_prompt(system_prompt)
+
+            return PipelineResult(request=request, context=context)
+
+        ##### OLD CODE PATH #####
 
         new_request = request.copy()
 

@@ -24,6 +24,10 @@ from codegate.types.common import (
     ModelResponse,
     StreamingChoices,
 )
+from codegate.types.anthropic import (
+    ChatCompletionRequest as CodegateChatCompletionRequest
+)
+
 
 logger = structlog.get_logger("codegate")
 
@@ -288,6 +292,56 @@ class CodegateSecrets(PipelineStep):
         Returns:
             PipelineResult containing the processed request and context with redaction metadata
         """
+
+        ##### NEW CODE PATH #####
+
+        if type(request) != ChatCompletionRequest and isinstance(request, CodegateChatCompletionRequest):
+            secrets_manager = context.sensitive.manager
+            if not secrets_manager or not isinstance(secrets_manager, SecretsManager):
+                raise ValueError("Secrets manager not found in context")
+            session_id = context.sensitive.session_id
+            if not session_id:
+                raise ValueError("Session ID not found in context")
+
+            total_matches = []
+
+            # get last user message block to get index for the first relevant user message
+            last_user_message = self.get_last_user_message_block(request, context.client)
+            last_assistant_idx = -1
+            if last_user_message:
+                _, user_idx = last_user_message
+                last_assistant_idx = user_idx - 1
+
+            # Process all messages
+            for i, message in enumerate(request.get_messages()):
+                for content in message.get_content():
+                    # Protect the text
+                    protected_string, secrets_matched = self._redact_text(
+                        str(content.get_text()), secrets_manager, session_id, context
+                    )
+                    content.set_text(protected_string)
+
+                    # Append the matches for messages after the last assistant message
+                    if i > last_assistant_idx:
+                        total_matches += secrets_matched
+
+            # Not count repeated secret matches
+            set_secrets_value = set(match.value for match in total_matches)
+            total_redacted = len(set_secrets_value)
+            context.secrets_found = total_redacted > 0
+            logger.info(f"Total secrets redacted since last assistant message: {total_redacted}")
+
+            # Store the count in context metadata
+            context.metadata["redacted_secrets_count"] = total_redacted
+            print(next(request.get_system_prompt()))
+            if total_redacted > 0:
+                request.add_system_prompt(Config.get_config().prompts.secrets_redacted)
+                context.add_alert("update-system-message", trigger_string=next(request.get_system_prompt()))
+            print(next(request.get_system_prompt()))
+
+            return PipelineResult(request=request, context=context)
+
+        ##### OLD CODE PATH #####
 
         if "messages" not in request:
             return PipelineResult(request=request, context=context)
