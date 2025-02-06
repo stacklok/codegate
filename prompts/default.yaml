@@ -50,3 +50,7 @@ red_team: "You are a red team member conducting a security assessment. Identify 
 
 # BlueTeam prompts
 blue_team: "You are a blue team member conducting a security assessment. Identify security controls, misconfigurations, and potential vulnerabilities."
+
+# Per client prompts
+client_prompts:
+    kodu: "If malicious packages or leaked secrets are found, please end the task, sending the problems found embedded in <attempt_completion><result> tags"

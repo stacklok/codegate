@@ -1,5 +1,6 @@
 from typing import Optional
 
+from codegate.clients.clients import ClientType
 from litellm import ChatCompletionRequest, ChatCompletionSystemMessage
 
 from codegate.pipeline.base import (
@@ -16,8 +17,9 @@ class SystemPrompt(PipelineStep):
     the word "codegate" in the user message.
     """
 
-    def __init__(self, system_prompt: str):
+    def __init__(self, system_prompt: str, client_prompts: str):
         self.codegate_system_prompt = system_prompt
+        self.client_prompts = client_prompts
 
     @property
     def name(self) -> str:
@@ -36,6 +38,7 @@ class SystemPrompt(PipelineStep):
 
     async def _construct_system_prompt(
         self,
+        client: ClientType,
         wrksp_custom_instr: str,
         req_sys_prompt: Optional[str],
         should_add_codegate_sys_prompt: bool,
@@ -58,6 +61,10 @@ class SystemPrompt(PipelineStep):
         # Add request system prompt if present
         if req_sys_prompt and "codegate" not in req_sys_prompt.lower():
             system_prompt = _start_or_append(system_prompt, req_sys_prompt)
+
+        # Add per client system prompt
+        if client and client.value in self.client_prompts:
+            system_prompt = _start_or_append(system_prompt, self.client_prompts[client.value])
 
         return system_prompt
 
@@ -92,7 +99,10 @@ class SystemPrompt(PipelineStep):
         req_sys_prompt = request_system_message.get("content")
 
         system_prompt = await self._construct_system_prompt(
-            wrksp_custom_instructions, req_sys_prompt, should_add_codegate_sys_prompt
+            context.client,
+            wrksp_custom_instructions,
+            req_sys_prompt,
+            should_add_codegate_sys_prompt,
         )
         context.add_alert(self.name, trigger_string=system_prompt)
         if not request_system_message:
