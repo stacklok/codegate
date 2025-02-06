@@ -29,7 +29,8 @@ class FIMAnalyzer:
         Determine from the raw incoming data if it's a FIM request.
         Used by: OpenAI and Anthropic
         """
-        for txt in data.first_message().text():
+        fim_stop_sequences = ["</COMPLETION>", "<COMPLETION>", "</QUERY>", "<QUERY>"]
+        for txt in data.first_message().get_text():
             for stop_sequence in fim_stop_sequences:
                 if stop_sequence not in txt:
                     return False
@@ -41,7 +42,7 @@ class FIMAnalyzer:
         Determine if the request is FIM by the URL or the data of the request.
         """
         # first check if we are in specific tools to discard FIM
-        prompt = data.prompt()
+        prompt = data.prompt("")
         tools = ["cline", "kodu", "open interpreter"]
         for tool in tools:
             if tool in prompt.lower():

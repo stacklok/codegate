@@ -19,12 +19,18 @@ class TextResponseContent(pydantic.BaseModel):
     type: Literal["text"]
     text: str
 
+    def get_text(self):
+        yield self.text
+
 
 class ToolUseResponseContent(pydantic.BaseModel):
     type: Literal["tool_use"]
     id: str
     input: Any
     name: str
+
+    def get_text(self):
+        return iter(()) # empty generator
 
 
 ResponseContent = Union[
@@ -58,6 +64,10 @@ class Message(pydantic.BaseModel):
     stop_sequence: str | None
     usage: Usage
 
+    def get_content(self):
+        for content in self.content:
+            yield content
+
 
 ##### Streaming Messages #####
 
@@ -67,6 +77,12 @@ class TextDelta(pydantic.BaseModel):
     type: Literal["text"] | Literal["text_delta"]
     text: str
 
+    def get_text(self):
+        yield self.text
+
+    def set_text(self, text):
+        self.text = text
+
 
 class ToolUse(pydantic.BaseModel):
     type: Literal["tool_use"]
@@ -74,10 +90,24 @@ class ToolUse(pydantic.BaseModel):
     name: str
     input: Dict
 
+    def get_text(self):
+        return iter(()) # empty generator
+
+    def set_text(self, text):
+        print(f"THIS IS WEIRD: {text}")
+        pass
+
 
 class InputJsonDelta(pydantic.BaseModel):
     type: Literal["input_json_delta"]
     partial_json: str
+
+    def get_text(self):
+        yield self.partial_json
+
+    def set_text(self, text):
+        print(f"THIS IS WEIRD: {text}")
+        pass
 
 
 ##### Streaming Messages: Content Blocks #####
@@ -88,16 +118,28 @@ class ContentBlockStart(pydantic.BaseModel):
     index: int
     content_block: TextDelta | ToolUse
 
+    def get_content(self):
+        yield self.content_block
+
 
 class ContentBlockDelta(pydantic.BaseModel):
     type: Literal["content_block_delta"]
     index: int
     delta: TextDelta | InputJsonDelta
 
+    def get_content(self):
+        yield self.delta
+
+    def set_text(self, text):
+        self.delta.set_text(text)
+
 
 class ContentBlockStop(pydantic.BaseModel):
     type: Literal["content_block_stop"]
     index: int
+
+    def get_content(self):
+        return iter(()) # empty generator
 
 
 ContentBlock = Union[
@@ -114,6 +156,9 @@ class MessageStart(pydantic.BaseModel):
     type: Literal["message_start"]
     message: Message
 
+    def get_content(self) -> Iterable[Any]:
+        return self.message.get_content()
+
 
 class LimitedMessage(pydantic.BaseModel):
     stop_reason: StopReason | None
@@ -125,9 +170,15 @@ class MessageDelta(pydantic.BaseModel):
     delta: LimitedMessage
     usage: Usage
 
+    def get_content(self) -> Iterable[Any]:
+        return iter(()) # empty generator
+
 
 class MessageStop(pydantic.BaseModel):
     type: Literal["message_stop"]
+
+    def get_content(self) -> Iterable[Any]:
+        return iter(()) # empty generator
 
 
 ##### Streaming Messages: others #####
@@ -135,6 +186,9 @@ class MessageStop(pydantic.BaseModel):
 
 class MessagePing(pydantic.BaseModel):
     type: Literal["ping"]
+
+    def get_content(self) -> Iterable[Any]:
+        return iter(()) # empty generator
 
 
 # Anthropic’s API is temporarily overloaded. (HTTP 529)
@@ -204,3 +258,6 @@ Error = Union[
 class MessageError(pydantic.BaseModel):
     type: Literal["error"]
     error: Error
+
+    def get_content(self) -> Iterable[Any]:
+        return iter(()) # empty generator

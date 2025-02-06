@@ -10,9 +10,6 @@ from litellm import (
     acompletion as legacy_acompletion,
     atext_completion as legacy_atext_completion,
 )
-from litellm import (
-    ModelResponseStream,
-)
 from pydantic import BaseModel
 import structlog
 
@@ -21,21 +18,21 @@ from codegate.types.anthropic import (
     ChatCompletionRequest,
     # response objects
     ApiError,
-    AuthenticationError,
+    # AuthenticationError,
     ContentBlockDelta,
     ContentBlockStart,
     ContentBlockStop,
-    InvalidRequestError,
+    # InvalidRequestError,
     MessageDelta,
     MessageError,
     MessagePing,
     MessageStart,
     MessageStop,
-    NotFoundError,
-    OverloadedError,
-    PermissionError,
-    RateLimitError,
-    RequestTooLargeError,
+    # NotFoundError,
+    # OverloadedError,
+    # PermissionError,
+    # RateLimitError,
+    # RequestTooLargeError,
 )
 from codegate.types.common import (
     CodegateFunction,
@@ -78,21 +75,13 @@ async def anthropic_stream_generator(stream: AsyncIterator[Any]) -> AsyncIterato
     """Anthropic-style SSE format"""
     try:
         async for chunk in stream:
-            if isinstance(chunk, CodegateModelResponseStream) and chunk.payload:
-                if chunk.payload:
-                    event_type = chunk.payload["type"]
-                    body = json.dumps(chunk.payload)
-            else:
-                event_type = chunk.get("type", "content_block_delta")
-                body = json.dumps(chunk)
-
-            if os.getenv("CODEGATE_DEBUG_ANTHROPIC") is not None:
-                print(f"CODEGATE_DEBUG_ANTHROPIC: anthropic_stream_generator: {body}")
-
             try:
-                yield f"event: {event_type}\ndata: {body}\n\n"
+                body = chunk.json(exclude_defaults=True, exclude_unset=True)
+                if os.getenv("CODEGATE_DEBUG_ANTHROPIC") is not None:
+                    print(body)
+                yield f"event: {chunk.type}\ndata: {body}\n\n"
             except Exception as e:
-                logger.error("failed generating output payloads", exc_info=e)
+                logger.error("failed serializing payload", exc_info=e)
                 yield f"event: {event_type}\ndata: {str(e)}\n\n"
     except Exception as e:
         logger.error("failed generating output payloads", exc_info=e)
@@ -115,43 +104,36 @@ async def _inner(request, api_key):
     }
     payload = request.json(exclude_defaults=True)
 
+    if os.getenv("CODEGATE_DEBUG_ANTHROPIC") is not None:
+        print(payload)
+
     async with httpx.AsyncClient() as client:
         resp = await client.post(
             "https://api.anthropic.com/v1/messages",
             headers=headers,
             content=payload,
+            timeout=30, # TODO this should not be hardcoded
         )
-
-        if os.getenv("CODEGATE_DEBUG_ANTHROPIC") is not None:
-            print(f"CODEGATE_DEBUG_ANTHROPIC: acompletion: {payload}")
-            print(f"CODEGATE_DEBUG_ANTHROPIC: acompletion: {resp.text}")
 
         # TODO figure out how to best return failures
         match resp.status_code:
-            case 400: # invalid_request_error
-                yield InvalidRequestError.parse_raw(resp.text)
-            case 401: # authentication_error
-                yield AuthenticationError.parse_raw(resp.text)
-            case 403: # permission_error
-                yield PermissionError.parse_raw(resp.text)
-            case 404: # not_found_error
-                yield NotFoundError.parse_raw(resp.text)
-            case 413: # request_too_large
-                yield RequestTooLargeError.parse_raw(resp.text)
-            case 429: # rate_limit_error
-                yield RateLimitError.parse_raw(resp.text)
-            case 500: # api_error
-                yield ApiError.parse_raw(resp.text)
-            case 529: # overloaded_error
-                yield OverloadedError.parse_raw(resp.text)
-            case 200: # happy path
+            case 200:
+                # TODO this loop causes the connection to be kept open
+                # causing read timeouts and blocks (breaks the
+                # typewriter effect), fix this
                 async for event in anthropic_message_wrapper(resp.aiter_lines()):
                     yield event
+            case 400 | 401 | 403 | 404 | 413 | 429:
+                yield MessageError.parse_raw(resp.text)
+            case 500 | 529:
+                yield MessageError.parse_raw(resp.text)
             case _:
-                raise ValueError(f"anthropic: unexpected status code {resp.status_code}")
+                logger.error(f"unexpected status code {resp.status_code}", provider="anthropic")
+                raise ValueError(f"unexpected status code {resp.status_code}", provider="anthropic")
 
 
 async def get_data_lines(lines):
+    count = 0
     while True:
         # Get the `event: <type>` line.
         event_line = await anext(lines)
@@ -160,10 +142,13 @@ async def get_data_lines(lines):
         # Get the empty line.
         _ = await anext(lines)
 
+        count = count + 1
+
         # Event lines always begin with `event: `, and Data lines
         # always begin with `data: `, so we can skip the first few
         # characters and just return the payload.
         yield event_line[7:], data_line[6:]
+    logger.debug(f"Consumed {count} messages", provider="anthropic", count=count)
 
 
 async def anthropic_message_wrapper(lines):
@@ -177,9 +162,6 @@ async def anthropic_message_wrapper(lines):
     yield MessageStart.parse_raw(payload)
 
     async for event_type, payload in events:
-        if os.getenv("CODEGATE_DEBUG_ANTHROPIC") is not None:
-            print(f"{anthropic_message_wrapper.__name__}: {payload}")
-
         match event_type:
             case "message_delta":
                 yield MessageDelta.parse_raw(payload)
