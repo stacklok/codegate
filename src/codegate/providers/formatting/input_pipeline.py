@@ -2,7 +2,7 @@ import time
 from typing import AsyncIterator, Union
 
 from litellm import ModelResponse
-from litellm.types.utils import Delta, StreamingChoices
+from litellm.types.utils import Choices, Delta, Message, StreamingChoices
 
 from codegate.db.connection import DbRecorder
 from codegate.pipeline.base import PipelineContext, PipelineResponse
@@ -56,10 +56,16 @@ def _create_model_response(
     else:
         return ModelResponse(
             id=response_id,
-            choices=[{"text": content, "index": 0, "finish_reason": None}],
+            # choices=[{"text": content, "index": 0, "finish_reason": None}],
+            choices=[
+                Choices(
+                    message=Message(content=content, role="assistant"),
+                )
+            ],
             created=created,
             model=model,
         )
+
 
 async def _convert_to_stream(
     content: str,
