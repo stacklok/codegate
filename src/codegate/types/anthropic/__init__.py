@@ -2,14 +2,6 @@ from litellm import AnthropicExperimentalPassThroughConfig
 from litellm.adapters.anthropic_adapter import (
     AnthropicAdapter as LitellmAnthropicAdapter,
 )
-from litellm.types.llms.anthropic import (
-    AnthropicMessagesRequest,
-    ContentBlockDelta,
-    ContentBlockStart,
-    ContentTextBlockDelta,
-    MessageChunk,
-    MessageStartBlock,
-)
 
 from ._request_models import (
     AssistantMessage,

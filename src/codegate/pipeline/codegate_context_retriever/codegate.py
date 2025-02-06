@@ -1,3 +1,4 @@
+import itertools
 import json
 import re
 
@@ -126,14 +127,12 @@ class CodegateContextRetriever(PipelineStep):
             context_str = self.generate_context_str(all_bad_packages, context)
             context.bad_packages_found = True
 
-            # Make a copy of the request
-            new_request = request.copy()
-
             # perform replacement in all the messages starting from this index
+            messages = request.get_messages()
+            filtered = itertools.dropwhile(lambda x: x[0] < last_user_idx, enumerate(messages))
             if context.client != ClientType.OPEN_INTERPRETER:
-                for i in range(last_user_idx, len(new_request["messages"])):
-                    message = new_request["messages"][i]
-                    message_str = str(message["content"])  # type: ignore
+                for i, message in filtered:
+                    message_str = "".join([content.get_text() for content in message.get_content()])
                     context_msg = message_str
                     # Add the context to the last user message
                     if context.client in [ClientType.CLINE, ClientType.KODU]:
@@ -154,7 +153,8 @@ class CodegateContextRetriever(PipelineStep):
                             context_msg = updated_task_content + rest_of_message
                     else:
                         context_msg = f"Context: {context_str} \n\n Query: {message_str}"
-                    new_request["messages"][i]["content"] = context_msg
+                    content = next(message.get_content())
+                    content.set_text(context_msg)
                     logger.debug("Final context message", context_message=context_msg)
             else:
                 #  just add a message in the end
@@ -164,4 +164,4 @@ class CodegateContextRetriever(PipelineStep):
                         "role": "assistant",
                     }
                 )
-            return PipelineResult(request=new_request, context=context)
+            return PipelineResult(request=request, context=context)
