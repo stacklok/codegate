@@ -310,7 +310,7 @@ class CodegateSecrets(PipelineStep):
                 new_request["messages"][i]["content"] = redacted_content
                 if i > last_assistant_idx:
                     total_matches += secrets_matched
-        self._finalize_redaction(context, total_matches, new_request)
+        new_request = self._finalize_redaction(context, total_matches, new_request)
         return PipelineResult(request=new_request, context=context)
 
     def _redact_message_content(self, message_content, secrets_manager, session_id, context):
@@ -363,7 +363,8 @@ class CodegateSecrets(PipelineStep):
                 content=Config.get_config().prompts.secrets_redacted,
                 role="system",
             )
-            add_or_update_system_message(new_request, system_message, context)
+            return add_or_update_system_message(new_request, system_message, context)
+        return new_request
 
 
 class SecretUnredactionStep(OutputPipelineStep):
@@ -514,8 +515,6 @@ class SecretRedactionNotifier(OutputPipelineStep):
                 for tool in ["Cline", "Kodu"]
                 for message in input_context.alerts_raised or []
                 if tool in str(message.trigger_string or "")
-                and "If you are Kodu"
-                not in str(message.trigger_string or "")  # this comes from our prompts
             ),
             "",
         )

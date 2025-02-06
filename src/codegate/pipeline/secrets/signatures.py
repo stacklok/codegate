@@ -189,13 +189,10 @@ class CodegateSignatures:
     def _load_signatures(cls) -> None:
         """Load signature patterns from the YAML file."""
         try:
-            print("i load signatures")
-            print(cls._yaml_path)
             # Clear existing signatures before loading new ones
             cls._signature_groups = []
             cls._compiled_regexes = {}
             yaml_data = cls._load_yaml(cls._yaml_path)
-            print(yaml_data)
 
             # Process patterns from YAML
             for item in yaml_data:
