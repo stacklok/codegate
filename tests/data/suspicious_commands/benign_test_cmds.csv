@@ -1,0 +1,34 @@
+"cmd","description"
+"ls -la", File and Directory Management
+"cd ~/Documents", File and Directory Management
+"mkdir Projects", File and Directory Management
+"rmdir empty_folder", File and Directory Management
+"cp source.txt ~/Desktop/", File and Directory Management
+"mv project.zip ~/Downloads/", File and Directory Management
+"cat README.md", File and Directory Management
+"uname -a", System Information
+"sw_vers", System Information
+"df -h", System Information
+"whoami", System Information
+"ps aux", System Information
+"ifconfig | grep 'inet '", System Information
+"ping -c 4 google.com", Networking
+"netstat -an", Networking
+"curl -O https://example. Networkingcom/file.txt",
+"nslookup example.com", Networking
+"brew update", Package Management (Homebrew)
+"brew install git", Package Management (Homebrew)
+"brew list", Package Management (Homebrew)
+"brew uninstall python", Package Management (Homebrew)
+"python3 --version", Development Utilities
+"gcc hello.c -o hello", Development Utilities
+"python3 -m http.server", Development Utilities
+"git status", Development Utilities
+"git clone https://github.com/examp Development Utilitiesle/repo.git", Development Utilities
+"env", System Configuration
+"chmod 644 file.txt", System Configuration
+"echo 'alias ll=\"ls -la\"' >> ~/.zshrc && System Configuration source ~/.zshrc", System Configuration
+"history", System Configuration
+"bash script.sh", Scripting and Automation
+"crontab -e", Scripting and Automation
+"grep -rl 'TODO' .", Scripting and Automation

