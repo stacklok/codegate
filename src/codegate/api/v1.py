@@ -403,6 +403,12 @@ async def get_workspace_messages(workspace_name: str) -> List[v1_models.Conversa
     except Exception:
         logger.exception("Error while getting workspace")
         raise HTTPException(status_code=500, detail="Internal server error")
+    
+    try:
+        prompts_with_output_alerts_usage = await dbreader.get_prompts_with_output_alerts_usage_by_workspace_id(ws.id)
+        logger.info(prompts_with_output_alerts_usage)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
     try:
         prompts_outputs = await dbreader.get_prompts_with_output(ws.id)

@@ -1,6 +1,6 @@
 import datetime
 from enum import Enum
-from typing import Annotated, Any, Dict, Optional
+from typing import Annotated, Any, Dict, List, Optional
 
 from pydantic import BaseModel, StringConstraints
 
@@ -131,6 +131,31 @@ class ProviderType(str, Enum):
     openrouter = "openai"
 
 
+class IntermediatePromptWithOutputUsageAlerts(BaseModel):
+    """
+    An intermediate model to represent the result of a query
+    for a prompt and related outputs, usage stats & alerts.
+    """
+    prompt_id: Any
+    prompt_timestamp: Any
+    provider: Optional[Any]
+    request: Any
+    type: Any
+    output_id: Optional[Any]
+    output: Optional[Any]
+    output_timestamp: Optional[Any]
+    input_tokens: Optional[int]
+    output_tokens: Optional[int]
+    input_cost: Optional[float]
+    output_cost: Optional[float]
+    alert_id: Optional[Any]
+    code_snippet: Optional[Any]
+    trigger_string: Optional[Any]
+    trigger_type: Optional[Any]
+    trigger_category: Optional[Any]
+    alert_timestamp: Optional[Any]
+
+
 class GetPromptWithOutputsRow(BaseModel):
     id: Any
     timestamp: Any
@@ -144,6 +169,7 @@ class GetPromptWithOutputsRow(BaseModel):
     output_tokens: Optional[int]
     input_cost: Optional[float]
     output_cost: Optional[float]
+    alerts: List[Alert] = []
 
 
 class WorkspaceWithSessionInfo(BaseModel):
