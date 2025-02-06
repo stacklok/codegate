@@ -123,6 +123,10 @@ async def add_provider_endpoint(
             status_code=400,
             detail=str(e),
         )
+    except provendcrud.ProviderModelsNotFoundError:
+        raise HTTPException(status_code=401, detail="Provider models could not be found")
+    except provendcrud.ProviderInvalidAuthConfigError:
+        raise HTTPException(status_code=400, detail="Invalid auth configuration")
     except ValidationError as e:
         # TODO: This should be more specific
         raise HTTPException(
@@ -151,6 +155,10 @@ async def configure_auth_material(
         await pcrud.configure_auth_material(provider_id, request)
     except provendcrud.ProviderNotFoundError:
         raise HTTPException(status_code=404, detail="Provider endpoint not found")
+    except provendcrud.ProviderModelsNotFoundError:
+        raise HTTPException(status_code=401, detail="Provider models could not be found")
+    except provendcrud.ProviderInvalidAuthConfigError:
+        raise HTTPException(status_code=400, detail="Invalid auth configuration")
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 

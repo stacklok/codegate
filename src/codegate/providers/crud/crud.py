@@ -20,6 +20,12 @@ logger = structlog.get_logger("codegate")
 class ProviderNotFoundError(Exception):
     pass
 
+class ProviderModelsNotFoundError(Exception):
+    pass
+
+class ProviderInvalidAuthConfigError(Exception):
+    pass
+
 
 class ProviderCrud:
     """The CRUD operations for the provider endpoint references within
@@ -87,12 +93,12 @@ class ProviderCrud:
 
         models = []
         if endpoint.auth_type == apimodelsv1.ProviderAuthType.api_key and not endpoint.api_key:
-            raise ValueError("API key must be provided for API auth type")
+            raise ProviderInvalidAuthConfigError("API key must be provided for API auth type")
         if endpoint.auth_type != apimodelsv1.ProviderAuthType.passthrough:
             try:
                 models = prov.models(endpoint=endpoint.endpoint, api_key=endpoint.api_key)
             except Exception as err:
-                raise ValueError("Unable to get models from provider: {}".format(str(err)))
+                raise ProviderModelsNotFoundError(f"Unable to get models from provider: {err}")
 
         dbendpoint = await self._db_writer.add_provider_endpoint(dbend)
 
@@ -143,21 +149,13 @@ class ProviderCrud:
     ):
         """Add an API key."""
         if config.auth_type == apimodelsv1.ProviderAuthType.api_key and not config.api_key:
-            raise ValueError("API key must be provided for API auth type")
+            raise ProviderInvalidAuthConfigError("API key must be provided for API auth type")
         elif config.auth_type != apimodelsv1.ProviderAuthType.api_key and config.api_key:
-            raise ValueError("API key provided for non-API auth type")
+            raise ProviderInvalidAuthConfigError("API key provided for non-API auth type")
 
         dbendpoint = await self._db_reader.get_provider_endpoint_by_id(str(provider_id))
         if dbendpoint is None:
             raise ProviderNotFoundError("Provider not found")
-
-        await self._db_writer.push_provider_auth_material(
-            dbmodels.ProviderAuthMaterial(
-                provider_endpoint_id=dbendpoint.id,
-                auth_type=config.auth_type,
-                auth_blob=config.api_key if config.api_key else "",
-            )
-        )
 
         endpoint = apimodelsv1.ProviderEndpoint.from_db_model(dbendpoint)
         endpoint.auth_type = config.auth_type
@@ -169,7 +167,15 @@ class ProviderCrud:
             try:
                 models = prov.models(endpoint=endpoint.endpoint, api_key=config.api_key)
             except Exception as err:
-                raise ValueError("Unable to get models from provider: {}".format(str(err)))
+                raise ProviderModelsNotFoundError(f"Unable to get models from provider: {err}")
+
+        await self._db_writer.push_provider_auth_material(
+            dbmodels.ProviderAuthMaterial(
+                provider_endpoint_id=dbendpoint.id,
+                auth_type=config.auth_type,
+                auth_blob=config.api_key if config.api_key else "",
+            )
+        )
 
         models_set = set(models)
 
