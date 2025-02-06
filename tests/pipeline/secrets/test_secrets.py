@@ -78,7 +78,7 @@ class TestSecretsEncryptor:
         match = Match(
             service="AWS",
             type="Access Key",
-            key="API_KEY",
+            secret_key="API_KEY",
             value="AKIAIOSFODNN7EXAMPLE",
             line_number=1,
             start_index=0,
@@ -98,7 +98,7 @@ class TestSecretsEncryptor:
     def test_obfuscate(self):
         # Test text with a secret
         text = "API_KEY=AKIAIOSFODNN7EXAMPLE\nOther text"
-        protected, matched_secrets = self.encryptor.obfuscate(text)
+        protected, matched_secrets = self.encryptor.obfuscate(text, None)
 
         assert len(matched_secrets) == 1
         assert "REDACTED<$" in protected
@@ -116,7 +116,7 @@ class TestSecretsObfuscator:
         match = Match(
             service="AWS",
             type="Access Key",
-            key="API_KEY",
+            secret_key="API_KEY",
             value="AKIAIOSFODNN7EXAMPLE",
             line_number=1,
             start_index=0,
@@ -130,7 +130,7 @@ class TestSecretsObfuscator:
     def test_obfuscate(self):
         # Test text with multiple secrets
         text = "API_KEY=AKIAIOSFODNN7EXAMPLE\nPASSWORD=AKIAIOSFODNN7EXAMPLE"
-        protected, matched_secrets = self.obfuscator.obfuscate(text)
+        protected, matched_secrets = self.obfuscator.obfuscate(text, None)
 
         assert len(matched_secrets) == 2
         assert "AKIAIOSFODNN7EXAMPLE" not in protected
@@ -142,7 +142,7 @@ class TestSecretsObfuscator:
 
     def test_obfuscate_no_secrets(self):
         text = "Regular text without secrets"
-        protected, matched_secrets = self.obfuscator.obfuscate(text)
+        protected, matched_secrets = self.obfuscator.obfuscate(text, None)
 
         assert len(matched_secrets) == 0
         assert protected == text

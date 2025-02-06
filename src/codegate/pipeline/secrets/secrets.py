@@ -153,7 +153,7 @@ class SecretsModifier:
             logger.info(
                 f"\nService: {match.service}"
                 f"\nType: {match.type}"
-                f"\nKey: {match.key}"
+                f"\nKey: {match.secret_key}"
                 f"\nOriginal: {match.value}"
                 f"\nEncrypted: {hidden_secret}"
             )
@@ -199,7 +199,7 @@ class SecretsEncryptor(SecretsModifier):
             f"**Secret Detected** 🔒\n"
             f"- Service: {match.service}\n"
             f"- Type: {match.type}\n"
-            f"- Key: {match.key if match.key else '(Unknown)'}\n"
+            f"- Key: {match.secret_key if match.secret_key else '(Unknown)'}\n"
             f"- Line Number: {match.line_number}\n"
             f"- Context:\n```\n{secret_lines}\n```"
         )
