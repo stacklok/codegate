@@ -2,6 +2,7 @@ import re
 from abc import abstractmethod
 from typing import List, Optional, Tuple
 
+from codegate.extract_snippets.factory import MessageCodeExtractorFactory
 import structlog
 from litellm import ChatCompletionRequest, ChatCompletionSystemMessage, ModelResponse
 from litellm.types.utils import Delta, StreamingChoices
@@ -9,6 +10,7 @@ from litellm.types.utils import Delta, StreamingChoices
 from codegate.config import Config
 from codegate.pipeline.base import (
     AlertSeverity,
+    CodeSnippet,
     PipelineContext,
     PipelineResult,
     PipelineStep,
@@ -44,7 +46,9 @@ class SecretsModifier:
         pass
 
     @abstractmethod
-    def _notify_secret(self, match: Match, protected_text: List[str]) -> None:
+    def _notify_secret(
+        self, match: Match, code_snippet: Optional[CodeSnippet], protected_text: List[str]
+    ) -> None:
         """
         Notify about a found secret
         TODO: If the secret came from a CodeSnippet we should notify about that. This would
@@ -106,7 +110,9 @@ class SecretsModifier:
         end_line = min(secret_line + surrounding_lines, len(lines))
         return "\n".join(lines[start_line:end_line])
 
-    def obfuscate(self, text: str) -> tuple[str, List[Match]]:
+    def obfuscate(self, text: str, snippet: Optional[CodeSnippet]) -> tuple[str, List[Match]]:
+        if snippet:
+            text = snippet.code
         matches = CodegateSignatures.find_in_string(text)
         if not matches:
             return text, []
@@ -147,13 +153,14 @@ class SecretsModifier:
             logger.info(
                 f"\nService: {match.service}"
                 f"\nType: {match.type}"
+                f"\nKey: {match.secret_key}"
                 f"\nOriginal: {match.value}"
                 f"\nEncrypted: {hidden_secret}"
             )
 
         # Second pass. Notify the secrets in DB over the complete protected text.
         for _, _, match in absolute_matches:
-            self._notify_secret(match, protected_text)
+            self._notify_secret(match, code_snippet=snippet, protected_text=protected_text)
 
         # Convert back to string
         protected_string = "".join(protected_text)
@@ -184,11 +191,23 @@ class SecretsEncryptor(SecretsModifier):
         )
         return f"REDACTED<${encrypted_value}>"
 
-    def _notify_secret(self, match: Match, protected_text: List[str]) -> None:
+    def _notify_secret(
+        self, match: Match, code_snippet: Optional[CodeSnippet], protected_text: List[str]
+    ) -> None:
         secret_lines = self._get_surrounding_secret_lines(protected_text, match.line_number)
-        notify_string = f"{match.service} - {match.type}:\n{secret_lines}"
+        notify_string = (
+            f"**Secret Detected** 🔒\n"
+            f"- Service: {match.service}\n"
+            f"- Type: {match.type}\n"
+            f"- Key: {match.secret_key if match.secret_key else '(Unknown)'}\n"
+            f"- Line Number: {match.line_number}\n"
+            f"- Context:\n```\n{secret_lines}\n```"
+        )
         self._context.add_alert(
-            self._name, trigger_string=notify_string, severity_category=AlertSeverity.CRITICAL
+            self._name,
+            trigger_string=notify_string,
+            severity_category=AlertSeverity.CRITICAL,
+            code_snippet=code_snippet,
         )
 
 
@@ -205,7 +224,9 @@ class SecretsObfuscator(SecretsModifier):
         """
         return "*" * 32
 
-    def _notify_secret(self, match: Match, protected_text: List[str]) -> None:
+    def _notify_secret(
+        self, match: Match, code_snippet: Optional[CodeSnippet], protected_text: List[str]
+    ) -> None:
         pass
 
 
@@ -227,7 +248,12 @@ class CodegateSecrets(PipelineStep):
         return "codegate-secrets"
 
     def _redact_text(
-        self, text: str, secrets_manager: SecretsManager, session_id: str, context: PipelineContext
+        self,
+        text: str,
+        snippet: Optional[CodeSnippet],
+        secrets_manager: SecretsManager,
+        session_id: str,
+        context: PipelineContext,
     ) -> tuple[str, List[Match]]:
         """
         Find and encrypt secrets in the given text.
@@ -242,7 +268,7 @@ class CodegateSecrets(PipelineStep):
         """
         # Find secrets in the text
         text_encryptor = SecretsEncryptor(secrets_manager, context, session_id)
-        return text_encryptor.obfuscate(text)
+        return text_encryptor.obfuscate(text, snippet)
 
     async def process(
         self, request: ChatCompletionRequest, context: PipelineContext
@@ -273,40 +299,74 @@ class CodegateSecrets(PipelineStep):
 
         # get last user message block to get index for the first relevant user message
         last_user_message = self.get_last_user_message_block(new_request, context.client)
-        last_assistant_idx = -1
-        if last_user_message:
-            _, user_idx = last_user_message
-            last_assistant_idx = user_idx - 1
+        last_assistant_idx = last_user_message[1] - 1 if last_user_message else -1
 
         # Process all messages
         for i, message in enumerate(new_request["messages"]):
             if "content" in message and message["content"]:
-                # Protect the text
-                protected_string, secrets_matched = self._redact_text(
-                    str(message["content"]), secrets_manager, session_id, context
+                redacted_content, secrets_matched = self._redact_message_content(
+                    message["content"], secrets_manager, session_id, context
                 )
-                new_request["messages"][i]["content"] = protected_string
-
-                # Append the matches for messages after the last assistant message
+                new_request["messages"][i]["content"] = redacted_content
                 if i > last_assistant_idx:
                     total_matches += secrets_matched
+        new_request = self._finalize_redaction(context, total_matches, new_request)
+        return PipelineResult(request=new_request, context=context)
 
-        # Not count repeated secret matches
+    def _redact_message_content(self, message_content, secrets_manager, session_id, context):
+        # Extract any code snippets
+        extractor = MessageCodeExtractorFactory.create_snippet_extractor(context.client)
+        snippets = extractor.extract_snippets(message_content)
+        redacted_snippets = {}
+        total_matches = []
+
+        for snippet in snippets:
+            redacted_snippet, secrets_matched = self._redact_text(
+                snippet, snippet, secrets_manager, session_id, context
+            )
+            redacted_snippets[snippet.code] = redacted_snippet
+            total_matches.extend(secrets_matched)
+
+        non_snippet_parts = []
+        last_end = 0
+
+        for snippet in snippets:
+            snippet_text = snippet.code
+            start_index = message_content.find(snippet_text, last_end)
+            if start_index > last_end:
+                non_snippet_part = message_content[last_end:start_index]
+                redacted_part, secrets_matched = self._redact_text(
+                    non_snippet_part, "", secrets_manager, session_id, context
+                )
+                non_snippet_parts.append(redacted_part)
+                total_matches.extend(secrets_matched)
+
+            non_snippet_parts.append(redacted_snippets[snippet_text])
+            last_end = start_index + len(snippet_text)
+
+        if last_end < len(message_content):
+            remaining_text = message_content[last_end:]
+            redacted_remaining, secrets_matched = self._redact_text(
+                remaining_text, "", secrets_manager, session_id, context
+            )
+            non_snippet_parts.append(redacted_remaining)
+            total_matches.extend(secrets_matched)
+
+        return "".join(non_snippet_parts), total_matches
+
+    def _finalize_redaction(self, context, total_matches, new_request):
         set_secrets_value = set(match.value for match in total_matches)
         total_redacted = len(set_secrets_value)
         context.secrets_found = total_redacted > 0
         logger.info(f"Total secrets redacted since last assistant message: {total_redacted}")
-
-        # Store the count in context metadata
         context.metadata["redacted_secrets_count"] = total_redacted
         if total_redacted > 0:
             system_message = ChatCompletionSystemMessage(
                 content=Config.get_config().prompts.secrets_redacted,
                 role="system",
             )
-            new_request = add_or_update_system_message(new_request, system_message, context)
-
-        return PipelineResult(request=new_request, context=context)
+            return add_or_update_system_message(new_request, system_message, context)
+        return new_request
 
 
 class SecretUnredactionStep(OutputPipelineStep):
@@ -450,6 +510,7 @@ class SecretRedactionNotifier(OutputPipelineStep):
             or input_context.metadata.get("redacted_secrets_count", 0) == 0
         ):
             return [chunk]
+
         tool_name = next(
             (
                 tool.lower()

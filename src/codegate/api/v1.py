@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.routing import APIRoute
 from pydantic import BaseModel, ValidationError
 
+import codegate.muxing.models as mux_models
 from codegate import __version__
 from codegate.api import v1_models, v1_processing
 from codegate.db.connection import AlreadyExistsError, DbReader
@@ -122,6 +123,10 @@ async def add_provider_endpoint(
             status_code=400,
             detail=str(e),
         )
+    except provendcrud.ProviderModelsNotFoundError:
+        raise HTTPException(status_code=401, detail="Provider models could not be found")
+    except provendcrud.ProviderInvalidAuthConfigError:
+        raise HTTPException(status_code=400, detail="Invalid auth configuration")
     except ValidationError as e:
         # TODO: This should be more specific
         raise HTTPException(
@@ -150,6 +155,10 @@ async def configure_auth_material(
         await pcrud.configure_auth_material(provider_id, request)
     except provendcrud.ProviderNotFoundError:
         raise HTTPException(status_code=404, detail="Provider endpoint not found")
+    except provendcrud.ProviderModelsNotFoundError:
+        raise HTTPException(status_code=401, detail="Provider models could not be found")
+    except provendcrud.ProviderInvalidAuthConfigError:
+        raise HTTPException(status_code=400, detail="Invalid auth configuration")
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -404,8 +413,12 @@ async def get_workspace_messages(workspace_name: str) -> List[v1_models.Conversa
         raise HTTPException(status_code=500, detail="Internal server error")
 
     try:
-        prompts_outputs = await dbreader.get_prompts_with_output(ws.id)
-        conversations, _ = await v1_processing.parse_messages_in_conversations(prompts_outputs)
+        prompts_with_output_alerts_usage = (
+            await dbreader.get_prompts_with_output_alerts_usage_by_workspace_id(ws.id)
+        )
+        conversations, _ = await v1_processing.parse_messages_in_conversations(
+            prompts_with_output_alerts_usage
+        )
         return conversations
     except Exception:
         logger.exception("Error while getting messages")
@@ -477,7 +490,7 @@ async def delete_workspace_custom_instructions(workspace_name: str):
 )
 async def get_workspace_muxes(
     workspace_name: str,
-) -> List[v1_models.MuxRule]:
+) -> List[mux_models.MuxRule]:
     """Get the mux rules of a workspace.
 
     The list is ordered in order of priority. That is, the first rule in the list
@@ -501,7 +514,7 @@ async def get_workspace_muxes(
 )
 async def set_workspace_muxes(
     workspace_name: str,
-    request: List[v1_models.MuxRule],
+    request: List[mux_models.MuxRule],
 ):
     """Set the mux rules of a workspace."""
     try:

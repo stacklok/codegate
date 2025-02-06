@@ -108,8 +108,8 @@ def test_provider_registration(mock_registry, mock_secrets_mgr, mock_pipeline_fa
     # Verify all providers were registered
     registry_instance = mock_registry.return_value
     assert (
-        registry_instance.add_provider.call_count == 6
-    )  # openai, anthropic, llamacpp, vllm, ollama, lm_studio
+        registry_instance.add_provider.call_count == 7
+    )  # openai, anthropic, llamacpp, vllm, ollama, lm_studio, openrouter
 
     # Verify specific providers were registered
     provider_names = [call.args[0] for call in registry_instance.add_provider.call_args_list]

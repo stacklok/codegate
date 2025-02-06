@@ -5,7 +5,7 @@ from codegate.config import Config
 from codegate.pipeline.base import PipelineStep, SequentialPipelineProcessor
 from codegate.pipeline.cli.cli import CodegateCli
 from codegate.pipeline.codegate_context_retriever.codegate import CodegateContextRetriever
-from codegate.pipeline.extract_snippets.output import CodeCommentStep
+from codegate.pipeline.comment.output import CodeCommentStep
 from codegate.pipeline.output import OutputPipelineProcessor, OutputPipelineStep
 from codegate.pipeline.secrets.manager import SecretsManager
 from codegate.pipeline.secrets.secrets import (

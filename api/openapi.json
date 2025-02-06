@@ -1145,14 +1145,7 @@
             "default": ""
           },
           "auth_type": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ProviderAuthType"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "$ref": "#/components/schemas/ProviderAuthType",
             "default": "none"
           },
           "api_key": {
@@ -1174,6 +1167,74 @@
         ],
         "title": "AddProviderEndpointRequest",
         "description": "Represents a request to add a provider endpoint."
+      },
+      "Alert": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "prompt_id": {
+            "type": "string",
+            "title": "Prompt Id"
+          },
+          "code_snippet": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CodeSnippet"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trigger_string": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trigger String"
+          },
+          "trigger_type": {
+            "type": "string",
+            "title": "Trigger Type"
+          },
+          "trigger_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trigger Category"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "prompt_id",
+          "code_snippet",
+          "trigger_string",
+          "trigger_type",
+          "trigger_category",
+          "timestamp"
+        ],
+        "title": "Alert",
+        "description": "Represents an alert."
       },
       "AlertConversation": {
         "properties": {
@@ -1300,7 +1361,19 @@
               "type": "string"
             },
             "type": "array",
-            "title": "Libraries"
+            "title": "Libraries",
+            "default": []
+          },
+          "file_extension": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Extension"
           }
         },
         "type": "object",
@@ -1309,7 +1382,8 @@
           "language",
           "filepath"
         ],
-        "title": "CodeSnippet"
+        "title": "CodeSnippet",
+        "description": "Represents a code snippet with its programming language.\n\nArgs:\n    language: The programming language identifier (e.g., 'python', 'javascript')\n    code: The actual code content"
       },
       "ConfigureAuthMaterial": {
         "properties": {
@@ -1376,6 +1450,14 @@
                 "type": "null"
               }
             ]
+          },
+          "alerts": {
+            "items": {
+              "$ref": "#/components/schemas/Alert"
+            },
+            "type": "array",
+            "title": "Alerts",
+            "default": []
           }
         },
         "type": "object",
@@ -1580,14 +1662,7 @@
             "default": ""
           },
           "auth_type": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ProviderAuthType"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "$ref": "#/components/schemas/ProviderAuthType",
             "default": "none"
           }
         },
@@ -1607,7 +1682,8 @@
           "vllm",
           "ollama",
           "lm_studio",
-          "llamacpp"
+          "llamacpp",
+          "openrouter"
         ],
         "title": "ProviderType",
         "description": "Represents the different types of providers we support."

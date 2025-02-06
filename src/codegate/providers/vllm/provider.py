@@ -9,7 +9,6 @@ from litellm import atext_completion
 
 from codegate.clients.clients import ClientType
 from codegate.clients.detector import DetectClient
-from codegate.config import Config
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.litellmshim import LiteLLmShim, sse_stream_generator
@@ -39,8 +38,7 @@ class VLLMProvider(BaseProvider):
         """
         Get the base URL from config with proper formatting
         """
-        config = Config.get_config()
-        base_url = config.provider_urls.get("vllm") if config else ""
+        base_url = super()._get_base_url()
         if base_url:
             base_url = base_url.rstrip("/")
             # Add /v1 if not present
