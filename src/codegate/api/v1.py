@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.routing import APIRoute
 from pydantic import BaseModel, ValidationError
 
+import codegate.muxing.models as mux_models
 from codegate import __version__
 from codegate.api import v1_models, v1_processing
 from codegate.db.connection import AlreadyExistsError, DbReader
@@ -477,7 +478,7 @@ async def delete_workspace_custom_instructions(workspace_name: str):
 )
 async def get_workspace_muxes(
     workspace_name: str,
-) -> List[v1_models.MuxRule]:
+) -> List[mux_models.MuxRule]:
     """Get the mux rules of a workspace.
 
     The list is ordered in order of priority. That is, the first rule in the list
@@ -501,7 +502,7 @@ async def get_workspace_muxes(
 )
 async def set_workspace_muxes(
     workspace_name: str,
-    request: List[v1_models.MuxRule],
+    request: List[mux_models.MuxRule],
 ):
     """Set the mux rules of a workspace."""
     try:

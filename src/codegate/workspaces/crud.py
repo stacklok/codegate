@@ -2,14 +2,9 @@ import datetime
 from typing import List, Optional, Tuple
 from uuid import uuid4 as uuid
 
+from codegate.db import models as db_models
 from codegate.db.connection import DbReader, DbRecorder
-from codegate.db.models import (
-    ActiveWorkspace,
-    MuxRule,
-    Session,
-    WorkspaceRow,
-    WorkspaceWithSessionInfo,
-)
+from codegate.muxing import models as mux_models
 from codegate.muxing import rulematcher
 
 
@@ -40,7 +35,7 @@ class WorkspaceCrud:
     def __init__(self):
         self._db_reader = DbReader()
 
-    async def add_workspace(self, new_workspace_name: str) -> WorkspaceRow:
+    async def add_workspace(self, new_workspace_name: str) -> db_models.WorkspaceRow:
         """
         Add a workspace
 
@@ -57,7 +52,7 @@ class WorkspaceCrud:
 
     async def rename_workspace(
         self, old_workspace_name: str, new_workspace_name: str
-    ) -> WorkspaceRow:
+    ) -> db_models.WorkspaceRow:
         """
         Rename a workspace
 
@@ -79,25 +74,25 @@ class WorkspaceCrud:
         if not ws:
             raise WorkspaceDoesNotExistError(f"Workspace {old_workspace_name} does not exist.")
         db_recorder = DbRecorder()
-        new_ws = WorkspaceRow(
+        new_ws = db_models.WorkspaceRow(
             id=ws.id, name=new_workspace_name, custom_instructions=ws.custom_instructions
         )
         workspace_renamed = await db_recorder.update_workspace(new_ws)
         return workspace_renamed
 
-    async def get_workspaces(self) -> List[WorkspaceWithSessionInfo]:
+    async def get_workspaces(self) -> List[db_models.WorkspaceWithSessionInfo]:
         """
         Get all workspaces
         """
         return await self._db_reader.get_workspaces()
 
-    async def get_archived_workspaces(self) -> List[WorkspaceRow]:
+    async def get_archived_workspaces(self) -> List[db_models.WorkspaceRow]:
         """
         Get all archived workspaces
         """
         return await self._db_reader.get_archived_workspaces()
 
-    async def get_active_workspace(self) -> Optional[ActiveWorkspace]:
+    async def get_active_workspace(self) -> Optional[db_models.ActiveWorkspace]:
         """
         Get the active workspace
         """
@@ -105,7 +100,7 @@ class WorkspaceCrud:
 
     async def _is_workspace_active(
         self, workspace_name: str
-    ) -> Tuple[bool, Optional[Session], Optional[WorkspaceRow]]:
+    ) -> Tuple[bool, Optional[db_models.Session], Optional[db_models.WorkspaceRow]]:
         """
         Check if the workspace is active alongside the session and workspace objects
         """
@@ -155,13 +150,13 @@ class WorkspaceCrud:
 
     async def update_workspace_custom_instructions(
         self, workspace_name: str, custom_instr_lst: List[str]
-    ) -> WorkspaceRow:
+    ) -> db_models.WorkspaceRow:
         selected_workspace = await self._db_reader.get_workspace_by_name(workspace_name)
         if not selected_workspace:
             raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
 
         custom_instructions = " ".join(custom_instr_lst)
-        workspace_update = WorkspaceRow(
+        workspace_update = db_models.WorkspaceRow(
             id=selected_workspace.id,
             name=selected_workspace.name,
             custom_instructions=custom_instructions,
@@ -217,17 +212,13 @@ class WorkspaceCrud:
             raise WorkspaceCrudError(f"Error deleting workspace {workspace_name}")
         return
 
-    async def get_workspace_by_name(self, workspace_name: str) -> WorkspaceRow:
+    async def get_workspace_by_name(self, workspace_name: str) -> db_models.WorkspaceRow:
         workspace = await self._db_reader.get_workspace_by_name(workspace_name)
         if not workspace:
             raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
         return workspace
 
-    # Can't use type hints since the models are not yet defined
-    # Note that I'm explicitly importing the models here to avoid circular imports.
-    async def get_muxes(self, workspace_name: str):
-        from codegate.api import v1_models
-
+    async def get_muxes(self, workspace_name: str) -> List[mux_models.MuxRule]:
         # Verify if workspace exists
         workspace = await self._db_reader.get_workspace_by_name(workspace_name)
         if not workspace:
@@ -239,7 +230,7 @@ class WorkspaceCrud:
         # These are already sorted by priority
         for dbmux in dbmuxes:
             muxes.append(
-                v1_models.MuxRule(
+                mux_models.MuxRule(
                     provider_id=dbmux.provider_endpoint_id,
                     model=dbmux.provider_model_name,
                     matcher_type=dbmux.matcher_type,
@@ -249,10 +240,7 @@ class WorkspaceCrud:
 
         return muxes
 
-    # Can't use type hints since the models are not yet defined
-    async def set_muxes(self, workspace_name: str, muxes):
-        from codegate.api import v1_models
-
+    async def set_muxes(self, workspace_name: str, muxes: mux_models.MuxRule) -> None:
         # Verify if workspace exists
         workspace = await self._db_reader.get_workspace_by_name(workspace_name)
         if not workspace:
@@ -265,7 +253,7 @@ class WorkspaceCrud:
         # Add the new muxes
         priority = 0
 
-        muxes_with_routes: List[Tuple[v1_models.MuxRule, rulematcher.ModelRoute]] = []
+        muxes_with_routes: List[Tuple[mux_models.MuxRule, rulematcher.ModelRoute]] = []
 
         # Verify all models are valid
         for mux in muxes:
@@ -275,7 +263,7 @@ class WorkspaceCrud:
         matchers: List[rulematcher.MuxingRuleMatcher] = []
 
         for mux, route in muxes_with_routes:
-            new_mux = MuxRule(
+            new_mux = db_models.MuxRule(
                 id=str(uuid()),
                 provider_endpoint_id=mux.provider_id,
                 provider_model_name=mux.model,
@@ -294,7 +282,7 @@ class WorkspaceCrud:
         mux_registry = await rulematcher.get_muxing_rules_registry()
         await mux_registry.set_ws_rules(workspace_name, matchers)
 
-    async def get_routing_for_mux(self, mux) -> rulematcher.ModelRoute:
+    async def get_routing_for_mux(self, mux: mux_models.MuxRule) -> rulematcher.ModelRoute:
         """Get the routing for a mux
 
         Note that this particular mux object is the API model, not the database model.
@@ -322,7 +310,7 @@ class WorkspaceCrud:
             auth_material=dbauth,
         )
 
-    async def get_routing_for_db_mux(self, mux: MuxRule) -> rulematcher.ModelRoute:
+    async def get_routing_for_db_mux(self, mux: db_models.MuxRule) -> rulematcher.ModelRoute:
         """Get the routing for a mux
 
         Note that this particular mux object is the database model, not the API model.
