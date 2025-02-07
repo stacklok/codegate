@@ -9,6 +9,7 @@ from codegate.clients.clients import ClientType
 from codegate.clients.detector import DetectClient
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.base import BaseProvider, ModelFetchError
+from codegate.providers.fim_analyzer import FIMAnalyzer
 from codegate.providers.litellmshim import LiteLLmShim, sse_stream_generator
 from codegate.providers.openai.adapter import OpenAIInputNormalizer, OpenAIOutputNormalizer
 
@@ -48,11 +49,9 @@ class OpenAIProvider(BaseProvider):
         self,
         data: dict,
         api_key: str,
-        request_url_path: str,
+        is_fim_request: bool,
         client_type: ClientType,
     ):
-        is_fim_request = self._is_fim_request(request_url_path, data)
-
         try:
             stream = await self.complete(
                 data,
@@ -93,10 +92,11 @@ class OpenAIProvider(BaseProvider):
             api_key = authorization.split(" ")[1]
             body = await request.body()
             data = json.loads(body)
+            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, data)
 
             return await self.process_request(
                 data,
                 api_key,
-                request.url.path,
+                is_fim_request,
                 request.state.detected_client,
             )

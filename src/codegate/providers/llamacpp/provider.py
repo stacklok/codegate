@@ -10,6 +10,7 @@ from codegate.clients.detector import DetectClient
 from codegate.config import Config
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.base import BaseProvider, ModelFetchError
+from codegate.providers.fim_analyzer import FIMAnalyzer
 from codegate.providers.llamacpp.completion_handler import LlamaCppCompletionHandler
 from codegate.providers.llamacpp.normalizer import LLamaCppInputNormalizer, LLamaCppOutputNormalizer
 
@@ -53,10 +54,9 @@ class LlamaCppProvider(BaseProvider):
         self,
         data: dict,
         api_key: str,
-        request_url_path: str,
+        is_fim_request: bool,
         client_type: ClientType,
     ):
-        is_fim_request = self._is_fim_request(request_url_path, data)
         try:
             stream = await self.complete(
                 data, None, is_fim_request=is_fim_request, client_type=client_type
@@ -92,9 +92,10 @@ class LlamaCppProvider(BaseProvider):
             body = await request.body()
             data = json.loads(body)
             data["base_url"] = Config.get_config().model_base_path
+            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, data)
             return await self.process_request(
                 data,
                 None,
-                request.url.path,
+                is_fim_request,
                 request.state.detected_client,
             )

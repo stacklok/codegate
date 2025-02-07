@@ -10,6 +10,7 @@ from codegate.clients.detector import DetectClient
 from codegate.config import Config
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.base import BaseProvider, ModelFetchError
+from codegate.providers.fim_analyzer import FIMAnalyzer
 from codegate.providers.ollama.adapter import OllamaInputNormalizer, OllamaOutputNormalizer
 from codegate.providers.ollama.completion_handler import OllamaShim
 
@@ -61,10 +62,9 @@ class OllamaProvider(BaseProvider):
         self,
         data: dict,
         api_key: str,
-        request_url_path: str,
+        is_fim_request: bool,
         client_type: ClientType,
     ):
-        is_fim_request = self._is_fim_request(request_url_path, data)
         try:
             stream = await self.complete(
                 data,
@@ -138,10 +138,10 @@ class OllamaProvider(BaseProvider):
             # `base_url` is used in the providers pipeline to do the packages lookup.
             # Force it to be the one that comes in the configuration.
             data["base_url"] = self.base_url
-
+            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, data)
             return await self.process_request(
                 data,
                 None,
-                request.url.path,
+                is_fim_request,
                 request.state.detected_client,
             )

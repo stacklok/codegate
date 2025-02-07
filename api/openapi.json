@@ -1581,7 +1581,9 @@
       "MuxMatcherType": {
         "type": "string",
         "enum": [
-          "catch_all"
+          "catch_all",
+          "filename_match",
+          "request_type_match"
         ],
         "title": "MuxMatcherType",
         "description": "Represents the different types of matchers we support."

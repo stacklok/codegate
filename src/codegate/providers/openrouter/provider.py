@@ -4,6 +4,7 @@ from fastapi import Header, HTTPException, Request
 
 from codegate.clients.detector import DetectClient
 from codegate.pipeline.factory import PipelineFactory
+from codegate.providers.fim_analyzer import FIMAnalyzer
 from codegate.providers.openai import OpenAIProvider
 
 
@@ -39,9 +40,10 @@ class OpenRouterProvider(OpenAIProvider):
             if not original_model.startswith("openrouter/"):
                 data["model"] = f"openrouter/{original_model}"
 
+            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, data)
             return await self.process_request(
                 data,
                 api_key,
-                request.url.path,
+                is_fim_request,
                 request.state.detected_client,
             )

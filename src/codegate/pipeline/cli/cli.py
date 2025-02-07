@@ -13,6 +13,8 @@ from codegate.pipeline.base import (
 )
 from codegate.pipeline.cli.commands import CustomInstructions, Version, Workspace
 
+codegate_regex = re.compile(r"^codegate(?:\s+(.*))?", re.IGNORECASE)
+
 HELP_TEXT = """
 ## CodeGate CLI\n
 **Usage**: `codegate [-h] <command> [args]`\n
@@ -77,6 +79,22 @@ def _get_cli_from_open_interpreter(last_user_message_str: str) -> Optional[re.Ma
     return re.match(r"^codegate\s*(.*?)\s*$", last_user_block, re.IGNORECASE)
 
 
+def _get_cli_from_continue(last_user_message_str: str) -> Optional[re.Match[str]]:
+    """
+    Continue sends a differently formatted message to the CLI if DeepSeek is used
+    """
+    deepseek_match = re.search(
+        r"utilizing the DeepSeek Coder model.*?### Instruction:\s*codegate\s+(.*?)\s*### Response:",
+        last_user_message_str,
+        re.DOTALL | re.IGNORECASE,
+    )
+    if deepseek_match:
+        command = deepseek_match.group(1).strip()
+        return re.match(r"^(.*?)$", command)  # This creates a match object with the command
+
+    return codegate_regex.match(last_user_message_str)
+
+
 class CodegateCli(PipelineStep):
     """Pipeline step that handles codegate cli."""
 
@@ -110,12 +128,14 @@ class CodegateCli(PipelineStep):
         if last_user_message is not None:
             last_user_message_str, _ = last_user_message
             last_user_message_str = last_user_message_str.strip()
-            codegate_regex = re.compile(r"^codegate(?:\s+(.*))?", re.IGNORECASE)
 
+            # Check client-specific matchers first
             if context.client in [ClientType.CLINE, ClientType.KODU]:
                 match = _get_cli_from_cline(codegate_regex, last_user_message_str)
             elif context.client in [ClientType.OPEN_INTERPRETER]:
                 match = _get_cli_from_open_interpreter(last_user_message_str)
+            elif context.client in [ClientType.CONTINUE]:
+                match = _get_cli_from_continue(last_user_message_str)
             else:
                 # Check if "codegate" is the first word in the message
                 match = codegate_regex.match(last_user_message_str)
