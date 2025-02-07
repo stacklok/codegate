@@ -1207,15 +1207,7 @@
             "title": "Trigger Type"
           },
           "trigger_category": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Trigger Category"
+            "$ref": "#/components/schemas/AlertSeverity"
           },
           "timestamp": {
             "type": "string",
@@ -1302,6 +1294,14 @@
         ],
         "title": "AlertConversation",
         "description": "Represents an alert with it's respective conversation."
+      },
+      "AlertSeverity": {
+        "type": "string",
+        "enum": [
+          "info",
+          "critical"
+        ],
+        "title": "AlertSeverity"
       },
       "ChatMessage": {
         "properties": {
