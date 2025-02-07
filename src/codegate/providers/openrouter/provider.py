@@ -1,16 +1,33 @@
 import json
+from typing import Dict
 
 from fastapi import Header, HTTPException, Request
+from litellm.types.llms.openai import ChatCompletionRequest
 
 from codegate.clients.detector import DetectClient
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.fim_analyzer import FIMAnalyzer
+from codegate.providers.normalizer.completion import CompletionNormalizer
 from codegate.providers.openai import OpenAIProvider
 
+
+class OpenRouterNormalizer(CompletionNormalizer):
+    def __init__(self):
+        super().__init__()
+
+    def normalize(self, data: Dict) -> ChatCompletionRequest:
+        return super().normalize(data)
+
+    def denormalize(self, data: ChatCompletionRequest) -> Dict:
+        if data.get("had_prompt_before", False):
+            del data["had_prompt_before"]
+
+        return data
 
 class OpenRouterProvider(OpenAIProvider):
     def __init__(self, pipeline_factory: PipelineFactory):
         super().__init__(pipeline_factory)
+        self._fim_normalizer = OpenRouterNormalizer()
 
     @property
     def provider_route_name(self) -> str:
