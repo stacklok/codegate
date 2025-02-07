@@ -19,7 +19,7 @@ on:
 jobs:
   integration-tests:
     name: Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-4cores-16gb
     strategy:
       fail-fast: false # Continue running other tests if one fails
       matrix:
