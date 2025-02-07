@@ -20,7 +20,7 @@ testcases:
               "role":"user"
             }
         ],
-        "model":"qwen2.5-coder-0.5b-instruct-q5_k_m",
+        "model":"qwen2.5-coder-1.5b-instruct-q5_k_m",
         "stream":true,
         "temperature":0
       }
@@ -33,7 +33,7 @@ testcases:
     url: http://127.0.0.1:8989/llamacpp/completions
     data: |
       {
-        "model": "qwen2.5-coder-0.5b-instruct-q5_k_m",
+        "model": "qwen2.5-coder-1.5b-instruct-q5_k_m",
         "max_tokens": 4096,
         "temperature": 0,
         "stream": true,
@@ -60,7 +60,7 @@ testcases:
               "role":"user"
             }
         ],
-        "model":"qwen2.5-coder-0.5b-instruct-q5_k_m",
+        "model":"qwen2.5-coder-1.5b-instruct-q5_k_m",
         "stream":true,
         "temperature":0
       }
@@ -84,7 +84,7 @@ testcases:
               "role":"user"
             }
         ],
-        "model":"qwen2.5-coder-0.5b-instruct-q5_k_m",
+        "model":"qwen2.5-coder-1.5b-instruct-q5_k_m",
         "stream":true,
         "temperature":0
       }

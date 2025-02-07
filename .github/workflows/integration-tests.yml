@@ -60,10 +60,10 @@ jobs:
           echo "Loaded image:"
           docker images
 
-      - name: Download the Qwen2.5-Coder-0.5B-Instruct-GGUF model (llamacpp only)
+      - name: Download the Qwen2.5-Coder-1.5B-Instruct-GGUF model (llamacpp only)
         if: ${{ matrix.test-provider == 'llamacpp' }} # This is only needed for llamacpp
         run: |
-          wget -P ./codegate_volume/models https://huggingface.co/Qwen/Qwen2.5-Coder-0.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-0.5b-instruct-q5_k_m.gguf
+          wget -P ./codegate_volume/models https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q5_k_m.gguf
 
       - name: Start the CodeGate container
         run: |
@@ -144,7 +144,7 @@ jobs:
         run: |
           function check_model_ready() {
             response=$(curl -s http://localhost:11434/api/generate -d '{
-              "model": "qwen2.5-coder:0.5b",
+              "model": "qwen2.5-coder:1.5b",
               "prompt": "Why is the sky blue?",
               "stream": false
             }' 2>&1)
@@ -187,7 +187,7 @@ jobs:
             fi
 
             echo "Starting model download/initialization..."
-            docker exec -d ollama ollama run qwen2.5-coder:0.5b
+            docker exec -d ollama ollama run qwen2.5-coder:1.5b
 
             # Monitor container and model status
             monitor_count=0
@@ -231,7 +231,7 @@ jobs:
           docker build -f Dockerfile.cpu -t vllm-cpu-env --shm-size=4g .
           docker run -d  --name vllm \
              --network="host" \
-             vllm-cpu-env --model Qwen/Qwen2.5-Coder-0.5B-Instruct
+             vllm-cpu-env --model Qwen/Qwen2.5-Coder-1.5B-Instruct
 
           echo -e "\nVerify the vllm container is serving\n"
           docker ps -f name=vllm
@@ -245,7 +245,7 @@ jobs:
 
           echo -e "\nVerify the completions endpoint works\n"
           curl http://localhost:8000/v1/completions -H "Content-Type: application/json"   -d '{
-              "model": "Qwen/Qwen2.5-Coder-0.5B-Instruct",
+              "model": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
               "prompt": ["How to make pizza"],
               "max_tokens": 100,
               "temperature": 0
@@ -255,7 +255,7 @@ jobs:
           curl -X POST http://localhost:8000/v1/chat/completions \
               -H "Content-Type: application/json" \
               -d '{
-                "model": "Qwen/Qwen2.5-Coder-0.5B-Instruct",
+                "model": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
                 "messages": [
                   {"role": "system", "content": "You are a coding assistant."},
                   {"role": "user", "content": "Hello"}
