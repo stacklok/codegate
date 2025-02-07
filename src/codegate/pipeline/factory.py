@@ -29,7 +29,9 @@ class PipelineFactory:
             CodegateSecrets(),
             CodegateCli(),
             CodegateContextRetriever(),
-            SystemPrompt(Config.get_config().prompts.default_chat),
+            SystemPrompt(
+                Config.get_config().prompts.default_chat, Config.get_config().prompts.client_prompts
+            ),
         ]
         return SequentialPipelineProcessor(
             input_steps,

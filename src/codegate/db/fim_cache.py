@@ -8,8 +8,8 @@ import structlog
 from pydantic import BaseModel
 
 from codegate.config import Config
-from codegate.db.models import Alert
-from codegate.pipeline.base import AlertSeverity, PipelineContext
+from codegate.db.models import Alert, AlertSeverity
+from codegate.pipeline.base import PipelineContext
 
 logger = structlog.get_logger("codegate")
 

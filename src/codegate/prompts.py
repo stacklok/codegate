@@ -41,11 +41,19 @@ class PromptConfig:
             if not isinstance(prompt_data, dict):
                 raise ConfigurationError("Prompts file must contain a YAML dictionary")
 
-            # Validate all values are strings
-            for key, value in prompt_data.items():
-                if not isinstance(value, str):
-                    raise ConfigurationError(f"Prompt '{key}' must be a string, got {type(value)}")
+            def validate_prompts(data, parent_key=""):
+                """Recursively validate prompt values."""
+                for key, value in data.items():
+                    full_key = f"{parent_key}.{key}" if parent_key else key
+                    if isinstance(value, dict):
+                        validate_prompts(value, full_key)  # Recurse into nested dictionaries
+                    elif not isinstance(value, str):
+                        raise ConfigurationError(
+                            f"Prompt '{full_key}' must be a string, got {type(value)}"
+                        )
 
+            # Validate the entire structure
+            validate_prompts(prompt_data)
             return cls(prompts=prompt_data)
         except yaml.YAMLError as e:
             raise ConfigurationError(f"Failed to parse prompts file: {e}")

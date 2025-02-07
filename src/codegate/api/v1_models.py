@@ -1,4 +1,5 @@
 import datetime
+import json
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
@@ -154,11 +155,16 @@ class Alert(pydantic.BaseModel):
 
     @staticmethod
     def from_db_model(db_model: db_models.Alert) -> "Alert":
+        try:
+            trigger_string = json.loads(db_model.trigger_string)
+        except Exception:
+            trigger_string = db_model.trigger_string
+        snippet = json.loads(db_model.code_snippet) if db_model.code_snippet else None
         return Alert(
             id=db_model.id,
             prompt_id=db_model.prompt_id,
-            code_snippet=db_model.code_snippet,
-            trigger_string=db_model.trigger_string,
+            code_snippet=snippet,
+            trigger_string=trigger_string,
             trigger_type=db_model.trigger_type,
             trigger_category=db_model.trigger_category,
             timestamp=db_model.timestamp,
@@ -169,7 +175,7 @@ class Alert(pydantic.BaseModel):
     code_snippet: Optional[CodeSnippet]
     trigger_string: Optional[Union[str, dict]]
     trigger_type: str
-    trigger_category: Optional[str]
+    trigger_category: db_models.AlertSeverity
     timestamp: datetime.datetime
 
 
