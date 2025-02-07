@@ -2,14 +2,14 @@ import re
 from abc import abstractmethod
 from typing import List, Optional, Tuple
 
-from codegate.extract_snippets.factory import MessageCodeExtractorFactory
 import structlog
 from litellm import ChatCompletionRequest, ChatCompletionSystemMessage, ModelResponse
 from litellm.types.utils import Delta, StreamingChoices
 
 from codegate.config import Config
+from codegate.db.models import AlertSeverity
+from codegate.extract_snippets.factory import MessageCodeExtractorFactory
 from codegate.pipeline.base import (
-    AlertSeverity,
     CodeSnippet,
     PipelineContext,
     PipelineResult,
