@@ -160,6 +160,24 @@ class OpenInterpreter(BaseClientDetector):
         return ClientType.OPEN_INTERPRETER
 
 
+class ContinueDetector(BaseClientDetector):
+    """
+    Detector for Continue client based on message content
+    """
+
+    def __init__(self):
+        super().__init__()
+        # This is a hack that really only detects Continue with DeepSeek
+        # we should get a header or user agent for this (upstream PR pending)
+        self.content_detector = ContentDetector(
+            "You are an AI programming assistant, utilizing the DeepSeek Coder model"
+        )
+
+    @property
+    def client_name(self) -> ClientType:
+        return ClientType.CONTINUE
+
+
 class CopilotDetector(BaseClientDetector):
     """
     Detector for Copilot client based on user agent
@@ -191,6 +209,7 @@ class DetectClient:
             KoduDetector(),
             OpenInterpreter(),
             CopilotDetector(),
+            ContinueDetector(),
         ]
 
     def __call__(self, func):
