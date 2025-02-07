@@ -19,7 +19,7 @@ on:
 jobs:
   integration-tests:
     name: Test
-    runs-on: ubuntu-4cores-16gb
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false # Continue running other tests if one fails
       matrix:
@@ -145,7 +145,7 @@ jobs:
           function check_model_ready() {
             response=$(curl -s http://localhost:11434/api/generate -d '{
               "model": "qwen2.5-coder:1.5b",
-              "prompt": "Why is the sky blue?",
+              "prompt": "Hello",
               "stream": false
             }' 2>&1)
 
@@ -246,7 +246,7 @@ jobs:
           echo -e "\nVerify the completions endpoint works\n"
           curl http://localhost:8000/v1/completions -H "Content-Type: application/json"   -d '{
               "model": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
-              "prompt": ["How to make pizza"],
+              "prompt": ["Hello"],
               "max_tokens": 100,
               "temperature": 0
             }'

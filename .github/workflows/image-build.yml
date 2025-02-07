@@ -15,7 +15,7 @@ permissions:
 jobs:
   docker-image:
     name: Check docker image build
-    runs-on: ubuntu-4cores-16gb
+    runs-on: ubuntu-latest
     env:
       IMAGE_NAME: stacklok/codegate
       IMAGE_TAG: dev
