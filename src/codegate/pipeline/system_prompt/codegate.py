@@ -17,7 +17,7 @@ class SystemPrompt(PipelineStep):
     the word "codegate" in the user message.
     """
 
-    def __init__(self, system_prompt: str, client_prompts: str):
+    def __init__(self, system_prompt: str, client_prompts: dict[str]):
         self.codegate_system_prompt = system_prompt
         self.client_prompts = client_prompts
 
