@@ -1145,14 +1145,7 @@
             "default": ""
           },
           "auth_type": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ProviderAuthType"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "$ref": "#/components/schemas/ProviderAuthType",
             "default": "none"
           },
           "api_key": {
@@ -1669,14 +1662,7 @@
             "default": ""
           },
           "auth_type": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ProviderAuthType"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "$ref": "#/components/schemas/ProviderAuthType",
             "default": "none"
           }
         },
@@ -1697,7 +1683,7 @@
           "ollama",
           "lm_studio",
           "llamacpp",
-          "openai"
+          "openrouter"
         ],
         "title": "ProviderType",
         "description": "Represents the different types of providers we support."
