@@ -62,7 +62,7 @@ async def _is_system_prompt(message: str) -> bool:
     return False
 
 
-async def parse_request(request_str: str) -> Tuple[Optional[List[str]], str]:
+async def parse_request(request_str: str) -> Tuple[Optional[List[str]], str]:  # noqa: C901
     """
     Parse the request string from the pipeline and return the message and the model.
     """
@@ -105,7 +105,7 @@ async def parse_request(request_str: str) -> Tuple[Optional[List[str]], str]:
     return messages, model
 
 
-async def parse_output(output_str: str) -> Optional[str]:
+async def parse_output(output_str: str) -> Optional[str]:  # noqa: C901
     """
     Parse the output string from the pipeline and return the message.
     """
@@ -499,3 +499,37 @@ async def parse_workspace_token_usage(
     for p_qa in partial_question_answers:
         token_usage_agg.add_model_token_usage(p_qa.model_token_usage)
     return token_usage_agg
+
+
+def remove_duplicate_alerts(alerts):
+    unique_alerts = []
+    seen = defaultdict(list)
+
+    for alert in sorted(
+        alerts, key=lambda x: x.timestamp, reverse=True
+    ):  # Sort alerts by timestamp descending
+        if alert.trigger_type != "codegate-secrets":
+            unique_alerts.append(alert)
+            continue
+
+        # Extract trigger string content until "Context"
+        trigger_string_content = alert.trigger_string.split("Context")[0]
+
+        key = (
+            alert.code_snippet,
+            alert.trigger_type,
+            alert.trigger_category,
+            trigger_string_content,
+        )
+
+        # If key exists and new alert is more recent, replace it
+        if key in seen:
+            existing_alert = seen[key]
+            if abs((alert.timestamp - existing_alert.timestamp).total_seconds()) < 5:
+                seen[key] = alert  # Replace with newer alert
+                continue
+
+        seen[key] = alert
+        unique_alerts.append(alert)
+
+    return list(seen.values())
