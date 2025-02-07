@@ -145,7 +145,7 @@ jobs:
           function check_model_ready() {
             response=$(curl -s http://localhost:11434/api/generate -d '{
               "model": "qwen2.5-coder:0.5b",
-              "prompt": "Why is the sky blue?",
+              "prompt": "Hello",
               "stream": false
             }' 2>&1)
 
@@ -246,7 +246,7 @@ jobs:
           echo -e "\nVerify the completions endpoint works\n"
           curl http://localhost:8000/v1/completions -H "Content-Type: application/json"   -d '{
               "model": "Qwen/Qwen2.5-Coder-0.5B-Instruct",
-              "prompt": ["How to make pizza"],
+              "prompt": ["Hello"],
               "max_tokens": 100,
               "temperature": 0
             }'
@@ -269,6 +269,7 @@ jobs:
           docker logs vllm
 
       - name: Tests - ${{ matrix.test-provider }}
+        timeout-minutes: 15
         env:
           CODEGATE_PROVIDERS: ${{ matrix.test-provider }}
         run: |

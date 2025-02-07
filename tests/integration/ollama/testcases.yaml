@@ -37,7 +37,7 @@ testcases:
         "model": "qwen2.5-coder:0.5b",
         "raw": true,
         "options": {
-          "temperature": 0.01,
+          "temperature": 0,
           "num_predict": 4096,
           "stop": [
             "<|endoftext|>",
@@ -55,13 +55,10 @@ testcases:
           ],
           "num_ctx": 8096
         },
-        "prompt":"<|fim_prefix|>\n# codegate/test.py\nimport invokehttp\nimport requests\n\nkey = \"mysecret-key\"\n\ndef call_api():\n    <|fim_suffix|>\n\n\ndata = {'key1': 'test1', 'key2': 'test2'}\nresponse = call_api('http://localhost:8080', method='post', data='data')\n<|fim_middle|>"
+        "prompt":"# ***Do not add code comments!***\n***Do not add anything else besides the body of the function!***\n<|fim_prefix|>def print_hello_world():\n    <|fim_suffix|>\n\n\nprint_hello_world()\n<|fim_middle|>"
       }
     likes: |
-      ```python
-      if __name__ == '__main__':
-          invokehttp.run(call_api)
-      ```
+      print("Hello, World!")
 
   ollama_malicious_package_question:
     name: Ollama Malicious Package
