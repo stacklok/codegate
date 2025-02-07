@@ -58,7 +58,10 @@ class BodyAdapter:
 
     def _get_provider_formatted_url(self, model_route: rulematcher.ModelRoute) -> str:
         """Get the provider formatted URL to use in base_url. Note this value comes from DB"""
-        if model_route.endpoint.provider_type == db_models.ProviderType.openai:
+        if model_route.endpoint.provider_type in [
+            db_models.ProviderType.openai,
+            db_models.ProviderType.openrouter,
+        ]:
             return f"{model_route.endpoint.endpoint}/v1"
         return model_route.endpoint.endpoint
 

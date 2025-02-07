@@ -4,6 +4,7 @@ from typing import Dict
 from fastapi import Header, HTTPException, Request
 from litellm.types.llms.openai import ChatCompletionRequest
 
+from codegate.clients.clients import ClientType
 from codegate.clients.detector import DetectClient
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.fim_analyzer import FIMAnalyzer
@@ -34,6 +35,21 @@ class OpenRouterProvider(OpenAIProvider):
     def provider_route_name(self) -> str:
         return "openrouter"
 
+    async def process_request(
+        self,
+        data: dict,
+        api_key: str,
+        is_fim_request: bool,
+        client_type: ClientType,
+    ):
+        # litellm workaround - add openrouter/ prefix to model name to make it openai-compatible
+        # once we get rid of litellm, this can simply be removed
+        original_model = data.get("model", "")
+        if not original_model.startswith("openrouter/"):
+            data["model"] = f"openrouter/{original_model}"
+
+        return await super().process_request(data, api_key, is_fim_request, client_type)
+
     def _setup_routes(self):
         @self.router.post(f"/{self.provider_route_name}/api/v1/chat/completions")
         @self.router.post(f"/{self.provider_route_name}/chat/completions")
@@ -52,14 +68,8 @@ class OpenRouterProvider(OpenAIProvider):
 
             base_url = self._get_base_url()
             data["base_url"] = base_url
-
-            # litellm workaround - add openrouter/ prefix to model name to make it openai-compatible
-            # once we get rid of litellm, this can simply be removed
-            original_model = data.get("model", "")
-            if not original_model.startswith("openrouter/"):
-                data["model"] = f"openrouter/{original_model}"
-
             is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, data)
+
             return await self.process_request(
                 data,
                 api_key,
