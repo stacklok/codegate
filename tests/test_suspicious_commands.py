@@ -47,7 +47,7 @@ def sc():
         SuspiciousCommands: Initialized instance with loaded model.
     """
     sc1 = SuspiciousCommands()
-    sc1.load_trained_model(MODEL_FILE, weights_only=False)
+    sc1.load_trained_model(MODEL_FILE)
     return sc1
 
 
@@ -83,7 +83,7 @@ async def test_save_and_load_model():
     Test saving and loading the trained model.
     """
     sc2 = SuspiciousCommands()
-    sc2.load_trained_model(MODEL_FILE, weights_only=False)
+    sc2.load_trained_model(MODEL_FILE)
     assert sc2.simple_nn is not None
     class_, prob = await sc2.classify_phrase("brew list")
     assert 0 == class_

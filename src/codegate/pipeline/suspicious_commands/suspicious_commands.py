@@ -135,7 +135,7 @@ class SuspiciousCommands:
                 pickle_protocol=4,  # Use a safer pickle protocol
             )
 
-    def load_trained_model(self, file_name, weights_only=True):
+    def load_trained_model(self, file_name, weights_only=False):
         """
         Load a trained model from a file.
 
