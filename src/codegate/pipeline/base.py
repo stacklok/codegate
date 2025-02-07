@@ -1,10 +1,8 @@
-import dataclasses
 import datetime
 import json
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from enum import Enum
 from typing import Any, Dict, List, Optional
 
 import structlog
@@ -12,16 +10,11 @@ from litellm import ChatCompletionRequest, ModelResponse
 from pydantic import BaseModel
 
 from codegate.clients.clients import ClientType
-from codegate.db.models import Alert, Output, Prompt
+from codegate.db.models import Alert, AlertSeverity, Output, Prompt
 from codegate.extract_snippets.message_extractor import CodeSnippet
 from codegate.pipeline.secrets.manager import SecretsManager
 
 logger = structlog.get_logger("codegate")
-
-
-class AlertSeverity(Enum):
-    INFO = "info"
-    CRITICAL = "critical"
 
 
 @dataclass
@@ -80,7 +73,7 @@ class PipelineContext:
             logger.warning("No code snippet or trigger string provided for alert. Will not create")
             return
 
-        code_snippet_str = json.dumps(dataclasses.asdict(code_snippet)) if code_snippet else None
+        code_snippet_str = code_snippet.model_dump_json() if code_snippet else None
 
         self.alerts_raised.append(
             Alert(
