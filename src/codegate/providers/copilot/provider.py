@@ -124,7 +124,7 @@ class HttpResponse:
         """
         Reconstruct the body of the response.
         """
-        result = b''
+        result = b""
         if self.body:
             result += self.body
         return result
