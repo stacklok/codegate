@@ -111,18 +111,27 @@ class HttpResponse:
     headers: List[str]
     body: Optional[bytes] = None
 
-    def reconstruct(self) -> bytes:
-        """Reconstruct HTTP response from stored details"""
+    def reconstruct_headers(self) -> bytes:
+        """
+        Reconstruct the HTTP header of the response.
+        """
         headers = "\r\n".join(self.headers)
         status_line = f"{self.version} {self.status_code} {self.reason}\r\n"
         header_block = f"{status_line}{headers}\r\n\r\n"
+        return header_block.encode("utf-8")
 
-        # Convert header block to bytes and combine with body
-        result = header_block.encode("utf-8")
+    def reconstruct_body(self) -> bytes:
+        """
+        Reconstruct the body of the response.
+        """
+        result = b''
         if self.body:
             result += self.body
-
         return result
+
+    def reconstruct(self) -> bytes:
+        """Reconstruct HTTP response from stored details"""
+        return self.reconstruct_headers() + self.reconstruct_body()
 
 
 def extract_path(full_path: str) -> str:
@@ -387,8 +396,12 @@ class CopilotProvider(asyncio.Protocol):
                 # request to the target
                 self.target_transport.close()
 
-                # Send the shortcut response data in a chunk
-                chunk = pipeline_output.reconstruct()
+                # Send the HTTP headers
+                # Note that this representation ends with \r\n\r\n
+                self.transport.write(pipeline_output.reconstruct_headers())
+
+                # Encode the body, send its length, then the data
+                chunk = pipeline_output.reconstruct_body()
                 chunk_size = hex(len(chunk))[2:] + "\r\n"
                 self.transport.write(chunk_size.encode())
                 self.transport.write(chunk)
