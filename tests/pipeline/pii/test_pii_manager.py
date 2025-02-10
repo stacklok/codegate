@@ -13,18 +13,17 @@ class TestPiiManager:
             mock_instance = MagicMock()
             mock_instance.analyze = MagicMock()
             mock_instance.restore_pii = MagicMock()
-            mock.return_value = mock_instance
+            mock_instance.session_store = PiiSessionStore()
+            mock.get_instance.return_value = mock_instance
             yield mock_instance
 
     @pytest.fixture
     def manager(self, mock_analyzer):
-        manager = PiiManager()
-        manager.analyzer = mock_analyzer
-        return manager
+        return PiiManager()
 
-    def test_init(self, manager):
-        assert manager.current_session is None
-        assert manager.analyzer is not None
+    def test_init(self, manager, mock_analyzer):
+        assert manager.session_store is mock_analyzer.session_store
+        assert manager.analyzer is mock_analyzer
 
     def test_analyze_no_pii(self, manager, mock_analyzer):
         text = "Hello CodeGate"
@@ -35,7 +34,7 @@ class TestPiiManager:
 
         assert anonymized_text == text
         assert found_pii == []
-        assert isinstance(manager.current_session, PiiSessionStore)
+        assert isinstance(manager.session_store, PiiSessionStore)
 
     def test_analyze_with_pii(self, manager, mock_analyzer):
         text = "My email is test@example.com"
@@ -61,13 +60,12 @@ class TestPiiManager:
         assert "My email is <" in result_text
         assert ">" in result_text
         assert found_pii == pii_details
-        assert manager.current_session == session_store
-
-        assert manager.current_session.mappings[placeholder] == "test@example.com"
+        assert manager.session_store == session_store
+        assert manager.session_store.mappings[placeholder] == "test@example.com"
 
     def test_restore_pii_no_session(self, manager):
         text = "Anonymized text"
-        manager.current_session = None
+        manager.session_store = None
 
         restored_text = manager.restore_pii(text)
 
@@ -79,7 +77,7 @@ class TestPiiManager:
         session = PiiSessionStore()
         placeholder = "<test-uuid>"
         session.mappings[placeholder] = "test@example.com"
-        manager.current_session = session
+        manager.session_store = session
 
         mock_analyzer.restore_pii.return_value = original_text
 
@@ -94,7 +92,7 @@ class TestPiiManager:
         session = PiiSessionStore()
         session.mappings["<uuid1>"] = "test@example.com"
         session.mappings["<uuid2>"] = "123-456-7890"
-        manager.current_session = session
+        manager.session_store = session
 
         mock_analyzer.restore_pii.return_value = original_text
 

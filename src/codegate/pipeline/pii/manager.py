@@ -12,13 +12,13 @@ class PiiManager:
     Manages the analysis and restoration of Personally Identifiable Information (PII) in text.
 
     Attributes:
-        analyzer (PiiAnalyzer): An instance of PiiAnalyzer used for PII detection and restoration.
-        current_session (PiiSessionStore): Stores the current PII session information.
+        analyzer (PiiAnalyzer): The singleton instance of PiiAnalyzer used for PII detection and restoration.
+        session_store (PiiSessionStore): The session store for the current PII session.
 
     Methods:
         __init__():
-            Initializes the PiiManager with a PiiAnalyzer instance and sets the
-            current session to None.
+            Initializes the PiiManager with the singleton PiiAnalyzer instance and sets the
+            session store.
 
         analyze(text: str) -> Tuple[str, List[Dict[str, Any]]]:
             Analyzes the given text for PII, anonymizes it, and logs the detected PII details.
@@ -37,11 +37,14 @@ class PiiManager:
     """
 
     def __init__(self):
-        self.analyzer = PiiAnalyzer()
-        self.current_session: PiiSessionStore = None
+        """
+        Initialize the PiiManager with the singleton PiiAnalyzer instance.
+        """
+        self.analyzer = PiiAnalyzer.get_instance()
+        self.session_store = self.analyzer.session_store
 
     def analyze(self, text: str) -> Tuple[str, List[Dict[str, Any]]]:
-        anonymized_text, found_pii, self.current_session = self.analyzer.analyze(text)
+        anonymized_text, found_pii, self.session_store = self.analyzer.analyze(text)
 
         # Log found PII details
         if found_pii:
@@ -56,12 +59,12 @@ class PiiManager:
         return anonymized_text, found_pii
 
     def restore_pii(self, anonymized_text: str) -> str:
-        if self.current_session is None:
+        if self.session_store is None:
             logger.warning("No active PII session found. Unable to restore PII.")
             return anonymized_text
         logger.debug("Restoring PII from session.")
-        logger.debug(f"Current session: {self.current_session}")
+        logger.debug(f"Current session: {self.session_store}")
         logger.debug(f"Anonymized text: {anonymized_text}")
-        restored_text = self.analyzer.restore_pii(anonymized_text, self.current_session)
+        restored_text = self.analyzer.restore_pii(anonymized_text, self.session_store)
         logger.debug(f"Restored text: {restored_text}")
         return restored_text

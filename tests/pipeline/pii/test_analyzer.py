@@ -44,6 +44,13 @@ class TestPiiSessionStore:
 
 
 class TestPiiAnalyzer:
+    @pytest.fixture(autouse=True)
+    def reset_singleton(self):
+        """Reset the singleton instance before each test"""
+        PiiAnalyzer._instance = None
+        yield
+        PiiAnalyzer._instance = None
+
     @pytest.fixture
     def mock_nlp_engine(self):
         with patch("presidio_analyzer.nlp_engine.NlpEngineProvider") as mock:
@@ -84,7 +91,18 @@ class TestPiiAnalyzer:
     def analyzer(self, mock_nlp_engine, mock_analyzer_engine, mock_anonymizer_engine):
         with patch("os.path.dirname") as mock_dirname:
             mock_dirname.return_value = "/test/path"
-            return PiiAnalyzer()
+            return PiiAnalyzer.get_instance()
+
+    def test_singleton_pattern(self):
+        """Test that PiiAnalyzer follows the singleton pattern"""
+        # First instance
+        analyzer1 = PiiAnalyzer.get_instance()
+        # Second instance should be the same object
+        analyzer2 = PiiAnalyzer.get_instance()
+        assert analyzer1 is analyzer2
+        # Direct instantiation should raise an error
+        with pytest.raises(RuntimeError, match="Use PiiAnalyzer.get_instance()"):
+            PiiAnalyzer()
 
     def test_analyze_no_pii(self, analyzer, mock_analyzer_engine):
         text = "Hello world"

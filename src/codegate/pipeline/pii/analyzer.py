@@ -1,5 +1,5 @@
 import uuid
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import structlog
 from presidio_analyzer import AnalyzerEngine
@@ -42,24 +42,40 @@ class PiiSessionStore:
 class PiiAnalyzer:
     """
     PiiAnalyzer class for analyzing and anonymizing text containing PII.
-    Methods:
-        __init__:
-            Initializes the PiiAnalyzer with a custom NLP engine configuration.
-        analyze:
-                text (str): The text to analyze for PII.
-                Tuple[str, List[Dict[str, Any]], PiiSessionStore]: The anonymized text, a list of
-                found PII details, and the session store.
-                entities (List[str]): The PII entities to analyze for.
+    This is a singleton class - use PiiAnalyzer.get_instance() to get the instance.
 
+    Methods:
+        get_instance():
+            Get or create the singleton instance of PiiAnalyzer.
+        analyze:
+            text (str): The text to analyze for PII.
+            Tuple[str, List[Dict[str, Any]], PiiSessionStore]: The anonymized text, a list of
+            found PII details, and the session store.
+            entities (List[str]): The PII entities to analyze for.
         restore_pii:
-                anonymized_text (str): The text with anonymized PII.
-                session_store (PiiSessionStore): The PiiSessionStore used for anonymization.
-                str: The text with original PII restored.
+            anonymized_text (str): The text with anonymized PII.
+            session_store (PiiSessionStore): The PiiSessionStore used for anonymization.
+            str: The text with original PII restored.
     """
+    _instance: Optional["PiiAnalyzer"] = None
+
+    @classmethod
+    def get_instance(cls) -> "PiiAnalyzer":
+        """Get or create the singleton instance of PiiAnalyzer"""
+        if cls._instance is None:
+            logger.debug("Creating new PiiAnalyzer instance")
+            cls._instance = cls()
+        return cls._instance
 
     def __init__(self):
-        import os
+        """
+        Initialize the PiiAnalyzer.
+        Note: Use get_instance() instead of creating a new instance directly.
+        """
+        if PiiAnalyzer._instance is not None:
+            raise RuntimeError("Use PiiAnalyzer.get_instance() instead")
 
+        import os
         from presidio_analyzer.nlp_engine import NlpEngineProvider
 
         # Get the path to our custom spacy config
@@ -74,6 +90,8 @@ class PiiAnalyzer:
         self.analyzer = AnalyzerEngine(nlp_engine=nlp_engine)
         self.anonymizer = AnonymizerEngine()
         self.session_store = PiiSessionStore()
+
+        PiiAnalyzer._instance = self
 
     def analyze(self, text: str) -> Tuple[str, List[Dict[str, Any]], PiiSessionStore]:
         # Prioritize credit card detection first
