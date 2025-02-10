@@ -185,7 +185,7 @@ class CopilotDetector(BaseClientDetector):
 
     def __init__(self):
         super().__init__()
-        self.header_detector = HeaderDetector()
+        self.header_detector = HeaderDetector("user-agent", "Copilot")
         self.user_agent_detector = UserAgentDetector("Copilot")
 
     @property

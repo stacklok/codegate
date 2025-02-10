@@ -304,14 +304,16 @@ class PiiRedactionNotifier(OutputPipelineStep):
             pii_details = input_context.metadata.get("redacted_pii_details", [])
             pii_summary = self._format_pii_summary(pii_details)
 
-            # Get the redacted text from the metadata
-            redacted_text = input_context.metadata.get("redacted_text", "")
+            # The following can be uncommented to assist with debugging
+            # redacted_text = input_context.metadata.get("redacted_text", "")
 
-            # Clean up the redacted text - remove extra newlines and spaces and backticks!
-            if redacted_text:
-                redacted_text = " ".join(redacted_text.split())
-                # Remove any backticks that might have come from the text
-                redacted_text = redacted_text.replace("`", "")
+            # # Clean up the redacted text - remove extra newlines and spaces and backticks!
+            # if redacted_text:
+            #     redacted_text = " ".join(redacted_text.split())
+            #     # Remove any backticks that might have come from the text
+            #     redacted_text = redacted_text.replace("`", "")
+
+            # logger.debug(f"Redacted text: {redacted_text}")
 
             # Create notification chunk with redacted snippet
             # TODO: Might want to check these  with James!
