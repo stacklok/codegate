@@ -5,6 +5,7 @@ import pytest
 from codegate.extract_snippets.body_extractor import (
     ClineBodySnippetExtractor,
     ContinueBodySnippetExtractor,
+    KoduBodySnippetExtractor,
     OpenInterpreterBodySnippetExtractor,
 )
 
@@ -211,5 +212,74 @@ please analyze testing_file.py
 )
 def test_body_extract_continue_snippets(test_case: BodyCodeSnippetTest):
     extractor = ContinueBodySnippetExtractor()
+    filenames = extractor.extract_unique_filenames(test_case.input_body_dict)
+    _evaluate_actual_filenames(filenames, test_case)
+
+
+@pytest.mark.parametrize(
+    "test_case",
+    [
+        # Analyze processed snippets from OpenInterpreter
+        BodyCodeSnippetTest(
+            input_body_dict={
+                "messages": [
+                    {"role": "system", "content": "You are Cline, a highly skilled software"},
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": """
+Here is our task for this conversation, you must remember it all time unless i tell you otherwise.
+<task>
+please analyze
+	<additional-context>
+	- Super critical information, the files attached here are part of the task and need to be
+	- The URLs attached here need to be scrapped and the information should be used for the
+	- The files passed in context are provided to help you understand the task better, the
+	<files count="1"><file path="testing_file.py">import invokehttp
+import fastapi
+from fastapi import FastAPI, Request, Response, HTTPException
+import numpy
+
+GITHUB_TOKEN="ghp_1J9Z3Z2dfg4dfs23dsfsdf232aadfasdfasfasdf32"
+
+def add(a, b):
+     return a + b
+
+def multiply(a, b):
+     return a * b
+
+
+
+def substract(a, b):
+     </file></files>
+	<urls></urls>
+	</additional-context>
+
+</task>
+        """,
+                            }
+                        ],
+                    },
+                    {
+                        "type": "text",
+                        "text": """
+You must use a tool to proceed. Either use attempt_completion if you've completed the task,
+or ask_followup_question if you need more information. you must adhere to the tool format
+<kodu_action><tool_name><parameter1_name>value1</parameter1_name><parameter2_name>value2
+</parameter2_name>... additional parameters as needed in the same format
+...</tool_name></kodu_action>
+""",
+                    },
+                ]
+            },
+            expected_count=1,
+            expected=["testing_file.py"],
+        ),
+    ],
+)
+def test_body_extract_kodu_snippets(test_case: BodyCodeSnippetTest):
+    extractor = KoduBodySnippetExtractor()
     filenames = extractor.extract_unique_filenames(test_case.input_body_dict)
     _evaluate_actual_filenames(filenames, test_case)

@@ -4,6 +4,7 @@ from codegate.extract_snippets.body_extractor import (
     BodyCodeSnippetExtractor,
     ClineBodySnippetExtractor,
     ContinueBodySnippetExtractor,
+    KoduBodySnippetExtractor,
     OpenInterpreterBodySnippetExtractor,
 )
 from codegate.extract_snippets.message_extractor import (
@@ -11,6 +12,7 @@ from codegate.extract_snippets.message_extractor import (
     ClineCodeSnippetExtractor,
     CodeSnippetExtractor,
     DefaultCodeSnippetExtractor,
+    KoduCodeSnippetExtractor,
     OpenInterpreterCodeSnippetExtractor,
 )
 
@@ -24,6 +26,7 @@ class BodyCodeExtractorFactory:
             ClientType.CLINE: ClineBodySnippetExtractor(),
             ClientType.AIDER: AiderBodySnippetExtractor(),
             ClientType.OPEN_INTERPRETER: OpenInterpreterBodySnippetExtractor(),
+            ClientType.KODU: KoduBodySnippetExtractor(),
         }
         return mapping_client_extractor.get(detected_client, ContinueBodySnippetExtractor())
 
@@ -37,5 +40,6 @@ class MessageCodeExtractorFactory:
             ClientType.CLINE: ClineCodeSnippetExtractor(),
             ClientType.AIDER: AiderCodeSnippetExtractor(),
             ClientType.OPEN_INTERPRETER: OpenInterpreterCodeSnippetExtractor(),
+            ClientType.KODU: KoduCodeSnippetExtractor(),
         }
         return mapping_client_extractor.get(detected_client, DefaultCodeSnippetExtractor())
