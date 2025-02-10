@@ -8,10 +8,46 @@ body:
     id: description
     attributes:
       label: Description
-      description: Describe the need. Why is it needed? What is the expected outcome? What is the impact?
-      placeholder: Describe the task
+      description: What is the feature? What is the expected outcome? Why does it matter? Who benefits? (If there are specific requests for this functionality, link to them.)
+      placeholder: Describe the feature...
     validations:
       required: true
+
+  - type: textarea
+    id: implementation
+    attributes:
+      label: How it works
+      description: What is the key functionality? How does a user access or enable it? Are there any dependencies or prerequisites?
+      placeholder: Describe the functionality...
+
+  - type: textarea
+    id: use_cases
+    attributes:
+      label: Use cases
+      description: What are the primary use cases? Why is it uniquely valuable? How is it different than existing solutions?
+      placeholder: Describe the use cases that are enabled...
+
+  - type: input
+    id: release_date
+    attributes:
+      label: Release date
+      description: Estimated release date (yyyy-mm-dd)
+      placeholder: yyyy-mm-dd
+    validations:
+      required: false
+
+  - type: dropdown
+    id: release_tier
+    attributes:
+      label: Release tier
+      description: What's the release tier and requisite marketing support?
+      options:
+        - Tier 1
+        - Tier 2
+        - Tier 3
+      default: 2
+    validations:
+      required: false
 
   - type: textarea
     id: additional-context
