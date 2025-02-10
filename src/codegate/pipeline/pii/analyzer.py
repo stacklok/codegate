@@ -6,6 +6,7 @@ from presidio_analyzer import AnalyzerEngine
 from presidio_anonymizer import AnonymizerEngine
 
 from codegate.db.models import AlertSeverity
+from codegate.pipeline.base import PipelineContext
 
 logger = structlog.get_logger("codegate.pii.analyzer")
 
@@ -98,7 +99,9 @@ class PiiAnalyzer:
 
         PiiAnalyzer._instance = self
 
-    def analyze(self, text: str, context: Optional["PipelineContext"] = None) -> Tuple[str, List[Dict[str, Any]], PiiSessionStore]:
+    def analyze(
+        self, text: str, context: Optional["PipelineContext"] = None
+    ) -> Tuple[str, List[Dict[str, Any]], PiiSessionStore]:
         # Prioritize credit card detection first
         entities = [
             "PHONE_NUMBER",
