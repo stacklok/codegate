@@ -127,6 +127,7 @@ class HttpResponse:
         result = b""
         if self.body:
             result += self.body
+        result += b"\n\n"
         return result
 
     def reconstruct(self) -> bytes:
