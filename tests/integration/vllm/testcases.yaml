@@ -51,15 +51,58 @@ testcases:
           "#- coding: utf-8",
           "```"
         ],
-        "prompt":"<|fim_prefix|>\n# codegate/test.py\nimport invokehttp\nimport requests\n\nkey = \"mysecret-key\"\n\ndef call_api():\n    <|fim_suffix|>\n\n\ndata = {'key1': 'test1', 'key2': 'test2'}\nresponse = call_api('http://localhost:8080', method='post', data='data')\n<|fim_middle|>"
+        "prompt":"# Do not add comments\n<|fim_prefix|>\n# codegate/greet.py\ndef print_hello():\n    <|fim_suffix|>\n\n\nprint_hello()\n<|fim_middle|>"
       }
     likes: |
-      return response.json()
+      print("Hello, World!")
 
-      def test_call_api():
-          response = call_api('http://localhost:8080', method='post', data='data')
-          assert response['key1'] == 'test1' and response['key2'] == 'test2', "Test failed"
+  vllm_malicious_package_question:
+    name: VLLM Malicious Package
+    provider: vllm
+    url: http://127.0.0.1:8989/vllm/chat/completions
+    data: |
+      {
+        "max_tokens":4096,
+        "messages":[
+            {
+              "content":"You are a coding assistant.",
+              "role":"system"
+            },
+            {
+              "content":"Is it safe to use invokehttp?",
+              "role":"user"
+            }
+        ],
+        "model":"Qwen/Qwen2.5-Coder-0.5B-Instruct",
+        "stream":true,
+        "temperature":0
+      }
+    contains: |
+      CodeGate detected one or more malicious, deprecated or archived packages.
 
-      if __name__ == '__main__':
-          test_call_api()
-
+# Commented out because it takes too much time in the CI pipeline. Also, this functionality should not be provider-specific
+#  vllm_secret_redacting_chat:
+#    name: VLLM secret redacting chat
+#    provider: vllm
+#    url: http://127.0.0.1:8989/vllm/chat/completions
+#    data: |
+#      {
+#        "max_tokens":4096,
+#        "messages":[
+#            {
+#              "content":"You are a coding assistant.",
+#              "role":"system"
+#            },
+#            {
+#              "content":"Here's my API key: ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789. Can you help me list my repos on GitHub?",
+#              "role":"user"
+#            }
+#        ],
+#        "model":"Qwen/Qwen2.5-Coder-0.5B-Instruct",
+#        "stream":true,
+#        "temperature":0
+#      }
+#    contains: |
+#      CodeGate prevented 1 secret
+#    not_contains: |
+#      ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789

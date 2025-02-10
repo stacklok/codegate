@@ -43,3 +43,52 @@ testcases:
     likes: |
       print("Hello, World!")
 
+  llamacpp_malicious_package_question:
+    name: Llamacpp Malicious Package
+    provider: llamacpp
+    url: http://127.0.0.1:8989/llamacpp/chat/completions
+    data: |
+      {
+        "max_tokens":4096,
+        "messages":[
+            {
+              "content":"You are a coding assistant.",
+              "role":"system"
+            },
+            {
+              "content": "is it safe to use invokehttp?",
+              "role":"user"
+            }
+        ],
+        "model":"qwen2.5-coder-0.5b-instruct-q5_k_m",
+        "stream":true,
+        "temperature":0
+      }
+    contains: |
+      CodeGate detected one or more malicious, deprecated or archived packages.
+
+  llamacpp_secret_redacting_chat:
+    name: LlamaCPP secret redacting chat
+    provider: llamacpp
+    url: http://127.0.0.1:8989/llamacpp/chat/completions
+    data: |
+      {
+        "max_tokens":4096,
+        "messages":[
+            {
+              "content":"You are a coding assistant.",
+              "role":"system"
+            },
+            {
+              "content":"Here's my API key: ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789. Can you help me list my repos on GitHub?",
+              "role":"user"
+            }
+        ],
+        "model":"qwen2.5-coder-0.5b-instruct-q5_k_m",
+        "stream":true,
+        "temperature":0
+      }
+    contains: |
+      CodeGate prevented 1 secret
+    not_contains: |
+      ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789

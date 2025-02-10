@@ -12,6 +12,10 @@ testcases:
       {
         "messages":[
             {
+              "content":"You are a coding assistant.",
+              "role":"system"
+            },
+            {
               "content":"Reply with that exact sentence: Hello from the integration tests!",
               "role":"user"
             }
@@ -30,6 +34,10 @@ testcases:
       {
         "messages":[
             {
+              "content":"You are a coding assistant.",
+              "role":"system"
+            },
+            {
               "content":"Generate me example code using the python invokehttp package to call an API",
               "role":"user"
             }
@@ -42,3 +50,26 @@ testcases:
     does_not_contain: |
       import invokehttp
 
+  copilot_secret_redacting_chat:
+    name: Copilot secret redacting chat
+    provider: copilot
+    url: "https://api.openai.com/v1/chat/completions"
+    data: |
+      {
+        "messages":[
+            {
+              "content":"You are a coding assistant.",
+              "role":"system"
+            },
+            {
+              "content":"Here's my API key: ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789. Can you help me list my repos on GitHub?",
+              "role":"user"
+            }
+        ],
+        "model":"gpt-4o-mini",
+        "stream":true
+      }
+    contains: |
+      CodeGate prevented 1 secret
+    not_contains: |
+      ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789

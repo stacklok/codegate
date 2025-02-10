@@ -3,8 +3,10 @@ import json
 from fastapi import Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from codegate.clients.detector import DetectClient
 from codegate.config import Config
 from codegate.pipeline.factory import PipelineFactory
+from codegate.providers.fim_analyzer import FIMAnalyzer
 from codegate.providers.openai.provider import OpenAIProvider
 
 
@@ -40,6 +42,7 @@ class LmStudioProvider(OpenAIProvider):
         @self.router.post(f"/{self.provider_route_name}/chat/completions")
         @self.router.post(f"/{self.provider_route_name}/completions")
         @self.router.post(f"/{self.provider_route_name}/v1/chat/completions")
+        @DetectClient()
         async def create_completion(
             request: Request,
             authorization: str = Header(..., description="Bearer token"),
@@ -52,5 +55,7 @@ class LmStudioProvider(OpenAIProvider):
             data = json.loads(body)
 
             data["base_url"] = self.lm_studio_url + "/v1/"
-
-            return await self.process_request(data, api_key, request.url.path)
+            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, data)
+            return await self.process_request(
+                data, api_key, is_fim_request, request.state.detected_client
+            )

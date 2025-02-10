@@ -6,8 +6,8 @@ from unittest import mock
 import pytest
 
 from codegate.db.fim_cache import CachedFim, FimCache
-from codegate.db.models import Alert
-from codegate.pipeline.base import AlertSeverity, PipelineContext
+from codegate.db.models import Alert, AlertSeverity
+from codegate.pipeline.base import PipelineContext
 
 fim_python_message = """
 # Path: folder/testing_file.py

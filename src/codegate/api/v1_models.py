@@ -1,11 +1,12 @@
 import datetime
+import json
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
 import pydantic
 
 from codegate.db import models as db_models
-from codegate.pipeline.base import CodeSnippet
+from codegate.extract_snippets.message_extractor import CodeSnippet
 from codegate.providers.base import BaseProvider
 from codegate.providers.registry import ProviderRegistry
 
@@ -147,6 +148,37 @@ class TokenUsageAggregate(pydantic.BaseModel):
         self.token_usage += model_token_usage.token_usage
 
 
+class Alert(pydantic.BaseModel):
+    """
+    Represents an alert.
+    """
+
+    @staticmethod
+    def from_db_model(db_model: db_models.Alert) -> "Alert":
+        try:
+            trigger_string = json.loads(db_model.trigger_string)
+        except Exception:
+            trigger_string = db_model.trigger_string
+        snippet = json.loads(db_model.code_snippet) if db_model.code_snippet else None
+        return Alert(
+            id=db_model.id,
+            prompt_id=db_model.prompt_id,
+            code_snippet=snippet,
+            trigger_string=trigger_string,
+            trigger_type=db_model.trigger_type,
+            trigger_category=db_model.trigger_category,
+            timestamp=db_model.timestamp,
+        )
+
+    id: str
+    prompt_id: str
+    code_snippet: Optional[CodeSnippet]
+    trigger_string: Optional[Union[str, dict]]
+    trigger_type: str
+    trigger_category: db_models.AlertSeverity
+    timestamp: datetime.datetime
+
+
 class PartialQuestionAnswer(pydantic.BaseModel):
     """
     Represents a partial conversation.
@@ -155,6 +187,7 @@ class PartialQuestionAnswer(pydantic.BaseModel):
     partial_questions: PartialQuestions
     answer: Optional[ChatMessage]
     model_token_usage: TokenUsageByModel
+    alerts: List[Alert] = []
 
 
 class Conversation(pydantic.BaseModel):
@@ -168,6 +201,7 @@ class Conversation(pydantic.BaseModel):
     chat_id: str
     conversation_timestamp: datetime.datetime
     token_usage_agg: Optional[TokenUsageAggregate]
+    alerts: List[Alert] = []
 
 
 class AlertConversation(pydantic.BaseModel):
@@ -210,7 +244,7 @@ class ProviderEndpoint(pydantic.BaseModel):
     description: str = ""
     provider_type: db_models.ProviderType
     endpoint: str = ""  # Some providers have defaults we can leverage
-    auth_type: Optional[ProviderAuthType] = ProviderAuthType.none
+    auth_type: ProviderAuthType = ProviderAuthType.none
 
     @staticmethod
     def from_db_model(db_model: db_models.ProviderEndpoint) -> "ProviderEndpoint":
@@ -267,26 +301,3 @@ class ModelByProvider(pydantic.BaseModel):
 
     def __str__(self):
         return f"{self.provider_name} / {self.name}"
-
-
-class MuxMatcherType(str, Enum):
-    """
-    Represents the different types of matchers we support.
-    """
-
-    # Always match this prompt
-    catch_all = "catch_all"
-
-
-class MuxRule(pydantic.BaseModel):
-    """
-    Represents a mux rule for a provider.
-    """
-
-    provider_id: str
-    model: str
-    # The type of matcher to use
-    matcher_type: MuxMatcherType
-    # The actual matcher to use. Note that
-    # this depends on the matcher type.
-    matcher: Optional[str] = None
