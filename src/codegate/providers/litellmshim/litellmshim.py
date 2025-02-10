@@ -41,6 +41,7 @@ class LiteLLmShim(BaseCompletionHandler):
     async def execute_completion(
         self,
         request: ChatCompletionRequest,
+        base_url: Optional[str],
         api_key: Optional[str],
         stream: bool = False,
         is_fim_request: bool = False,
@@ -49,6 +50,7 @@ class LiteLLmShim(BaseCompletionHandler):
         Execute the completion request with LiteLLM's API
         """
         request["api_key"] = api_key
+        request["base_url"] = base_url
         if is_fim_request:
             return await self._fim_completion_func(**request)
         return await self._completion_func(**request)

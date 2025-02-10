@@ -19,6 +19,7 @@ class BaseCompletionHandler(ABC):
     async def execute_completion(
         self,
         request: ChatCompletionRequest,
+        base_url: Optional[str],
         api_key: Optional[str],
         stream: bool = False,  # TODO: remove this param?
         is_fim_request: bool = False,
