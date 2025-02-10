@@ -13,6 +13,7 @@ class AnthropicCompletion(LiteLLmShim):
     async def execute_completion(
         self,
         request: ChatCompletionRequest,
+        base_url: Optional[str],
         api_key: Optional[str],
         stream: bool = False,
         is_fim_request: bool = False,
