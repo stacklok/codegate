@@ -82,17 +82,25 @@ async def ollama_stream_generator(  # noqa: C901
 
 class OllamaShim(BaseCompletionHandler):
 
-    def __init__(self, base_url):
-        self.client = AsyncClient(host=base_url, timeout=30)
-
     async def execute_completion(
         self,
         request: ChatCompletionRequest,
+        base_url: Optional[str],
         api_key: Optional[str],
         stream: bool = False,
         is_fim_request: bool = False,
     ) -> Union[ChatResponse, GenerateResponse]:
         """Stream response directly from Ollama API."""
+        if not base_url:
+            raise ValueError("base_url is required for Ollama")
+
+        # TODO: Add CodeGate user agent.
+        headers = dict()
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+
+        client = AsyncClient(host=base_url, timeout=300, headers=headers)
+
         try:
             if is_fim_request:
                 prompt = ""
@@ -103,7 +111,7 @@ class OllamaShim(BaseCompletionHandler):
                 if not prompt:
                     raise ValueError("No user message found in FIM request")
 
-                response = await self.client.generate(
+                response = await client.generate(
                     model=request["model"],
                     prompt=prompt,
                     raw=request.get("raw", False),
@@ -112,7 +120,7 @@ class OllamaShim(BaseCompletionHandler):
                     options=request["options"],  # type: ignore
                 )
             else:
-                response = await self.client.chat(
+                response = await client.chat(
                     model=request["model"],
                     messages=request["messages"],
                     stream=stream,  # type: ignore
@@ -122,6 +130,7 @@ class OllamaShim(BaseCompletionHandler):
         except Exception as e:
             logger.error(f"Error in Ollama completion: {str(e)}")
             raise e
+
 
     def _create_streaming_response(
         self,

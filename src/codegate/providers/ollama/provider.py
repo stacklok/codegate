@@ -28,7 +28,7 @@ class OllamaProvider(BaseProvider):
         else:
             provided_urls = config.provider_urls
         self.base_url = provided_urls.get("ollama", "http://localhost:11434/")
-        completion_handler = OllamaShim(self.base_url)
+        completion_handler = OllamaShim()
         super().__init__(
             OllamaInputNormalizer(),
             OllamaOutputNormalizer(),
@@ -68,7 +68,7 @@ class OllamaProvider(BaseProvider):
         try:
             stream = await self.complete(
                 data,
-                api_key=None,
+                api_key=api_key,
                 is_fim_request=is_fim_request,
                 client_type=client_type,
             )
