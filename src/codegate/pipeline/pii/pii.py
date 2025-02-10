@@ -109,7 +109,7 @@ class CodegatePii(PipelineStep):
             )
             new_request = add_or_update_system_message(new_request, system_message, context)
 
-        logger.info(f"Redacted text: {last_redacted_text}")
+        logger.debug(f"Redacted text: {last_redacted_text}")
 
         return PipelineResult(request=new_request, context=context)
 
