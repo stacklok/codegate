@@ -196,10 +196,11 @@ class PiiUnRedactionStep(OutputPipelineStep):
                 # Get the PII manager from context metadata
                 logger.debug(f"Valid UUID found: {uuid_value}")
                 pii_manager = input_context.metadata.get("pii_manager") if input_context else None
-                if pii_manager and pii_manager.current_session:
+                if pii_manager and pii_manager.session_store:
                     # Restore original value from PII manager
-                    original = pii_manager.current_session.get_pii(uuid_marker)
-                    logger.debug(f"Unredacted value for {uuid_marker}: {original}")
+                    logger.debug("Attempting to restore PII from UUID marker")
+                    original = pii_manager.session_store.get_pii(uuid_marker)
+                    logger.debug(f"Restored PII: {original}")
                     result.append(original)
                 else:
                     logger.debug("No PII manager or session found, keeping original marker")

@@ -163,7 +163,7 @@ class TestPiiUnRedactionStep:
         mock_pii_manager = MagicMock()
         mock_session = MagicMock()
         mock_session.get_pii = MagicMock(return_value="test@example.com")
-        mock_pii_manager.current_session = mock_session
+        mock_pii_manager.session_store = mock_session
         input_context.metadata["pii_manager"] = mock_pii_manager
 
         result = await unredaction_step.process_chunk(chunk, context, input_context)
