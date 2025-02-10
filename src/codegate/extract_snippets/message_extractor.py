@@ -69,6 +69,13 @@ OPEN_INTERPRETER_Y_CONTENT_PATTERN = re.compile(
     re.DOTALL,
 )
 
+KODU_CONTENT_PATTERN = re.compile(
+    r"<file\s+path=\"(?P<filename>[^\n>]+)\">"  # Match the opening tag with path attribute
+    r"(?P<content>.*?)"  # Match the content (non-greedy)
+    r"</file>",  # Match the closing tag
+    re.DOTALL,
+)
+
 
 class MatchedPatternSnippet(BaseModel):
     """
@@ -336,6 +343,24 @@ class OpenInterpreterCodeSnippetExtractor(CodeSnippetExtractor):
     @property
     def codeblock_with_filename_pattern(self) -> re.Pattern:
         return [OPEN_INTERPRETER_CONTENT_PATTERN, OPEN_INTERPRETER_Y_CONTENT_PATTERN]
+
+    def _get_match_pattern_snippet(self, match: re.Match) -> MatchedPatternSnippet:
+        # We don't have language in the cline pattern
+        matched_language = None
+        filename = match.group("filename")
+        content = match.group("content")
+        return MatchedPatternSnippet(language=matched_language, filename=filename, content=content)
+
+
+class KoduCodeSnippetExtractor(CodeSnippetExtractor):
+
+    @property
+    def codeblock_pattern(self) -> re.Pattern:
+        return [KODU_CONTENT_PATTERN]
+
+    @property
+    def codeblock_with_filename_pattern(self) -> re.Pattern:
+        return [KODU_CONTENT_PATTERN]
 
     def _get_match_pattern_snippet(self, match: re.Match) -> MatchedPatternSnippet:
         # We don't have language in the cline pattern
