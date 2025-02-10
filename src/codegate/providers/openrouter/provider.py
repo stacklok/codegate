@@ -24,6 +24,7 @@ class OpenRouterNormalizer(CompletionNormalizer):
 
         return data
 
+
 class OpenRouterProvider(OpenAIProvider):
     def __init__(self, pipeline_factory: PipelineFactory):
         super().__init__(pipeline_factory)
