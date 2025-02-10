@@ -21,6 +21,14 @@ class ProviderNotFoundError(Exception):
     pass
 
 
+class ProviderModelsNotFoundError(Exception):
+    pass
+
+
+class ProviderInvalidAuthConfigError(Exception):
+    pass
+
+
 class ProviderCrud:
     """The CRUD operations for the provider endpoint references within
     Codegate.
@@ -87,12 +95,12 @@ class ProviderCrud:
 
         models = []
         if endpoint.auth_type == apimodelsv1.ProviderAuthType.api_key and not endpoint.api_key:
-            raise ValueError("API key must be provided for API auth type")
+            raise ProviderInvalidAuthConfigError("API key must be provided for API auth type")
         if endpoint.auth_type != apimodelsv1.ProviderAuthType.passthrough:
             try:
                 models = prov.models(endpoint=endpoint.endpoint, api_key=endpoint.api_key)
             except Exception as err:
-                raise ValueError("Unable to get models from provider: {}".format(str(err)))
+                raise ProviderModelsNotFoundError(f"Unable to get models from provider: {err}")
 
         dbendpoint = await self._db_writer.add_provider_endpoint(dbend)
 
@@ -114,7 +122,7 @@ class ProviderCrud:
         return apimodelsv1.ProviderEndpoint.from_db_model(dbendpoint)
 
     async def update_endpoint(
-        self, endpoint: apimodelsv1.AddProviderEndpointRequest
+        self, endpoint: apimodelsv1.ProviderEndpoint
     ) -> apimodelsv1.ProviderEndpoint:
         """Update an endpoint."""
 
@@ -134,14 +142,42 @@ class ProviderCrud:
         if founddbe is None:
             raise ProviderNotFoundError("Provider not found")
 
+        dbendpoint = await self._db_writer.update_provider_endpoint(endpoint.to_db_model())
+
+        return apimodelsv1.ProviderEndpoint.from_db_model(dbendpoint)
+
+    async def configure_auth_material(
+        self, provider_id: UUID, config: apimodelsv1.ConfigureAuthMaterial
+    ):
+        """Add an API key."""
+        if config.auth_type == apimodelsv1.ProviderAuthType.api_key and not config.api_key:
+            raise ProviderInvalidAuthConfigError("API key must be provided for API auth type")
+        elif config.auth_type != apimodelsv1.ProviderAuthType.api_key and config.api_key:
+            raise ProviderInvalidAuthConfigError("API key provided for non-API auth type")
+
+        dbendpoint = await self._db_reader.get_provider_endpoint_by_id(str(provider_id))
+        if dbendpoint is None:
+            raise ProviderNotFoundError("Provider not found")
+
+        endpoint = apimodelsv1.ProviderEndpoint.from_db_model(dbendpoint)
+        endpoint.auth_type = config.auth_type
+        provider_registry = get_provider_registry()
+        prov = endpoint.get_from_registry(provider_registry)
+
         models = []
-        if endpoint.auth_type == apimodelsv1.ProviderAuthType.api_key and not endpoint.api_key:
-            raise ValueError("API key must be provided for API auth type")
-        if endpoint.auth_type != apimodelsv1.ProviderAuthType.passthrough:
+        if config.auth_type != apimodelsv1.ProviderAuthType.passthrough:
             try:
-                models = prov.models(endpoint=endpoint.endpoint, api_key=endpoint.api_key)
+                models = prov.models(endpoint=endpoint.endpoint, api_key=config.api_key)
             except Exception as err:
-                raise ValueError("Unable to get models from provider: {}".format(str(err)))
+                raise ProviderModelsNotFoundError(f"Unable to get models from provider: {err}")
+
+        await self._db_writer.push_provider_auth_material(
+            dbmodels.ProviderAuthMaterial(
+                provider_endpoint_id=dbendpoint.id,
+                auth_type=config.auth_type,
+                auth_blob=config.api_key if config.api_key else "",
+            )
+        )
 
         models_set = set(models)
 
@@ -154,7 +190,7 @@ class ProviderCrud:
         for model in models_set - models_in_db_set:
             await self._db_writer.add_provider_model(
                 dbmodels.ProviderModel(
-                    provider_endpoint_id=founddbe.id,
+                    provider_endpoint_id=dbendpoint.id,
                     name=model,
                 )
             )
@@ -162,47 +198,12 @@ class ProviderCrud:
         # Remove the models that are in the DB but not in the provider
         for model in models_in_db_set - models_set:
             await self._db_writer.delete_provider_model(
-                founddbe.id,
+                dbendpoint.id,
                 model,
-            )
-
-        dbendpoint = await self._db_writer.update_provider_endpoint(endpoint.to_db_model())
-
-        # If an API key was provided or we've changed the auth type, we update the auth material
-        if endpoint.auth_type != founddbe.auth_type or endpoint.api_key:
-            await self._db_writer.push_provider_auth_material(
-                dbmodels.ProviderAuthMaterial(
-                    provider_endpoint_id=dbendpoint.id,
-                    auth_type=endpoint.auth_type,
-                    auth_blob=endpoint.api_key if endpoint.api_key else "",
-                )
             )
 
         # a model might have been deleted, let's repopulate the cache
         await self._ws_crud.repopulate_mux_cache()
-
-        return apimodelsv1.ProviderEndpoint.from_db_model(dbendpoint)
-
-    async def configure_auth_material(
-        self, provider_id: UUID, config: apimodelsv1.ConfigureAuthMaterial
-    ):
-        """Add an API key."""
-        if config.auth_type == apimodelsv1.ProviderAuthType.api_key and not config.api_key:
-            raise ValueError("API key must be provided for API auth type")
-        elif config.auth_type != apimodelsv1.ProviderAuthType.api_key and config.api_key:
-            raise ValueError("API key provided for non-API auth type")
-
-        dbendpoint = await self._db_reader.get_provider_endpoint_by_id(str(provider_id))
-        if dbendpoint is None:
-            raise ProviderNotFoundError("Provider not found")
-
-        await self._db_writer.push_provider_auth_material(
-            dbmodels.ProviderAuthMaterial(
-                provider_endpoint_id=dbendpoint.id,
-                auth_type=config.auth_type,
-                auth_blob=config.api_key if config.api_key else "",
-            )
-        )
 
     async def delete_endpoint(self, provider_id: UUID):
         """Delete an endpoint."""

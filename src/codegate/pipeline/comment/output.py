@@ -5,8 +5,12 @@ import structlog
 from litellm import ModelResponse
 from litellm.types.utils import Delta, StreamingChoices
 
-from codegate.pipeline.base import AlertSeverity, CodeSnippet, PipelineContext
-from codegate.pipeline.extract_snippets.extract_snippets import extract_snippets
+from codegate.db.models import AlertSeverity
+from codegate.extract_snippets.message_extractor import (
+    CodeSnippet,
+    DefaultCodeSnippetExtractor,
+)
+from codegate.pipeline.base import PipelineContext
 from codegate.pipeline.output import OutputPipelineContext, OutputPipelineStep
 from codegate.storage import StorageEngine
 from codegate.utils.package_extractor import PackageExtractor
@@ -16,6 +20,9 @@ logger = structlog.get_logger("codegate")
 
 class CodeCommentStep(OutputPipelineStep):
     """Pipeline step that adds comments after code blocks"""
+
+    def __init__(self):
+        self.extractor = DefaultCodeSnippetExtractor()
 
     @property
     def name(self) -> str:
@@ -118,7 +125,7 @@ archived packages: {libobjects_text}\n"
         current_content = "".join(context.processed_content + [chunk.choices[0].delta.content])
 
         # Extract snippets from current content
-        snippets = extract_snippets(current_content)
+        snippets = self.extractor.extract_snippets(current_content)
 
         # Check if a new snippet has been completed
         if len(snippets) > len(context.snippets):

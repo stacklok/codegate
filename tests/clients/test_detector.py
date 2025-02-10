@@ -10,6 +10,7 @@ from codegate.clients.detector import (
     BaseClientDetector,
     ClineDetector,
     ContentDetector,
+    ContinueDetector,
     CopilotDetector,
     DetectClient,
     HeaderDetector,
@@ -291,6 +292,79 @@ class TestCopilotDetector:
         assert await detector.detect(mock_request) is False
 
 
+class TestContinueDetector:
+    @pytest.mark.asyncio
+    async def test_successful_detection_via_system_message(self, mock_request):
+        detector = ContinueDetector()
+
+        async def get_json():
+            return {
+                "system": "You are an AI programming assistant, utilizing the DeepSeek Coder model"
+            }
+
+        mock_request.json = get_json
+        assert await detector.detect(mock_request) is True
+        assert detector.client_name == ClientType.CONTINUE
+
+    @pytest.mark.asyncio
+    async def test_detection_in_message_content(self, mock_request):
+        detector = ContinueDetector()
+
+        async def get_json():
+            return {
+                "messages": [
+                    {
+                        "content": "You are an AI programming assistant, utilizing the DeepSeek Coder model"  # noqa
+                    }
+                ]
+            }
+
+        mock_request.json = get_json
+        assert await detector.detect(mock_request) is True
+
+    @pytest.mark.asyncio
+    async def test_failed_detection_with_partial_match(self, mock_request):
+        detector = ContinueDetector()
+
+        async def get_json():
+            return {"system": "You are an AI assistant"}
+
+        mock_request.json = get_json
+        assert await detector.detect(mock_request) is False
+
+    @pytest.mark.asyncio
+    async def test_case_insensitive_match_handling(self, mock_request):
+        detector = ContinueDetector()
+
+        async def get_json():
+            return {
+                "system": "you ARE an ai programming assistant, UTILIZING the deepseek coder MODEL"
+            }
+
+        mock_request.json = get_json
+        assert await detector.detect(mock_request) is False  # Should be case-sensitive
+
+    @pytest.mark.asyncio
+    async def test_empty_system_message(self, mock_request):
+        detector = ContinueDetector()
+
+        async def get_json():
+            return {"system": ""}
+
+        mock_request.json = get_json
+        assert await detector.detect(mock_request) is False
+
+    @pytest.mark.asyncio
+    async def test_malformed_system_field(self, mock_request):
+        detector = ContinueDetector()
+
+        async def get_json():
+            return {"system": {"nested": "You are an AI programming assistant"}}
+
+        mock_request.json = get_json
+        assert await detector.detect(mock_request) is False
+
+
 class TestDetectClient:
     @pytest.mark.asyncio
     async def test_successful_client_detection(self, mock_request):
@@ -356,3 +430,15 @@ class TestDetectClient:
 
         result = await test_endpoint(mock_request)
         assert result == ClientType.KODU
+
+    @pytest.mark.asyncio
+    async def test_copilot_detection_in_detect_client(self, mock_request):
+        detect_client = DetectClient()
+        mock_request.headers = Headers({"user-agent": "Copilot"})
+
+        @detect_client
+        async def test_endpoint(request: Request):
+            return request.state.detected_client
+
+        result = await test_endpoint(mock_request)
+        assert result == ClientType.COPILOT

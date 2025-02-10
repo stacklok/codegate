@@ -1,9 +1,17 @@
 import copy
 from abc import ABC, abstractmethod
 from asyncio import Lock
-from typing import List, Optional
+from typing import Dict, List, Optional
 
+import structlog
+
+from codegate.clients.clients import ClientType
 from codegate.db import models as db_models
+from codegate.extract_snippets.body_extractor import BodyCodeSnippetExtractorError
+from codegate.extract_snippets.factory import BodyCodeExtractorFactory
+from codegate.muxing import models as mux_models
+
+logger = structlog.get_logger("codegate")
 
 _muxrules_sgtn = None
 
@@ -40,11 +48,12 @@ class ModelRoute:
 class MuxingRuleMatcher(ABC):
     """Base class for matching muxing rules."""
 
-    def __init__(self, route: ModelRoute):
+    def __init__(self, route: ModelRoute, matcher_blob: str):
         self._route = route
+        self._matcher_blob = matcher_blob
 
     @abstractmethod
-    def match(self, thing_to_match) -> bool:
+    def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
         """Return True if the rule matches the thing_to_match."""
         pass
 
@@ -61,12 +70,15 @@ class MuxingMatcherFactory:
     def create(mux_rule: db_models.MuxRule, route: ModelRoute) -> MuxingRuleMatcher:
         """Create a muxing matcher for the given endpoint and model."""
 
-        factory = {
-            "catch_all": CatchAllMuxingRuleMatcher,
+        factory: Dict[mux_models.MuxMatcherType, MuxingRuleMatcher] = {
+            mux_models.MuxMatcherType.catch_all: CatchAllMuxingRuleMatcher,
+            mux_models.MuxMatcherType.filename_match: FileMuxingRuleMatcher,
+            mux_models.MuxMatcherType.request_type_match: RequestTypeMuxingRuleMatcher,
         }
 
         try:
-            return factory[mux_rule.matcher_type](route)
+            # Initialize the MuxingRuleMatcher
+            return factory[mux_rule.matcher_type](route, mux_rule.matcher_blob)
         except KeyError:
             raise ValueError(f"Unknown matcher type: {mux_rule.matcher_type}")
 
@@ -74,8 +86,64 @@ class MuxingMatcherFactory:
 class CatchAllMuxingRuleMatcher(MuxingRuleMatcher):
     """A catch all muxing rule matcher."""
 
-    def match(self, thing_to_match) -> bool:
+    def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
+        logger.info("Catch all rule matched")
         return True
+
+
+class FileMuxingRuleMatcher(MuxingRuleMatcher):
+    """A file muxing rule matcher."""
+
+    def _extract_request_filenames(self, detected_client: ClientType, data: dict) -> set[str]:
+        """
+        Extract filenames from the request data.
+        """
+        try:
+            body_extractor = BodyCodeExtractorFactory.create_snippet_extractor(detected_client)
+            return body_extractor.extract_unique_filenames(data)
+        except BodyCodeSnippetExtractorError as e:
+            logger.error(f"Error extracting filenames from request: {e}")
+            return set()
+
+    def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
+        """
+        Retun True if there is a filename in the request that matches the matcher_blob.
+        The matcher_blob is either an extension (e.g. .py) or a filename (e.g. main.py).
+        """
+        # If there is no matcher_blob, we don't match
+        if not self._matcher_blob:
+            return False
+        filenames_to_match = self._extract_request_filenames(
+            thing_to_match.client_type, thing_to_match.body
+        )
+        is_filename_match = any(self._matcher_blob in filename for filename in filenames_to_match)
+        if is_filename_match:
+            logger.info(
+                "Filename rule matched", filenames=filenames_to_match, matcher=self._matcher_blob
+            )
+        return is_filename_match
+
+
+class RequestTypeMuxingRuleMatcher(MuxingRuleMatcher):
+    """A catch all muxing rule matcher."""
+
+    def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
+        """
+        Return True if the request type matches the matcher_blob.
+        The matcher_blob is either "fim" or "chat".
+        """
+        # If there is no matcher_blob, we don't match
+        if not self._matcher_blob:
+            return False
+        incoming_request_type = "fim" if thing_to_match.is_fim_request else "chat"
+        is_request_type_match = self._matcher_blob == incoming_request_type
+        if is_request_type_match:
+            logger.info(
+                "Request type rule matched",
+                matcher=self._matcher_blob,
+                request_type=incoming_request_type,
+            )
+        return is_request_type_match
 
 
 class MuxingRulesinWorkspaces:
@@ -111,7 +179,9 @@ class MuxingRulesinWorkspaces:
         async with self._lock:
             return list(self._ws_rules.keys())
 
-    async def get_match_for_active_workspace(self, thing_to_match) -> Optional[ModelRoute]:
+    async def get_match_for_active_workspace(
+        self, thing_to_match: mux_models.ThingToMatchMux
+    ) -> Optional[ModelRoute]:
         """Get the first match for the given thing_to_match."""
 
         # We iterate over all the rules and return the first match

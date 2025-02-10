@@ -5,13 +5,13 @@ import structlog
 from litellm import ChatCompletionRequest
 
 from codegate.clients.clients import ClientType
+from codegate.db.models import AlertSeverity
+from codegate.extract_snippets.factory import MessageCodeExtractorFactory
 from codegate.pipeline.base import (
-    AlertSeverity,
     PipelineContext,
     PipelineResult,
     PipelineStep,
 )
-from codegate.pipeline.extract_snippets.extract_snippets import extract_snippets
 from codegate.storage.storage_engine import StorageEngine
 from codegate.utils.package_extractor import PackageExtractor
 from codegate.utils.utils import generate_vector_string
@@ -70,7 +70,8 @@ class CodegateContextRetriever(PipelineStep):
         storage_engine = StorageEngine()
 
         # Extract any code snippets
-        snippets = extract_snippets(user_message)
+        extractor = MessageCodeExtractorFactory.create_snippet_extractor(context.client)
+        snippets = extractor.extract_snippets(user_message)
 
         bad_snippet_packages = []
         if len(snippets) > 0:

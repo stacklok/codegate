@@ -2,7 +2,7 @@ import asyncio
 import json
 import uuid
 from pathlib import Path
-from typing import List, Optional, Type
+from typing import Dict, List, Optional, Type
 
 import structlog
 from alembic import command as alembic_command
@@ -19,6 +19,7 @@ from codegate.db.models import (
     Alert,
     GetPromptWithOutputsRow,
     GetWorkspaceByNameConditions,
+    IntermediatePromptWithOutputUsageAlerts,
     MuxRule,
     Output,
     Prompt,
@@ -89,7 +90,6 @@ class DbCodeGate:
 
 
 class DbRecorder(DbCodeGate):
-
     def __init__(self, sqlite_path: Optional[str] = None):
         super().__init__(sqlite_path)
 
@@ -251,12 +251,18 @@ class DbRecorder(DbCodeGate):
                 except Exception as e:
                     logger.error(f"Failed to record alert: {alert}.", error=str(e))
 
+        critical_alert_timestamp = None
         recorded_alerts = []
         for alert_coro in alerts_tasks:
             alert_result = alert_coro.result()
             recorded_alerts.append(alert_result)
             if alert_result and alert_result.trigger_category == "critical":
-                await alert_queue.put(f"New alert detected: {alert.timestamp}")
+                critical_alert_timestamp = alert.timestamp
+
+        # only alert once per request and not once per critical alert.
+        if critical_alert_timestamp:
+            await alert_queue.put(f"New alert detected: {critical_alert_timestamp}")
+
         # Uncomment to debug the recorded alerts
         # logger.debug(f"Recorded alerts: {recorded_alerts}")
         return recorded_alerts
@@ -511,7 +517,6 @@ class DbRecorder(DbCodeGate):
 
 
 class DbReader(DbCodeGate):
-
     def __init__(self, sqlite_path: Optional[str] = None):
         super().__init__(sqlite_path)
 
@@ -579,6 +584,64 @@ class DbReader(DbCodeGate):
             GetPromptWithOutputsRow, sql, conditions, should_raise=True
         )
         return prompts
+
+    async def get_prompts_with_output_alerts_usage_by_workspace_id(
+        self, workspace_id: str
+    ) -> List[GetPromptWithOutputsRow]:
+        """
+        Get all prompts with their outputs, alerts and token usage by workspace_id.
+        """
+
+        sql = text(
+            """
+            SELECT
+                p.id as prompt_id, p.timestamp as prompt_timestamp, p.provider, p.request, p.type,
+                o.id as output_id, o.output, o.timestamp as output_timestamp, o.input_tokens, o.output_tokens, o.input_cost, o.output_cost,
+                a.id as alert_id, a.code_snippet, a.trigger_string, a.trigger_type, a.trigger_category, a.timestamp as alert_timestamp
+            FROM prompts p
+            LEFT JOIN outputs o ON p.id = o.prompt_id
+            LEFT JOIN alerts a ON p.id = a.prompt_id
+            WHERE p.workspace_id = :workspace_id
+            ORDER BY o.timestamp DESC, a.timestamp DESC
+            """  # noqa: E501
+        )
+        conditions = {"workspace_id": workspace_id}
+        rows = await self._exec_select_conditions_to_pydantic(
+            IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
+        )
+
+        prompts_dict: Dict[str, GetPromptWithOutputsRow] = {}
+        for row in rows:
+            prompt_id = row.prompt_id
+            if prompt_id not in prompts_dict:
+                prompts_dict[prompt_id] = GetPromptWithOutputsRow(
+                    id=row.prompt_id,
+                    timestamp=row.prompt_timestamp,
+                    provider=row.provider,
+                    request=row.request,
+                    type=row.type,
+                    output_id=row.output_id,
+                    output=row.output,
+                    output_timestamp=row.output_timestamp,
+                    input_tokens=row.input_tokens,
+                    output_tokens=row.output_tokens,
+                    input_cost=row.input_cost,
+                    output_cost=row.output_cost,
+                    alerts=[],
+                )
+            if row.alert_id:
+                alert = Alert(
+                    id=row.alert_id,
+                    prompt_id=row.prompt_id,
+                    code_snippet=row.code_snippet,
+                    trigger_string=row.trigger_string,
+                    trigger_type=row.trigger_type,
+                    trigger_category=row.trigger_category,
+                    timestamp=row.alert_timestamp,
+                )
+                prompts_dict[prompt_id].alerts.append(alert)
+
+        return list(prompts_dict.values())
 
     async def get_alerts_by_workspace(
         self, workspace_id: str, trigger_category: Optional[str] = None

@@ -11,6 +11,7 @@ from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.anthropic.adapter import AnthropicInputNormalizer, AnthropicOutputNormalizer
 from codegate.providers.anthropic.completion_handler import AnthropicCompletion
 from codegate.providers.base import BaseProvider, ModelFetchError
+from codegate.providers.fim_analyzer import FIMAnalyzer
 from codegate.providers.litellmshim import anthropic_stream_generator
 
 
@@ -57,10 +58,9 @@ class AnthropicProvider(BaseProvider):
         self,
         data: dict,
         api_key: str,
-        request_url_path: str,
+        is_fim_request: bool,
         client_type: ClientType,
     ):
-        is_fim_request = self._is_fim_request(request_url_path, data)
         try:
             stream = await self.complete(data, api_key, is_fim_request, client_type)
         except Exception as e:
@@ -98,10 +98,11 @@ class AnthropicProvider(BaseProvider):
 
             body = await request.body()
             data = json.loads(body)
+            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, data)
 
             return await self.process_request(
                 data,
                 x_api_key,
-                request.url.path,
+                is_fim_request,
                 request.state.detected_client,
             )
