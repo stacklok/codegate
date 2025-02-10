@@ -70,6 +70,25 @@ class ClineBodySnippetExtractor(BodyCodeSnippetExtractor):
     def __init__(self):
         self._snippet_extractor = ClineCodeSnippetExtractor()
 
+    def _extract_from_user_messages(self, data: dict) -> set[str]:
+        """
+        The method extracts the code snippets from the user messages in the data got from Cline.
+
+        It returns a set of filenames extracted from the code snippets.
+        """
+
+        filenames: List[str] = []
+        for msg in data.get("messages", []):
+            if msg.get("role", "") == "user":
+                msgs_content = msg.get("content", [])
+                for msg_content in msgs_content:
+                    if msg_content.get("type", "") == "text":
+                        extracted_snippets = self._snippet_extractor.extract_unique_snippets(
+                            msg_content.get("text")
+                        )
+                        filenames.extend(extracted_snippets.keys())
+        return set(filenames)
+
     def extract_unique_filenames(self, data: dict) -> set[str]:
         return self._extract_from_user_messages(data)
 
