@@ -5,6 +5,8 @@ import structlog
 from presidio_analyzer import AnalyzerEngine
 from presidio_anonymizer import AnonymizerEngine
 
+from codegate.db.models import AlertSeverity
+
 logger = structlog.get_logger("codegate.pii.analyzer")
 
 
@@ -59,6 +61,7 @@ class PiiAnalyzer:
     """
 
     _instance: Optional["PiiAnalyzer"] = None
+    _name = "codegate-pii"
 
     @classmethod
     def get_instance(cls) -> "PiiAnalyzer":
@@ -95,7 +98,7 @@ class PiiAnalyzer:
 
         PiiAnalyzer._instance = self
 
-    def analyze(self, text: str) -> Tuple[str, List[Dict[str, Any]], PiiSessionStore]:
+    def analyze(self, text: str, context: Optional["PipelineContext"] = None) -> Tuple[str, List[Dict[str, Any]], PiiSessionStore]:
         # Prioritize credit card detection first
         entities = [
             "PHONE_NUMBER",
@@ -153,7 +156,19 @@ class PiiAnalyzer:
                 )
 
             # Log summary of all PII found in this analysis
-            if found_pii:
+            if found_pii and context:
+                # Create notification string for alert
+                notify_string = (
+                    f"**PII Detected** 🔒\n"
+                    f"- Total PII Found: {len(found_pii)}\n"
+                    f"- Types Found: {', '.join(set(p['type'] for p in found_pii))}\n"
+                )
+                context.add_alert(
+                    self._name,
+                    trigger_string=notify_string,
+                    severity_category=AlertSeverity.CRITICAL,
+                )
+
                 logger.info(
                     "PII analysis complete",
                     total_pii_found=len(found_pii),
