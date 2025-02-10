@@ -272,20 +272,23 @@ class TestOpenInterpreterDetector:
 
 
 class TestCopilotDetector:
-    def test_successful_detection(self, mock_request):
+    @pytest.mark.asyncio
+    async def test_successful_detection(self, mock_request):
         detector = CopilotDetector()
         mock_request.headers = Headers({"user-agent": "Copilot"})
-        assert detector.detect(mock_request) is True
+        assert await detector.detect(mock_request) is True
         assert detector.client_name == ClientType.COPILOT
 
-    def test_failed_detection(self, mock_request):
+    @pytest.mark.asyncio
+    async def test_failed_detection(self, mock_request):
         detector = CopilotDetector()
         mock_request.headers = Headers({"user-agent": "Different Client"})
-        assert detector.detect(mock_request) is False
+        assert await detector.detect(mock_request) is False
 
-    def test_missing_user_agent(self, mock_request):
+    @pytest.mark.asyncio
+    async def test_missing_user_agent(self, mock_request):
         detector = CopilotDetector()
-        assert detector.detect(mock_request) is False
+        assert await detector.detect(mock_request) is False
 
 
 class TestDetectClient:

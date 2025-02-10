@@ -8,18 +8,27 @@ from codegate.pipeline.pii.manager import PiiManager
 
 class TestPiiManager:
     @pytest.fixture
-    def mock_analyzer(self):
-        with patch("codegate.pipeline.pii.analyzer.PiiAnalyzer") as mock:
-            mock_instance = MagicMock()
-            mock_instance.analyze = MagicMock()
-            mock_instance.restore_pii = MagicMock()
-            mock_instance.session_store = PiiSessionStore()
-            mock.get_instance.return_value = mock_instance
-            yield mock_instance
+    def session_store(self):
+        """Create a session store that will be shared between the mock and manager"""
+        return PiiSessionStore()
+
+    @pytest.fixture
+    def mock_analyzer(self, session_store):
+        """Create a mock analyzer with the shared session store"""
+        mock_instance = MagicMock()
+        mock_instance.analyze = MagicMock()
+        mock_instance.restore_pii = MagicMock()
+        mock_instance.session_store = session_store
+        return mock_instance
 
     @pytest.fixture
     def manager(self, mock_analyzer):
-        return PiiManager()
+        """Create a PiiManager instance with the mocked analyzer"""
+        with patch("codegate.pipeline.pii.manager.PiiAnalyzer") as mock_analyzer_class:
+            # Set up the mock class to return our mock instance
+            mock_analyzer_class.get_instance.return_value = mock_analyzer
+            # Create the manager which will use our mock
+            return PiiManager()
 
     def test_init(self, manager, mock_analyzer):
         assert manager.session_store is mock_analyzer.session_store
@@ -27,18 +36,19 @@ class TestPiiManager:
 
     def test_analyze_no_pii(self, manager, mock_analyzer):
         text = "Hello CodeGate"
-        session_store = PiiSessionStore()
+        session_store = mock_analyzer.session_store
         mock_analyzer.analyze.return_value = (text, [], session_store)
 
         anonymized_text, found_pii = manager.analyze(text)
 
         assert anonymized_text == text
         assert found_pii == []
-        assert isinstance(manager.session_store, PiiSessionStore)
+        assert manager.session_store is session_store
+        mock_analyzer.analyze.assert_called_once_with(text)
 
     def test_analyze_with_pii(self, manager, mock_analyzer):
         text = "My email is test@example.com"
-        session_store = PiiSessionStore()
+        session_store = mock_analyzer.session_store
         placeholder = "<test-uuid>"
         pii_details = [
             {
@@ -46,7 +56,7 @@ class TestPiiManager:
                 "value": "test@example.com",
                 "score": 0.85,
                 "start": 12,
-                "end": 27,
+                "end": 28,  # Fixed end position
                 "uuid_placeholder": placeholder,
             }
         ]
@@ -56,16 +66,17 @@ class TestPiiManager:
 
         result_text, found_pii = manager.analyze(text)
 
-        # Don't check exact UUID since it's randomly generated!!
         assert "My email is <" in result_text
         assert ">" in result_text
         assert found_pii == pii_details
-        assert manager.session_store == session_store
+        assert manager.session_store is session_store
         assert manager.session_store.mappings[placeholder] == "test@example.com"
+        mock_analyzer.analyze.assert_called_once_with(text)
 
-    def test_restore_pii_no_session(self, manager):
+    def test_restore_pii_no_session(self, manager, mock_analyzer):
         text = "Anonymized text"
-        manager.session_store = None
+        # Create a new session store that's None
+        mock_analyzer.session_store = None
 
         restored_text = manager.restore_pii(text)
 
@@ -74,29 +85,22 @@ class TestPiiManager:
     def test_restore_pii_with_session(self, manager, mock_analyzer):
         anonymized_text = "My email is <test-uuid>"
         original_text = "My email is test@example.com"
-        session = PiiSessionStore()
-        placeholder = "<test-uuid>"
-        session.mappings[placeholder] = "test@example.com"
-        manager.session_store = session
-
+        manager.session_store.mappings["<test-uuid>"] = "test@example.com"
         mock_analyzer.restore_pii.return_value = original_text
 
         restored_text = manager.restore_pii(anonymized_text)
 
         assert restored_text == original_text
-        mock_analyzer.restore_pii.assert_called_once_with(anonymized_text, session)
+        mock_analyzer.restore_pii.assert_called_once_with(anonymized_text, manager.session_store)
 
     def test_restore_pii_multiple_placeholders(self, manager, mock_analyzer):
         anonymized_text = "Email: <uuid1>, Phone: <uuid2>"
         original_text = "Email: test@example.com, Phone: 123-456-7890"
-        session = PiiSessionStore()
-        session.mappings["<uuid1>"] = "test@example.com"
-        session.mappings["<uuid2>"] = "123-456-7890"
-        manager.session_store = session
-
+        manager.session_store.mappings["<uuid1>"] = "test@example.com"
+        manager.session_store.mappings["<uuid2>"] = "123-456-7890"
         mock_analyzer.restore_pii.return_value = original_text
 
         restored_text = manager.restore_pii(anonymized_text)
 
         assert restored_text == original_text
-        mock_analyzer.restore_pii.assert_called_once_with(anonymized_text, session)
+        mock_analyzer.restore_pii.assert_called_once_with(anonymized_text, manager.session_store)

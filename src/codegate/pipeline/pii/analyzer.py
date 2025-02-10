@@ -57,6 +57,7 @@ class PiiAnalyzer:
             session_store (PiiSessionStore): The PiiSessionStore used for anonymization.
             str: The text with original PII restored.
     """
+
     _instance: Optional["PiiAnalyzer"] = None
 
     @classmethod
@@ -76,6 +77,7 @@ class PiiAnalyzer:
             raise RuntimeError("Use PiiAnalyzer.get_instance() instead")
 
         import os
+
         from presidio_analyzer.nlp_engine import NlpEngineProvider
 
         # Get the path to our custom spacy config
@@ -101,7 +103,6 @@ class PiiAnalyzer:
             "CRYPTO",
             "CREDIT_CARD",
             "IBAN_CODE",
-            "NRP",
             "MEDICAL_LICENSE",
             "US_BANK_NUMBER",
             "US_ITIN",
