@@ -8,7 +8,7 @@ packages = [
     { include = "codegate", from = "src" },
 ]
 [tool.poetry.dependencies]
-python = ">=3.12,<4.0"
+python = ">=3.12,<3.13"
 click = "==8.1.8"
 PyYAML = "==6.0.2"
 fastapi = "==0.115.8"
