@@ -3,7 +3,7 @@ from typing import List
 
 import httpx
 import structlog
-from fastapi import HTTPException, Request
+from fastapi import Header, HTTPException, Request
 
 from codegate.clients.clients import ClientType
 from codegate.clients.detector import DetectClient
@@ -103,21 +103,28 @@ class OllamaProvider(BaseProvider):
                 return response.json()
 
         @self.router.post(f"/{self.provider_route_name}/api/show")
-        async def show_model(request: Request):
+        async def show_model(
+            request: Request,
+            authorization: str = Header(..., description="Bearer token"),
+        ):
             """
             route for /api/show that responds outside of the pipeline
             /api/show displays model is used to get the model information
             https://github.com/ollama/ollama/blob/main/docs/api.md#show-model-information
             """
+            api_key = _api_key_from_optional_header_value(authorization)
             body = await request.body()
             body_json = json.loads(body)
             if "name" not in body_json:
                 raise HTTPException(status_code=400, detail="model is required in the request body")
             async with httpx.AsyncClient() as client:
+                headers = {"Content-Type": "application/json; charset=utf-8"}
+                if api_key:
+                    headers["Authorization"] = api_key
                 response = await client.post(
                     f"{self.base_url}/api/show",
                     content=body,
-                    headers={"Content-Type": "application/json; charset=utf-8"},
+                    headers=headers,
                 )
                 return response.json()
 
@@ -131,7 +138,11 @@ class OllamaProvider(BaseProvider):
         @self.router.post(f"/{self.provider_route_name}/v1/chat/completions")
         @self.router.post(f"/{self.provider_route_name}/v1/generate")
         @DetectClient()
-        async def create_completion(request: Request):
+        async def create_completion(
+            request: Request,
+            authorization: str = Header(..., description="Bearer token"),
+        ):
+            api_key = _api_key_from_optional_header_value(authorization)
             body = await request.body()
             data = json.loads(body)
 
@@ -141,7 +152,22 @@ class OllamaProvider(BaseProvider):
             is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, data)
             return await self.process_request(
                 data,
-                None,
+                api_key,
                 is_fim_request,
                 request.state.detected_client,
             )
+
+
+def _api_key_from_optional_header_value(val: str) -> str:
+    # The header is optional, so if we don't
+    # have it, let's just return None
+    if not val:
+        return None
+
+    # The header value should be "Beaerer <key>"
+    if not val.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid authorization header")
+    vals = val.split(" ")
+    if len(vals) != 2:
+        raise HTTPException(status_code=401, detail="Invalid authorization header")
+    return vals[1]
