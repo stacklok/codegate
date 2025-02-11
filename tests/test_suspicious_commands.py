@@ -2,9 +2,9 @@
 """
 Testing the suspicious commands
 """
+import csv
 import os
 
-import pandas as pd
 import pytest
 
 from codegate.pipeline.suspicious_commands.suspicious_commands import (
@@ -12,11 +12,20 @@ from codegate.pipeline.suspicious_commands.suspicious_commands import (
 )
 
 # Global variables for test data
-benign_test_cmds = malicious_test_cmds = pd.DataFrame()
-unsafe_commands = safe_commands = train_data = pd.DataFrame()
+benign_test_cmds = []
+malicious_test_cmds = []
+unsafe_commands = []
+safe_commands = []
+train_data = []
 
 MODEL_FILE = "src/codegate/pipeline/suspicious_commands/simple_nn_model.pt"
 TD_PATH = "tests/data/suspicious_commands"
+
+
+def read_csv(file_path):
+    with open(file_path, mode="r") as file:
+        reader = csv.DictReader(file)
+        return [row for row in reader]
 
 
 def setup_module(module):
@@ -24,17 +33,25 @@ def setup_module(module):
     Setup function to initialize test data before running tests.
     """
     global benign_test_cmds, malicious_test_cmds, safe_commands
-    global unsafe_commands, train_data, train_data
-    benign_test_cmds = pd.read_csv(f"{TD_PATH}/benign_test_cmds.csv")
-    malicious_test_cmds = pd.read_csv(f"{TD_PATH}/malicious_test_cmds.csv")
-    unsafe_commands = pd.read_csv(f"{TD_PATH}/unsafe_commands.csv")
-    safe_commands = pd.read_csv(f"{TD_PATH}/safe_commands.csv")
-    benign_test_cmds["label"] = 0
-    malicious_test_cmds["label"] = 1
-    safe_commands["label"] = 0
-    unsafe_commands["label"] = 1
-    train_data = pd.concat([safe_commands, unsafe_commands])
-    train_data = train_data.sample(frac=1).reset_index(drop=True)
+    global unsafe_commands, train_data
+    benign_test_cmds = read_csv(f"{TD_PATH}/benign_test_cmds.csv")
+    malicious_test_cmds = read_csv(f"{TD_PATH}/malicious_test_cmds.csv")
+    unsafe_commands = read_csv(f"{TD_PATH}/unsafe_commands.csv")
+    safe_commands = read_csv(f"{TD_PATH}/safe_commands.csv")
+
+    for cmd in benign_test_cmds:
+        cmd["label"] = 0
+    for cmd in malicious_test_cmds:
+        cmd["label"] = 1
+    for cmd in safe_commands:
+        cmd["label"] = 0
+    for cmd in unsafe_commands:
+        cmd["label"] = 1
+
+    train_data = safe_commands + unsafe_commands
+    import random
+
+    random.shuffle(train_data)
 
 
 @pytest.fixture
@@ -69,8 +86,8 @@ async def test_train():
     if os.path.exists(MODEL_FILE):
         return
     sc2 = SuspiciousCommands()
-    phrases = train_data["cmd"].tolist()
-    labels = train_data["label"].tolist()
+    phrases = [cmd["cmd"] for cmd in train_data]
+    labels = [cmd["label"] for cmd in train_data]
     await sc2.train(phrases, labels)
     assert sc2.simple_nn is not None
     sc2.save_model(MODEL_FILE)
@@ -116,15 +133,15 @@ async def test_classify_phrase(sc):
         sc (SuspiciousCommands): The instance to test.
     """
     tp = tn = fp = fn = 0
-    for command in benign_test_cmds["cmd"]:
-        prediction, _ = await sc.classify_phrase(command)
+    for command in benign_test_cmds:
+        prediction, _ = await sc.classify_phrase(command["cmd"])
         if prediction == 0:
             tn += 1
         else:
             fn += 1
 
-    for command in malicious_test_cmds["cmd"]:
-        prediction, _ = await sc.classify_phrase(command)
+    for command in malicious_test_cmds:
+        prediction, _ = await sc.classify_phrase(command["cmd"])
         if prediction == 1:
             tp += 1
         else:
@@ -143,23 +160,23 @@ async def test_classify_phrase_confident(sc):
     """
     confidence = 0.9
     tp = tn = fp = fn = 0
-    for command in benign_test_cmds["cmd"]:
-        prediction, prob = await sc.classify_phrase(command)
+    for command in benign_test_cmds:
+        prediction, prob = await sc.classify_phrase(command["cmd"])
         if prob > confidence:
             if prediction == 0:
                 tn += 1
             else:
                 fn += 1
         else:
-            print(f"{command} {prob} {prediction} 0")
+            print(f"{command['cmd']} {prob} {prediction} 0")
 
-    for command in malicious_test_cmds["cmd"]:
-        prediction, prob = await sc.classify_phrase(command)
+    for command in malicious_test_cmds:
+        prediction, prob = await sc.classify_phrase(command["cmd"])
         if prob > confidence:
             if prediction == 1:
                 tp += 1
             else:
                 fp += 1
         else:
-            print(f"{command} {prob} {prediction} 1")
+            print(f"{command['cmd']} {prob} {prediction} 1")
     check_results(tp, tn, fp, fn)
