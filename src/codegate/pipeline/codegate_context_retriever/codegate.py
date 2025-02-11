@@ -147,7 +147,11 @@ class CodegateContextRetriever(PipelineStep):
             filtered = itertools.dropwhile(lambda x: x[0] < last_user_idx, enumerate(messages))
             if context.client != ClientType.OPEN_INTERPRETER:
                 for i, message in filtered:
-                    message_str = "".join([content.get_text() for content in message.get_content()])
+                    message_str = "".join([
+                        txt
+                        for content in message.get_content()
+                        for txt in content.get_text()
+                    ])
                     context_msg = message_str
                     # Add the context to the last user message
                     if context.client in [ClientType.CLINE, ClientType.KODU]:

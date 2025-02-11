@@ -288,7 +288,7 @@ class CodeSnippetExtractor(ABC):
         return [
             self._get_snippet_for_match(match)
             for regex in regexes
-            for match in regex.finditer(message.get_text())
+            for match in regex.finditer(message)
         ]
 
     def extract_unique_snippets(self, message: str) -> Dict[str, CodeSnippet]:

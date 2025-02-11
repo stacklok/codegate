@@ -13,6 +13,9 @@ from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.fim_analyzer import FIMAnalyzer
 from codegate.providers.ollama.adapter import OllamaInputNormalizer, OllamaOutputNormalizer
 from codegate.providers.ollama.completion_handler import OllamaShim
+from codegate.types.openai import ChatCompletionRequest
+from codegate.types.ollama import ChatRequest, GenerateRequest
+
 
 logger = structlog.get_logger("codegate")
 
@@ -30,8 +33,8 @@ class OllamaProvider(BaseProvider):
         self.base_url = provided_urls.get("ollama", "http://localhost:11434/")
         completion_handler = OllamaShim()
         super().__init__(
-            OllamaInputNormalizer(),
-            OllamaOutputNormalizer(),
+            None,
+            None,
             completion_handler,
             pipeline_factory,
         )
@@ -129,8 +132,33 @@ class OllamaProvider(BaseProvider):
                 return response.json()
 
         # Native Ollama API routes
-        @self.router.post(f"/{self.provider_route_name}/api/chat")
         @self.router.post(f"/{self.provider_route_name}/api/generate")
+        @DetectClient()
+        async def generate(request: Request):
+            body = await request.body()
+            req = GenerateRequest.model_validate_json(body)
+            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, req)
+            return await self.process_request(
+                req,
+                None,
+                is_fim_request,
+                request.state.detected_client,
+            )
+
+        # Native Ollama API routes
+        @self.router.post(f"/{self.provider_route_name}/api/chat")
+        @DetectClient()
+        async def chat(request: Request):
+            body = await request.body()
+            req = ChatRequest.model_validate_json(body)
+            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, req)
+            return await self.process_request(
+                req,
+                None,
+                is_fim_request,
+                request.state.detected_client,
+            )
+
         # OpenAI-compatible routes for backward compatibility
         @self.router.post(f"/{self.provider_route_name}/chat/completions")
         @self.router.post(f"/{self.provider_route_name}/completions")
@@ -144,14 +172,15 @@ class OllamaProvider(BaseProvider):
         ):
             api_key = _api_key_from_optional_header_value(authorization)
             body = await request.body()
-            data = json.loads(body)
+            # data = json.loads(body)
 
             # `base_url` is used in the providers pipeline to do the packages lookup.
             # Force it to be the one that comes in the configuration.
-            data["base_url"] = self.base_url
-            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, data)
+            # data["base_url"] = self.base_url
+            req = ChatCompletionRequest.model_validate_json(body)
+            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, req)
             return await self.process_request(
-                data,
+                req,
                 api_key,
                 is_fim_request,
                 request.state.detected_client,
