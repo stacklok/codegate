@@ -131,7 +131,6 @@ class OllamaShim(BaseCompletionHandler):
             logger.error(f"Error in Ollama completion: {str(e)}")
             raise e
 
-
     def _create_streaming_response(
         self,
         stream: AsyncIterator[ChatResponse],
