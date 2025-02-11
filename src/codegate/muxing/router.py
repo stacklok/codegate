@@ -97,7 +97,7 @@ class MuxRouter:
 
             # 2. Map the request body to the destination provider format.
             rest_of_path = self._ensure_path_starts_with_slash(rest_of_path)
-            new_data = self._body_adapter.map_body_to_dest(model_route, data)
+            new_data = self._body_adapter.set_destination_info(model_route, data)
 
             # 3. Run pipeline. Selecting the correct destination provider.
             provider = self._provider_registry.get_provider(model_route.endpoint.provider_type)
