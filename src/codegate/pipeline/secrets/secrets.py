@@ -26,9 +26,6 @@ from codegate.types.common import (
     ModelResponse,
     StreamingChoices,
 )
-from codegate.types.anthropic import (
-    ChatCompletionRequest as CodegateChatCompletionRequest
-)
 
 
 logger = structlog.get_logger("codegate")
@@ -297,7 +294,7 @@ class CodegateSecrets(PipelineStep):
 
         ##### NEW CODE PATH #####
 
-        if type(request) != ChatCompletionRequest and isinstance(request, CodegateChatCompletionRequest):
+        if type(request) != ChatCompletionRequest:
             secrets_manager = context.sensitive.manager
             if not secrets_manager or not isinstance(secrets_manager, SecretsManager):
                 raise ValueError("Secrets manager not found in context")
@@ -317,7 +314,7 @@ class CodegateSecrets(PipelineStep):
                     txt = content.get_text()
                     if txt is not None:
                         redacted_content, secrets_matched = self._redact_message_content(
-                            content.get_text(), secrets_manager, session_id, context
+                            "".join(txt for txt in content.get_text()), secrets_manager, session_id, context
                         )
                         content.set_text(redacted_content)
                         if i > last_assistant_idx:

@@ -194,16 +194,15 @@ class ChatCompletionRequest(pydantic.BaseModel):
     def first_message(self) -> Message | None:
         return self.messages[0]
 
-    def last_user_message(self) -> Message | None:
+    def last_user_message(self) -> tuple[Message, int] | None:
         for idx, msg in enumerate(reversed(self.messages)):
             if isinstance(msg, UserMessage):
                 return msg, len(self.messages) - 1 - idx
 
-    def last_user_block(self) -> Iterable[Message]:
+    def last_user_block(self) -> Iterable[tuple[Message, int]]:
         for idx, msg in enumerate(reversed(self.messages)):
             if isinstance(msg, UserMessage):
                 yield  msg, len(self.messages) - 1 - idx
-            else:
                 break
 
     def get_system_prompt(self) -> Iterable[str]:
@@ -231,7 +230,9 @@ class ChatCompletionRequest(pydantic.BaseModel):
                 )
             )
 
-    def prompt(self, default=None):
-        if default is not None:
-            return default
-        return None
+    def get_prompt(self, default=None):
+        for message in self.messages:
+            for content in message.get_content():
+                for txt in content.get_text():
+                    return txt
+        return default
