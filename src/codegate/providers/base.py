@@ -77,7 +77,7 @@ class BaseProvider(ABC):
         self._pipeline_response_formatter = PipelineResponseFormatter(
             output_normalizer, self._db_recorder
         )
-        self._fim_normalizer = CompletionNormalizer()
+        self._fim_normalizer = PassThroughNormalizer() # CompletionNormalizer()
 
         self._setup_routes()
 
