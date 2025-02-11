@@ -27,6 +27,7 @@ jobs:
     secrets:
       copilot-key: ${{ secrets.INTEGRATION_TESTS_COPILOT_KEY }}
       anthropic-key: ${{ secrets.INTEGRATION_TESTS_ANTHROPIC_KEY }}
+      openrouter-key: ${{ secrets.INTEGRATION_TESTS_OPENROUTER_KEY }}      
   openapi:
     name: Generate the OpenAPI docs
     needs: [ci]
