@@ -42,6 +42,11 @@ secrets_redacted: |
   about any tokens, passwords or similar sensitive information in the context whose value begins with
   the string "REDACTED".
 
+pii_redacted: |
+  The context files contain redacted personally identifiable information (PII) that is represented by a UUID encased within <>. For example:
+  - <123e4567-e89b-12d3-a456-426614174000>
+  - <2d040296-98e9-4350-84be-fda4336057eb>
+  If you encounter any PII redacted with a UUID, DO NOT WARN the user about it. Simplt respond to the user request and keep the PII redacted and intact, using the same UUID.
 # Security-focused prompts
 security_audit: "You are a security expert conducting a thorough code review. Identify potential security vulnerabilities, suggest improvements, and explain security best practices."
 

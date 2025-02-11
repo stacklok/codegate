@@ -1,5 +1,5 @@
 import json
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
@@ -26,11 +26,11 @@ def test_get_base_url(provider):
 
 
 @pytest.mark.asyncio
-async def test_model_prefix_added():
+@patch("codegate.providers.openai.OpenAIProvider.process_request")
+async def test_model_prefix_added(mocked_parent_process_request):
     """Test that model name gets prefixed with openrouter/ when not already present"""
     mock_factory = MagicMock(spec=PipelineFactory)
     provider = OpenRouterProvider(mock_factory)
-    provider.process_request = AsyncMock()
 
     # Mock request
     mock_request = MagicMock(spec=Request)
@@ -47,7 +47,7 @@ async def test_model_prefix_added():
     await create_completion(request=mock_request, authorization="Bearer test-token")
 
     # Verify process_request was called with prefixed model
-    call_args = provider.process_request.call_args[0]
+    call_args = mocked_parent_process_request.call_args[0]
     assert call_args[0]["model"] == "openrouter/gpt-4"
 
 

@@ -136,6 +136,8 @@ class CodegateTestRunner:
         streaming = data.get("stream", False)
         provider = test["provider"]
 
+        logger.info(f"Starting test: {test_name}")
+
         response = self.call_codegate(url, test_headers, data, provider)
         if not response:
             logger.error(f"Test {test_name} failed: No response received")

@@ -1,0 +1,5 @@
+# This will likely be moved to the database in the future
+nlp_engine_name: spacy
+models:
+  - lang_code: en
+    model_name: en_core_web_sm

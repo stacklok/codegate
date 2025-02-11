@@ -6,6 +6,7 @@ from codegate.extract_snippets.message_extractor import (
     ClineCodeSnippetExtractor,
     CodeSnippetExtractor,
     DefaultCodeSnippetExtractor,
+    KoduCodeSnippetExtractor,
     OpenInterpreterCodeSnippetExtractor,
 )
 
@@ -37,6 +38,19 @@ class BodyCodeSnippetExtractor(ABC):
                     msg.get("content")
                 )
                 filenames.extend(extracted_snippets.keys())
+        return set(filenames)
+
+    def _extract_from_list_user_messages(self, data: dict) -> set[str]:
+        filenames: List[str] = []
+        for msg in data.get("messages", []):
+            if msg.get("role", "") == "user":
+                msgs_content = msg.get("content", [])
+                for msg_content in msgs_content:
+                    if msg_content.get("type", "") == "text":
+                        extracted_snippets = self._snippet_extractor.extract_unique_snippets(
+                            msg_content.get("text")
+                        )
+                        filenames.extend(extracted_snippets.keys())
         return set(filenames)
 
     @abstractmethod
@@ -71,7 +85,7 @@ class ClineBodySnippetExtractor(BodyCodeSnippetExtractor):
         self._snippet_extractor = ClineCodeSnippetExtractor()
 
     def extract_unique_filenames(self, data: dict) -> set[str]:
-        return self._extract_from_user_messages(data)
+        return self._extract_from_list_user_messages(data)
 
 
 class OpenInterpreterBodySnippetExtractor(BodyCodeSnippetExtractor):
@@ -117,3 +131,12 @@ class OpenInterpreterBodySnippetExtractor(BodyCodeSnippetExtractor):
                 )
                 filenames.extend(extracted_snippets.keys())
         return set(filenames)
+
+
+class KoduBodySnippetExtractor(BodyCodeSnippetExtractor):
+
+    def __init__(self):
+        self._snippet_extractor = KoduCodeSnippetExtractor()
+
+    def extract_unique_filenames(self, data: dict) -> set[str]:
+        return self._extract_from_list_user_messages(data)

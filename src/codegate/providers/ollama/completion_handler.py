@@ -83,7 +83,7 @@ async def ollama_stream_generator(  # noqa: C901
 class OllamaShim(BaseCompletionHandler):
 
     def __init__(self, base_url):
-        self.client = AsyncClient(host=base_url, timeout=300)
+        self.client = AsyncClient(host=base_url, timeout=30)
 
     async def execute_completion(
         self,
@@ -93,31 +93,35 @@ class OllamaShim(BaseCompletionHandler):
         is_fim_request: bool = False,
     ) -> Union[ChatResponse, GenerateResponse]:
         """Stream response directly from Ollama API."""
-        if is_fim_request:
-            prompt = ""
-            for i in reversed(range(len(request["messages"]))):
-                if request["messages"][i]["role"] == "user":
-                    prompt = request["messages"][i]["content"]  # type: ignore
-                    break
-            if not prompt:
-                raise ValueError("No user message found in FIM request")
+        try:
+            if is_fim_request:
+                prompt = ""
+                for i in reversed(range(len(request["messages"]))):
+                    if request["messages"][i]["role"] == "user":
+                        prompt = request["messages"][i]["content"]  # type: ignore
+                        break
+                if not prompt:
+                    raise ValueError("No user message found in FIM request")
 
-            response = await self.client.generate(
-                model=request["model"],
-                prompt=prompt,
-                raw=request.get("raw", False),
-                suffix=request.get("suffix", ""),
-                stream=stream,
-                options=request["options"],  # type: ignore
-            )
-        else:
-            response = await self.client.chat(
-                model=request["model"],
-                messages=request["messages"],
-                stream=stream,  # type: ignore
-                options=request["options"],  # type: ignore
-            )  # type: ignore
-        return response
+                response = await self.client.generate(
+                    model=request["model"],
+                    prompt=prompt,
+                    raw=request.get("raw", False),
+                    suffix=request.get("suffix", ""),
+                    stream=stream,
+                    options=request["options"],  # type: ignore
+                )
+            else:
+                response = await self.client.chat(
+                    model=request["model"],
+                    messages=request["messages"],
+                    stream=stream,  # type: ignore
+                    options=request["options"],  # type: ignore
+                )  # type: ignore
+            return response
+        except Exception as e:
+            logger.error(f"Error in Ollama completion: {str(e)}")
+            raise e
 
     def _create_streaming_response(
         self,

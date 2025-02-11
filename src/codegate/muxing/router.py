@@ -52,7 +52,7 @@ class MuxRouter:
             return model_route
         except Exception as e:
             logger.error(f"Error getting active workspace muxes: {e}")
-            raise HTTPException(str(e), status_code=404)
+            raise HTTPException(detail=str(e), status_code=404)
 
     def _setup_routes(self):
 
@@ -85,7 +85,7 @@ class MuxRouter:
             model_route = await self._get_model_route(thing_to_match)
             if not model_route:
                 raise HTTPException(
-                    "No matching rule found for the active workspace", status_code=404
+                    detail="No matching rule found for the active workspace", status_code=404
                 )
 
             logger.info(
@@ -97,7 +97,7 @@ class MuxRouter:
 
             # 2. Map the request body to the destination provider format.
             rest_of_path = self._ensure_path_starts_with_slash(rest_of_path)
-            new_data = self._body_adapter.map_body_to_dest(model_route, data)
+            new_data = self._body_adapter.set_destination_info(model_route, data)
 
             # 3. Run pipeline. Selecting the correct destination provider.
             provider = self._provider_registry.get_provider(model_route.endpoint.provider_type)
