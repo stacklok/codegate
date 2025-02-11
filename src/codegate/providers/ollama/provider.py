@@ -1,5 +1,5 @@
 import json
-from typing import List
+from typing import List, Optional
 
 import httpx
 import structlog
@@ -105,7 +105,7 @@ class OllamaProvider(BaseProvider):
         @self.router.post(f"/{self.provider_route_name}/api/show")
         async def show_model(
             request: Request,
-            authorization: str = Header(..., description="Bearer token"),
+            authorization: str | None = Header(None, description="Bearer token"),
         ):
             """
             route for /api/show that responds outside of the pipeline
@@ -140,7 +140,7 @@ class OllamaProvider(BaseProvider):
         @DetectClient()
         async def create_completion(
             request: Request,
-            authorization: str = Header(..., description="Bearer token"),
+            authorization: str | None = Header(None, description="Bearer token"),
         ):
             api_key = _api_key_from_optional_header_value(authorization)
             body = await request.body()
