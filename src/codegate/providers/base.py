@@ -257,6 +257,7 @@ class BaseProvider(ABC):
         # based on the streaming flag
         model_response = await self._completion_handler.execute_completion(
             provider_request,
+            base_url=data.get("base_url"),
             api_key=api_key,
             stream=streaming,
             is_fim_request=is_fim_request,
