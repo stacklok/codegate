@@ -124,9 +124,9 @@ async def _inner(request, api_key):
                 async for event in anthropic_message_wrapper(resp.aiter_lines()):
                     yield event
             case 400 | 401 | 403 | 404 | 413 | 429:
-                yield MessageError.parse_raw(resp.text)
+                yield MessageError.model_validate_json(resp.text)
             case 500 | 529:
-                yield MessageError.parse_raw(resp.text)
+                yield MessageError.model_validate_json(resp.text)
             case _:
                 logger.error(f"unexpected status code {resp.status_code}", provider="anthropic")
                 raise ValueError(f"unexpected status code {resp.status_code}", provider="anthropic")
@@ -159,27 +159,27 @@ async def anthropic_message_wrapper(lines):
     if event_type != "message_start":
         raise ValueError(f"anthropic: unexpected event type '{event_type}'")
 
-    yield MessageStart.parse_raw(payload)
+    yield MessageStart.model_validate_json(payload)
 
     async for event_type, payload in events:
         match event_type:
             case "message_delta":
-                yield MessageDelta.parse_raw(payload)
+                yield MessageDelta.model_validate_json(payload)
             case "content_block_start":
-                yield ContentBlockStart.parse_raw(payload)
+                yield ContentBlockStart.model_validate_json(payload)
             case "content_block_delta":
-                yield ContentBlockDelta.parse_raw(payload)
+                yield ContentBlockDelta.model_validate_json(payload)
             case "content_block_stop":
-                yield ContentBlockStop.parse_raw(payload)
+                yield ContentBlockStop.model_validate_json(payload)
             case "message_stop":
-                yield MessageStop.parse_raw(payload)
+                yield MessageStop.model_validate_json(payload)
                 # We break the loop at this poiunt since this is the
                 # final payload defined by the protocol.
                 break
             case "ping":
-                yield MessagePing.parse_raw(payload)
+                yield MessagePing.model_validate_json(payload)
             case "error":
-                yield MessageError.parse_raw(payload)
+                yield MessageError.model_validate_json(payload)
                 break
             case _:
                 # TODO this should be a log entry, as per

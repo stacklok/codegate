@@ -228,9 +228,10 @@ class PipelineStep(ABC):
         user_messages = []
         last_idx = -1
         for msg, idx in request.last_user_block():
-            for content in msg.get_text():
-                user_messages.append(content)
-                last_idx = idx
+            for content in msg.get_content():
+                for txt in content.get_text():
+                    user_messages.append(txt)
+                    last_idx = idx
 
         if user_messages == []:
             return None

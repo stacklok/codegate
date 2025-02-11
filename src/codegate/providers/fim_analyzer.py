@@ -42,7 +42,7 @@ class FIMAnalyzer:
         Determine if the request is FIM by the URL or the data of the request.
         """
         # first check if we are in specific tools to discard FIM
-        prompt = data.prompt("")
+        prompt = data.get_prompt("")
         tools = ["cline", "kodu", "open interpreter"]
         for tool in tools:
             if tool in prompt.lower():

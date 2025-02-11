@@ -62,7 +62,7 @@ def streaming_messages_simple():
 
 
 def test_chat_completion_request_serde_anthropic(tools_request):
-    req = ChatCompletionRequest.parse_raw(tools_request)
+    req = ChatCompletionRequest.model_validate_json(tools_request)
     assert req.max_tokens == 4096
     assert req.model == "claude-3-5-sonnet-20241022"
     assert req.metadata is None
