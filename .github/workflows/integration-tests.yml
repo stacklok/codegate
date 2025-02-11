@@ -144,7 +144,7 @@ jobs:
         run: |
           function check_model_ready() {
             response=$(curl -s http://localhost:11434/api/generate -d '{
-              "model": "qwen2.5-coder:0.5b",
+              "model": "qwen2.5-coder:1.5b",
               "prompt": "Hello",
               "stream": false
             }' 2>&1)
@@ -187,7 +187,7 @@ jobs:
             fi
 
             echo "Starting model download/initialization..."
-            docker exec -d ollama ollama run qwen2.5-coder:0.5b
+            docker exec -d ollama ollama run qwen2.5-coder:1.5b
 
             # Monitor container and model status
             monitor_count=0

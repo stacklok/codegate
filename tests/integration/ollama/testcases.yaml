@@ -20,7 +20,7 @@ testcases:
               "role":"user"
             }
         ],
-        "model":"qwen2.5-coder:0.5b",
+        "model":"qwen2.5-coder:1.5b",
         "stream":true,
         "temperature":0
       }
@@ -34,7 +34,7 @@ testcases:
     data: |
       {
         "stream": true,
-        "model": "qwen2.5-coder:0.5b",
+        "model": "qwen2.5-coder:1.5b",
         "raw": true,
         "options": {
           "temperature": 0,
@@ -77,7 +77,7 @@ testcases:
               "role":"user"
             }
         ],
-        "model":"qwen2.5-coder:0.5b",
+        "model":"qwen2.5-coder:1.5b",
         "stream":true,
         "temperature":0
       }
@@ -101,7 +101,7 @@ testcases:
               "role":"user"
             }
         ],
-        "model":"qwen2.5-coder:0.5b",
+        "model":"qwen2.5-coder:1.5b",
         "stream":true,
         "temperature":0
       }
