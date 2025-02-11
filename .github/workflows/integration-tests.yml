@@ -15,7 +15,9 @@ on:
       anthropic-key:
         description: 'The Anthropic key to use for integration tests'
         required: true
-
+      openrouter-key:
+        description: 'The Openrouter key to use for integration tests'
+        required: true
 jobs:
   integration-tests:
     name: Test
@@ -24,11 +26,12 @@ jobs:
       fail-fast: false # Continue running other tests if one fails
       matrix:
         python-version: [ "3.12" ]
-        test-provider: [ "copilot", "openai", "anthropic", "ollama", "vllm", "llamacpp" ]
+        test-provider: [ "copilot", "openai", "anthropic", "ollama", "vllm", "llamacpp", "openrouter" ]
     env:
       ENV_COPILOT_KEY: ${{ secrets.copilot-key }}
       ENV_OPENAI_KEY: ${{ secrets.copilot-key }} # We use the same key for OpenAI as the Copilot tests
       ENV_ANTHROPIC_KEY: ${{ secrets.anthropic-key }}
+      ENV_OPENROUTER_KEY: ${{ secrets.openrouter-key }}
       CA_CERT_FILE: "/home/runner/work/codegate/codegate/codegate_volume/certs/ca.crt"
       CODEGATE_CONTAINER_NAME: "codegate"
       CODEGATE_MOUNT_PATH_CERT_FILE: "/app/codegate_volume/certs/ca.crt"
