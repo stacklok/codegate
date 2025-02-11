@@ -1,10 +1,9 @@
-import uuid
 from datetime import datetime, timezone
-from typing import Any, AsyncIterator, Dict, Union
+from typing import Any, AsyncIterator, Dict, Optional, Tuple, Union
 
 from litellm import ChatCompletionRequest, ModelResponse
 from litellm.types.utils import Delta, StreamingChoices
-from ollama import ChatResponse, Message
+from ollama import ChatResponse, GenerateResponse, Message
 
 from codegate.providers.normalizer.base import ModelInputNormalizer, ModelOutputNormalizer
 
@@ -47,21 +46,36 @@ class OLlamaToModel(AsyncIterator[ModelResponse]):
         self.ollama_response = ollama_response
         self._aiter = ollama_response.__aiter__()
 
-    @staticmethod
-    def normalize_chunk(chunk: ChatResponse) -> ModelResponse:
+    @classmethod
+    def _transform_to_int_secs(cls, chunk_created_at) -> int:
+        # Convert the datetime object to a timestamp in seconds
+        datetime_obj = datetime.fromisoformat(chunk_created_at)
+        return int(datetime_obj.timestamp())
+
+    @classmethod
+    def _get_finish_reason_assistant(cls, is_chunk_done: bool) -> Tuple[str, Optional[str]]:
         finish_reason = None
         role = "assistant"
-
-        # Convert the datetime object to a timestamp in seconds
-        datetime_obj = datetime.fromisoformat(chunk.created_at)
-        timestamp_seconds = int(datetime_obj.timestamp())
-
-        if chunk.done:
+        if is_chunk_done:
             finish_reason = "stop"
             role = None
+        return role, finish_reason
+
+    @classmethod
+    def _get_chat_id_from_timestamp(cls, timestamp_seconds: int) -> str:
+        timestamp_str = str(timestamp_seconds)
+        return timestamp_str[:9]
+
+    @classmethod
+    def normalize_chat_chunk(cls, chunk: ChatResponse) -> ModelResponse:
+        # Convert the datetime object to a timestamp in seconds
+        timestamp_seconds = cls._transform_to_int_secs(chunk.created_at)
+        # Get role and finish reason
+        role, finish_reason = cls._get_finish_reason_assistant(chunk.done)
+        chat_id = cls._get_chat_id_from_timestamp(timestamp_seconds)
 
         model_response = ModelResponse(
-            id=f"ollama-chat-{str(uuid.uuid4())}",
+            id=f"ollama-chat-{chat_id}",
             created=timestamp_seconds,
             model=chunk.model,
             object="chat.completion.chunk",
@@ -76,16 +90,39 @@ class OLlamaToModel(AsyncIterator[ModelResponse]):
         )
         return model_response
 
+    @classmethod
+    def normalize_fim_chunk(cls, chunk: GenerateResponse) -> Dict:
+        """
+        Transform an ollama generation chunk to an OpenAI one
+        """
+        # Convert the datetime object to a timestamp in seconds
+        timestamp_seconds = cls._transform_to_int_secs(chunk.created_at)
+        # Get role and finish reason
+        _, finish_reason = cls._get_finish_reason_assistant(chunk.done)
+        chat_id = cls._get_chat_id_from_timestamp(timestamp_seconds)
+
+        model_response = {
+            "id": f"chatcmpl-{chat_id}",
+            "object": "text_completion",
+            "created": timestamp_seconds,
+            "model": chunk.model,
+            "choices": [{"index": 0, "text": chunk.response}],
+            "usage": {"completion_tokens": 0, "prompt_tokens": 0, "total_tokens": 0},
+        }
+        if finish_reason:
+            model_response["choices"][0]["finish_reason"] = finish_reason
+            del model_response["choices"][0]["text"]
+        return model_response
+
     def __aiter__(self):
         return self
 
     async def __anext__(self):
         try:
             chunk = await self._aiter.__anext__()
-            if not isinstance(chunk, ChatResponse):
-                return chunk
-
-            return self.normalize_chunk(chunk)
+            if isinstance(chunk, ChatResponse):
+                return self.normalize_chat_chunk(chunk)
+            return chunk
         except StopAsyncIteration:
             raise StopAsyncIteration
 
