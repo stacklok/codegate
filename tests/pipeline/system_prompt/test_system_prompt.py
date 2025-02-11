@@ -13,7 +13,7 @@ class TestSystemPrompt:
         Test initialization with a system message
         """
         test_message = "Test system prompt"
-        step = SystemPrompt(system_prompt=test_message)
+        step = SystemPrompt(system_prompt=test_message, client_prompts={})
         assert step.codegate_system_prompt == test_message
 
     @pytest.mark.asyncio
@@ -28,7 +28,7 @@ class TestSystemPrompt:
 
         # Create system prompt step
         system_prompt = "Security analysis system prompt"
-        step = SystemPrompt(system_prompt=system_prompt)
+        step = SystemPrompt(system_prompt=system_prompt, client_prompts={})
         step._get_workspace_custom_instructions = AsyncMock(return_value="")
 
         # Mock the get_last_user_message method
@@ -62,7 +62,7 @@ class TestSystemPrompt:
 
         # Create system prompt step
         system_prompt = "Security analysis system prompt"
-        step = SystemPrompt(system_prompt=system_prompt)
+        step = SystemPrompt(system_prompt=system_prompt, client_prompts={})
         step._get_workspace_custom_instructions = AsyncMock(return_value="")
 
         # Mock the get_last_user_message method
@@ -97,7 +97,7 @@ class TestSystemPrompt:
         mock_context = Mock(spec=PipelineContext)
 
         system_prompt = "Security edge case prompt"
-        step = SystemPrompt(system_prompt=system_prompt)
+        step = SystemPrompt(system_prompt=system_prompt, client_prompts={})
         step._get_workspace_custom_instructions = AsyncMock(return_value="")
 
         # Mock get_last_user_message to return None

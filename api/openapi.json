@@ -1207,15 +1207,7 @@
             "title": "Trigger Type"
           },
           "trigger_category": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Trigger Category"
+            "$ref": "#/components/schemas/AlertSeverity"
           },
           "timestamp": {
             "type": "string",
@@ -1302,6 +1294,14 @@
         ],
         "title": "AlertConversation",
         "description": "Represents an alert with it's respective conversation."
+      },
+      "AlertSeverity": {
+        "type": "string",
+        "enum": [
+          "info",
+          "critical"
+        ],
+        "title": "AlertSeverity"
       },
       "ChatMessage": {
         "properties": {
@@ -1581,7 +1581,9 @@
       "MuxMatcherType": {
         "type": "string",
         "enum": [
-          "catch_all"
+          "catch_all",
+          "filename_match",
+          "request_type_match"
         ],
         "title": "MuxMatcherType",
         "description": "Represents the different types of matchers we support."

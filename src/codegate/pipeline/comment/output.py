@@ -5,11 +5,12 @@ import structlog
 from litellm import ModelResponse
 from litellm.types.utils import Delta, StreamingChoices
 
+from codegate.db.models import AlertSeverity
 from codegate.extract_snippets.message_extractor import (
     CodeSnippet,
     DefaultCodeSnippetExtractor,
 )
-from codegate.pipeline.base import AlertSeverity, PipelineContext
+from codegate.pipeline.base import PipelineContext
 from codegate.pipeline.output import OutputPipelineContext, OutputPipelineStep
 from codegate.pipeline.suspicious_commands.suspicious_commands import SuspiciousCommands
 from codegate.storage import StorageEngine

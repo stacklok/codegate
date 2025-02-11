@@ -5,9 +5,9 @@ import structlog
 from litellm import ChatCompletionRequest
 
 from codegate.clients.clients import ClientType
+from codegate.db.models import AlertSeverity
 from codegate.extract_snippets.factory import MessageCodeExtractorFactory
 from codegate.pipeline.base import (
-    AlertSeverity,
     PipelineContext,
     PipelineResult,
     PipelineStep,

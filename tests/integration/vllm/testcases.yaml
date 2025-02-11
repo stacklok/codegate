@@ -86,3 +86,30 @@ testcases:
       }
     contains: |
       CodeGate detected one or more malicious, deprecated or archived packages.
+
+# Commented out because it takes too much time in the CI pipeline. Also, this functionality should not be provider-specific
+#  vllm_secret_redacting_chat:
+#    name: VLLM secret redacting chat
+#    provider: vllm
+#    url: http://127.0.0.1:8989/vllm/chat/completions
+#    data: |
+#      {
+#        "max_tokens":4096,
+#        "messages":[
+#            {
+#              "content":"You are a coding assistant.",
+#              "role":"system"
+#            },
+#            {
+#              "content":"Here's my API key: ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789. Can you help me list my repos on GitHub?",
+#              "role":"user"
+#            }
+#        ],
+#        "model":"Qwen/Qwen2.5-Coder-0.5B-Instruct",
+#        "stream":true,
+#        "temperature":0
+#      }
+#    contains: |
+#      CodeGate prevented 1 secret
+#    not_contains: |
+#      ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789

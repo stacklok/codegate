@@ -5,14 +5,19 @@ from typing import Annotated, Any, Dict, List, Optional
 from pydantic import BaseModel, StringConstraints
 
 
+class AlertSeverity(str, Enum):
+    INFO = "info"
+    CRITICAL = "critical"
+
+
 class Alert(BaseModel):
-    id: Any
-    prompt_id: Any
-    code_snippet: Optional[Any]
-    trigger_string: Optional[Any]
-    trigger_type: Any
-    trigger_category: Optional[Any]
-    timestamp: Any
+    id: str
+    prompt_id: str
+    code_snippet: Optional[str]
+    trigger_string: Optional[str]
+    trigger_type: str
+    trigger_category: AlertSeverity
+    timestamp: datetime.datetime
 
 
 class Output(BaseModel):
