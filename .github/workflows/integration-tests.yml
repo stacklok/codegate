@@ -273,7 +273,7 @@ jobs:
         env:
           CODEGATE_PROVIDERS: ${{ matrix.test-provider }}
         run: |
-          poetry run python tests/integration/integration_tests.py
+          poetry run --ansi python tests/integration/integration_tests.py
 
       - name: Logs - CodeGate container
         if: always()
