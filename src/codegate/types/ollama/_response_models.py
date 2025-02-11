@@ -18,19 +18,51 @@ class Message(pydantic.BaseModel):
     role: Role
     content: str
 
+    def get_text(self):
+        yield self.content
+
+    def set_text(self, text):
+        self.content = text
+
 
 class StreamingChatCompletion(pydantic.BaseModel):
     model: str
     created_at: int | str
     message: Message
     done: bool
-    done_reason: str | None = None # either `load`, `unload`, or `stop`
+    done_reason: str | None = None # either `load`, `unload`, `length`, or `stop`
     total_duration: int | None = None
     load_duration: int | None = None
     prompt_eval_count: int | None = None
     prompt_eval_duration: int | None = None
     eval_count: int | None = None
     eval_duration: int | None = None
+
+    def get_content(self):
+        yield self.message
+
+
+class StreamingGenerateCompletion(pydantic.BaseModel):
+    model: str
+    created_at: int | str
+    response: str
+    done: bool
+    done_reason: str | None = None # either `load`, `unload`, `length`, or `stop`
+    total_duration: int | None = None
+    load_duration: int | None = None
+    prompt_eval_count: int | None = None
+    prompt_eval_duration: int | None = None
+    eval_count: int | None = None
+    eval_duration: int | None = None
+
+    def get_content(self):
+        yield self
+
+    def get_text(self):
+        yield self.response
+
+    def set_text(self, text):
+        self.response = text
 
 
 class MessageError(pydantic.BaseModel):
