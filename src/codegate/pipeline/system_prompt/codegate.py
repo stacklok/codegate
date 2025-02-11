@@ -11,6 +11,9 @@ from codegate.types.common import ChatCompletionRequest, ChatCompletionSystemMes
 from codegate.types.anthropic import (
     ChatCompletionRequest as CodegateChatCompletionRequest
 )
+from codegate.types.openai import (
+    ChatCompletionRequest as CodegateOpenaiChatCompletionRequest
+)
 
 
 class SystemPrompt(PipelineStep):
@@ -92,7 +95,7 @@ class SystemPrompt(PipelineStep):
         
         ##### NEW CODE PATH #####
 
-        if type(request) != ChatCompletionRequest and isinstance(request, CodegateChatCompletionRequest):
+        if type(request) != ChatCompletionRequest:
             request_system_message = {}
             req_sys_prompt = ""
             for sysprompt in request.get_system_prompt():
