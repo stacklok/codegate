@@ -68,7 +68,7 @@ class AnthropicProvider(BaseProvider):
         try:
             stream = await self.complete(data, api_key, is_fim_request, client_type)
         except Exception as e:
-            #  check if we have an status code there
+            # check if we have an status code there
             if hasattr(e, "status_code"):
                 # log the exception
                 logger.exception("Error in AnthropicProvider completion")
