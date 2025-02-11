@@ -219,11 +219,11 @@ def test_body_extract_continue_snippets(test_case: BodyCodeSnippetTest):
 @pytest.mark.parametrize(
     "test_case",
     [
-        # Analyze processed snippets from OpenInterpreter
+        # Analyze processed snippets from Kodu
         BodyCodeSnippetTest(
             input_body_dict={
                 "messages": [
-                    {"role": "system", "content": "You are Cline, a highly skilled software"},
+                    {"role": "system", "content": "You are Kodu, an autonomous coding agent."},
                     {
                         "role": "user",
                         "content": [
