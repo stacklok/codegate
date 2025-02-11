@@ -104,7 +104,7 @@ class AnthropicProvider(BaseProvider):
             if os.getenv("CODEGATE_DEBUG_ANTHROPIC") is not None:
                 print(f"{create_message.__name__}: {body}")
 
-            req = ChatCompletionRequest.parse_raw(body)
+            req = ChatCompletionRequest.model_validate_json(body)
             is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, req)
 
             return await self.process_request(
