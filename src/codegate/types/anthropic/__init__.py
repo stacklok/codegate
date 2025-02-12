@@ -3,6 +3,11 @@ from litellm.adapters.anthropic_adapter import (
     AnthropicAdapter as LitellmAnthropicAdapter,
 )
 
+from ._generators import (
+    acompletion,
+    stream_generator,
+)
+
 from ._request_models import (
     AssistantMessage,
     CacheControl,
