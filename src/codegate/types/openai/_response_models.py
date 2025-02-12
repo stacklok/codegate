@@ -97,6 +97,13 @@ class Choice(pydantic.BaseModel):
     message: Message
     logprobs: LogProbs | None = None
 
+    def get_text(self) -> Iterable[str]:
+        if self.delta.content:
+            yield self.delta.content
+
+    def set_text(self, text: str) -> None:
+        self.message.content = text
+
 
 class MessageDelta(pydantic.BaseModel):
     content: str | None = None
@@ -113,8 +120,12 @@ class ChoiceDelta(pydantic.BaseModel):
     delta: MessageDelta
     logprobs: LogProbs | None = None
 
-    def get_content(self) -> str | None:
-        return self.delta.content
+    def get_text(self) -> Iterable[str]:
+        if self.delta.content:
+            yield self.delta.content
+
+    def set_text(self, text: str) -> None:
+        self.delta.content = text
 
 
 class ChatCompletion(pydantic.BaseModel):
@@ -127,6 +138,10 @@ class ChatCompletion(pydantic.BaseModel):
     object: Literal["chat.completion"] = "chat.completion"
     usage: Usage
 
+    def get_content(self) -> Iterable[Choice]:
+        for choice in self.choices:
+            yield choice
+
 
 class StreamingChatCompletion(pydantic.BaseModel):
     id: str
@@ -137,3 +152,7 @@ class StreamingChatCompletion(pydantic.BaseModel):
     system_fingerprint: str | None = None
     object: Literal["chat.completion.chunk"] = "chat.completion.chunk"
     usage: Usage | None = None
+
+    def get_content(self) -> Iterable[ChoiceDelta]:
+        for choice in self.choices:
+            yield choice
