@@ -3,6 +3,7 @@ import json
 import uuid
 from abc import ABC, abstractmethod
 from typing import Callable, Dict, Union
+from urllib.parse import urljoin
 
 import structlog
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -31,13 +32,12 @@ class BodyAdapter:
 
     def _get_provider_formatted_url(self, model_route: rulematcher.ModelRoute) -> str:
         """Get the provider formatted URL to use in base_url. Note this value comes from DB"""
-        base_endpoint = model_route.endpoint.endpoint.rstrip("/")
         if model_route.endpoint.provider_type in [
             db_models.ProviderType.openai,
             db_models.ProviderType.openrouter,
         ]:
-            return f"{base_endpoint}/v1"
-        return base_endpoint
+            return urljoin(model_route.endpoint.endpoint, "/v1")
+        return model_route.endpoint.endpoint
 
     def set_destination_info(self, model_route: rulematcher.ModelRoute, data: dict) -> dict:
         """Set the destination provider info."""

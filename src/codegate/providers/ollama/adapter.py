@@ -47,13 +47,18 @@ class OLlamaToModel(AsyncIterator[ModelResponse]):
         self._aiter = ollama_response.__aiter__()
 
     @classmethod
-    def _transform_to_int_secs(cls, chunk_created_at) -> int:
-        # Convert the datetime object to a timestamp in seconds
+    def _transform_to_int_secs(cls, chunk_created_at: str) -> int:
+        """
+        Convert the datetime to a timestamp in seconds.
+        """
         datetime_obj = datetime.fromisoformat(chunk_created_at)
         return int(datetime_obj.timestamp())
 
     @classmethod
     def _get_finish_reason_assistant(cls, is_chunk_done: bool) -> Tuple[str, Optional[str]]:
+        """
+        Get the role and finish reason for the assistant based on the chunk done status.
+        """
         finish_reason = None
         role = "assistant"
         if is_chunk_done:
@@ -63,14 +68,20 @@ class OLlamaToModel(AsyncIterator[ModelResponse]):
 
     @classmethod
     def _get_chat_id_from_timestamp(cls, timestamp_seconds: int) -> str:
+        """
+        Getting a string representation of the timestamp in seconds used as the chat id.
+
+        This needs to be done so that all chunks of a chat have the same id.
+        """
         timestamp_str = str(timestamp_seconds)
         return timestamp_str[:9]
 
     @classmethod
     def normalize_chat_chunk(cls, chunk: ChatResponse) -> ModelResponse:
-        # Convert the datetime object to a timestamp in seconds
+        """
+        Transform an ollama chat chunk to an OpenAI one
+        """
         timestamp_seconds = cls._transform_to_int_secs(chunk.created_at)
-        # Get role and finish reason
         role, finish_reason = cls._get_finish_reason_assistant(chunk.done)
         chat_id = cls._get_chat_id_from_timestamp(timestamp_seconds)
 
@@ -95,9 +106,7 @@ class OLlamaToModel(AsyncIterator[ModelResponse]):
         """
         Transform an ollama generation chunk to an OpenAI one
         """
-        # Convert the datetime object to a timestamp in seconds
         timestamp_seconds = cls._transform_to_int_secs(chunk.created_at)
-        # Get role and finish reason
         _, finish_reason = cls._get_finish_reason_assistant(chunk.done)
         chat_id = cls._get_chat_id_from_timestamp(timestamp_seconds)
 
