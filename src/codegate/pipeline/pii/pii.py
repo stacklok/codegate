@@ -14,6 +14,9 @@ from codegate.pipeline.base import (
 from codegate.pipeline.output import OutputPipelineContext, OutputPipelineStep
 from codegate.pipeline.pii.manager import PiiManager
 from codegate.pipeline.systemmsg import add_or_update_system_message
+from codegate.types.anthropic import UserMessage as AnthropicUserMessage
+from codegate.types.ollama import UserMessage as OllamaUserMessage
+from codegate.types.openai import UserMessage as OpenaiUserMessage
 
 logger = structlog.get_logger("codegate")
 
@@ -68,27 +71,31 @@ class CodegatePii(PipelineStep):
     async def process(
         self, request: ChatCompletionRequest, context: PipelineContext
     ) -> PipelineResult:
-        if "messages" not in request:
-            return PipelineResult(request=request, context=context)
-
-        new_request = request.copy()
         total_pii_found = 0
         all_pii_details: List[Dict[str, Any]] = []
         last_redacted_text = ""
 
-        for i, message in enumerate(new_request["messages"]):
-            if "content" in message and message["content"]:
+        for message in request.get_messages():
+            for content in message.get_content():
                 # This is where analyze and anonymize the text
-                original_text = str(message["content"])
+                if content.get_text() is None:
+                    continue
+                original_text = content.get_text()
                 anonymized_text, pii_details = self.pii_manager.analyze(original_text, context)
 
                 if pii_details:
                     total_pii_found += len(pii_details)
                     all_pii_details.extend(pii_details)
-                    new_request["messages"][i]["content"] = anonymized_text
+                    content.set_text(anonymized_text)
 
                     # If this is a user message, grab the redacted snippet!
-                    if message.get("role") == "user":
+                    if (
+                            # This is suboptimal and should be an
+                            # interface.
+                            isinstance(message, AnthropicUserMessage) or
+                            isinstance(message, OllamaUserMessage) or
+                            isinstance(message, OpenaiUserMessage)
+                    ):
                         last_redacted_text = self._get_redacted_snippet(
                             anonymized_text, pii_details
                         )
@@ -102,16 +109,13 @@ class CodegatePii(PipelineStep):
 
         if total_pii_found > 0:
             context.metadata["pii_manager"] = self.pii_manager
-
-            system_message = ChatCompletionSystemMessage(
-                content=Config.get_config().prompts.pii_redacted,
-                role="system",
+            request.add_system_prompt(
+                Config.get_config().prompts.pii_redacted,
             )
-            new_request = add_or_update_system_message(new_request, system_message, context)
 
         logger.debug(f"Redacted text: {last_redacted_text}")
 
-        return PipelineResult(request=new_request, context=context)
+        return PipelineResult(request=request, context=context)
 
     def restore_pii(self, anonymized_text: str) -> str:
         return self.pii_manager.restore_pii(anonymized_text)
@@ -240,20 +244,26 @@ class PiiRedactionNotifier(OutputPipelineStep):
         return "pii-redaction-notifier"
 
     def _create_chunk(self, original_chunk: ModelResponse, content: str) -> ModelResponse:
-        return ModelResponse(
-            id=original_chunk.id,
-            choices=[
-                StreamingChoices(
-                    finish_reason=None,
-                    index=0,
-                    delta=Delta(content=content, role="assistant"),
-                    logprobs=None,
-                )
-            ],
-            created=original_chunk.created,
-            model=original_chunk.model,
-            object="chat.completion.chunk",
-        )
+        if isinstance(original_chunk, ModelResponse):
+            return ModelResponse(
+                id=original_chunk.id,
+                choices=[
+                    StreamingChoices(
+                        finish_reason=None,
+                        index=0,
+                        delta=Delta(content=content, role="assistant"),
+                        logprobs=None,
+                    )
+                ],
+                created=original_chunk.created,
+                model=original_chunk.model,
+                object="chat.completion.chunk",
+            )
+        else:
+            # TODO verify if deep-copy is necessary
+            copy = original_chunk.model_copy(deep=True)
+            copy.set_text(content)
+            return copy
 
     def _format_pii_summary(self, pii_details: List[Dict[str, Any]]) -> str:
         """Format PII details into a readable summary"""
@@ -297,7 +307,14 @@ class PiiRedactionNotifier(OutputPipelineStep):
             for message in input_context.alerts_raised or []
         )
 
-        if len(chunk.choices) > 0 and chunk.choices[0].delta.role:
+        for content in chunk.get_content():
+            # This if is a safety check for some SSE protocols
+            # (e.g. Anthropic) that have different message types, some
+            # of which have empty content and are not meant to be
+            # modified.
+            if content.get_text() is None or content.get_text() == "":
+                continue
+
             redacted_count = input_context.metadata["redacted_pii_count"]
             pii_details = input_context.metadata.get("redacted_pii_details", [])
             pii_summary = self._format_pii_summary(pii_details)
@@ -327,7 +344,6 @@ class PiiRedactionNotifier(OutputPipelineStep):
                     chunk,
                     f"<thinking>{notification_text}</thinking>\n",
                 )
-                notification_chunk.choices[0].delta.role = "assistant"
             else:
                 notification_chunk = self._create_chunk(
                     chunk,
