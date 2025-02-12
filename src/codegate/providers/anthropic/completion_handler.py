@@ -30,6 +30,7 @@ class AnthropicCompletion(LiteLLmShim):
         """
         return await super().execute_completion(
             request,
+            base_url,
             api_key,
             stream,
             is_fim_request,

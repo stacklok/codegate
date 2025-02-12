@@ -82,17 +82,7 @@ class UserMessage(pydantic.BaseModel):
 
     def get_text(self) -> Iterable[str]:
         if isinstance(self.content, str):
-            yield self.content
-        else: # list
-            for content in self.content:
-                yield content.get_text()
-
-    def get_content(self) -> Iterable[MessageContent]:
-        if isinstance(self.content, str):
-            yield self
-        else: # list
-            for content in self.content:
-                yield content
+            return self.content
 
     def set_text(self, txt: str) -> None:
         if isinstance(self.content, str):
@@ -102,6 +92,13 @@ class UserMessage(pydantic.BaseModel):
         # should have been called on the content
         raise ValueError("Cannot set text on a list of content")
 
+    def get_content(self) -> Iterable[MessageContent]:
+        if isinstance(self.content, str):
+            yield self
+        else: # list
+            for content in self.content:
+                yield content
+
 
 class AssistantMessage(pydantic.BaseModel):
     role: Literal["assistant"]
@@ -110,9 +107,14 @@ class AssistantMessage(pydantic.BaseModel):
     def get_text(self) -> Iterable[str]:
         if isinstance(self.content, str):
             yield self.content
-        else: # list
-            for content in self.content:
-                yield content.get_text()
+
+    def set_text(self, text) -> None:
+        if isinstance(self.content, str):
+            self.content = txt
+            return
+
+        # should have been called on the content
+        raise ValueError("Cannot set text on a list of content")
 
     def get_content(self) -> Iterable[MessageContent]:
         if isinstance(self.content, str):

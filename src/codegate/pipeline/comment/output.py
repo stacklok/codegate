@@ -162,7 +162,8 @@ archived packages: {libobjects_text}\n"
                 # complete_comment = ""
 
                 # Split the chunk content if needed
-                before, after = self._split_chunk_at_code_end(next(content.get_text(), ""))
+                text = content.get_text()
+                before, after = self._split_chunk_at_code_end(text if text else "")
 
                 chunks = []
 
