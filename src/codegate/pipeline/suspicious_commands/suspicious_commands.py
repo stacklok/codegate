@@ -1,6 +1,11 @@
 """
 A module for spotting suspicious commands using the embeddings
 from our local LLM and a futher ANN categorisier.
+
+The code in here is used for inference. The training code is in
+SuspiciousCommandsTrainer. The split is because we don't want to
+install torch on a docker, it is too big. So we train the model on
+a local machine and then use the generated onnx file for inference.
 """
 
 import os

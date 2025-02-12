@@ -1,6 +1,11 @@
 """
 A module for spotting suspicious commands using the embeddings
 from our local LLM and a futher ANN categorisier.
+
+The classes in here are not used for inference. The split is
+because we don't want to install torch on a docker, it is too
+big. So we train the model on a local machine and then use the
+generated onnx file for inference on the docker.
 """
 
 import os
@@ -51,11 +56,12 @@ class SimpleNN(nn.Module):
 
 class SuspiciousCommandsTrainer(SuspiciousCommands):
     """
-    Class to handle suspicious command detection using a neural network.
+    Class to train suspicious command detection using a neural network.
 
     Attributes:
         model_path (str): Path to the model.
-        inference_engine (LlamaCppInferenceEngine): Inference engine for embedding.
+        inference_engine (LlamaCppInferenceEngine): Inference engine for
+        embedding.
         simple_nn (SimpleNN): Neural network model.
     """
 

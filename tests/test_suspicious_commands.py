@@ -89,6 +89,9 @@ def test_initialization(sc):
 async def test_train_and_save():
     """
     Test the training process of the SuspiciousCommands instance.
+    This test is skipped if the model file is there. Also, the
+    training code will need torch installed to run. This is not
+    included in the default toml file.
     """
     if os.path.exists(MODEL_FILE):
         return
