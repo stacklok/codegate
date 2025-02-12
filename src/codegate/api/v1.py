@@ -390,7 +390,6 @@ async def get_workspace_alerts(workspace_name: str) -> List[Optional[v1_models.A
 
     try:
         alerts = await dbreader.get_alerts_by_workspace(ws.id, AlertSeverity.CRITICAL.value)
-        alerts = v1_processing.remove_duplicate_alerts(alerts)
         prompts_outputs = await dbreader.get_prompts_with_output(ws.id)
         return await v1_processing.parse_get_alert_conversation(alerts, prompts_outputs)
     except Exception:

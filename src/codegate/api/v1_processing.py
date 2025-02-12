@@ -392,7 +392,8 @@ async def match_conversations(
                 qa = _get_question_answer_from_partial(selected_partial_qa)
                 qa.question.message = parse_question_answer(qa.question.message)
                 questions_answers.append(qa)
-                alerts.extend(selected_partial_qa.alerts)
+                deduped_alerts = await remove_duplicate_alerts(selected_partial_qa.alerts)
+                alerts.extend(deduped_alerts)
                 token_usage_agg.add_model_token_usage(selected_partial_qa.model_token_usage)
 
         # only add conversation if we have some answers
@@ -480,10 +481,11 @@ async def parse_get_alert_conversation(
     The rows contain the raw request and output strings from the pipeline.
     """
     _, map_q_id_to_conversation = await parse_messages_in_conversations(prompts_outputs)
+    dedup_alerts = await remove_duplicate_alerts(alerts)
     async with asyncio.TaskGroup() as tg:
         tasks = [
             tg.create_task(parse_row_alert_conversation(row, map_q_id_to_conversation))
-            for row in alerts
+            for row in dedup_alerts
         ]
     return [task.result() for task in tasks if task.result() is not None]
 
@@ -501,7 +503,7 @@ async def parse_workspace_token_usage(
     return token_usage_agg
 
 
-def remove_duplicate_alerts(alerts):
+async def remove_duplicate_alerts(alerts: List[v1_models.Alert]) -> List[v1_models.Alert]:
     unique_alerts = []
     seen = defaultdict(list)
 
