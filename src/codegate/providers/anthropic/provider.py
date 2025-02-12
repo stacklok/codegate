@@ -13,8 +13,9 @@ from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.anthropic.completion_handler import AnthropicCompletion
 from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.fim_analyzer import FIMAnalyzer
-from codegate.types.generators import anthropic_stream_generator
+from codegate.types.anthropic import stream_generator
 from codegate.types.anthropic import ChatCompletionRequest
+
 
 logger = structlog.get_logger("codegate")
 
@@ -24,7 +25,12 @@ class AnthropicProvider(BaseProvider):
         self,
         pipeline_factory: PipelineFactory,
     ):
-        completion_handler = AnthropicCompletion(stream_generator=anthropic_stream_generator)
+        if self._get_base_url() != "":
+            self.base_url = self._get_base_url()
+        else:
+            self.base_url = "https://api.anthropic.com/"
+
+        completion_handler = AnthropicCompletion(stream_generator=stream_generator)
         super().__init__(
             None,
             None,
