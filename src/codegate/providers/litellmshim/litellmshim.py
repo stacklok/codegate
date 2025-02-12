@@ -10,10 +10,10 @@ from codegate.types.common import (
     ChatCompletionRequest,
     ModelResponse,
 )
-from codegate.types.generators import acompletion
+from codegate.types.anthropic import acompletion
+
 
 logger = structlog.get_logger("codegate")
-
 litellm.drop_params = True
 
 

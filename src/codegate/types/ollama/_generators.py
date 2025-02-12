@@ -1,4 +1,7 @@
 import os
+from typing import (
+    AsyncIterator,
+)
 
 import httpx
 import structlog
@@ -11,6 +14,29 @@ from ._response_models import (
 
 
 logger = structlog.get_logger("codegate")
+
+
+async def stream_generator(
+        stream: AsyncIterator[StreamingChatCompletion | StreamingGenerateCompletion],
+) -> AsyncIterator[str]:
+    """Ollama-style SSE format"""
+    try:
+        async for chunk in stream:
+            try:
+                body = chunk.model_dump_json(exclude_none=True, exclude_unset=True)
+            except Exception as e:
+                logger.error("failed serializing payload", exc_info=e, provider="ollama")
+                yield f"{json.dumps({'error': str(e)})}\n"
+
+            data = f"{body}\n"
+
+            if os.getenv("CODEGATE_DEBUG_OLLAMA") is not None:
+                print(data)
+
+            yield data
+    except Exception as e:
+        logger.error("failed generating output payloads", exc_info=e, provider="ollama")
+        yield f"{json.dumps({'error': str(e)})}\n"
 
 
 async def chat_streaming(request, api_key, base_url):
@@ -30,22 +56,19 @@ async def streaming(request, api_key, url, cls):
     if os.getenv("CODEGATE_DEBUG_OLLAMA") is not None:
         print(payload)
 
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            url,
+    client = httpx.AsyncClient()
+    async with client.stream(
+            "POST", url,
             content=payload,
             timeout=300, # TODO this should not be hardcoded
-        )
-
+    ) as resp:
         # TODO figure out how to best return failures
         match resp.status_code:
             case 200:
-                # TODO this loop causes the connection to be kept open
-                # causing read timeouts and blocks (breaks the
-                # typewriter effect), fix this
                 async for message in parser(cls, resp.aiter_lines()):
                     yield message
             case 400 | 401 | 403 | 404 | 413 | 429:
+                logger.error(f"unexpected status code {resp.status_code}: {resp.text}", provider="ollama")
                 yield MessageError.model_validate_json(resp.text)
             # case 500 | 529:
             #     yield MessageError.model_validate_json(resp.text)
