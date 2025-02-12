@@ -14,6 +14,8 @@ from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.fim_analyzer import FIMAnalyzer
 from codegate.providers.litellmshim import anthropic_stream_generator
 
+logger = structlog.get_logger("codegate")
+
 
 class AnthropicProvider(BaseProvider):
     def __init__(
@@ -67,8 +69,7 @@ class AnthropicProvider(BaseProvider):
             #  check if we have an status code there
             if hasattr(e, "status_code"):
                 # log the exception
-                logger = structlog.get_logger("codegate")
-                logger.error("Error in AnthropicProvider completion", error=str(e))
+                logger.exception("Error in AnthropicProvider completion")
                 raise HTTPException(status_code=e.status_code, detail=str(e))  # type: ignore
             else:
                 # just continue raising the exception

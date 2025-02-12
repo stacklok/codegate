@@ -1,13 +1,15 @@
 import copy
 import json
 import uuid
-from typing import Union
+from abc import ABC, abstractmethod
+from typing import Callable, Dict, Union
+from urllib.parse import urljoin
 
 import structlog
 from fastapi.responses import JSONResponse, StreamingResponse
 from litellm import ModelResponse
 from litellm.types.utils import Delta, StreamingChoices
-from ollama import ChatResponse
+from ollama import ChatResponse, GenerateResponse
 
 from codegate.db import models as db_models
 from codegate.muxing import rulematcher
@@ -34,7 +36,7 @@ class BodyAdapter:
             db_models.ProviderType.openai,
             db_models.ProviderType.openrouter,
         ]:
-            return f"{model_route.endpoint.endpoint}/v1"
+            return urljoin(model_route.endpoint.endpoint, "/v1")
         return model_route.endpoint.endpoint
 
     def set_destination_info(self, model_route: rulematcher.ModelRoute, data: dict) -> dict:
@@ -45,15 +47,101 @@ class BodyAdapter:
         return new_data
 
 
-class StreamChunkFormatter:
+class OutputFormatter(ABC):
+
+    @property
+    @abstractmethod
+    def provider_format_funcs(self) -> Dict[str, Callable]:
+        """
+        Return the provider specific format functions. All providers format functions should
+        return the chunk in OpenAI format.
+        """
+        pass
+
+    @abstractmethod
+    def format(
+        self, response: Union[StreamingResponse, JSONResponse], dest_prov: db_models.ProviderType
+    ) -> Union[StreamingResponse, JSONResponse]:
+        """Format the response to the client."""
+        pass
+
+
+class StreamChunkFormatter(OutputFormatter):
     """
     Format a single chunk from a stream to OpenAI format.
     We need to configure the client to expect the OpenAI format.
     In Continue this means setting "provider": "openai" in the config json file.
     """
 
-    def __init__(self):
-        self.provider_to_func = {
+    @property
+    @abstractmethod
+    def provider_format_funcs(self) -> Dict[str, Callable]:
+        """
+        Return the provider specific format functions. All providers format functions should
+        return the chunk in OpenAI format.
+        """
+        pass
+
+    def _format_openai(self, chunk: str) -> str:
+        """
+        The chunk is already in OpenAI format. To standarize remove the "data:" prefix.
+
+        This function is used by both chat and FIM formatters
+        """
+        cleaned_chunk = chunk.split("data:")[1].strip()
+        return cleaned_chunk
+
+    def _format_as_openai_chunk(self, formatted_chunk: str) -> str:
+        """Format the chunk as OpenAI chunk. This is the format how the clients expect the data."""
+        chunk_to_send = f"data:{formatted_chunk}\n\n"
+        return chunk_to_send
+
+    async def _format_streaming_response(
+        self, response: StreamingResponse, dest_prov: db_models.ProviderType
+    ):
+        """Format the streaming response to OpenAI format."""
+        format_func = self.provider_format_funcs.get(dest_prov)
+        openai_chunk = None
+        try:
+            async for chunk in response.body_iterator:
+                openai_chunk = format_func(chunk)
+                # Sometimes for Anthropic we couldn't get content from the chunk. Skip it.
+                if not openai_chunk:
+                    continue
+                yield self._format_as_openai_chunk(openai_chunk)
+        except Exception as e:
+            logger.error(f"Error sending chunk in muxing: {e}")
+            yield self._format_as_openai_chunk(str(e))
+        finally:
+            # Make sure the last chunk is always [DONE]
+            if openai_chunk and "[DONE]" not in openai_chunk:
+                yield self._format_as_openai_chunk("[DONE]")
+
+    def format(
+        self, response: StreamingResponse, dest_prov: db_models.ProviderType
+    ) -> StreamingResponse:
+        """Format the response to the client."""
+        return StreamingResponse(
+            self._format_streaming_response(response, dest_prov),
+            status_code=response.status_code,
+            headers=response.headers,
+            background=response.background,
+            media_type=response.media_type,
+        )
+
+
+class ChatStreamChunkFormatter(StreamChunkFormatter):
+    """
+    Format a single chunk from a stream to OpenAI format given that the request was a chat.
+    """
+
+    @property
+    def provider_format_funcs(self) -> Dict[str, Callable]:
+        """
+        Return the provider specific format functions. All providers format functions should
+        return the chunk in OpenAI format.
+        """
+        return {
             db_models.ProviderType.ollama: self._format_ollama,
             db_models.ProviderType.openai: self._format_openai,
             db_models.ProviderType.anthropic: self._format_antropic,
@@ -68,20 +156,10 @@ class StreamChunkFormatter:
         try:
             chunk_dict = json.loads(chunk)
             ollama_chunk = ChatResponse(**chunk_dict)
-            open_ai_chunk = OLlamaToModel.normalize_chunk(ollama_chunk)
+            open_ai_chunk = OLlamaToModel.normalize_chat_chunk(ollama_chunk)
             return open_ai_chunk.model_dump_json(exclude_none=True, exclude_unset=True)
         except Exception:
             return chunk
-
-    def _format_openai(self, chunk: str) -> str:
-        """The chunk is already in OpenAI format. To standarize remove the "data:" prefix."""
-        cleaned_chunk = chunk.split("data:")[1].strip()
-        try:
-            chunk_dict = json.loads(cleaned_chunk)
-            open_ai_chunk = ModelResponse(**chunk_dict)
-            return open_ai_chunk.model_dump_json(exclude_none=True, exclude_unset=True)
-        except Exception:
-            return cleaned_chunk
 
     def _format_antropic(self, chunk: str) -> str:
         """Format the Anthropic chunk to OpenAI format."""
@@ -119,46 +197,53 @@ class StreamChunkFormatter:
         except Exception:
             return cleaned_chunk.strip()
 
-    def format(self, chunk: str, dest_prov: db_models.ProviderType) -> ModelResponse:
-        """Format the chunk to OpenAI format."""
-        # Get the format function
-        format_func = self.provider_to_func.get(dest_prov)
-        if format_func is None:
-            raise MuxingAdapterError(f"Provider {dest_prov} not supported.")
-        return format_func(chunk)
+
+class FimStreamChunkFormatter(StreamChunkFormatter):
+
+    @property
+    def provider_format_funcs(self) -> Dict[str, Callable]:
+        """
+        Return the provider specific format functions. All providers format functions should
+        return the chunk in OpenAI format.
+        """
+        return {
+            db_models.ProviderType.ollama: self._format_ollama,
+            db_models.ProviderType.openai: self._format_openai,
+            # Our Lllamacpp provider emits OpenAI chunks
+            db_models.ProviderType.llamacpp: self._format_openai,
+            # OpenRouter is a dialect of OpenAI
+            db_models.ProviderType.openrouter: self._format_openai,
+        }
+
+    def _format_ollama(self, chunk: str) -> str:
+        """Format the Ollama chunk to OpenAI format."""
+        try:
+            chunk_dict = json.loads(chunk)
+            ollama_chunk = GenerateResponse(**chunk_dict)
+            open_ai_chunk = OLlamaToModel.normalize_fim_chunk(ollama_chunk)
+            return json.dumps(open_ai_chunk, separators=(",", ":"), indent=None)
+        except Exception:
+            return chunk
 
 
 class ResponseAdapter:
 
-    def __init__(self):
-        self.stream_formatter = StreamChunkFormatter()
-
-    def _format_as_openai_chunk(self, formatted_chunk: str) -> str:
-        """Format the chunk as OpenAI chunk. This is the format how the clients expect the data."""
-        return f"data:{formatted_chunk}\n\n"
-
-    async def _format_streaming_response(
-        self, response: StreamingResponse, dest_prov: db_models.ProviderType
-    ):
-        """Format the streaming response to OpenAI format."""
-        async for chunk in response.body_iterator:
-            openai_chunk = self.stream_formatter.format(chunk, dest_prov)
-            # Sometimes for Anthropic we couldn't get content from the chunk. Skip it.
-            if not openai_chunk:
-                continue
-            yield self._format_as_openai_chunk(openai_chunk)
+    def _get_formatter(
+        self, response: Union[StreamingResponse, JSONResponse], is_fim_request: bool
+    ) -> OutputFormatter:
+        """Get the formatter based on the request type."""
+        if isinstance(response, StreamingResponse):
+            if is_fim_request:
+                return FimStreamChunkFormatter()
+            return ChatStreamChunkFormatter()
+        raise MuxingAdapterError("Only streaming responses are supported.")
 
     def format_response_to_client(
-        self, response: Union[StreamingResponse, JSONResponse], dest_prov: db_models.ProviderType
+        self,
+        response: Union[StreamingResponse, JSONResponse],
+        dest_prov: db_models.ProviderType,
+        is_fim_request: bool,
     ) -> Union[StreamingResponse, JSONResponse]:
         """Format the response to the client."""
-        if isinstance(response, StreamingResponse):
-            return StreamingResponse(
-                self._format_streaming_response(response, dest_prov),
-                status_code=response.status_code,
-                headers=response.headers,
-                background=response.background,
-                media_type=response.media_type,
-            )
-        else:
-            raise MuxingAdapterError("Only streaming responses are supported.")
+        stream_formatter = self._get_formatter(response, is_fim_request)
+        return stream_formatter.format(response, dest_prov)

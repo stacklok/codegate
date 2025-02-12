@@ -144,6 +144,32 @@ class ProviderCrud:
 
         dbendpoint = await self._db_writer.update_provider_endpoint(endpoint.to_db_model())
 
+        # If the auth type has not changed or no authentication is needed,
+        # we can update the models
+        if (
+            founddbe.auth_type == endpoint.auth_type
+            or endpoint.auth_type == apimodelsv1.ProviderAuthType.none
+        ):
+            try:
+                authm = await self._db_reader.get_auth_material_by_provider_id(str(endpoint.id))
+
+                models = await self._find_models_for_provider(
+                    endpoint, authm.auth_type, authm.auth_blob, prov
+                )
+
+                await self._update_models_for_provider(dbendpoint, endpoint, prov, models)
+
+                # a model might have been deleted, let's repopulate the cache
+                await self._ws_crud.repopulate_mux_cache()
+            except Exception as err:
+                # This is a non-fatal error. The endpoint might have changed
+                # And the user will need to push a new API key anyway.
+                logger.error(
+                    "Unable to update models for provider",
+                    provider=endpoint.name,
+                    err=str(err),
+                )
+
         return apimodelsv1.ProviderEndpoint.from_db_model(dbendpoint)
 
     async def configure_auth_material(
@@ -164,12 +190,9 @@ class ProviderCrud:
         provider_registry = get_provider_registry()
         prov = endpoint.get_from_registry(provider_registry)
 
-        models = []
-        if config.auth_type != apimodelsv1.ProviderAuthType.passthrough:
-            try:
-                models = prov.models(endpoint=endpoint.endpoint, api_key=config.api_key)
-            except Exception as err:
-                raise ProviderModelsNotFoundError(f"Unable to get models from provider: {err}")
+        models = await self._find_models_for_provider(
+            endpoint, config.auth_type, config.api_key, prov
+        )
 
         await self._db_writer.push_provider_auth_material(
             dbmodels.ProviderAuthMaterial(
@@ -179,7 +202,32 @@ class ProviderCrud:
             )
         )
 
-        models_set = set(models)
+        await self._update_models_for_provider(dbendpoint, endpoint, models)
+
+        # a model might have been deleted, let's repopulate the cache
+        await self._ws_crud.repopulate_mux_cache()
+
+    async def _find_models_for_provider(
+        self,
+        endpoint: apimodelsv1.ProviderEndpoint,
+        auth_type: apimodelsv1.ProviderAuthType,
+        api_key: str,
+        prov: BaseProvider,
+    ) -> List[str]:
+        if auth_type != apimodelsv1.ProviderAuthType.passthrough:
+            try:
+                return prov.models(endpoint=endpoint.endpoint, api_key=api_key)
+            except Exception as err:
+                raise ProviderModelsNotFoundError(f"Unable to get models from provider: {err}")
+        return []
+
+    async def _update_models_for_provider(
+        self,
+        dbendpoint: dbmodels.ProviderEndpoint,
+        endpoint: apimodelsv1.ProviderEndpoint,
+        found_models: List[str],
+    ) -> None:
+        models_set = set(found_models)
 
         # Get the models from the provider
         models_in_db = await self._db_reader.get_provider_models_by_provider_id(str(endpoint.id))
@@ -201,9 +249,6 @@ class ProviderCrud:
                 dbendpoint.id,
                 model,
             )
-
-        # a model might have been deleted, let's repopulate the cache
-        await self._ws_crud.repopulate_mux_cache()
 
     async def delete_endpoint(self, provider_id: UUID):
         """Delete an endpoint."""
