@@ -158,7 +158,12 @@ class ChatStreamChunkFormatter(StreamChunkFormatter):
             ollama_chunk = ChatResponse(**chunk_dict)
             open_ai_chunk = OLlamaToModel.normalize_chat_chunk(ollama_chunk)
             return open_ai_chunk.model_dump_json(exclude_none=True, exclude_unset=True)
-        except Exception:
+        except Exception as e:
+            # Sometimes we receive an OpenAI formatted chunk from ollama. Specifically when
+            # talking to Cline or Kodu. If that's the case we use the format_openai function.
+            if "data:" in chunk:
+                return self._format_openai(chunk)
+            logger.warning(f"Error formatting Ollama chunk: {chunk}. Error: {e}")
             return chunk
 
     def _format_antropic(self, chunk: str) -> str:
