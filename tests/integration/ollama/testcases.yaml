@@ -31,6 +31,9 @@ testcases:
     name: Ollama Chat
     provider: ollama
     url: http://127.0.0.1:8989/ollama/chat/completions
+    codegate_enrichment:
+      provider_url: http://127.0.0.1:11434/api/chat
+      expect_difference: false
     data: |
       {
         "max_tokens":4096,
@@ -55,6 +58,9 @@ testcases:
     name: Ollama FIM
     provider: ollama
     url: http://127.0.0.1:8989/ollama/api/generate
+    codegate_enrichment:
+      provider_url: http://127.0.0.1:11434/api/generate
+      expect_difference: false
     data: |
       {
         "stream": true,
@@ -88,6 +94,9 @@ testcases:
     name: Ollama Malicious Package
     provider: ollama
     url: http://127.0.0.1:8989/ollama/chat/completions
+    codegate_enrichment:
+      provider_url: http://127.0.0.1:11434/api/chat
+      expect_difference: true
     data: |
       {
         "max_tokens":4096,
@@ -112,6 +121,9 @@ testcases:
     name: Ollama secret redacting chat
     provider: ollama
     url: http://127.0.0.1:8989/ollama/chat/completions
+    codegate_enrichment:
+      provider_url: http://127.0.0.1:11434/api/chat
+      expect_difference: true
     data: |
       {
         "max_tokens":4096,
