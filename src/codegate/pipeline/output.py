@@ -104,7 +104,8 @@ class OutputPipelineInstance:
         """
         self._buffered_chunk = chunk
         for content in chunk.get_content():
-            for text in content.get_text():
+            text = content.get_text()
+            if text is not None:
                 self._context.buffer.append(text)
 
     def _store_chunk_content(self, chunk: ModelResponse) -> None:

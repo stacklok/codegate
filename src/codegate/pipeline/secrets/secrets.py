@@ -502,8 +502,7 @@ class SecretUnredactionStep(OutputPipelineStep):
                 return []
 
             # No markers or partial markers, let pipeline handle the chunk normally
-            aggregated = "".join([text for text in content.get_text()])
-            content.set_text(context.prefix_buffer + aggregated)
+            content.set_text(context.prefix_buffer + content.get_text())
             context.prefix_buffer = ""
             return [chunk]
         else:
