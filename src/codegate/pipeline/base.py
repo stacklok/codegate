@@ -96,14 +96,12 @@ class PipelineContext:
             if self.prompt_id is None:
                 self.prompt_id = str(uuid.uuid4())
 
-            request_str = normalized_request.json()
-
             self.input_request = Prompt(
                 id=self.prompt_id,
                 timestamp=datetime.datetime.now(datetime.timezone.utc),
                 provider=provider,
                 type="fim" if is_fim_request else "chat",
-                request=request_str,
+                request=normalized_request,
                 workspace_id=None,
             )
             # Uncomment the below to debug the input
@@ -204,7 +202,7 @@ class PipelineStep(ABC):
 
         # unpack the tuple
         msg, idx = msg
-        return "".join([txt for txt in msg.get_text()]), idx
+        return "".join([content.get_text() for content in msg.get_content()]), idx
 
 
     @staticmethod
@@ -229,9 +227,8 @@ class PipelineStep(ABC):
         last_idx = -1
         for msg, idx in request.last_user_block():
             for content in msg.get_content():
-                for txt in content.get_text():
-                    user_messages.append(txt)
-                    last_idx = idx
+                user_messages.append(content.get_text())
+                last_idx = idx
 
         if user_messages == []:
             return None
