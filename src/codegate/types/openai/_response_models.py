@@ -1,4 +1,5 @@
 from typing import (
+    Iterable,
     List,
     Literal,
     Optional,
@@ -38,6 +39,7 @@ FinishReason = Union[
     Literal["function_call"], # deprecated
 ]
 
+
 Role = Union[
     Literal["user"],
     Literal["developer"],
@@ -45,6 +47,7 @@ Role = Union[
     Literal["system"],
     Literal["tool"],
 ]
+
 
 class RawLogProbsContent(pydantic.BaseModel):
     token: str
@@ -97,11 +100,11 @@ class Choice(pydantic.BaseModel):
     message: Message
     logprobs: LogProbs | None = None
 
-    def get_text(self) -> Iterable[str]:
-        if self.delta.content:
-            yield self.delta.content
+    def get_text(self) -> str | None:
+        if self.message.content:
+            return self.message.content
 
-    def set_text(self, text: str) -> None:
+    def set_text(self, text) -> None:
         self.message.content = text
 
 

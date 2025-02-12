@@ -162,10 +162,12 @@ class DeveloperMessage(pydantic.BaseModel):
 
     def get_text(self) -> Iterable[str]:
         if isinstance(self.content, str):
-            yield self.content
-        else: # list
-            for content in self.content:
-                yield content.get_text()
+            return self.content
+
+    def set_text(self, text) -> None:
+        if isinstance(self.content, str):
+            self.content = text
+        # TODO we should probably return an error otherwise
 
     def get_content(self):
         if isinstance(self.content, str):
@@ -182,13 +184,12 @@ class SystemMessage(pydantic.BaseModel):
 
     def get_text(self) -> Iterable[str]:
         if isinstance(self.content, str):
-            yield self.content
-        else: # list
-            for content in self.content:
-                yield content.get_text()
+            return self.content
 
     def set_text(self, text) -> None:
-        self.content = text
+        if isinstance(self.content, str):
+            self.content = text
+        # TODO we should probably return an error otherwise
 
     def get_content(self):
         if isinstance(self.content, str):
@@ -205,10 +206,7 @@ class UserMessage(pydantic.BaseModel):
 
     def get_text(self) -> Iterable[str]:
         if isinstance(self.content, str):
-            yield self.content
-        else: # list
-            for content in self.content:
-                yield content.get_text()
+            return self.content
 
     def set_text(self, text) -> None:
         if isinstance(self.content, str):
@@ -234,10 +232,10 @@ class AssistantMessage(pydantic.BaseModel):
 
     def get_text(self) -> Iterable[str]:
         if isinstance(self.content, str):
-            yield self.content
-        else: # list
-            for content in self.content:
-                yield content.get_text()
+            return self.content
+
+    def set_text(self, text) -> None:
+        self.content = text
 
     def get_content(self):
         if isinstance(self.content, str):
@@ -254,10 +252,7 @@ class ToolMessage(pydantic.BaseModel):
 
     def get_text(self) -> Iterable[str]:
         if isinstance(self.content, str):
-            yield self.content
-        else: # list
-            for content in self.content:
-                yield content.get_text()
+            return self.content
 
     def get_content(self):
         if isinstance(self.content, str):
@@ -273,7 +268,7 @@ class FunctionMessage(pydantic.BaseModel):
     name: str
 
     def get_text(self) -> Iterable[str]:
-        yield self.content
+        return self.content
 
     def get_content(self):
         yield self
