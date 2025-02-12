@@ -1,6 +1,11 @@
 from litellm import OpenAIMessageContent
 from litellm.types.llms.openai import ChatCompletionRequest
 
+from ._generators import (
+    completions_streaming,
+    stream_generator,
+)
+
 from ._response_models import (
     AudioMessage,
     ChatCompletion,
@@ -46,5 +51,5 @@ from ._request_models import (
 )
 
 from ._shared_models import (
-    ServiceTier
+    ServiceTier,
 )
