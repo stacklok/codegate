@@ -158,69 +158,67 @@ class PiiUnRedactionStep(OutputPipelineStep):
         input_context: Optional[PipelineContext] = None,
     ) -> list[ModelResponse]:
         """Process a single chunk of the stream"""
-        if not input_context or not chunk.choices or not chunk.choices[0].delta.content:
+        if not input_context:
             return [chunk]
 
-        content = chunk.choices[0].delta.content
+        for content in chunk.get_content():
+            text = content.get_text()
 
-        # Add current chunk to buffer
-        if context.prefix_buffer:
-            content = context.prefix_buffer + content
-            context.prefix_buffer = ""
+            # Add current chunk to buffer
+            if context.prefix_buffer:
+                text = context.prefix_buffer + text
+                context.prefix_buffer = ""
 
-        # Find all potential UUID markers in the content
-        current_pos = 0
-        result = []
-        while current_pos < len(content):
-            start_idx = content.find("<", current_pos)
-            if start_idx == -1:
-                # No more markers!, add remaining content
-                result.append(content[current_pos:])
-                break
+            # Find all potential UUID markers in the content
+            current_pos = 0
+            result = []
+            while current_pos < len(text):
+                start_idx = text.find("<", current_pos)
+                if start_idx == -1:
+                    # No more markers!, add remaining content
+                    result.append(text[current_pos:])
+                    break
 
-            end_idx = content.find(">", start_idx)
-            if end_idx == -1:
-                # Incomplete marker, buffer the rest
-                context.prefix_buffer = content[current_pos:]
-                break
+                end_idx = text.find(">", start_idx)
+                if end_idx == -1:
+                    # Incomplete marker, buffer the rest
+                    context.prefix_buffer = text[current_pos:]
+                    break
 
-            # Add text before marker
-            if start_idx > current_pos:
-                result.append(content[current_pos:start_idx])
+                # Add text before marker
+                if start_idx > current_pos:
+                    result.append(text[current_pos:start_idx])
 
-            # Extract potential UUID if it's a valid format!
-            uuid_marker = content[start_idx : end_idx + 1]
-            uuid_value = uuid_marker[1:-1]  # Remove < >
+                # Extract potential UUID if it's a valid format!
+                uuid_marker = text[start_idx : end_idx + 1]
+                uuid_value = uuid_marker[1:-1]  # Remove < >
 
-            if self._is_complete_uuid(uuid_value):
-                # Get the PII manager from context metadata
-                logger.debug(f"Valid UUID found: {uuid_value}")
-                pii_manager = input_context.metadata.get("pii_manager") if input_context else None
-                if pii_manager and pii_manager.session_store:
-                    # Restore original value from PII manager
-                    logger.debug("Attempting to restore PII from UUID marker")
-                    original = pii_manager.session_store.get_pii(uuid_marker)
-                    logger.debug(f"Restored PII: {original}")
-                    result.append(original)
+                if self._is_complete_uuid(uuid_value):
+                    # Get the PII manager from context metadata
+                    logger.debug(f"Valid UUID found: {uuid_value}")
+                    pii_manager = input_context.metadata.get("pii_manager") if input_context else None
+                    if pii_manager and pii_manager.session_store:
+                        # Restore original value from PII manager
+                        logger.debug("Attempting to restore PII from UUID marker")
+                        original = pii_manager.session_store.get_pii(uuid_marker)
+                        logger.debug(f"Restored PII: {original}")
+                        result.append(original)
+                    else:
+                        logger.debug("No PII manager or session found, keeping original marker")
+                        result.append(uuid_marker)
                 else:
-                    logger.debug("No PII manager or session found, keeping original marker")
+                    # Not a valid UUID, treat as normal text
+                    logger.debug(f"Invalid UUID format: {uuid_value}")
                     result.append(uuid_marker)
-            else:
-                # Not a valid UUID, treat as normal text
-                logger.debug(f"Invalid UUID format: {uuid_value}")
-                result.append(uuid_marker)
 
-            current_pos = end_idx + 1
+                current_pos = end_idx + 1
 
-        if result:
-            # Create new chunk with processed content
-            final_content = "".join(result)
-            logger.debug(f"Final processed content: {final_content}")
-            chunk.choices[0].delta.content = final_content
-            return [chunk]
-
-        # If we only have buffered content, return empty list
-        return []
+            if result:
+                # Create new chunk with processed content
+                final_content = "".join(result)
+                logger.debug(f"Final processed content: {final_content}")
+                content.set_text(final_content)
+        return [chunk]
 
 
 class PiiRedactionNotifier(OutputPipelineStep):
