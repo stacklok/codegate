@@ -78,7 +78,7 @@ class TextDelta(pydantic.BaseModel):
     text: str
 
     def get_text(self):
-        yield self.text
+        return self.text
 
     def set_text(self, text):
         self.text = text
@@ -91,7 +91,7 @@ class ToolUse(pydantic.BaseModel):
     input: Dict
 
     def get_text(self):
-        return iter(()) # empty generator
+        return ""
 
     def set_text(self, text):
         print(f"THIS IS WEIRD: {text}")
@@ -103,7 +103,7 @@ class InputJsonDelta(pydantic.BaseModel):
     partial_json: str
 
     def get_text(self):
-        yield self.partial_json
+        return self.partial_json
 
     def set_text(self, text):
         print(f"THIS IS WEIRD: {text}")

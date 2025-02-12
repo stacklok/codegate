@@ -1,4 +1,6 @@
 from typing import (
+    Any,
+    Iterable,
     Literal,
     Union,
 )
@@ -67,3 +69,6 @@ class StreamingGenerateCompletion(pydantic.BaseModel):
 
 class MessageError(pydantic.BaseModel):
     error: str
+
+    def get_content(self) -> Iterable[Any]:
+        return iter(()) # empty generator
