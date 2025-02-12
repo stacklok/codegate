@@ -28,6 +28,18 @@ class FimCache:
 
     def _extract_message_from_fim_request(self, request: str) -> Optional[str]:
         """Extract the user message from the FIM request"""
+        ### NEW CODE PATH ###
+        if not isinstance(request, str):
+            content_message = None
+            for message in request.get_messages():
+                for content in message.get_content():
+                    if content_message is None:
+                        content_message = content.get_text()
+                    else:
+                        logger.warning("Expected one user message, found multiple.")
+                        return None
+            return content_message
+
         try:
             parsed_request = json.loads(request)
         except Exception as e:
