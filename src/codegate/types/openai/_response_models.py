@@ -1,32 +1,33 @@
 from typing import (
     List,
     Literal,
-    Union,
+    Optional,
+    Union, Iterable,
 )
 
 import pydantic
 
-from ._shared_models import ServiceTier
+from ._shared_models import ServiceTier  # TODO: openai seems to have a different ServiceTier model
 
 
 class CompletionTokenDetails(pydantic.BaseModel):
-    accepted_prediction_tokens: int
-    audio_tokens: int
-    reasoning_tokens: int
-    rejected_prediction_tokens: int
+    accepted_prediction_tokens: int | None = None
+    audio_tokens: int | None = None
+    reasoning_tokens: int | None = None
+    rejected_prediction_tokens: int | None = None
 
 
 class PromptTokenDetails(pydantic.BaseModel):
-    audio_tokens: int
-    cached_tokens: int
+    audio_tokens: int | None = None
+    cached_tokens: int | None = None
 
 
 class Usage(pydantic.BaseModel):
     completion_tokens: int
     prompt_tokens: int
     total_tokens: int
-    completion_tokens_details: CompletionTokenDetails
-    prompt_tokens_details: PromptTokenDetails
+    completion_tokens_details: CompletionTokenDetails | None = None
+    prompt_tokens_details: PromptTokenDetails | None = None
 
 
 FinishReason = Union[
@@ -37,17 +38,24 @@ FinishReason = Union[
     Literal["function_call"], # deprecated
 ]
 
+Role = Union[
+    Literal["user"],
+    Literal["developer"],
+    Literal["assistant"],
+    Literal["system"],
+    Literal["tool"],
+]
 
 class RawLogProbsContent(pydantic.BaseModel):
     token: str
     logprob: float
-    bytes: str | None
+    bytes: Optional[List[int]] = None
 
 
 class LogProbsContent(pydantic.BaseModel):
     token: str
     logprob: float
-    bytes: str | None
+    bytes: Optional[List[int]] = None
     top_logprobs: List[RawLogProbsContent]
 
 
@@ -57,14 +65,14 @@ class LogProbs(pydantic.BaseModel):
 
 
 class FunctionCall(pydantic.BaseModel):
-    name: str
-    arguments: dict | None
+    name: str | None = None
+    arguments: str | None = None
 
 
 class ToolCall(pydantic.BaseModel):
-    id: str
+    id: str | None = None
     type: Literal["function"]
-    function: FunctionCall
+    function: FunctionCall | None = None
 
 
 class AudioMessage(pydantic.BaseModel):
@@ -77,9 +85,9 @@ class AudioMessage(pydantic.BaseModel):
 class Message(pydantic.BaseModel):
     content: str | None
     refusal: str | None
-    tool_calls: List[ToolCall]
+    tool_calls: List[ToolCall] | None = None
     role: str
-    function_call: FunctionCall # deprecated
+    function_call: FunctionCall | None = None # deprecated
     audio: AudioMessage | None
 
 
@@ -91,18 +99,22 @@ class Choice(pydantic.BaseModel):
 
 
 class MessageDelta(pydantic.BaseModel):
-    content: str | None
-    refusal: str | None
-    tool_calls: List[ToolCall]
-    role: str
-    function_call: FunctionCall # deprecated
+    content: str | None = None
+    refusal: str | None = None
+    tool_calls: List[ToolCall] | None = None
+    role: Role | None = None
+    function_call: FunctionCall | None = None # deprecated
 
 
 class ChoiceDelta(pydantic.BaseModel):
-    finish_reason: FinishReason
+    finish_reason: FinishReason | None = None
     index: int
+    # TODO: Copilot FIM seems to contain a "text" field only, no delta
     delta: MessageDelta
-    logprobs: LogProbs
+    logprobs: LogProbs | None = None
+
+    def get_content(self) -> str | None:
+        return self.delta.content
 
 
 class ChatCompletion(pydantic.BaseModel):
@@ -110,9 +122,9 @@ class ChatCompletion(pydantic.BaseModel):
     choices: List[Choice]
     created: int
     model: str
-    service_tier: ServiceTier | None
+    service_tier: ServiceTier | None = None
     system_fingerprint: str
-    object: Literal["chat.completion"]
+    object: Literal["chat.completion"] = "chat.completion"
     usage: Usage
 
 
@@ -121,7 +133,7 @@ class StreamingChatCompletion(pydantic.BaseModel):
     choices: List[ChoiceDelta]
     created: int
     model: str
-    service_tier: ServiceTier | None
-    system_fingerprint: str
-    object: Literal["chat.completion.chunk"]
-    usage: Usage
+    service_tier: ServiceTier | None = None
+    system_fingerprint: str | None = None
+    object: Literal["chat.completion.chunk"] = "chat.completion.chunk"
+    usage: Usage | None = None
