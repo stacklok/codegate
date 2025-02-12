@@ -11,6 +11,13 @@ from codegate.pipeline.suspicious_commands.suspicious_commands import (
     SuspiciousCommands,
 )
 
+try:
+    from codegate.pipeline.suspicious_commands.suspicious_commands_trainer import (
+        SuspiciousCommandsTrainer,
+    )
+except ImportError:
+    print("Torch not installed")
+
 # Global variables for test data
 benign_test_cmds = []
 malicious_test_cmds = []
@@ -79,13 +86,13 @@ def test_initialization(sc):
 
 
 @pytest.mark.asyncio
-async def test_train():
+async def test_train_and_save():
     """
     Test the training process of the SuspiciousCommands instance.
     """
     if os.path.exists(MODEL_FILE):
         return
-    sc2 = SuspiciousCommands()
+    sc2 = SuspiciousCommandsTrainer()
     phrases = [cmd["cmd"] for cmd in train_data]
     labels = [cmd["label"] for cmd in train_data]
     await sc2.train(phrases, labels)
@@ -95,7 +102,7 @@ async def test_train():
 
 
 @pytest.mark.asyncio
-async def test_save_and_load_model():
+async def test_load_model():
     """
     Test saving and loading the trained model.
     """
@@ -105,7 +112,6 @@ async def test_save_and_load_model():
     class_, prob = await sc2.classify_phrase("brew list")
     assert 0 == class_
     assert prob > 0.7
-    sc2.save_model(MODEL_FILE)
 
 
 def check_results(tp, tn, fp, fn):
