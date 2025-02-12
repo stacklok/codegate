@@ -32,11 +32,10 @@ class BodyAdapter:
 
     def _get_provider_formatted_url(self, model_route: rulematcher.ModelRoute) -> str:
         """Get the provider formatted URL to use in base_url. Note this value comes from DB"""
-        if model_route.endpoint.provider_type in [
-            db_models.ProviderType.openai,
-            db_models.ProviderType.openrouter,
-        ]:
+        if model_route.endpoint.provider_type == db_models.ProviderType.openai:
             return urljoin(model_route.endpoint.endpoint, "/v1")
+        if model_route.endpoint.provider_type == db_models.ProviderType.openrouter:
+            return urljoin(model_route.endpoint.endpoint, "/api/v1")
         return model_route.endpoint.endpoint
 
     def set_destination_info(self, model_route: rulematcher.ModelRoute, data: dict) -> dict:
@@ -199,7 +198,8 @@ class ChatStreamChunkFormatter(StreamChunkFormatter):
                 ],
             )
             return open_ai_chunk.model_dump_json(exclude_none=True, exclude_unset=True)
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Error formatting Anthropic chunk: {chunk}. Error: {e}")
             return cleaned_chunk.strip()
 
 
