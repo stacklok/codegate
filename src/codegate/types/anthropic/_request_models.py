@@ -94,6 +94,14 @@ class UserMessage(pydantic.BaseModel):
             for content in self.content:
                 yield content
 
+    def set_text(self, txt: str) -> None:
+        if isinstance(self.content, str):
+            self.content = txt
+            return
+
+        # should have been called on the content
+        raise ValueError("Cannot set text on a list of content")
+
 
 class AssistantMessage(pydantic.BaseModel):
     role: Literal["assistant"]
