@@ -8,6 +8,7 @@ from ollama import AsyncClient, ChatResponse, GenerateResponse
 
 from codegate.clients.clients import ClientType
 from codegate.providers.base import BaseCompletionHandler
+from codegate.providers.ollama.adapter import OLlamaToModel
 
 logger = structlog.get_logger("codegate")
 
@@ -24,29 +25,9 @@ async def ollama_stream_generator(  # noqa: C901
                 # the correct format and start to handle multiple clients
                 # in a more robust way.
                 if client_type in [ClientType.CLINE, ClientType.KODU]:
-                    # First get the raw dict from the chunk
                     chunk_dict = chunk.model_dump()
-                    # Create response dictionary in OpenAI-like format
-                    response = {
-                        "id": f"chatcmpl-{chunk_dict.get('created_at', '')}",
-                        "object": "chat.completion.chunk",
-                        "created": chunk_dict.get("created_at"),
-                        "model": chunk_dict.get("model"),
-                        "choices": [
-                            {
-                                "index": 0,
-                                "delta": {
-                                    "content": chunk_dict.get("message", {}).get("content", ""),
-                                    "role": chunk_dict.get("message", {}).get("role", "assistant"),
-                                },
-                                "finish_reason": (
-                                    chunk_dict.get("done_reason")
-                                    if chunk_dict.get("done", False)
-                                    else None
-                                ),
-                            }
-                        ],
-                    }
+                    model_response = OLlamaToModel.normalize_chat_chunk(chunk)
+                    response = model_response.model_dump()
                     # Preserve existing type or add default if missing
                     response["type"] = chunk_dict.get("type", "stream")
 
