@@ -18,7 +18,7 @@ unsafe_commands = []
 safe_commands = []
 train_data = []
 
-MODEL_FILE = "src/codegate/pipeline/suspicious_commands/simple_nn_model.pt"
+MODEL_FILE = "src/codegate/pipeline/suspicious_commands/simple_nn_model.onnx"
 TD_PATH = "tests/data/suspicious_commands"
 
 
@@ -74,8 +74,8 @@ def test_initialization(sc):
     Args:
         sc (SuspiciousCommands): The instance to test.
     """
-    assert sc.inference_engine is not None
-    assert sc.simple_nn is not None
+    assert sc.inference_session is not None
+    assert sc.inference_session is not None
 
 
 @pytest.mark.asyncio
@@ -101,7 +101,7 @@ async def test_save_and_load_model():
     """
     sc2 = SuspiciousCommands()
     sc2.load_trained_model(MODEL_FILE)
-    assert sc2.simple_nn is not None
+    assert sc2.inference_session is not None
     class_, prob = await sc2.classify_phrase("brew list")
     assert 0 == class_
     assert prob > 0.7
