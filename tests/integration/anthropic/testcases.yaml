@@ -10,11 +10,8 @@ testcases:
     data: |
       {
         "max_tokens":4096,
+        "system": "You are a coding assistant.",
         "messages":[
-            {
-              "content":"You are a coding assistant.",
-              "role":"system"
-            },
             {
               "content":"Reply with that exact sentence: Hello from the integration tests!",
               "role":"user"
