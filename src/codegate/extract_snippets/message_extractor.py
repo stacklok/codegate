@@ -138,7 +138,16 @@ class CodeSnippetExtractor(ABC):
             "rs": "rust",
             "java": "java",
         }
-        self._available_languages = ["sh", "bash", "python", "javascript", "typescript", "go", "rust", "java"]  # noqa: E501
+        self._available_languages = [
+            "sh",
+            "bash",
+            "python",
+            "javascript",
+            "typescript",
+            "go",
+            "rust",
+            "java",
+        ]  # noqa: E501
 
     @property
     @abstractmethod
