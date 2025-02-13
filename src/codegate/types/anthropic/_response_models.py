@@ -20,7 +20,10 @@ class TextResponseContent(pydantic.BaseModel):
     text: str
 
     def get_text(self):
-        yield self.text
+        return self.text
+
+    def set_text(self, text):
+        self.text = text
 
 
 class ToolUseResponseContent(pydantic.BaseModel):
@@ -31,6 +34,9 @@ class ToolUseResponseContent(pydantic.BaseModel):
 
     def get_text(self):
         return iter(()) # empty generator
+
+    def set_text(self, text):
+        pass
 
 
 ResponseContent = Union[
