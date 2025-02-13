@@ -21,7 +21,7 @@ class Message(pydantic.BaseModel):
     content: str
 
     def get_text(self):
-        yield self.content
+        return self.content
 
     def set_text(self, text):
         self.content = text
@@ -61,7 +61,7 @@ class StreamingGenerateCompletion(pydantic.BaseModel):
         yield self
 
     def get_text(self):
-        yield self.response
+        return self.response
 
     def set_text(self, text):
         self.response = text
