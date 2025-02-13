@@ -66,7 +66,7 @@ async def streaming(request, api_key, url, cls):
         # TODO figure out how to best return failures
         match resp.status_code:
             case 200:
-                async for message in parser(cls, resp.aiter_lines()):
+                async for message in message_wrapper(cls, resp.aiter_lines()):
                     yield message
             case 400 | 401 | 403 | 404 | 413 | 429:
                 logger.error(f"unexpected status code {resp.status_code}: {resp.text}", provider="ollama")
@@ -88,7 +88,7 @@ async def get_data_lines(lines):
     logger.debug(f"Consumed {count} messages", provider="anthropic", count=count)
 
 
-async def parser(cls, lines):
+async def message_wrapper(cls, lines):
     messages = get_data_lines(lines)
     async for payload in messages:
         item = cls.model_validate_json(payload)
