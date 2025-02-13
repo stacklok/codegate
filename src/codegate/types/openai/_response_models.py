@@ -125,7 +125,7 @@ class ChoiceDelta(pydantic.BaseModel):
 
     def get_text(self) -> Iterable[str]:
         if self.delta.content:
-            yield self.delta.content
+            return self.delta.content
 
     def set_text(self, text: str) -> None:
         self.delta.content = text
