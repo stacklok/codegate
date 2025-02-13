@@ -863,7 +863,7 @@ class CopilotProxyTargetProtocol(asyncio.Protocol):
                     incoming_record = await self.stream_queue.get()
                     for choice in incoming_record.choices:
                         if choice.finish_reason and \
-                                choice.finish_reason in ["stop", "length", "content_filter"]:
+                                choice.finish_reason in ["stop", "length", "content_filter", "tool_calls"]:
                             self.finish_stream = True
                     yield incoming_record
 
