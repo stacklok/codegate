@@ -74,7 +74,7 @@ class FunctionCall(pydantic.BaseModel):
 
 class ToolCall(pydantic.BaseModel):
     id: str | None = None
-    type: Literal["function"]
+    type: Literal["function"] = "function"
     function: FunctionCall | None = None
 
 
