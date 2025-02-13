@@ -22,6 +22,7 @@ class MockedModelRoute:
         (ProviderType.openrouter, "https://openrouter.ai/api", "https://openrouter.ai/api/v1"),
         (ProviderType.openrouter, "https://openrouter.ai/", "https://openrouter.ai/api/v1"),
         (ProviderType.ollama, "http://localhost:11434", "http://localhost:11434"),
+        (ProviderType.vllm, "http://localhost:8000", "http://localhost:8000/v1"),
     ],
 )
 def test_catch_all(provider_type, endpoint_route, expected_route):

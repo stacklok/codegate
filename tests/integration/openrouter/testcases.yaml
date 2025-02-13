@@ -2,6 +2,31 @@ headers:
   openrouter:
     Authorization: Bearer ENV_OPENROUTER_KEY
 
+muxing:
+  mux_url: http://127.0.0.1:8989/v1/mux/
+  trimm_from_testcase_url: http://localhost:8989/openrouter/
+  provider_endpoint:
+    url: http://127.0.0.1:8989/api/v1/provider-endpoints
+    headers:
+      Content-Type: application/json
+    data: |
+      {
+        "name": "openrouter_muxing",
+        "description": "Muxing testing endpoint",
+        "provider_type": "openrouter",
+        "endpoint": "https://openrouter.ai/api",
+        "auth_type": "api_key",
+        "api_key": "ENV_OPENROUTER_KEY"
+      }
+  muxes:
+    url: http://127.0.0.1:8989/api/v1/workspaces/default/muxes
+    headers:
+      Content-Type: application/json
+    rules:
+      - model: anthropic/claude-3.5-haiku
+        matcher_type: catch_all
+        matcher: ""
+
 testcases:
   anthropic_chat:
     name: Openrouter Chat

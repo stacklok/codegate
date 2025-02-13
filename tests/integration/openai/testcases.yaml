@@ -2,6 +2,31 @@ headers:
   openai:
     Authorization: Bearer ENV_OPENAI_KEY
 
+muxing:
+  mux_url: http://127.0.0.1:8989/v1/mux/
+  trimm_from_testcase_url: http://127.0.0.1:8989/openai/
+  provider_endpoint:
+    url: http://127.0.0.1:8989/api/v1/provider-endpoints
+    headers:
+      Content-Type: application/json
+    data: |
+      {
+        "name": "openai_muxing",
+        "description": "Muxing testing endpoint",
+        "provider_type": "openai",
+        "endpoint": "https://api.openai.com/",
+        "auth_type": "api_key",
+        "api_key": "ENV_OPENAI_KEY"
+      }
+  muxes:
+    url: http://127.0.0.1:8989/api/v1/workspaces/default/muxes
+    headers:
+      Content-Type: application/json
+    rules:
+      - model: gpt-4o-mini
+        matcher_type: catch_all
+        matcher: ""
+
 testcases:
   openai_chat:
     name: OpenAI Chat

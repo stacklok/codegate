@@ -32,7 +32,10 @@ class BodyAdapter:
 
     def _get_provider_formatted_url(self, model_route: rulematcher.ModelRoute) -> str:
         """Get the provider formatted URL to use in base_url. Note this value comes from DB"""
-        if model_route.endpoint.provider_type == db_models.ProviderType.openai:
+        if model_route.endpoint.provider_type in [
+            db_models.ProviderType.openai,
+            db_models.ProviderType.vllm,
+        ]:
             return urljoin(model_route.endpoint.endpoint, "/v1")
         if model_route.endpoint.provider_type == db_models.ProviderType.openrouter:
             return urljoin(model_route.endpoint.endpoint, "/api/v1")
@@ -89,6 +92,47 @@ class StreamChunkFormatter(OutputFormatter):
         """
         cleaned_chunk = chunk.split("data:")[1].strip()
         return cleaned_chunk
+
+    def _format_antropic(self, chunk: str) -> str:
+        """
+        Format the Anthropic chunk to OpenAI format.
+
+        This function is used by both chat and FIM formatters
+        """
+        cleaned_chunk = chunk.split("data:")[1].strip()
+        try:
+            chunk_dict = json.loads(cleaned_chunk)
+            msg_type = chunk_dict.get("type", "")
+
+            finish_reason = None
+            if msg_type == "message_stop":
+                finish_reason = "stop"
+
+            # In type == "content_block_start" the content comes in "content_block"
+            # In type == "content_block_delta" the content comes in "delta"
+            msg_content_dict = chunk_dict.get("delta", {}) or chunk_dict.get("content_block", {})
+            # We couldn't obtain the content from the chunk. Skip it.
+            if not msg_content_dict:
+                return ""
+
+            msg_content = msg_content_dict.get("text", "")
+            open_ai_chunk = ModelResponse(
+                id=f"anthropic-chat-{str(uuid.uuid4())}",
+                model="anthropic-muxed-model",
+                object="chat.completion.chunk",
+                choices=[
+                    StreamingChoices(
+                        finish_reason=finish_reason,
+                        index=0,
+                        delta=Delta(content=msg_content, role="assistant"),
+                        logprobs=None,
+                    )
+                ],
+            )
+            return open_ai_chunk.model_dump_json(exclude_none=True, exclude_unset=True)
+        except Exception as e:
+            logger.warning(f"Error formatting Anthropic chunk: {chunk}. Error: {e}")
+            return cleaned_chunk.strip()
 
     def _format_as_openai_chunk(self, formatted_chunk: str) -> str:
         """Format the chunk as OpenAI chunk. This is the format how the clients expect the data."""
@@ -148,6 +192,8 @@ class ChatStreamChunkFormatter(StreamChunkFormatter):
             db_models.ProviderType.llamacpp: self._format_openai,
             # OpenRouter is a dialect of OpenAI
             db_models.ProviderType.openrouter: self._format_openai,
+            # VLLM is a dialect of OpenAI
+            db_models.ProviderType.vllm: self._format_openai,
         }
 
     def _format_ollama(self, chunk: str) -> str:
@@ -165,43 +211,6 @@ class ChatStreamChunkFormatter(StreamChunkFormatter):
             logger.warning(f"Error formatting Ollama chunk: {chunk}. Error: {e}")
             return chunk
 
-    def _format_antropic(self, chunk: str) -> str:
-        """Format the Anthropic chunk to OpenAI format."""
-        cleaned_chunk = chunk.split("data:")[1].strip()
-        try:
-            chunk_dict = json.loads(cleaned_chunk)
-            msg_type = chunk_dict.get("type", "")
-
-            finish_reason = None
-            if msg_type == "message_stop":
-                finish_reason = "stop"
-
-            # In type == "content_block_start" the content comes in "content_block"
-            # In type == "content_block_delta" the content comes in "delta"
-            msg_content_dict = chunk_dict.get("delta", {}) or chunk_dict.get("content_block", {})
-            # We couldn't obtain the content from the chunk. Skip it.
-            if not msg_content_dict:
-                return ""
-
-            msg_content = msg_content_dict.get("text", "")
-            open_ai_chunk = ModelResponse(
-                id=f"anthropic-chat-{str(uuid.uuid4())}",
-                model="anthropic-muxed-model",
-                object="chat.completion.chunk",
-                choices=[
-                    StreamingChoices(
-                        finish_reason=finish_reason,
-                        index=0,
-                        delta=Delta(content=msg_content, role="assistant"),
-                        logprobs=None,
-                    )
-                ],
-            )
-            return open_ai_chunk.model_dump_json(exclude_none=True, exclude_unset=True)
-        except Exception as e:
-            logger.warning(f"Error formatting Anthropic chunk: {chunk}. Error: {e}")
-            return cleaned_chunk.strip()
-
 
 class FimStreamChunkFormatter(StreamChunkFormatter):
 
@@ -218,6 +227,9 @@ class FimStreamChunkFormatter(StreamChunkFormatter):
             db_models.ProviderType.llamacpp: self._format_openai,
             # OpenRouter is a dialect of OpenAI
             db_models.ProviderType.openrouter: self._format_openai,
+            # VLLM is a dialect of OpenAI
+            db_models.ProviderType.vllm: self._format_openai,
+            db_models.ProviderType.anthropic: self._format_antropic,
         }
 
     def _format_ollama(self, chunk: str) -> str:

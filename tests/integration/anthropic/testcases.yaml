@@ -2,6 +2,31 @@ headers:
   anthropic:
     x-api-key: ENV_ANTHROPIC_KEY
 
+muxing:
+  mux_url: http://127.0.0.1:8989/v1/mux/
+  trimm_from_testcase_url: http://127.0.0.1:8989/anthropic/
+  provider_endpoint:
+    url: http://127.0.0.1:8989/api/v1/provider-endpoints
+    headers:
+      Content-Type: application/json
+    data: |
+      {
+        "name": "anthropic_muxing",
+        "description": "Muxing testing endpoint",
+        "provider_type": "anthropic",
+        "endpoint": "https://api.anthropic.com/",
+        "auth_type": "api_key",
+        "api_key": "ENV_ANTHROPIC_KEY"
+      }
+  muxes:
+    url: http://127.0.0.1:8989/api/v1/workspaces/default/muxes
+    headers:
+      Content-Type: application/json
+    rules:
+      - model: claude-3-5-haiku-20241022
+        matcher_type: catch_all
+        matcher: ""
+
 testcases:
   anthropic_chat:
     name: Anthropic Chat

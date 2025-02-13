@@ -2,6 +2,30 @@ headers:
   ollama:
     Content-Type: application/json
 
+muxing:
+  mux_url: http://127.0.0.1:8989/v1/mux/
+  trimm_from_testcase_url: http://127.0.0.1:8989/ollama/
+  provider_endpoint:
+    url: http://127.0.0.1:8989/api/v1/provider-endpoints
+    headers:
+      Content-Type: application/json
+    data: |
+      {
+        "name": "ollama_muxing",
+        "description": "Muxing testing endpoint",
+        "provider_type": "ollama",
+        "endpoint": "http://127.0.0.1:11434",
+        "auth_type": "none"
+      }
+  muxes:
+    url: http://127.0.0.1:8989/api/v1/workspaces/default/muxes
+    headers:
+      Content-Type: application/json
+    rules:
+      - model: qwen2.5-coder:1.5b
+        matcher_type: catch_all
+        matcher: ""
+
 testcases:
   ollama_chat:
     name: Ollama Chat

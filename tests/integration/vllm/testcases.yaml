@@ -2,6 +2,30 @@ headers:
   vllm:
     Content-Type: application/json
 
+muxing:
+  mux_url: http://127.0.0.1:8989/v1/mux/
+  trimm_from_testcase_url: http://127.0.0.1:8989/vllm/
+  provider_endpoint:
+    url: http://127.0.0.1:8989/api/v1/provider-endpoints
+    headers:
+      Content-Type: application/json
+    data: |
+      {
+        "name": "vllm_muxing",
+        "description": "Muxing testing endpoint",
+        "provider_type": "vllm",
+        "endpoint": "http://127.0.0.1:8000",
+        "auth_type": "none"
+      }
+  muxes:
+    url: http://127.0.0.1:8989/api/v1/workspaces/default/muxes
+    headers:
+      Content-Type: application/json
+    rules:
+      - model: Qwen/Qwen2.5-Coder-0.5B-Instruct
+        matcher_type: catch_all
+        matcher: ""
+
 testcases:
   vllm_chat:
     name: VLLM Chat

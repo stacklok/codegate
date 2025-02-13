@@ -1,9 +1,10 @@
 import asyncio
+import copy
 import json
 import os
 import re
 import sys
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import requests
 import structlog
@@ -21,7 +22,7 @@ class CodegateTestRunner:
         self.failed_tests = []  # Track failed tests
 
     def call_codegate(
-        self, url: str, headers: dict, data: dict, provider: str
+        self, url: str, headers: dict, data: dict, provider: str, method: str = "POST"
     ) -> Optional[requests.Response]:
         logger.debug(f"Creating requester for provider: {provider}")
         requester = self.requester_factory.create_requester(provider)
@@ -31,12 +32,12 @@ class CodegateTestRunner:
         logger.debug(f"Headers: {headers}")
         logger.debug(f"Data: {data}")
 
-        response = requester.make_request(url, headers, data)
+        response = requester.make_request(url, headers, data, method=method)
 
         # Enhanced response logging
         if response is not None:
 
-            if response.status_code != 200:
+            if response.status_code not in [200, 201, 204]:
                 logger.debug(f"Response error status: {response.status_code}")
                 logger.debug(f"Response error headers: {dict(response.headers)}")
                 try:
@@ -174,7 +175,7 @@ class CodegateTestRunner:
 
     async def _get_testcases(
         self, testcases_dict: Dict, test_names: Optional[list[str]] = None
-    ) -> Dict:
+    ) -> Dict[str, Dict[str, str]]:
         testcases: Dict[str, Dict[str, str]] = testcases_dict["testcases"]
 
         # Filter testcases by provider and test names
@@ -192,15 +193,94 @@ class CodegateTestRunner:
             testcases = filtered_testcases
         return testcases
 
+    async def _setup_muxing(
+        self, provider: str, muxing_config: Optional[Dict]
+    ) -> Optional[Tuple[str, str]]:
+        """
+        Muxing setup. Create the provider endpoints and the muxing rules
+
+        Return
+        """
+        # The muxing section was not found in the testcases.yaml file. Nothing to do.
+        if not muxing_config:
+            return
+
+        # Create the provider endpoint
+        provider_endpoint = muxing_config.get("provider_endpoint")
+        try:
+            data_with_api_keys = self.replace_env_variables(provider_endpoint["data"], os.environ)
+            response_create_provider = self.call_codegate(
+                provider=provider,
+                url=provider_endpoint["url"],
+                headers=provider_endpoint["headers"],
+                data=json.loads(data_with_api_keys),
+            )
+            created_provider_endpoint = response_create_provider.json()
+        except Exception as e:
+            logger.warning(f"Could not setup provider endpoint for muxing: {e}")
+            return
+        logger.info("Created provider endpoint for muixing")
+
+        muxes_rules: Dict[str, Any] = muxing_config.get("muxes", {})
+        try:
+            # We need to first update all the muxes with the provider_id
+            for mux in muxes_rules.get("rules", []):
+                mux["provider_id"] = created_provider_endpoint["id"]
+
+            # The endpoint actually takes a list
+            self.call_codegate(
+                provider=provider,
+                url=muxes_rules["url"],
+                headers=muxes_rules["headers"],
+                data=muxes_rules.get("rules", []),
+                method="PUT",
+            )
+        except Exception as e:
+            logger.warning(f"Could not setup muxing rules: {e}")
+            return
+        logger.info("Created muxing rules")
+
+        return muxing_config["mux_url"], muxing_config["trimm_from_testcase_url"]
+
+    async def _augment_testcases_with_muxing(
+        self, testcases: Dict, mux_url: str, trimm_from_testcase_url: str
+    ) -> Dict:
+        """
+        Augment the testcases with the muxing information. Copy the testcases
+        and execute them through the muxing endpoint.
+        """
+        test_cases_with_muxing = copy.deepcopy(testcases)
+        for test_id, test_data in testcases.items():
+            # Replace the provider in the URL with the muxed URL
+            rest_of_path = test_data["url"].replace(trimm_from_testcase_url, "")
+            new_url = f"{mux_url}{rest_of_path}"
+            new_test_data = copy.deepcopy(test_data)
+            new_test_data["url"] = new_url
+            new_test_id = f"{test_id}_muxed"
+            test_cases_with_muxing[new_test_id] = new_test_data
+
+        logger.info("Augmented testcases with muxing")
+        return test_cases_with_muxing
+
     async def _setup(
-        self, testcases_file: str, test_names: Optional[list[str]] = None
+        self, testcases_file: str, provider: str, test_names: Optional[list[str]] = None
     ) -> Tuple[Dict, Dict]:
         with open(testcases_file, "r") as f:
-            testcases_dict = yaml.safe_load(f)
+            testcases_dict: Dict = yaml.safe_load(f)
 
         headers = testcases_dict["headers"]
         testcases = await self._get_testcases(testcases_dict, test_names)
-        return headers, testcases
+        muxing_result = await self._setup_muxing(provider, testcases_dict.get("muxing", {}))
+        # We don't have any muxing setup, return the headers and testcases
+        if not muxing_result:
+            return headers, testcases
+
+        mux_url, trimm_from_testcase_url = muxing_result
+        test_cases_with_muxing = await self._augment_testcases_with_muxing(
+            testcases, mux_url, trimm_from_testcase_url
+        )
+
+        return headers, test_cases_with_muxing
 
     async def run_tests(
         self,
@@ -208,8 +288,7 @@ class CodegateTestRunner:
         provider: str,
         test_names: Optional[list[str]] = None,
     ) -> bool:
-        headers, testcases = await self._setup(testcases_file, test_names)
-
+        headers, testcases = await self._setup(testcases_file, provider, test_names)
         if not testcases:
             logger.warning(
                 f"No tests found for provider {provider} in file: {testcases_file} "
