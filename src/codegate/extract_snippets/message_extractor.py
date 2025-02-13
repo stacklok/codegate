@@ -138,7 +138,7 @@ class CodeSnippetExtractor(ABC):
             "rs": "rust",
             "java": "java",
         }
-        self._available_languages = ["python", "javascript", "typescript", "go", "rust", "java"]
+        self._available_languages = ["sh", "bash", "python", "javascript", "typescript", "go", "rust", "java"]  # noqa: E501
 
     @property
     @abstractmethod
@@ -194,7 +194,7 @@ class CodeSnippetExtractor(ABC):
         Returns:
             Determined language based on message content
         """
-        return self._language_mapping.get(message, None)
+        return self._language_mapping.get(message, message)
 
     def _get_snippet_for_match(self, match: re.Match) -> CodeSnippet:
         matched_snippet = self._get_match_pattern_snippet(match)
