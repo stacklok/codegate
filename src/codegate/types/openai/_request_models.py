@@ -254,6 +254,9 @@ class ToolMessage(pydantic.BaseModel):
         if isinstance(self.content, str):
             return self.content
 
+    def set_text(self, text) -> None:
+        self.content = text
+
     def get_content(self):
         if isinstance(self.content, str):
             yield self
