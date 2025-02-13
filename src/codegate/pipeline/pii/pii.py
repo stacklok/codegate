@@ -222,7 +222,8 @@ class PiiUnRedactionStep(OutputPipelineStep):
                 final_content = "".join(result)
                 logger.debug(f"Final processed content: {final_content}")
                 content.set_text(final_content)
-        return [chunk]
+                return [chunk]
+        return []
 
 
 class PiiRedactionNotifier(OutputPipelineStep):
