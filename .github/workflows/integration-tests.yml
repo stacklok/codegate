@@ -92,6 +92,23 @@ jobs:
           # Check mount configuration
           docker inspect $CODEGATE_CONTAINER_NAME -f '{{ json .Mounts }}' | jq
 
+      - name: Test the healthcheck endpoint
+        timeout-minutes: 4
+        run: |
+          # Check the healthcheck endpoint is available
+          while true; do
+            echo "Checking for healthcheck endpoint in CodeGate..."
+
+            if curl --silent --fail --get "http://localhost:8989/health" >/dev/null; then
+              echo "Healthcheck endpoint is available"
+              break
+            else
+              echo "Healthcheck endpoint not available. Retrying in 5 seconds..."
+              sleep 5
+            fi
+          done
+          curl "http://localhost:8989/health"
+
       - name: Ensure certificates are available in the container
         timeout-minutes: 4
         run: |
