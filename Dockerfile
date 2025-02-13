@@ -18,8 +18,7 @@ COPY pyproject.toml poetry.lock* /app/
 
 # Configure Poetry and install dependencies
 RUN poetry config virtualenvs.create false && \
-    poetry install --no-dev && \
-    python -m spacy download en_core_web_sm
+    poetry install --no-dev
 
 # Copy the rest of the application
 COPY . /app
