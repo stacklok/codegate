@@ -178,9 +178,10 @@ class OutputPipelineInstance:
                 return
 
             # TODO figure out what's the logic here.
-            # # Process any remaining content in buffer when stream ends
-            # if self._context.buffer:
-            #     final_content = "".join(self._context.buffer)
+            # Process any remaining content in buffer when stream ends
+            if self._context.buffer:
+                final_content = "".join(self._context.buffer)
+                logger.error("Context buffer was not empty, it should have been!", content=final_content)
             #     chunk = ModelResponse(
             #         id=self._buffered_chunk.id,
             #         choices=[
@@ -199,7 +200,7 @@ class OutputPipelineInstance:
             #     )
             #     self._input_context.add_output(chunk)
             #     yield chunk
-            #     self._context.buffer.clear()
+                self._context.buffer.clear()
 
             if finish_stream:
                 self._record_to_db()
