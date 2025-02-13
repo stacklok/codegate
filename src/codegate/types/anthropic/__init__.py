@@ -6,6 +6,7 @@ from litellm.adapters.anthropic_adapter import (
 from ._generators import (
     acompletion,
     stream_generator,
+    message_wrapper,
 )
 
 from ._request_models import (
