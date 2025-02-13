@@ -34,15 +34,35 @@ async def stream_generator(stream: AsyncIterator[Any]) -> AsyncIterator[str]:
         async for chunk in stream:
             try:
                 body = chunk.json(exclude_defaults=True, exclude_unset=True)
-                if os.getenv("CODEGATE_DEBUG_ANTHROPIC") is not None:
-                    print(body)
-                yield f"event: {chunk.type}\ndata: {body}\n\n"
             except Exception as e:
                 logger.error("failed serializing payload", exc_info=e)
-                yield f"event: {event_type}\ndata: {str(e)}\n\n"
+                err = MessageError(
+                    type="error",
+                    error=ApiError(
+                        type="api_error",
+                        message=str(e),
+                    ),
+                )
+                body = err.json(exclude_defaults=True, exclude_unset=True)
+                yield f"event: error\ndata: {body}\n\n"
+
+            data = f"event: {chunk.type}\ndata: {body}\n\n"
+
+            if os.getenv("CODEGATE_DEBUG_ANTHROPIC") is not None:
+                print(data)
+
+            yield data
     except Exception as e:
         logger.error("failed generating output payloads", exc_info=e)
-        yield f"data: {str(e)}\n\n"
+        err = MessageError(
+            type="error",
+            error=ApiError(
+                type="api_error",
+                message=str(e),
+            ),
+        )
+        body = err.json(exclude_defaults=True, exclude_unset=True)
+        yield f"event: error\ndata: {body}\n\n"
 
 
 async def acompletion(request, api_key):
@@ -74,7 +94,7 @@ async def _inner(request, api_key):
         # TODO figure out how to best return failures
         match resp.status_code:
             case 200:
-                async for event in anthropic_message_wrapper(resp.aiter_lines()):
+                async for event in message_wrapper(resp.aiter_lines()):
                     yield event
             case 400 | 401 | 403 | 404 | 413 | 429:
                 yield MessageError.model_validate_json(resp.text)
@@ -104,7 +124,7 @@ async def get_data_lines(lines):
     logger.debug(f"Consumed {count} messages", provider="anthropic", count=count)
 
 
-async def anthropic_message_wrapper(lines):
+async def message_wrapper(lines):
     events = get_data_lines(lines)
     event_type, payload = await anext(events)
 

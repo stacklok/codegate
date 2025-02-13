@@ -5,8 +5,10 @@ import pathlib
 
 import pytest
 
-from codegate.types.generators import anthropic_message_wrapper
 from codegate.types.anthropic import (
+    # generators
+    message_wrapper,
+    stream_generator,
     # request objects
     ChatCompletionRequest,
     # response objects
@@ -84,12 +86,12 @@ def test_chat_completion_request_serde_anthropic(tools_request):
 
 
 @pytest.mark.asyncio
-async def test_anthropic_message_wrapper(streaming_messages):
+async def test_message_wrapper(streaming_messages):
     async def _line_iterator(data):
         for line in data.splitlines():
             yield line
 
-    async for item in anthropic_message_wrapper(_line_iterator(streaming_messages)):
+    async for item in message_wrapper(_line_iterator(streaming_messages)):
         assert item.__class__ in [
             ApiError,
             AuthenticationError,
@@ -111,12 +113,12 @@ async def test_anthropic_message_wrapper(streaming_messages):
 
 
 @pytest.mark.asyncio
-async def test_anthropic_message_wrapper(streaming_messages_error):
+async def test_message_wrapper_error(streaming_messages_error):
     async def _line_iterator(data):
         for line in data.splitlines():
             yield line
 
-    async for item in anthropic_message_wrapper(_line_iterator(streaming_messages_error)):
+    async for item in message_wrapper(_line_iterator(streaming_messages_error)):
         assert item.__class__ in [
             ApiError,
             AuthenticationError,
@@ -138,12 +140,12 @@ async def test_anthropic_message_wrapper(streaming_messages_error):
 
 
 @pytest.mark.asyncio
-async def test_anthropic_message_wrapper(streaming_messages_simple):
+async def test_message_wrapper(streaming_messages_simple):
     async def _line_iterator(data):
         for line in data.splitlines():
             yield line
 
-    gen = anthropic_message_wrapper(_line_iterator(streaming_messages_simple))
+    gen = message_wrapper(_line_iterator(streaming_messages_simple))
     event = await anext(gen)
     assert event.type == "message_start"
     assert event.message.id == "msg_014p7gG3wDgGV9EUtLvnow3U"
@@ -220,3 +222,183 @@ async def test_anthropic_message_wrapper(streaming_messages_simple):
 
     event = await anext(gen)
     assert event.type == "message_stop"
+
+
+@pytest.mark.asyncio
+async def test_message_wrapper_broken_protocol():
+    async def _iterator():
+        yield "event: content_block_stop"
+        yield "data: {}"
+        yield ""
+
+    gen = message_wrapper(_iterator())
+    with pytest.raises(ValueError):
+        event = await anext(gen)
+
+@pytest.mark.asyncio
+async def test_message_wrapper_error_short_circuits():
+    async def _iterator():
+        yield "event: error"
+        yield 'data: {"type": "error", "error": {"type": "api_error", "message": "boom"}}'
+        yield ""
+
+    gen = message_wrapper(_iterator())
+    event = await anext(gen)
+    assert event.type == "error"
+    assert event.error.type == "api_error"
+    assert event.error.message == "boom"
+
+    with pytest.raises(StopAsyncIteration):
+        await anext(gen)
+
+
+@pytest.mark.asyncio
+async def test_message_wrapper_message_stop_short_circuits():
+    async def _iterator():
+        yield "event: message_start"
+        yield 'data: {"type":"message_start","message":{"id":"msg_014p7gG3wDgGV9EUtLvnow3U","type":"message","role":"assistant","model":"claude-3-haiku-20240307","stop_sequence":null,"usage":{"input_tokens":472,"output_tokens":2},"content":[],"stop_reason":null}}'
+        yield ""
+        yield "event: message_stop"
+        yield 'data: {"type":"message_stop"}'
+        yield ""
+
+    gen = message_wrapper(_iterator())
+    event = await anext(gen)
+    assert event.type == "message_start"
+
+    event = await anext(gen)
+    assert event.type == "message_stop"
+
+    with pytest.raises(StopAsyncIteration):
+        await anext(gen)
+
+
+@pytest.mark.asyncio
+async def test_message_wrapper_unknown_type():
+    async def _iterator():
+        yield "event: message_start"
+        yield 'data: {"type":"message_start","message":{"id":"msg_014p7gG3wDgGV9EUtLvnow3U","type":"message","role":"assistant","model":"claude-3-haiku-20240307","stop_sequence":null,"usage":{"input_tokens":472,"output_tokens":2},"content":[],"stop_reason":null}}'
+        yield ""
+        yield "event: unknown_type"
+        yield 'data: {"type":"unknown_type"}'
+        yield ""
+
+    gen = message_wrapper(_iterator())
+    await anext(gen)
+    with pytest.raises(ValueError):
+        await anext(gen)
+
+
+@pytest.mark.asyncio
+async def test_stream_generator(streaming_messages_simple):
+    async def _line_iterator(data):
+        for line in data.splitlines():
+            yield line
+
+    gen = message_wrapper(_line_iterator(streaming_messages_simple))
+    gen = stream_generator(gen)
+
+    event = await anext(gen)
+    assert event.startswith("event: message_start")
+    assert "data: " in event
+    assert event.endswith("\n\n")
+
+    event = await anext(gen)
+    assert event.startswith("event: content_block_start")
+    assert "data: " in event
+    assert "some random text" in event
+    assert event.endswith("\n\n")
+
+    event = await anext(gen)
+    assert event.startswith("event: ping")
+    assert "data: " in event
+    assert event.endswith("\n\n")
+
+    event = await anext(gen)
+    assert event.startswith("event: content_block_delta")
+    assert "data: " in event
+    assert "text_delta" in event
+    assert "delta 1" in event
+    assert event.endswith("\n\n")
+
+    event = await anext(gen)
+    assert event.startswith("event: content_block_delta")
+    assert "data: " in event
+    assert "text_delta" in event
+    assert "delta 2" in event
+    assert event.endswith("\n\n")
+
+    event = await anext(gen)
+    assert event.startswith("event: content_block_stop")
+    assert "data: " in event
+    assert event.endswith("\n\n")
+
+    event = await anext(gen)
+    assert event.startswith("event: content_block_start")
+    assert "data: " in event
+    assert "tool_use" in event
+    assert "toolu_01T1x1fJ34qAmk2tNTrN7Up6" in event
+    assert "get_weather" in event
+    assert event.endswith("\n\n")
+
+    event = await anext(gen)
+    assert event.startswith("event: content_block_delta")
+    assert "data: " in event
+    assert "input_json_delta" in event
+    assert event.endswith("\n\n")
+
+    event = await anext(gen)
+    assert event.startswith("event: content_block_delta")
+    assert "data: " in event
+    assert "input_json_delta" in event
+    assert event.endswith("\n\n")
+
+    event = await anext(gen)
+    assert event.startswith("event: content_block_delta")
+    assert "data: " in event
+    assert "input_json_delta" in event
+    assert event.endswith("\n\n")
+
+    event = await anext(gen)
+    assert event.startswith("event: content_block_delta")
+    assert "data: " in event
+    assert "input_json_delta" in event
+    assert event.endswith("\n\n")
+
+    event = await anext(gen)
+    assert event.startswith("event: content_block_stop")
+    assert "data: " in event
+    assert event.endswith("\n\n")
+
+    event = await anext(gen)
+    assert event.startswith("event: message_delta")
+    assert "data: " in event
+    assert "tool_use" in event
+    assert event.endswith("\n\n")
+
+    event = await anext(gen)
+    assert event.startswith("event: message_stop")
+    assert "data: " in event
+    assert event.endswith("\n\n")
+
+
+@pytest.mark.asyncio
+async def test_stream_generator_payload_error():
+    async def _iterator():
+        yield "Ceci n'est pas une classe"
+
+    gen = stream_generator(_iterator())
+
+    event = await anext(gen)
+    assert event.startswith("event: error")
+
+
+@pytest.mark.asyncio
+async def test_stream_generator_generator_error():
+    async def _iterator():
+        raise ValueError("boom")
+
+    gen = stream_generator(_iterator())
+
+    event = await anext(gen)
+    assert event.startswith("event: error")
