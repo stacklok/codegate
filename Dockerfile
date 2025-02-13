@@ -10,15 +10,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
-RUN pip install poetry==2.0.0 && rm -rf /root/.cache/pip
+RUN pip install poetry==1.8.4 && rm -rf /root/.cache/pip
 
 # Set the working directory
 WORKDIR /app
-COPY pyproject.toml poetry.lock* README.md /app/
+COPY pyproject.toml poetry.lock* /app/
 
 # Configure Poetry and install dependencies
 RUN poetry config virtualenvs.create false && \
-    poetry install
+    poetry install --no-dev
 
 # Copy the rest of the application
 COPY . /app
