@@ -116,7 +116,7 @@ Message = Union[
 class ChatRequest(pydantic.BaseModel):
     model: str
     messages: List[Message]
-    stream: bool | None = False
+    stream: bool | None = True # see here https://github.com/ollama/ollama/blob/main/server/routes.go#L1529
     format: dict | None = None
     keep_alive: int | str | None = None
     tools: List[ToolDef] | None = None
@@ -182,7 +182,7 @@ class GenerateRequest(pydantic.BaseModel):
     system: str | None = None
     template: str | None = None
     context: List[int] | None = None
-    stream: bool | None = False
+    stream: bool | None = True # see here https://github.com/ollama/ollama/blob/main/server/routes.go#L339
     raw: bool | None = None
     format: dict | None = None
     keep_alive: int | str | None = None
