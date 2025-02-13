@@ -116,6 +116,23 @@ class CodeSnippet(BaseModel):
             self.file_extension = Path(self.filepath).suffix
         return self
 
+    def __hash__(self):
+        # Create a hashable representation using immutable fields
+        return hash(
+            (self.code, self.language, self.filepath, self.file_extension, tuple(self.libraries))
+        )
+
+    def __eq__(self, other):
+        if not isinstance(other, CodeSnippet):
+            return False
+        return (
+            self.code == other.code
+            and self.language == other.language
+            and self.filepath == other.filepath
+            and self.file_extension == other.file_extension
+            and self.libraries == other.libraries
+        )
+
 
 class CodeSnippetExtractor(ABC):
 
