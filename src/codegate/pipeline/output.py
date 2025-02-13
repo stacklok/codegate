@@ -114,7 +114,8 @@ class OutputPipelineInstance:
         streamed through the pipeline.
         """
         for content in chunk.get_content():
-            for text in content.get_text():
+            text = content.get_text()
+            if text:
                 self._context.processed_content.append(text)
 
     def _record_to_db(self) -> None:
