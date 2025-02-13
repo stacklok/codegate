@@ -96,11 +96,10 @@ class ToolUse(pydantic.BaseModel):
     name: str
     input: Dict
 
-    def get_text(self):
+    def get_text(self) -> str | None:
         return ""
 
     def set_text(self, text):
-        print(f"THIS IS WEIRD: {text}")
         pass
 
 
@@ -108,12 +107,11 @@ class InputJsonDelta(pydantic.BaseModel):
     type: Literal["input_json_delta"]
     partial_json: str
 
-    def get_text(self):
+    def get_text(self) -> str | None:
         return self.partial_json
 
     def set_text(self, text):
-        print(f"THIS IS WEIRD: {text}")
-        pass
+        self.partial_json = text
 
 
 ##### Streaming Messages: Content Blocks #####
