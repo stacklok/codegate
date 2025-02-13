@@ -19,7 +19,7 @@ LANGUAGE_TO_ECOSYSTEM = {
     "java": "maven",
     "rust": "crates",
 }
-
+IGNORE_PACKAGES = ["python", "filename", "go", "java", "rust"]
 
 class StorageEngine:
     __storage_engine = None
@@ -150,6 +150,10 @@ class StorageEngine:
                 ecosystem = LANGUAGE_TO_ECOSYSTEM[language]
 
             if packages and ecosystem and ecosystem in VALID_ECOSYSTEMS:
+                # ignore packages in IGNORE_PACKAGES, just return []
+                packages = [p for p in packages if p not in IGNORE_PACKAGES]
+                if len(packages) == 0:
+                    return []
                 placeholders = ",".join("?" * len(packages))
                 query_sql = f"""
                     SELECT name, type, status, description
