@@ -165,8 +165,15 @@ class PiiUnRedactionStep(OutputPipelineStep):
         if not input_context:
             return [chunk]
 
+        chunk_has_text = any(content.get_text() for content in chunk.get_content())
+        if not chunk_has_text:
+            return [chunk]
+
         for content in chunk.get_content():
             text = content.get_text()
+            if text is None or text == "":
+                # Nothing to do with this content item
+                continue
 
             # Add current chunk to buffer
             if context.prefix_buffer:
@@ -223,6 +230,8 @@ class PiiUnRedactionStep(OutputPipelineStep):
                 logger.debug(f"Final processed content: {final_content}")
                 content.set_text(final_content)
                 return [chunk]
+
+        # If we only have buffered content, return empty list
         return []
 
 
