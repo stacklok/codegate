@@ -40,8 +40,12 @@ class StreamingChatCompletion(pydantic.BaseModel):
     eval_count: int | None = None
     eval_duration: int | None = None
 
-    def get_content(self):
+    def get_content(self) -> Iterable[Message]:
         yield self.message
+
+    # This should be abstracted better in the output pipeline
+    def set_text(self, text) -> None:
+        self.message.set_text(text)
 
 
 class StreamingGenerateCompletion(pydantic.BaseModel):
