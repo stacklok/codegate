@@ -43,13 +43,13 @@ jobs:
         run: |
           git lfs install
           git lfs pull
-      - name: Test build on x86
+      - name: Test build on arm64 and amd64
         id: docker_build
         uses: docker/build-push-action@ca877d9245402d1537745e0e356eab47c3520991 # v5
         with:
           context: .
           file: ./Dockerfile
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           push: false # Only attempt to build, to verify the Dockerfile is working
           load: true
           cache-from: type=gha
