@@ -16,25 +16,12 @@ from requesters import RequesterFactory
 logger = structlog.get_logger("codegate")
 
 
-# call_directly is a function to call the model directly bypassing codegate
-def call_directly(url: str, headers: dict, data: dict) -> Optional[requests.Response]:
-    try:
-        headers["Content-Type"] = "application/json"
-        stream = data.get("stream", False)
-        response = requests.post(url, headers=headers, json=data, stream=stream)
-        response.raise_for_status()
-        return response
-    except Exception as e:
-        logger.error(f"Error making direct request to {url}: {str(e)}")
-        return None
-
-
 class CodegateTestRunner:
     def __init__(self):
         self.requester_factory = RequesterFactory()
         self.failed_tests = []  # Track failed tests
 
-    def call_codegate(
+    def call_provider(
         self, url: str, headers: dict, data: dict, provider: str, method: str = "POST"
     ) -> Optional[requests.Response]:
         logger.debug(f"Creating requester for provider: {provider}")
@@ -146,12 +133,13 @@ class CodegateTestRunner:
     async def run_test(self, test: dict, test_headers: dict) -> bool:
         test_name = test["name"]
         data = json.loads(test["data"])
+        codegate_url = test["url"]
         streaming = data.get("stream", False)
         provider = test["provider"]
         logger.info(f"Starting test: {test_name}")
 
         # Call Codegate
-        response = self.call_codegate(test["url"], test_headers, data, provider)
+        response = self.call_provider(codegate_url, test_headers, data, provider)
         if not response:
             logger.error(f"Test {test_name} failed: No response received")
             return False
@@ -159,8 +147,9 @@ class CodegateTestRunner:
         # Call model directly if specified
         direct_response = None
         if test.get(CodeGateEnrichment.KEY) is not None:
-            direct_response = call_directly(
-                test.get(CodeGateEnrichment.KEY)["provider_url"], test_headers, data
+            direct_provider_url = test.get(CodeGateEnrichment.KEY)["provider_url"]
+            direct_response = self.call_provider(
+                direct_provider_url, test_headers, data, "not-codegate"
             )
             if not direct_response:
                 logger.error(f"Test {test_name} failed: No direct response received")
@@ -412,6 +401,7 @@ async def main():
     # Exit with status code 1 if any tests failed
     if not all_tests_passed:
         sys.exit(1)
+    logger.info("All tests passed")
 
 
 if __name__ == "__main__":
