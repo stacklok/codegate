@@ -11,8 +11,11 @@ from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.fim_analyzer import FIMAnalyzer
 from codegate.providers.litellmshim import LiteLLmShim
-from codegate.providers.openai.adapter import OpenAIInputNormalizer, OpenAIOutputNormalizer
-from codegate.types.generators import sse_stream_generator
+from codegate.types.openai import (
+    completions_streaming,
+    stream_generator,
+    ChatCompletionRequest,
+)
 
 
 class OpenAIProvider(BaseProvider):
@@ -20,10 +23,18 @@ class OpenAIProvider(BaseProvider):
         self,
         pipeline_factory: PipelineFactory,
     ):
-        completion_handler = LiteLLmShim(stream_generator=sse_stream_generator)
+        if self._get_base_url() != "":
+            self.base_url = self._get_base_url()
+        else:
+            self.base_url = "https://api.openai.com/api/v1"
+
+        completion_handler = LiteLLmShim(
+            completion_func=completions_streaming,
+            stream_generator=stream_generator,
+        )
         super().__init__(
-            OpenAIInputNormalizer(),
-            OpenAIOutputNormalizer(),
+            None,
+            None,
             completion_handler,
             pipeline_factory,
         )
@@ -92,11 +103,11 @@ class OpenAIProvider(BaseProvider):
 
             api_key = authorization.split(" ")[1]
             body = await request.body()
-            data = json.loads(body)
-            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, data)
+            req = ChatCompletionRequest.model_validate_json(body)
+            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, req)
 
             return await self.process_request(
-                data,
+                req,
                 api_key,
                 is_fim_request,
                 request.state.detected_client,

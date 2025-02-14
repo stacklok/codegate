@@ -106,7 +106,7 @@ class AssistantMessage(pydantic.BaseModel):
 
     def get_text(self) -> Iterable[str]:
         if isinstance(self.content, str):
-            yield self.content
+            return self.content
 
     def set_text(self, text) -> None:
         if isinstance(self.content, str):
