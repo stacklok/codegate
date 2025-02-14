@@ -8,6 +8,10 @@ on:
         description: 'The name of the artifact to upload'
         required: true
         type: string
+      platform:
+        description: 'The platform to build the image for'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -22,6 +26,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - name: Set up QEMU for cross-platform builds
+        # Only set up QEMU if the platform is not linux/amd64
+        if: ${{ inputs.platform != 'linux/amd64' }}
+        uses: docker/setup-qemu-action@4574d27a4764455b42196d70a065bc6853246a25 # v3
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f7ce87c1d6bead3e36075b2ce75da1f6cc28aaca # v3
       - name: Download artifact
@@ -43,13 +51,13 @@ jobs:
         run: |
           git lfs install
           git lfs pull
-      - name: Test build on x86
+      - name: Test build - ${{ inputs.platform }}
         id: docker_build
         uses: docker/build-push-action@ca877d9245402d1537745e0e356eab47c3520991 # v5
         with:
           context: .
           file: ./Dockerfile
-          platforms: linux/amd64
+          platforms: ${{ inputs.platform }}
           push: false # Only attempt to build, to verify the Dockerfile is working
           load: true
           cache-from: type=gha
@@ -58,12 +66,16 @@ jobs:
             LATEST_RELEASE=${{ env.LATEST_RELEASE }}
           tags: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
       - name: Save Docker image as a tarball
+        # Only save the image if the build was for linux/amd64, as we only need it for the integration tests
+        if: ${{ inputs.platform == 'linux/amd64' }}
         run: |
           # List all images
           docker images
           # Save the image as a tarball
           docker save -o image.tar ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
       - name: Upload Docker image artifact
+        # Only upload the image if the build was for linux/amd64, as we only need it for the integration tests
+        if: ${{ inputs.platform == 'linux/amd64' }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4
         with:
           name: ${{ inputs.artifact-name }}
