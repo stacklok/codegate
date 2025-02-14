@@ -19,7 +19,7 @@ class OpenRouterProvider(OpenAIProvider):
         if self._get_base_url() != "":
             self.base_url = self._get_base_url()
         else:
-            self.base_url = "https://openrouter.ai/api/v1"
+            self.base_url = "https://openrouter.ai/api"
 
     @property
     def provider_route_name(self) -> str:
