@@ -42,13 +42,15 @@ async def stream_generator(
 async def chat_streaming(request, api_key, base_url):
     if base_url is None:
         base_url = "http://localhost:11434"
-    return streaming(request, api_key, f"{base_url}/api/chat", StreamingChatCompletion)
+    async for item in streaming(request, api_key, f"{base_url}/api/chat", StreamingChatCompletion):
+        yield item
 
 
 async def generate_streaming(request, api_key, base_url):
     if base_url is None:
         base_url = "http://localhost:11434"
-    return streaming(request, api_key, f"{base_url}/api/generate", StreamingGenerateCompletion)
+    async for item in streaming(request, api_key, f"{base_url}/api/generate", StreamingGenerateCompletion):
+        yield item
 
 
 async def streaming(request, api_key, url, cls):
@@ -90,7 +92,18 @@ async def get_data_lines(lines):
 async def message_wrapper(cls, lines):
     messages = get_data_lines(lines)
     async for payload in messages:
-        item = cls.model_validate_json(payload)
-        yield item
-        if item.done:
-            break
+        try:
+            item = cls.model_validate_json(payload)
+            yield item
+            if item.done:
+                break
+        except Exception as e:
+            logger.warn("HTTP error while consuming SSE stream", payload=payload, exc_info=e)
+            err = MessageError(
+                error=ErrorDetails(
+                    message=str(e),
+                    code=500,
+                ),
+            )
+            item = MessageError.model_validate_json(payload)
+            yield item
