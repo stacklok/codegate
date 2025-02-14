@@ -15,10 +15,21 @@ Role = Union[
     Literal["tool"],
 ]
 
+class ToolCallFunction(pydantic.BaseModel):
+    name: str
+    index: int | None = None
+    arguments: Any | None = None
+
+
+class ToolCall(pydantic.BaseModel):
+    function: ToolCallFunction
+
 
 class Message(pydantic.BaseModel):
     role: Role
     content: str
+    images: Iterable[bytes] | None = None
+    tool_calls: Iterable[ToolCall] | None = None
 
     def get_text(self):
         return self.content
