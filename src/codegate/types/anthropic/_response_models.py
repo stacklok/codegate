@@ -33,7 +33,7 @@ class ToolUseResponseContent(pydantic.BaseModel):
     name: str
 
     def get_text(self):
-        return iter(()) # empty generator
+        return None
 
     def set_text(self, text):
         pass
@@ -97,7 +97,7 @@ class ToolUse(pydantic.BaseModel):
     input: Dict
 
     def get_text(self) -> str | None:
-        return ""
+        return None
 
     def set_text(self, text):
         pass

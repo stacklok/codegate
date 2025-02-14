@@ -130,12 +130,10 @@ archived packages: {libobjects_text}\n"
         input_context: Optional[PipelineContext] = None,
     ) -> list[ModelResponse]:
         """Process a single chunk of the stream"""
-        # if len(chunk.choices) == 0 or not chunk.choices[0].delta.content:
-        #     return [chunk]
-
         for content in chunk.get_content():
             # Get current content plus this new chunk
-            current_content = "".join(context.processed_content + [txt for txt in content.get_text()])
+            text = content.get_text()
+            current_content = "".join(context.processed_content + [text if text else ""])
 
             # Extract snippets from current content
             snippets = self.extractor.extract_snippets(current_content)
