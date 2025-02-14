@@ -1,5 +1,5 @@
 # Builder stage: Install dependencies and build the application
-FROM python:3.12-slim AS builder
+FROM docker.io/library/python:3.12-slim@sha256:34656cd90456349040784165b9decccbcee4de66f3ead0a1168ba893455afd1e AS builder
 
 ARG CODEGATE_VERSION=dev
 
@@ -27,7 +27,7 @@ COPY . /app
 RUN sed -i "s/_VERSION =.*/_VERSION = \"${CODEGATE_VERSION}\"/g" /app/src/codegate/__init__.py
 
 # Build the webapp
-FROM node:23-slim AS webbuilder
+FROM docker.io/library/node:23-slim@sha256:f498ea1bec900d539ddba9ae881bf5f69d9052fdefc28e50479b85e284fac54c AS webbuilder
 
 
 
