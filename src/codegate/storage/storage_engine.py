@@ -185,7 +185,11 @@ class StorageEngine:
 
             elif query:
                 # Generate embedding for the query
-                query_vector = await self.inference_engine.embed(self.model_path, [query])
+                query_vector = await self.inference_engine.embed(
+                    self.model_path,
+                    [query],
+                    n_gpu_layers=Config.get_config().chat_model_n_gpu_layers,
+                )
                 query_embedding = np.array(query_vector[0], dtype=np.float32)
                 query_embedding_bytes = query_embedding.tobytes()
 

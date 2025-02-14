@@ -7,6 +7,7 @@ import sqlite3
 import numpy as np
 import sqlite_vec_sl_tmp
 
+from codegate.config import Config
 from codegate.inference.inference_engine import LlamaCppInferenceEngine
 from codegate.utils.utils import generate_vector_string
 
@@ -55,7 +56,9 @@ class PackageImporter:
 
     async def process_package(self, package):
         vector_str = generate_vector_string(package)
-        vector = await self.inference_engine.embed(self.model_path, [vector_str])
+        vector = await self.inference_engine.embed(
+            self.model_path, [vector_str], n_gpu_layers=Config.get_config().chat_model_n_gpu_layers
+        )
         vector_array = np.array(vector[0], dtype=np.float32)
 
         cursor = self.conn.cursor()

@@ -107,7 +107,9 @@ class SuspiciousCommandsTrainer(SuspiciousCommands):
             phrases (list of str): List of phrases to train on.
             labels (list of int): Corresponding labels for the phrases.
         """
-        embeds = await self.inference_engine.embed(self.model_path, phrases)
+        embeds = await self.inference_engine.embed(
+            self.model_path, phrases, n_gpu_layers=Config.get_config().chat_model_n_gpu_layers
+        )
         if isinstance(embeds[0], list):
             embedding_dim = len(embeds[0])
         else:

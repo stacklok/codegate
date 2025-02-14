@@ -80,7 +80,9 @@ class SuspiciousCommands:
         Returns:
             torch.Tensor: Tensor of embeddings.
         """
-        embeddings = await self.inference_engine.embed(self.model_path, phrases)
+        embeddings = await self.inference_engine.embed(
+            self.model_path, phrases, n_gpu_layers=Config.get_config().chat_model_n_gpu_layers
+        )
         return embeddings
 
     async def classify_phrase(self, phrase, embeddings=None):
