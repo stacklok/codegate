@@ -50,8 +50,8 @@ class LiteLLmShim(BaseCompletionHandler):
         Execute the completion request with LiteLLM's API
         """
         if is_fim_request:
-            return await self._fim_completion_func(request, api_key=api_key)
-        return await self._completion_func(request, api_key=api_key)
+            return self._fim_completion_func(request, api_key=api_key)
+        return self._completion_func(request, api_key=api_key)
 
     def _create_streaming_response(
         self,
