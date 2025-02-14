@@ -25,16 +25,15 @@ async def stream_generator(
         async for chunk in stream:
             try:
                 body = chunk.model_dump_json(exclude_none=True, exclude_unset=True)
+                data = f"{body}\n"
+
+                if os.getenv("CODEGATE_DEBUG_OLLAMA") is not None:
+                    print(data)
+
+                yield data
             except Exception as e:
                 logger.error("failed serializing payload", exc_info=e, provider="ollama")
                 yield f"{json.dumps({'error': str(e)})}\n"
-
-            data = f"{body}\n"
-
-            if os.getenv("CODEGATE_DEBUG_OLLAMA") is not None:
-                print(data)
-
-            yield data
     except Exception as e:
         logger.error("failed generating output payloads", exc_info=e, provider="ollama")
         yield f"{json.dumps({'error': str(e)})}\n"
@@ -69,8 +68,8 @@ async def streaming(request, api_key, url, cls):
                 async for message in message_wrapper(cls, resp.aiter_lines()):
                     yield message
             case 400 | 401 | 403 | 404 | 413 | 429:
-                logger.error(f"unexpected status code {resp.status_code}: {resp.text}", provider="ollama")
-                yield MessageError.model_validate_json(resp.text)
+                body = await resp.aread()
+                yield MessageError.model_validate_json(body)
             # case 500 | 529:
             #     yield MessageError.model_validate_json(resp.text)
             case _:
