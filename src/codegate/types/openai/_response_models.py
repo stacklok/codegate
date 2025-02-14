@@ -1,4 +1,5 @@
 from typing import (
+    Any,
     Iterable,
     List,
     Literal,
@@ -101,7 +102,7 @@ class Choice(pydantic.BaseModel):
     logprobs: LogProbs | None = None
 
     def get_text(self) -> str | None:
-        if self.message.content:
+        if self.message:
             return self.message.content
 
     def set_text(self, text) -> None:
@@ -123,8 +124,8 @@ class ChoiceDelta(pydantic.BaseModel):
     delta: MessageDelta
     logprobs: LogProbs | None = None
 
-    def get_text(self) -> Iterable[str]:
-        if self.delta.content:
+    def get_text(self) -> str | None:
+        if self.delta:
             return self.delta.content
 
     def set_text(self, text: str) -> None:
@@ -159,3 +160,28 @@ class StreamingChatCompletion(pydantic.BaseModel):
     def get_content(self) -> Iterable[ChoiceDelta]:
         for choice in self.choices:
             yield choice
+
+    def set_text(self, text) -> None:
+        if self.choices:
+            self.choices[0].set_text(text)
+
+
+class ErrorDetails(pydantic.BaseModel):
+    message: str
+    code: int | str | None
+
+    def get_text(self) -> str | None:
+        return self.message
+
+    def set_text(self, text) -> None:
+        self.message = text
+
+
+class MessageError(pydantic.BaseModel):
+    error: ErrorDetails
+
+    def get_content(self) -> Iterable[Any]:
+        yield self.error
+
+    def set_text(self, text) -> None:
+        self.error.message = text

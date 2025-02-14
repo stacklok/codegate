@@ -3,6 +3,7 @@ from litellm.types.llms.openai import ChatCompletionRequest
 
 from ._generators import (
     completions_streaming,
+    message_wrapper,
     stream_generator,
 )
 
@@ -12,11 +13,13 @@ from ._response_models import (
     Choice,
     ChoiceDelta,
     CompletionTokenDetails,
+    ErrorDetails,
     FunctionCall,
     LogProbs,
     LogProbsContent,
     Message,
     MessageDelta,
+    MessageError,
     PromptTokenDetails,
     RawLogProbsContent,
     StreamingChatCompletion,
