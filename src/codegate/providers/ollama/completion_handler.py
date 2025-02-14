@@ -79,10 +79,10 @@ class OllamaShim(BaseCompletionHandler):
     ) -> Union[ChatResponse, GenerateResponse]:
         """Stream response directly from Ollama API."""
         if isinstance(request, ChatCompletionRequest): # case for OpenAI-style requests
-            return await completions_streaming(request, api_key, base_url)
+            return completions_streaming(request, api_key, base_url)
         if is_fim_request:
-            return await generate_streaming(request, api_key, base_url)
-        return await chat_streaming(request, api_key, base_url)
+            return generate_streaming(request, api_key, base_url)
+        return chat_streaming(request, api_key, base_url)
 
     def _create_streaming_response(
         self,

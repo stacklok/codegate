@@ -11,7 +11,6 @@ from codegate.config import Config
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.fim_analyzer import FIMAnalyzer
-from codegate.providers.ollama.adapter import OllamaInputNormalizer, OllamaOutputNormalizer
 from codegate.providers.ollama.completion_handler import OllamaShim
 from codegate.types.openai import ChatCompletionRequest
 from codegate.types.ollama import ChatRequest, GenerateRequest
