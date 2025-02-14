@@ -50,7 +50,7 @@ async def stream_generator(stream: AsyncIterator[StreamingChatCompletion]) -> As
 async def completions_streaming(request, api_key, base_url):
     if base_url is None:
         base_url = "https://api.openai.com"
-    async for item in  streaming(request, api_key, f"{base_url}/chat/completions"):
+    async for item in  streaming(request, api_key, f"{base_url}/v1/chat/completions"):
         yield item
 
 
@@ -91,6 +91,8 @@ async def get_data_lines(lines):
     while True:
         # Get the `data: <type>` line.
         data_line = await anext(lines)
+        # Get the empty line.
+        _ = await anext(lines)
 
         # As per standard, we ignore comment lines
         # https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation
@@ -103,9 +105,6 @@ async def get_data_lines(lines):
             break
 
         yield data_line[6:]
-
-        # Get the empty line.
-        _ = await anext(lines)
     logger.debug(f"Consumed {count} messages", provider="openai", count=count)
 
 
@@ -116,6 +115,12 @@ async def message_wrapper(lines):
             item = StreamingChatCompletion.model_validate_json(payload)
             yield item
         except Exception as e:
-            logger.warn("HTTP error while consuming SSE stream", exc_info=e)
-            item = MessageError.model_validate_json(payload)
-            yield item
+            print(f"WAAAGH {payload}")
+            logger.warn("HTTP error while consuming SSE stream", payload=payload, exc_info=e)
+            err = MessageError(
+                error=ErrorDetails(
+                    message=str(e),
+                    code=500,
+                ),
+            )
+            yield err
