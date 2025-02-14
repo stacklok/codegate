@@ -56,7 +56,7 @@ async def test_complete_non_streaming():
     }
 
     # Execute
-    result = await litellm_shim.execute_completion(data, api_key=None)
+    result = await litellm_shim.execute_completion(data, base_url=None, api_key=None)
 
     # Verify
     assert result == mock_response
@@ -86,7 +86,7 @@ async def test_complete_streaming():
 
     # Execute
     result_stream = await litellm_shim.execute_completion(
-        ChatCompletionRequest(**data), api_key=None
+        ChatCompletionRequest(**data), base_url=None, api_key=None
     )
 
     # Verify stream contents and adapter processing

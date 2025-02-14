@@ -104,7 +104,7 @@
     - Page Access Token: (?i)(EAAG[0-9A-Za-z]{10,128})
     - Facebook Access Token: EAACEdEose0cBA[0-9A-Za-z]+
     - Facebook Client ID: (?i)(facebook|fb)(.{0,20})?['\"][0-9]{13,17}
-    - Facebook Secret Key: (?i)(facebook|fb)(.{0,20})?(?-i)['\"][0-9a-f]{32}
+    - Facebook Secret Key: (?i)(facebook|fb)(.{0,20})?['\"][0-9a-fA-F]{32}
     #- Client Token: (?i)fb[a-zA-Z0-9]{24,32}
     - Instagram Access Token: (?i)(IGQV[0-9A-Za-z-_]{10,255})
     - Instagram App Secret: (?i)(ig_[a-f0-9]{32})
@@ -281,7 +281,8 @@
     - Bitcoin SegWit: \b(bc1)[a-zA-HJ-NP-Z0-9]{39,59}\b
     - Ethereum: \b0x[a-fA-F0-9]{40}\b
     - Litecoin: \b(L|M)[a-km-zA-HJ-NP-Z1-9]{26,33}\b
-    - Dogecoin: \b(D|A)[a-km-zA-HJ-NP-Z1-9]{25,34}\b
+    # Has a very general pattern, may cause false positives
+    # - Dogecoin: \b(D|A)[a-km-zA-HJ-NP-Z1-9]{25,34}\b
     - Ripple: \br[rK][a-zA-Z0-9]{25,35}\b
     - Monero: \b4[0-9AB][1-9A-HJ-NP-Za-km-z]{93}\b
     - Tron: \bT[a-zA-HJ-NP-Z0-9]{33}\b

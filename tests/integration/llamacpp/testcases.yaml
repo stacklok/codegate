@@ -2,6 +2,30 @@ headers:
   llamacpp:
     Content-Type: application/json
 
+muxing:
+  mux_url: http://127.0.0.1:8989/v1/mux/
+  trimm_from_testcase_url: http://127.0.0.1:8989/llamacpp/
+  provider_endpoint:
+    url: http://127.0.0.1:8989/api/v1/provider-endpoints
+    headers:
+      Content-Type: application/json
+    data: |
+      {
+        "name": "llamacpp_muxing",
+        "description": "Muxing testing endpoint",
+        "provider_type": "llamacpp",
+        "endpoint": "./codegate_volume/models",
+        "auth_type": "none"
+      }
+  muxes:
+    url: http://127.0.0.1:8989/api/v1/workspaces/default/muxes
+    headers:
+      Content-Type: application/json
+    rules:
+      - model: qwen2.5-coder-0.5b-instruct-q5_k_m
+        matcher_type: catch_all
+        matcher: ""
+
 testcases:
   llamacpp_chat:
     name: LlamaCPP Chat

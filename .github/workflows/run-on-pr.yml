@@ -14,10 +14,17 @@ jobs:
     name: Build, Test & Lint
     uses: ./.github/workflows/ci.yml
   image-build:
-    name: OCI Image - Build
+    name: OCI Image - Build x86
     uses: ./.github/workflows/image-build.yml
     with:
       artifact-name: "codegate-image"
+      platform: "linux/amd64"
+  image-build-arm64:
+    name: OCI Image - Build ARM64
+    uses: ./.github/workflows/image-build.yml
+    with:
+      artifact-name: "codegate-image"
+      platform: "linux/arm64"
   integration-tests:
     if: github.event.pull_request.head.repo.full_name == 'stacklok/codegate'
     name: Integration Tests
@@ -28,3 +35,4 @@ jobs:
     secrets:
       copilot-key: ${{ secrets.INTEGRATION_TESTS_COPILOT_KEY }}
       anthropic-key: ${{ secrets.INTEGRATION_TESTS_ANTHROPIC_KEY }}
+      openrouter-key: ${{ secrets.INTEGRATION_TESTS_OPENROUTER_KEY }}

@@ -3,17 +3,16 @@ name: Sync vector DB
 
 on:
   workflow_dispatch:
-    inputs:    
-      enable_artifact_download:
-        description: 'Enable artifact download step'
-        type: boolean
-        required: false
-        default: true
+
 jobs:
-  # This workflow contains a single job called "greet"
   sync_db:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: us-east-1
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
@@ -31,32 +30,34 @@ jobs:
           git lfs install
           git lfs pull
 
-    - name: Download json data
-      id: download-json-data
-      uses: dawidd6/action-download-artifact@20319c5641d495c8a52e688b7dc5fada6c3a9fbc # v8
+    - name: Configure AWS Credentials for S3
+      uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
       with:
-        repo: stacklok/codegate-data
-        workflow: ".github/workflows/generate-artifact.yml"
-        workflow_conclusion: success
-        name: jsonl-files
-        path: /tmp/
-        name_is_regexp: true
-        skip_unpack: false
-        if_no_artifact_found: ignore          
+        role-to-assume: ${{ secrets.AWS_ROLE_INSIGHT_DATA_IMPORT }}
+        aws-region: ${{ env.AWS_REGION }}
 
-    - name: Download artifact
-      if: ${{ github.event.inputs.enable_artifact_download == 'true' }}    
-      id: download-artifact
-      uses: dawidd6/action-download-artifact@20319c5641d495c8a52e688b7dc5fada6c3a9fbc # v8
-      with:
-        github_token: ${{ github.token }}
-        workflow: ".github/workflows/import_packages.yml"
-        workflow_conclusion: success
-        name: sqlite_data
-        path: /tmp/
-        name_is_regexp: true
-        skip_unpack: false
-        if_no_artifact_found: ignore      
+    - name: Download JSONL files from S3
+      run: |
+        echo "Downloading manifest.json from S3..."
+        aws s3 cp s3://codegate-data-prod/manifest.json ./manifest.json --region $AWS_REGION
+        echo "Manifest content:"
+        cat manifest.json
+
+        echo "Parsing manifest..."
+        MALICIOUS_KEY=$(jq -r '.latest.malicious_packages' manifest.json)
+        DEPRECATED_KEY=$(jq -r '.latest.deprecated_packages' manifest.json)
+        ARCHIVED_KEY=$(jq -r '.latest.archived_packages' manifest.json)
+        
+        echo "Malicious key: $MALICIOUS_KEY"
+        echo "Deprecated key: $DEPRECATED_KEY"
+        echo "Archived key: $ARCHIVED_KEY"
+
+        mkdir -p /tmp/jsonl-files
+        
+        # Download and map the S3 files to fixed names in /tmp/jsonl-files
+        aws s3 cp s3://codegate-data-prod/$MALICIOUS_KEY /tmp/jsonl-files/malicious.jsonl --region $AWS_REGION
+        aws s3 cp s3://codegate-data-prod/$DEPRECATED_KEY /tmp/jsonl-files/deprecated.jsonl --region $AWS_REGION
+        aws s3 cp s3://codegate-data-prod/$ARCHIVED_KEY /tmp/jsonl-files/archived.jsonl --region $AWS_REGION
 
     - name: Install Poetry
       run: |

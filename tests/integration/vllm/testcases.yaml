@@ -2,11 +2,38 @@ headers:
   vllm:
     Content-Type: application/json
 
+muxing:
+  mux_url: http://127.0.0.1:8989/v1/mux/
+  trimm_from_testcase_url: http://127.0.0.1:8989/vllm/
+  provider_endpoint:
+    url: http://127.0.0.1:8989/api/v1/provider-endpoints
+    headers:
+      Content-Type: application/json
+    data: |
+      {
+        "name": "vllm_muxing",
+        "description": "Muxing testing endpoint",
+        "provider_type": "vllm",
+        "endpoint": "http://127.0.0.1:8000",
+        "auth_type": "none"
+      }
+  muxes:
+    url: http://127.0.0.1:8989/api/v1/workspaces/default/muxes
+    headers:
+      Content-Type: application/json
+    rules:
+      - model: Qwen/Qwen2.5-Coder-0.5B-Instruct
+        matcher_type: catch_all
+        matcher: ""
+
 testcases:
   vllm_chat:
     name: VLLM Chat
     provider: vllm
     url: http://127.0.0.1:8989/vllm/chat/completions
+    codegate_enrichment:
+      provider_url: http://127.0.0.1:8000/v1/chat/completions
+      expect_difference: false
     data: |
       {
         "max_tokens":4096,
@@ -31,6 +58,10 @@ testcases:
     name: VLLM FIM
     provider: vllm
     url: http://127.0.0.1:8989/vllm/completions
+# This is commented out for now as there's some issue with parsing the streamed response from the model (on the vllm side, not codegate)
+#    codegate_enrichment:
+#      provider_url: http://127.0.0.1:8000/v1/completions
+#      expect_difference: false
     data: |
       {
         "model": "Qwen/Qwen2.5-Coder-0.5B-Instruct",
@@ -60,6 +91,9 @@ testcases:
     name: VLLM Malicious Package
     provider: vllm
     url: http://127.0.0.1:8989/vllm/chat/completions
+    codegate_enrichment:
+      provider_url: http://127.0.0.1:8000/v1/chat/completions
+      expect_difference: true
     data: |
       {
         "max_tokens":4096,

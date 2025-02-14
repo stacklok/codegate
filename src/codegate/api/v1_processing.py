@@ -62,7 +62,7 @@ async def _is_system_prompt(message: str) -> bool:
     return False
 
 
-async def parse_request(request_str: str) -> Tuple[Optional[List[str]], str]:
+async def parse_request(request_str: str) -> Tuple[Optional[List[str]], str]:  # noqa: C901
     """
     Parse the request string from the pipeline and return the message and the model.
     """
@@ -105,7 +105,7 @@ async def parse_request(request_str: str) -> Tuple[Optional[List[str]], str]:
     return messages, model
 
 
-async def parse_output(output_str: str) -> Optional[str]:
+async def parse_output(output_str: str) -> Optional[str]:  # noqa: C901
     """
     Parse the output string from the pipeline and return the message.
     """
@@ -392,7 +392,8 @@ async def match_conversations(
                 qa = _get_question_answer_from_partial(selected_partial_qa)
                 qa.question.message = parse_question_answer(qa.question.message)
                 questions_answers.append(qa)
-                alerts.extend(selected_partial_qa.alerts)
+                deduped_alerts = await remove_duplicate_alerts(selected_partial_qa.alerts)
+                alerts.extend(deduped_alerts)
                 token_usage_agg.add_model_token_usage(selected_partial_qa.model_token_usage)
 
         # only add conversation if we have some answers
@@ -480,10 +481,11 @@ async def parse_get_alert_conversation(
     The rows contain the raw request and output strings from the pipeline.
     """
     _, map_q_id_to_conversation = await parse_messages_in_conversations(prompts_outputs)
+    dedup_alerts = await remove_duplicate_alerts(alerts)
     async with asyncio.TaskGroup() as tg:
         tasks = [
             tg.create_task(parse_row_alert_conversation(row, map_q_id_to_conversation))
-            for row in alerts
+            for row in dedup_alerts
         ]
     return [task.result() for task in tasks if task.result() is not None]
 
@@ -499,3 +501,37 @@ async def parse_workspace_token_usage(
     for p_qa in partial_question_answers:
         token_usage_agg.add_model_token_usage(p_qa.model_token_usage)
     return token_usage_agg
+
+
+async def remove_duplicate_alerts(alerts: List[v1_models.Alert]) -> List[v1_models.Alert]:
+    unique_alerts = []
+    seen = defaultdict(list)
+
+    for alert in sorted(
+        alerts, key=lambda x: x.timestamp, reverse=True
+    ):  # Sort alerts by timestamp descending
+        if alert.trigger_type != "codegate-secrets":
+            unique_alerts.append(alert)
+            continue
+
+        # Extract trigger string content until "Context"
+        trigger_string_content = alert.trigger_string.split("Context")[0]
+
+        key = (
+            alert.code_snippet,
+            alert.trigger_type,
+            alert.trigger_category,
+            trigger_string_content,
+        )
+
+        # If key exists and new alert is more recent, replace it
+        if key in seen:
+            existing_alert = seen[key]
+            if abs((alert.timestamp - existing_alert.timestamp).total_seconds()) < 5:
+                seen[key] = alert  # Replace with newer alert
+                continue
+
+        seen[key] = alert
+        unique_alerts.append(alert)
+
+    return list(seen.values())

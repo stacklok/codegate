@@ -7,6 +7,7 @@ from codegate.extract_snippets.message_extractor import (
     ClineCodeSnippetExtractor,
     CodeSnippet,
     DefaultCodeSnippetExtractor,
+    KoduCodeSnippetExtractor,
     OpenInterpreterCodeSnippetExtractor,
 )
 
@@ -710,6 +711,59 @@ return Response(status_code=204)\n\n\n@v1.get("/alerts_notification", tags=["Das
 )
 def test_extract_openinterpreter_snippets(test_case: CodeSnippetTest):
     extractor = OpenInterpreterCodeSnippetExtractor()
+    snippets = extractor.extract_snippets(test_case.input_message, require_filepath=True)
+    _evaluate_actual_snippets(snippets, test_case)
+
+
+@pytest.mark.parametrize(
+    "test_case",
+    [
+        # Analyze processed snippets from OpenInterpreter
+        CodeSnippetTest(
+            input_message="""
+Here is our task for this conversation, you must remember it all time unless i tell you otherwise.
+<task>
+please analyze
+	<additional-context>
+	- Super critical information, the files attached here are part of the task and need to be
+	- The URLs attached here need to be scrapped and the information should be used for the
+	- The files passed in context are provided to help you understand the task better, the
+	<files count="1"><file path="testing_file.py">import invokehttp
+import fastapi
+from fastapi import FastAPI, Request, Response, HTTPException
+import numpy
+
+GITHUB_TOKEN="ghp_1J9Z3Z2dfg4dfs23dsfsdf232aadfasdfasfasdf32"
+
+def add(a, b):
+     return a + b
+
+def multiply(a, b):
+     return a * b
+
+
+
+def substract(a, b):
+     </file></files>
+	<urls></urls>
+	</additional-context>
+
+</task>
+            """,
+            expected_count=1,
+            expected=[
+                CodeSnippet(
+                    language="python",
+                    filepath="testing_file.py",
+                    code="def multiply(a, b):",
+                    file_extension=".py",
+                ),
+            ],
+        ),
+    ],
+)
+def test_extract_kodu_snippets(test_case: CodeSnippetTest):
+    extractor = KoduCodeSnippetExtractor()
     snippets = extractor.extract_snippets(test_case.input_message, require_filepath=True)
     _evaluate_actual_snippets(snippets, test_case)
 

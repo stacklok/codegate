@@ -69,6 +69,13 @@ OPEN_INTERPRETER_Y_CONTENT_PATTERN = re.compile(
     re.DOTALL,
 )
 
+KODU_CONTENT_PATTERN = re.compile(
+    r"<file\s+path=\"(?P<filename>[^\n>]+)\">"  # Match the opening tag with path attribute
+    r"(?P<content>.*?)"  # Match the content (non-greedy)
+    r"</file>",  # Match the closing tag
+    re.DOTALL,
+)
+
 
 class MatchedPatternSnippet(BaseModel):
     """
@@ -109,6 +116,23 @@ class CodeSnippet(BaseModel):
             self.file_extension = Path(self.filepath).suffix
         return self
 
+    def __hash__(self):
+        # Create a hashable representation using immutable fields
+        return hash(
+            (self.code, self.language, self.filepath, self.file_extension, tuple(self.libraries))
+        )
+
+    def __eq__(self, other):
+        if not isinstance(other, CodeSnippet):
+            return False
+        return (
+            self.code == other.code
+            and self.language == other.language
+            and self.filepath == other.filepath
+            and self.file_extension == other.file_extension
+            and self.libraries == other.libraries
+        )
+
 
 class CodeSnippetExtractor(ABC):
 
@@ -131,7 +155,16 @@ class CodeSnippetExtractor(ABC):
             "rs": "rust",
             "java": "java",
         }
-        self._available_languages = ["python", "javascript", "typescript", "go", "rust", "java"]
+        self._available_languages = [
+            "sh",
+            "bash",
+            "python",
+            "javascript",
+            "typescript",
+            "go",
+            "rust",
+            "java",
+        ]  # noqa: E501
 
     @property
     @abstractmethod
@@ -187,7 +220,7 @@ class CodeSnippetExtractor(ABC):
         Returns:
             Determined language based on message content
         """
-        return self._language_mapping.get(message, None)
+        return self._language_mapping.get(message, message)
 
     def _get_snippet_for_match(self, match: re.Match) -> CodeSnippet:
         matched_snippet = self._get_match_pattern_snippet(match)
@@ -336,6 +369,24 @@ class OpenInterpreterCodeSnippetExtractor(CodeSnippetExtractor):
     @property
     def codeblock_with_filename_pattern(self) -> re.Pattern:
         return [OPEN_INTERPRETER_CONTENT_PATTERN, OPEN_INTERPRETER_Y_CONTENT_PATTERN]
+
+    def _get_match_pattern_snippet(self, match: re.Match) -> MatchedPatternSnippet:
+        # We don't have language in the cline pattern
+        matched_language = None
+        filename = match.group("filename")
+        content = match.group("content")
+        return MatchedPatternSnippet(language=matched_language, filename=filename, content=content)
+
+
+class KoduCodeSnippetExtractor(CodeSnippetExtractor):
+
+    @property
+    def codeblock_pattern(self) -> re.Pattern:
+        return [KODU_CONTENT_PATTERN]
+
+    @property
+    def codeblock_with_filename_pattern(self) -> re.Pattern:
+        return [KODU_CONTENT_PATTERN]
 
     def _get_match_pattern_snippet(self, match: re.Match) -> MatchedPatternSnippet:
         # We don't have language in the cline pattern

@@ -11,33 +11,43 @@ logger = structlog.get_logger("codegate")
 
 class BaseRequester(ABC):
     @abstractmethod
-    def make_request(self, url: str, headers: dict, data: dict) -> Optional[requests.Response]:
+    def make_request(
+        self, url: str, headers: dict, data: dict, method: str = "POST"
+    ) -> Optional[requests.Response]:
         pass
 
 
 class StandardRequester(BaseRequester):
-    def make_request(self, url: str, headers: dict, data: dict) -> Optional[requests.Response]:
+    def make_request(
+        self, url: str, headers: dict, data: dict, method: str = "POST"
+    ) -> Optional[requests.Response]:
         # Ensure Content-Type is always set correctly
         headers["Content-Type"] = "application/json"
 
         # Explicitly serialize to JSON string
         json_data = json.dumps(data)
 
-        return requests.post(
-            url, headers=headers, data=json_data  # Use data instead of json parameter
+        return requests.request(
+            method=method,
+            url=url,
+            headers=headers,
+            data=json_data,  # Use data instead of json parameter
         )
 
 
 class CopilotRequester(BaseRequester):
-    def make_request(self, url: str, headers: dict, data: dict) -> Optional[requests.Response]:
+    def make_request(
+        self, url: str, headers: dict, data: dict, method: str = "POST"
+    ) -> Optional[requests.Response]:
         # Ensure Content-Type is always set correctly
         headers["Content-Type"] = "application/json"
 
         # Explicitly serialize to JSON string
         json_data = json.dumps(data)
 
-        return requests.post(
-            url,
+        return requests.request(
+            method=method,
+            url=url,
             data=json_data,  # Use data instead of json parameter
             headers=headers,
             proxies={"https": "https://localhost:8990", "http": "http://localhost:8990"},

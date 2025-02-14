@@ -20,6 +20,12 @@ class CompletionNormalizer(ModelInputNormalizer):
             data["messages"] = [{"content": data.pop("prompt"), "role": "user"}]
             # We can add as many parameters as we like to data. ChatCompletionRequest is not strict.
             data["had_prompt_before"] = True
+
+        # Litelllm says the we need to have max a list of length 4 in stop. Forcing it.
+        stop_list = data.get("stop", [])
+        trimmed_stop_list = stop_list[:4]
+        data["stop"] = trimmed_stop_list
+
         try:
             normalized_data = ChatCompletionRequest(**data)
             if normalized_data.get("stream", False):

@@ -1,14 +1,15 @@
 import asyncio
+import copy
 import json
 import os
 import re
 import sys
-from typing import Optional
+from typing import Any, Dict, Optional, Tuple
 
 import requests
 import structlog
 import yaml
-from checks import CheckLoader
+from checks import CheckLoader, CodeGateEnrichment
 from dotenv import find_dotenv, load_dotenv
 from requesters import RequesterFactory
 
@@ -20,8 +21,8 @@ class CodegateTestRunner:
         self.requester_factory = RequesterFactory()
         self.failed_tests = []  # Track failed tests
 
-    def call_codegate(
-        self, url: str, headers: dict, data: dict, provider: str
+    def call_provider(
+        self, url: str, headers: dict, data: dict, provider: str, method: str = "POST"
     ) -> Optional[requests.Response]:
         logger.debug(f"Creating requester for provider: {provider}")
         requester = self.requester_factory.create_requester(provider)
@@ -31,12 +32,12 @@ class CodegateTestRunner:
         logger.debug(f"Headers: {headers}")
         logger.debug(f"Data: {data}")
 
-        response = requester.make_request(url, headers, data)
+        response = requester.make_request(url, headers, data, method=method)
 
         # Enhanced response logging
         if response is not None:
 
-            if response.status_code != 200:
+            if response.status_code not in [200, 201, 204]:
                 logger.debug(f"Response error status: {response.status_code}")
                 logger.debug(f"Response error headers: {dict(response.headers)}")
                 try:
@@ -131,15 +132,28 @@ class CodegateTestRunner:
 
     async def run_test(self, test: dict, test_headers: dict) -> bool:
         test_name = test["name"]
-        url = test["url"]
         data = json.loads(test["data"])
+        codegate_url = test["url"]
         streaming = data.get("stream", False)
         provider = test["provider"]
+        logger.info(f"Starting test: {test_name}")
 
-        response = self.call_codegate(url, test_headers, data, provider)
+        # Call Codegate
+        response = self.call_provider(codegate_url, test_headers, data, provider)
         if not response:
             logger.error(f"Test {test_name} failed: No response received")
             return False
+
+        # Call model directly if specified
+        direct_response = None
+        if test.get(CodeGateEnrichment.KEY) is not None:
+            direct_provider_url = test.get(CodeGateEnrichment.KEY)["provider_url"]
+            direct_response = self.call_provider(
+                direct_provider_url, test_headers, data, "not-codegate"
+            )
+            if not direct_response:
+                logger.error(f"Test {test_name} failed: No direct response received")
+                return False
 
         # Debug response info
         logger.debug(f"Response status: {response.status_code}")
@@ -149,13 +163,24 @@ class CodegateTestRunner:
             parsed_response = self.parse_response_message(response, streaming=streaming)
             logger.debug(f"Response message: {parsed_response}")
 
+            if direct_response:
+                # Dirty hack to pass direct response to checks
+                test["direct_response"] = self.parse_response_message(
+                    direct_response, streaming=streaming
+                )
+                logger.debug(f"Direct response message: {test['direct_response']}")
+
             # Load appropriate checks for this test
             checks = CheckLoader.load(test)
 
             # Run all checks
             all_passed = True
             for check in checks:
+                logger.info(f"Running check: {check.__class__.__name__}")
                 passed_check = await check.run_check(parsed_response, test)
+                logger.info(
+                    f"Check {check.__class__.__name__} {'passed' if passed_check else 'failed'}"
+                )
                 if not passed_check:
                     all_passed = False
 
@@ -170,54 +195,134 @@ class CodegateTestRunner:
             self.failed_tests.append(test_name)
             return False
 
-    async def run_tests(
-        self,
-        testcases_file: str,
-        providers: Optional[list[str]] = None,
-        test_names: Optional[list[str]] = None,
-    ) -> bool:
-        with open(testcases_file, "r") as f:
-            tests = yaml.safe_load(f)
+    async def _get_testcases(
+        self, testcases_dict: Dict, test_names: Optional[list[str]] = None
+    ) -> Dict[str, Dict[str, str]]:
+        testcases: Dict[str, Dict[str, str]] = testcases_dict["testcases"]
 
-        headers = tests["headers"]
-        testcases = tests["testcases"]
-
-        if providers or test_names:
+        # Filter testcases by provider and test names
+        if test_names:
             filtered_testcases = {}
 
+            # Iterate over the original testcases and only keep the ones that match the
+            # specified test names
             for test_id, test_data in testcases.items():
-                if providers:
-                    if test_data.get("provider", "").lower() not in [p.lower() for p in providers]:
-                        continue
-
-                if test_names:
-                    if test_data.get("name", "").lower() not in [t.lower() for t in test_names]:
-                        continue
+                if test_data.get("name", "").lower() not in [t.lower() for t in test_names]:
+                    continue
 
                 filtered_testcases[test_id] = test_data
 
             testcases = filtered_testcases
+        return testcases
 
-            if not testcases:
-                filter_msg = []
-                if providers:
-                    filter_msg.append(f"providers: {', '.join(providers)}")
-                if test_names:
-                    filter_msg.append(f"test names: {', '.join(test_names)}")
-                logger.warning(f"No tests found for {' and '.join(filter_msg)}")
-                return True  # No tests is not a failure
+    async def _setup_muxing(
+        self, provider: str, muxing_config: Optional[Dict]
+    ) -> Optional[Tuple[str, str]]:
+        """
+        Muxing setup. Create the provider endpoints and the muxing rules
+
+        Return
+        """
+        # The muxing section was not found in the testcases.yaml file. Nothing to do.
+        if not muxing_config:
+            return
+
+        # Create the provider endpoint
+        provider_endpoint = muxing_config.get("provider_endpoint")
+        try:
+            data_with_api_keys = self.replace_env_variables(provider_endpoint["data"], os.environ)
+            response_create_provider = self.call_codegate(
+                provider=provider,
+                url=provider_endpoint["url"],
+                headers=provider_endpoint["headers"],
+                data=json.loads(data_with_api_keys),
+            )
+            created_provider_endpoint = response_create_provider.json()
+        except Exception as e:
+            logger.warning(f"Could not setup provider endpoint for muxing: {e}")
+            return
+        logger.info("Created provider endpoint for muixing")
+
+        muxes_rules: Dict[str, Any] = muxing_config.get("muxes", {})
+        try:
+            # We need to first update all the muxes with the provider_id
+            for mux in muxes_rules.get("rules", []):
+                mux["provider_id"] = created_provider_endpoint["id"]
+
+            # The endpoint actually takes a list
+            self.call_codegate(
+                provider=provider,
+                url=muxes_rules["url"],
+                headers=muxes_rules["headers"],
+                data=muxes_rules.get("rules", []),
+                method="PUT",
+            )
+        except Exception as e:
+            logger.warning(f"Could not setup muxing rules: {e}")
+            return
+        logger.info("Created muxing rules")
+
+        return muxing_config["mux_url"], muxing_config["trimm_from_testcase_url"]
+
+    async def _augment_testcases_with_muxing(
+        self, testcases: Dict, mux_url: str, trimm_from_testcase_url: str
+    ) -> Dict:
+        """
+        Augment the testcases with the muxing information. Copy the testcases
+        and execute them through the muxing endpoint.
+        """
+        test_cases_with_muxing = copy.deepcopy(testcases)
+        for test_id, test_data in testcases.items():
+            # Replace the provider in the URL with the muxed URL
+            rest_of_path = test_data["url"].replace(trimm_from_testcase_url, "")
+            new_url = f"{mux_url}{rest_of_path}"
+            new_test_data = copy.deepcopy(test_data)
+            new_test_data["url"] = new_url
+            new_test_id = f"{test_id}_muxed"
+            test_cases_with_muxing[new_test_id] = new_test_data
+
+        logger.info("Augmented testcases with muxing")
+        return test_cases_with_muxing
+
+    async def _setup(
+        self, testcases_file: str, provider: str, test_names: Optional[list[str]] = None
+    ) -> Tuple[Dict, Dict]:
+        with open(testcases_file, "r") as f:
+            testcases_dict: Dict = yaml.safe_load(f)
+
+        headers = testcases_dict["headers"]
+        testcases = await self._get_testcases(testcases_dict, test_names)
+        muxing_result = await self._setup_muxing(provider, testcases_dict.get("muxing", {}))
+        # We don't have any muxing setup, return the headers and testcases
+        if not muxing_result:
+            return headers, testcases
+
+        mux_url, trimm_from_testcase_url = muxing_result
+        test_cases_with_muxing = await self._augment_testcases_with_muxing(
+            testcases, mux_url, trimm_from_testcase_url
+        )
+
+        return headers, test_cases_with_muxing
+
+    async def run_tests(
+        self,
+        testcases_file: str,
+        provider: str,
+        test_names: Optional[list[str]] = None,
+    ) -> bool:
+        headers, testcases = await self._setup(testcases_file, provider, test_names)
+        if not testcases:
+            logger.warning(
+                f"No tests found for provider {provider} in file: {testcases_file} "
+                f"and specific testcases: {test_names}"
+            )
+            return True  # No tests is not a failure
 
         test_count = len(testcases)
-        filter_msg = []
-        if providers:
-            filter_msg.append(f"providers: {', '.join(providers)}")
+        logging_msg = f"Running {test_count} tests for provider {provider}"
         if test_names:
-            filter_msg.append(f"test names: {', '.join(test_names)}")
-
-        logger.info(
-            f"Running {test_count} tests"
-            + (f" for {' and '.join(filter_msg)}" if filter_msg else "")
-        )
+            logging_msg += f" and test names: {', '.join(test_names)}"
+        logger.info(logging_msg)
 
         all_tests_passed = True
         for test_id, test_data in testcases.items():
@@ -283,10 +388,12 @@ async def main():
             logger.warning(f"No testcases.yaml found for provider {provider}")
             continue
 
+        # Run tests for the provider. The provider has already been selected when
+        # reading the testcases.yaml file.
         logger.info(f"Running tests for provider: {provider}")
         provider_tests_passed = await test_runner.run_tests(
             provider_test_file,
-            providers=[provider],  # Only run tests for current provider
+            provider=provider,
             test_names=test_names,
         )
         all_tests_passed = all_tests_passed and provider_tests_passed
@@ -294,6 +401,7 @@ async def main():
     # Exit with status code 1 if any tests failed
     if not all_tests_passed:
         sys.exit(1)
+    logger.info("All tests passed")
 
 
 if __name__ == "__main__":
