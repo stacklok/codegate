@@ -66,13 +66,6 @@ async def stream_generator(stream: AsyncIterator[Any]) -> AsyncIterator[str]:
 
 
 async def acompletion(request, api_key):
-    return _inner(request, api_key)
-
-
-# This function is here only to prevent more changes in the callers,
-# but it's totally redundant. We should try to get rid of this wrapper
-# eventually.
-async def _inner(request, api_key):
     headers = {
         "anthropic-version": "2023-06-01",
         "x-api-key": api_key,
