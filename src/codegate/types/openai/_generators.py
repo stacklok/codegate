@@ -7,6 +7,8 @@ import httpx
 import structlog
 
 from ._response_models import (
+    ErrorDetails,
+    MessageError,
     StreamingChatCompletion,
 )
 
@@ -31,36 +33,52 @@ async def stream_generator(stream: AsyncIterator[StreamingChatCompletion]) -> As
                 yield f"data: {str(e)}\n\n"
     except Exception as e:
         logger.error("failed generating output payloads", exc_info=e)
-        yield f"data: {str(e)}\n\n"
+        err = MessageError(
+            error=ErrorDetails(
+                message=str(e),
+                code=500,
+            ),
+        )
+        data = err.model_dump_json(exclude_none=True, exclude_unset=True)
+        yield f"data: {data}\n\n"
     finally:
+        # Note: I'm not sure this is sent when an error is triggered
+        # during SSE processing.
         yield "data: [DONE]\n\n"
 
 
 async def completions_streaming(request, api_key, base_url):
     if base_url is None:
         base_url = "https://api.openai.com"
-    return streaming(request, api_key, f"{base_url}/v1/chat/completions")
+    async for item in  streaming(request, api_key, f"{base_url}/chat/completions"):
+        yield item
 
 
 async def streaming(request, api_key, url):
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}",
+    }
     payload = request.json(exclude_defaults=True)
     if os.getenv("CODEGATE_DEBUG_OPENAI") is not None:
         print(payload)
+        print(headers)
 
     client = httpx.AsyncClient()
     async with client.stream(
             "POST", url,
+            headers=headers,
             content=payload,
             timeout=30, # TODO this should not be hardcoded
     ) as resp:
         # TODO figure out how to best return failures
         match resp.status_code:
             case 200:
-                async for message in parser(resp.aiter_lines()):
+                async for message in message_wrapper(resp.aiter_lines()):
                     yield message
             case 400 | 401 | 403 | 404 | 413 | 429:
-                logger.error(f"unexpected status code {resp.status_code}: {resp.text}", provider="openai")
-                yield MessageError.model_validate_json(resp.text)
+                text = await resp.aread()
+                yield MessageError.model_validate_json(text)
             # case 500 | 529:
             #     yield MessageError.model_validate_json(resp.text)
             case _:
@@ -73,8 +91,11 @@ async def get_data_lines(lines):
     while True:
         # Get the `data: <type>` line.
         data_line = await anext(lines)
-        # Get the empty line.
-        _ = await anext(lines)
+
+        # As per standard, we ignore comment lines
+        # https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation
+        if data_line.startswith(":"):
+            continue
 
         count = count + 1
 
@@ -82,11 +103,19 @@ async def get_data_lines(lines):
             break
 
         yield data_line[6:]
-    logger.debug(f"Consumed {count} messages", provider="anthropic", count=count)
+
+        # Get the empty line.
+        _ = await anext(lines)
+    logger.debug(f"Consumed {count} messages", provider="openai", count=count)
 
 
-async def parser(lines):
+async def message_wrapper(lines):
     messages = get_data_lines(lines)
     async for payload in messages:
-        item = StreamingChatCompletion.model_validate_json(payload)
-        yield item
+        try:
+            item = StreamingChatCompletion.model_validate_json(payload)
+            yield item
+        except Exception as e:
+            logger.warn("HTTP error while consuming SSE stream", exc_info=e)
+            item = MessageError.model_validate_json(payload)
+            yield item

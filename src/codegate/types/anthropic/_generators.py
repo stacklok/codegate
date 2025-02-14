@@ -65,7 +65,7 @@ async def stream_generator(stream: AsyncIterator[Any]) -> AsyncIterator[str]:
         yield f"event: error\ndata: {body}\n\n"
 
 
-async def acompletion(request, api_key):
+async def acompletion(request, api_key, base_url):
     headers = {
         "anthropic-version": "2023-06-01",
         "x-api-key": api_key,
@@ -79,7 +79,7 @@ async def acompletion(request, api_key):
 
     client = httpx.AsyncClient()
     async with client.stream(
-            "POST", "https://api.anthropic.com/v1/messages",
+            "POST", f"{base_url}/v1/messages",
             headers=headers,
             content=payload,
             timeout=30, # TODO this should not be hardcoded
@@ -90,9 +90,11 @@ async def acompletion(request, api_key):
                 async for event in message_wrapper(resp.aiter_lines()):
                     yield event
             case 400 | 401 | 403 | 404 | 413 | 429:
-                yield MessageError.model_validate_json(resp.text)
+                text = await resp.aread()
+                yield MessageError.model_validate_json(text)
             case 500 | 529:
-                yield MessageError.model_validate_json(resp.text)
+                text = await resp.aread()
+                yield MessageError.model_validate_json(text)
             case _:
                 logger.error(f"unexpected status code {resp.status_code}", provider="anthropic")
                 raise ValueError(f"unexpected status code {resp.status_code}", provider="anthropic")
