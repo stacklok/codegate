@@ -59,6 +59,19 @@ To install all dependencies for your local development environment, run
 npm install
 ```
 
+Note that if you are running some processes (specifically the package import
+script) on macOS, you will need a Python build linked against sqlite installed
+from Homebrew. macOS ships with sqlite, but it lacks some required
+functionality. This can be accomplished with:
+
+```
+# substitute for your version of choice
+PYTHON_VERSION=3.12.9
+brew install sqlite
+LDFLAGS="-L$(brew --prefix sqlite)/lib" CPPFLAGS="-I$(brew --prefix sqlite)/include" PYTHON_CONFIGURE_OPTS="--enable-loadable-sqlite-extensions" pyenv install -v $PYTHON_VERSION
+poetry env use $PYTHON_VERSION
+```
+
 ### Running the development server
 
 Run the development server using:
