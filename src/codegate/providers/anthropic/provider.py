@@ -28,7 +28,7 @@ class AnthropicProvider(BaseProvider):
         if self._get_base_url() != "":
             self.base_url = self._get_base_url()
         else:
-            self.base_url = "https://api.anthropic.com"
+            self.base_url = "https://api.anthropic.com/v1"
 
         completion_handler = AnthropicCompletion(stream_generator=stream_generator)
         super().__init__(
