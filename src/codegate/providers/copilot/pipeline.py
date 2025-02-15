@@ -1,4 +1,3 @@
-import json
 import time
 from abc import ABC, abstractmethod
 from typing import Dict, Tuple
@@ -9,8 +8,12 @@ from codegate.clients.clients import ClientType
 from codegate.pipeline.base import PipelineContext, PipelineResult, SequentialPipelineProcessor
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.normalizer.completion import CompletionNormalizer
-from codegate.types.common import Delta, ModelResponse, StreamingChoices
-from codegate.types.openai import ChatCompletionRequest
+from codegate.types.openai import (
+    ChatCompletionRequest,
+    ChoiceDelta,
+    MessageDelta,
+    StreamingChatCompletion,
+)
 
 logger = structlog.get_logger("codegate")
 
@@ -69,18 +72,21 @@ class CopilotPipeline(ABC):
         return copilot_headers
 
     @staticmethod
-    def _create_shortcut_response(result: PipelineResult, model: str) -> bytes:
-        response = ModelResponse(
+    def _create_shortcut_response(result: PipelineResult) -> bytes:
+        response = StreamingChatCompletion(
+            id="",
             choices=[
-                StreamingChoices(
+                ChoiceDelta(
                     finish_reason="stop",
                     index=0,
-                    delta=Delta(content=result.response.content, role="assistant"),
-                )
+                    delta=MessageDelta(
+                        content=result.response.content,
+                        role="assistant"),
+                ),
             ],
-            created=int(time.time()),
-            model=model,
-            stream=True,
+            created = int(time.time()),
+            model=result.response.model,
+            object="chat.completion.chunk",
         )
         body = response.model_dump_json(exclude_none=True, exclude_unset=True).encode()
         return body
@@ -122,7 +128,7 @@ class CopilotPipeline(ABC):
             try:
                 # Return shortcut response to the user
                 body = CopilotPipeline._create_shortcut_response(
-                    result, normalized_body.model,
+                    result,
                 )
                 logger.info(f"Pipeline created shortcut response: {body}")
                 return body, result.context
