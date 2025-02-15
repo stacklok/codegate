@@ -1,0 +1,24 @@
+name: Automate Engineering Feature Release Campaigns
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  notify-discord:
+    if: github.event.label.name == 'feature-release'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Feature Release Notification to Discord
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+        run: |
+          curl -H "Content-Type: application/json" \
+          -X POST \
+          -d '{
+            "content": "**🚀 New Feature Launched!**\n\n🎉 *${{ env.ISSUE_TITLE }}* is now available to try!\n📖 Description: ${{ env.ISSUE_BODY }}\n🔗 [Check it out here](${{ env.ISSUE_URL }})"
+          }' \
+          $DISCORD_WEBHOOK
