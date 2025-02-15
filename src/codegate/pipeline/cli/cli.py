@@ -158,7 +158,7 @@ class CodegateCli(PipelineStep):
                         response=PipelineResponse(
                             step_name=self.name,
                             content=cmd_out,
-                            model=request["model"],
+                            model=request.get_model()
                         ),
                         context=context,
                     )
