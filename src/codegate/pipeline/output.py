@@ -182,25 +182,16 @@ class OutputPipelineInstance:
             # Process any remaining content in buffer when stream ends
             if self._context.buffer:
                 final_content = "".join(self._context.buffer)
-                logger.error("Context buffer was not empty, it should have been!", content=final_content)
-            #     chunk = ModelResponse(
-            #         id=self._buffered_chunk.id,
-            #         choices=[
-            #             StreamingChoices(
-            #                 finish_reason=None,
-            #                 # we just put one choice in the buffer, so 0 is fine
-            #                 index=0,
-            #                 delta=Delta(content=final_content, role="assistant"),
-            #                 # umm..is this correct?
-            #                 logprobs=self._buffered_chunk.choices[0].logprobs,
-            #             )
-            #         ],
-            #         created=self._buffered_chunk.created,
-            #         model=self._buffered_chunk.model,
-            #         object="chat.completion.chunk",
-            #     )
-            #     self._input_context.add_output(chunk)
-            #     yield chunk
+                logger.error(
+                    "Context buffer was not empty, it should have been!",
+                    content=final_content,
+                    len=len(self._context.buffer),
+                )
+                # NOTE: Original code created chunks for all remaining
+                # messages in `self._context.buffer`, but it looks
+                # like it was defensive code. We should instead ensure
+                # that no messages remain there at each step of the
+                # pipeline in some way.
                 self._context.buffer.clear()
 
             if finish_stream:
