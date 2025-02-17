@@ -140,5 +140,5 @@ async def check_suspicious_code(code, language=None):
             "rust",
             "java",
         ]:
-            comment = f"{comment}\n\n🛡️ CodeGate: The {language} supplied is {liklihood} unsafe. Please check carefully!\n\n"
+            comment = f"{comment}\n\n🛡️ CodeGate: The {language} supplied is {liklihood} unsafe. Please check carefully!\n\n"  # noqa: E501
     return comment, class_ == 1
