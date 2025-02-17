@@ -12,7 +12,7 @@ from codegate.extract_snippets.message_extractor import (
 )
 from codegate.pipeline.base import PipelineContext
 from codegate.pipeline.output import OutputPipelineContext, OutputPipelineStep
-from codegate.pipeline.suspicious_commands.suspicious_commands import SuspiciousCommands
+# from codegate.pipeline.suspicious_commands.suspicious_commands import check_suspicious_code
 from codegate.storage import StorageEngine
 from codegate.utils.package_extractor import PackageExtractor
 
@@ -50,25 +50,12 @@ class CodeCommentStep(OutputPipelineStep):
 
     async def _snippet_comment(self, snippet: CodeSnippet, context: PipelineContext) -> str:
         """Create a comment for a snippet"""
-        comment = ""
-        sc = SuspiciousCommands.get_instance()
-        class_, prob = await sc.classify_phrase(snippet.code)
-        if class_ == 1:
-            liklihood = "possibly"
-            language = "code"
-            if prob > 0.9:
-                liklihood = "likely"
-            if snippet.language is not None:
-                language = snippet.language
-            if language not in [
-                "python",
-                "javascript",
-                "typescript",
-                "go",
-                "rust",
-                "java",
-            ]:  # noqa: E501
-                comment = f"{comment}\n\n🛡️ CodeGate: The {language} supplied is {liklihood} unsafe. Please check carefully!\n\n"  # noqa: E501
+        comment = ''
+        
+        # Remove this for now. We need to find a better place for it.
+        # comment, is_suspicious = await check_suspicious_code(snippet.code, snippet.language)
+        # if is_suspicious:
+        #     comment += comment
 
         snippet.libraries = PackageExtractor.extract_packages(snippet.code, snippet.language)
 

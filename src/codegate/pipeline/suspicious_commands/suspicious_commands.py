@@ -110,3 +110,35 @@ class SuspiciousCommands:
         prediction = np.argmax(ort_outs[0])
         probability = np.max(ort_outs[0])
         return prediction, probability
+
+
+async def check_suspicious_code(code, language=None):
+    """
+    Check if the given code is suspicious and return a comment if it is.
+
+    Args:
+        code (str): The code to check.
+        language (str, optional): The language of the code.
+
+    Returns:
+        tuple: A comment string and a boolean indicating if the code is suspicious.
+    """
+    sc = SuspiciousCommands.get_instance()
+    comment = ""
+    class_, prob = await sc.classify_phrase(code)
+    if class_ == 1:
+        liklihood = "possibly"
+        if prob > 0.9:
+            liklihood = "likely"
+        if language is None:
+            language = "code"
+        if language not in [
+            "python",
+            "javascript",
+            "typescript",
+            "go",
+            "rust",
+            "java",
+        ]:
+            comment = f"{comment}\n\n🛡️ CodeGate: The {language} supplied is {liklihood} unsafe. Please check carefully!\n\n"
+    return comment, class_ == 1
