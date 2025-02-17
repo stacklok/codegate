@@ -4,7 +4,8 @@ import pytest
 from ollama import ChatResponse, GenerateResponse, Message
 
 from codegate.providers.ollama.completion_handler import OllamaShim
-from codegate.types.common import ChatCompletionRequest
+from codegate.types import ollama
+from codegate.types import openai
 
 
 @pytest.fixture
@@ -23,47 +24,74 @@ def handler(mock_client):
     return ollama_shim
 
 
-@pytest.fixture
-def chat_request():
-    return ChatCompletionRequest(
-        model="test-model", messages=[{"role": "user", "content": "Hello"}], options={}
-    )
-
-
-@patch("codegate.providers.ollama.completion_handler.AsyncClient.generate", new_callable=AsyncMock)
+@patch("codegate.providers.ollama.completion_handler.completions_streaming", new_callable=AsyncMock)
 @pytest.mark.asyncio
-async def test_execute_completion_is_fim_request(mock_client_generate, handler, chat_request):
-    chat_request["messages"][0]["content"] = "FIM prompt"
+async def test_execute_completion_is_openai_fim_request(mock_streaming, handler):
+    openai_request = openai.ChatCompletionRequest(
+        model="model",
+        messages=[
+            openai.UserMessage(
+                role="user",
+                content="FIM prompt",
+            ),
+        ],
+    )
     await handler.execute_completion(
-        chat_request,
+        openai_request,
         base_url="http://ollama:11434",
-        api_key=None,
+        api_key="key",
         stream=False,
         is_fim_request=True,
     )
-    mock_client_generate.assert_called_once_with(
-        model=chat_request["model"],
-        prompt="FIM prompt",
-        stream=False,
-        options=chat_request["options"],
-        suffix="",
-        raw=False,
+    mock_streaming.assert_called_once_with(
+        openai_request,
+        "key",
+        "http://ollama:11434",
     )
 
 
-@patch("codegate.providers.ollama.completion_handler.AsyncClient.chat", new_callable=AsyncMock)
+@patch("codegate.providers.ollama.completion_handler.generate_streaming", new_callable=AsyncMock)
 @pytest.mark.asyncio
-async def test_execute_completion_not_is_fim_request(mock_client_chat, handler, chat_request):
+async def test_execute_completion_is_ollama_fim_request(mock_streaming, handler):
+    ollama_request = ollama.GenerateRequest(
+        model="model",
+        prompt="FIM prompt",
+    )
     await handler.execute_completion(
-        chat_request,
+        ollama_request,
         base_url="http://ollama:11434",
-        api_key=None,
+        api_key="key",
+        stream=False,
+        is_fim_request=True,
+    )
+    mock_streaming.assert_called_once_with(
+        ollama_request,
+        "key",
+        "http://ollama:11434",
+    )
+
+
+@patch("codegate.providers.ollama.completion_handler.chat_streaming", new_callable=AsyncMock)
+@pytest.mark.asyncio
+async def test_execute_completion_not_is_ollama_fim_request(mock_streaming, handler):
+    ollama_request = ollama.ChatRequest(
+        model="model",
+        messages=[
+            ollama.UserMessage(
+                role="user",
+                content="Chat prompt",
+            ),
+        ],
+    )
+    await handler.execute_completion(
+        ollama_request,
+        base_url="http://ollama:11434",
+        api_key="key",
         stream=False,
         is_fim_request=False,
     )
-    mock_client_chat.assert_called_once_with(
-        model=chat_request["model"],
-        messages=chat_request["messages"],
-        stream=False,
-        options=chat_request["options"],
+    mock_streaming.assert_called_once_with(
+        ollama_request,
+        "key",
+        "http://ollama:11434",
     )
