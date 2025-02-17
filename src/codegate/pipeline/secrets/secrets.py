@@ -497,6 +497,17 @@ class SecretRedactionNotifier(OutputPipelineStep):
             "",
         )
 
+        # If the chunk has no content, we do not touch it, as it is
+        # likely to break the communication protocol. As of the time
+        # of this writing, this is probably only valid for Anthropic,
+        # and we might want to abstract this away in the interface by
+        # answering a question like "is this chunk modifiable?"
+        if next(chunk.get_content(), None) is None:
+            return [chunk]
+        for content in chunk.get_content():
+            if content.get_text() is None or content.get_text() == "":
+                return [chunk]
+
         # Check if this is the first chunk (delta role will be present, others will not)
         redacted_count = input_context.metadata["redacted_secrets_count"]
         secret_text = "secret" if redacted_count == 1 else "secrets"
