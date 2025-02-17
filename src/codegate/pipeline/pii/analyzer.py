@@ -100,7 +100,7 @@ class PiiAnalyzer:
         PiiAnalyzer._instance = self
 
     def analyze(
-        self, text: str, context: Optional["PipelineContext"] = None
+        self, text: str, context: Optional[PipelineContext] = None
     ) -> Tuple[str, List[Dict[str, Any]], PiiSessionStore]:
         # Prioritize credit card detection first
         entities = [

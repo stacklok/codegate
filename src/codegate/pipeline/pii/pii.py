@@ -80,7 +80,7 @@ class CodegatePii(PipelineStep):
             if "content" in message and message["content"]:
                 # This is where analyze and anonymize the text
                 original_text = str(message["content"])
-                anonymized_text, pii_details = self.pii_manager.analyze(original_text)
+                anonymized_text, pii_details = self.pii_manager.analyze(original_text, context)
 
                 if pii_details:
                     total_pii_found += len(pii_details)

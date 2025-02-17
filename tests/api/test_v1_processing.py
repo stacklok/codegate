@@ -4,13 +4,14 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from codegate.api.v1_models import PartialQuestions
+from codegate.api import v1_models
 from codegate.api.v1_processing import (
     _get_partial_question_answer,
     _group_partial_messages,
     _is_system_prompt,
     parse_output,
     parse_request,
+    remove_duplicate_alerts,
 )
 from codegate.db.models import GetPromptWithOutputsRow
 
@@ -193,14 +194,14 @@ async def test_get_question_answer(request_msg_list, output_msg_str, row):
         # 1) No subsets: all items stand alone
         (
             [
-                PartialQuestions(
+                v1_models.PartialQuestions(
                     messages=["A"],
                     timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0),
                     message_id="pq1",
                     provider="providerA",
                     type="chat",
                 ),
-                PartialQuestions(
+                v1_models.PartialQuestions(
                     messages=["B"],
                     timestamp=datetime.datetime(2023, 1, 1, 0, 0, 1),
                     message_id="pq2",
@@ -214,14 +215,14 @@ async def test_get_question_answer(request_msg_list, output_msg_str, row):
         #    - "Hello" is a subset of "Hello, how are you?"
         (
             [
-                PartialQuestions(
+                v1_models.PartialQuestions(
                     messages=["Hello"],
                     timestamp=datetime.datetime(2022, 1, 1, 0, 0, 0),
                     message_id="pq1",
                     provider="providerA",
                     type="chat",
                 ),
-                PartialQuestions(
+                v1_models.PartialQuestions(
                     messages=["Hello", "How are you?"],
                     timestamp=datetime.datetime(2022, 1, 1, 0, 0, 10),
                     message_id="pq2",
@@ -238,28 +239,28 @@ async def test_get_question_answer(request_msg_list, output_msg_str, row):
         #    superset.
         (
             [
-                PartialQuestions(
+                v1_models.PartialQuestions(
                     messages=["Hello"],
                     timestamp=datetime.datetime(2023, 1, 1, 10, 0, 0),
                     message_id="pq1",
                     provider="providerA",
                     type="chat",
                 ),
-                PartialQuestions(
+                v1_models.PartialQuestions(
                     messages=["Hello"],
                     timestamp=datetime.datetime(2023, 1, 1, 11, 0, 0),
                     message_id="pq2",
                     provider="providerA",
                     type="chat",
                 ),
-                PartialQuestions(
+                v1_models.PartialQuestions(
                     messages=["Hello"],
                     timestamp=datetime.datetime(2023, 1, 1, 12, 0, 0),
                     message_id="pq3",
                     provider="providerA",
                     type="chat",
                 ),
-                PartialQuestions(
+                v1_models.PartialQuestions(
                     messages=["Hello", "Bye"],
                     timestamp=datetime.datetime(2023, 1, 1, 11, 0, 5),
                     message_id="pq4",
@@ -281,7 +282,7 @@ async def test_get_question_answer(request_msg_list, output_msg_str, row):
         (
             [
                 # Superset
-                PartialQuestions(
+                v1_models.PartialQuestions(
                     messages=["hi", "welcome", "bye"],
                     timestamp=datetime.datetime(2023, 5, 1, 9, 0, 0),
                     message_id="pqS1",
@@ -289,21 +290,21 @@ async def test_get_question_answer(request_msg_list, output_msg_str, row):
                     type="chat",
                 ),
                 # Subsets for pqS1
-                PartialQuestions(
+                v1_models.PartialQuestions(
                     messages=["hi", "welcome"],
                     timestamp=datetime.datetime(2023, 5, 1, 9, 0, 5),
                     message_id="pqA1",
                     provider="providerB",
                     type="chat",
                 ),
-                PartialQuestions(
+                v1_models.PartialQuestions(
                     messages=["hi", "bye"],
                     timestamp=datetime.datetime(2023, 5, 1, 9, 0, 10),
                     message_id="pqA2",
                     provider="providerB",
                     type="chat",
                 ),
-                PartialQuestions(
+                v1_models.PartialQuestions(
                     messages=["hi", "bye"],
                     timestamp=datetime.datetime(2023, 5, 1, 9, 0, 12),
                     message_id="pqA3",
@@ -311,7 +312,7 @@ async def test_get_question_answer(request_msg_list, output_msg_str, row):
                     type="chat",
                 ),
                 # Another superset
-                PartialQuestions(
+                v1_models.PartialQuestions(
                     messages=["apple", "banana", "cherry"],
                     timestamp=datetime.datetime(2023, 5, 2, 10, 0, 0),
                     message_id="pqS2",
@@ -319,14 +320,14 @@ async def test_get_question_answer(request_msg_list, output_msg_str, row):
                     type="chat",
                 ),
                 # Subsets for pqS2
-                PartialQuestions(
+                v1_models.PartialQuestions(
                     messages=["banana"],
                     timestamp=datetime.datetime(2023, 5, 2, 10, 0, 1),
                     message_id="pqB1",
                     provider="providerB",
                     type="chat",
                 ),
-                PartialQuestions(
+                v1_models.PartialQuestions(
                     messages=["apple", "banana"],
                     timestamp=datetime.datetime(2023, 5, 2, 10, 0, 3),
                     message_id="pqB2",
@@ -334,7 +335,7 @@ async def test_get_question_answer(request_msg_list, output_msg_str, row):
                     type="chat",
                 ),
                 # Another item alone, not a subset nor superset
-                PartialQuestions(
+                v1_models.PartialQuestions(
                     messages=["xyz"],
                     timestamp=datetime.datetime(2023, 5, 3, 8, 0, 0),
                     message_id="pqC1",
@@ -342,7 +343,7 @@ async def test_get_question_answer(request_msg_list, output_msg_str, row):
                     type="chat",
                 ),
                 # Different provider => should remain separate
-                PartialQuestions(
+                v1_models.PartialQuestions(
                     messages=["hi", "welcome"],
                     timestamp=datetime.datetime(2023, 5, 1, 9, 0, 10),
                     message_id="pqProvDiff",
@@ -394,7 +395,7 @@ def test_group_partial_messages(pq_list, expected_group_ids):
     # Execute
     grouped = _group_partial_messages(pq_list)
 
-    # Convert from list[list[PartialQuestions]] -> list[list[str]]
+    # Convert from list[list[v1_models.PartialQuestions]] -> list[list[str]]
     # so we can compare with expected_group_ids easily.
     grouped_ids = [[pq.message_id for pq in group] for group in grouped]
 
@@ -406,3 +407,125 @@ def test_group_partial_messages(pq_list, expected_group_ids):
                 is_matched = True
                 break
         assert is_matched
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "alerts,expected_count,expected_ids",
+    [
+        # Test Case 1: Non-secret alerts pass through unchanged
+        (
+            [
+                v1_models.Alert(
+                    id="1",
+                    prompt_id="p1",
+                    code_snippet=None,
+                    trigger_string="test1",
+                    trigger_type="other-alert",
+                    trigger_category="info",
+                    timestamp=datetime.datetime(2023, 1, 1, 12, 0, 0),
+                ),
+                v1_models.Alert(
+                    id="2",
+                    prompt_id="p2",
+                    code_snippet=None,
+                    trigger_string="test2",
+                    trigger_type="other-alert",
+                    trigger_category="info",
+                    timestamp=datetime.datetime(2023, 1, 1, 12, 0, 1),
+                ),
+            ],
+            2,  # Expected count
+            ["1", "2"],  # Expected IDs preserved
+        ),
+        # Test Case 2: Duplicate secrets within 5 seconds - keep newer only
+        (
+            [
+                v1_models.Alert(
+                    id="1",
+                    prompt_id="p1",
+                    code_snippet=None,
+                    trigger_string="secret1 Context xyz",
+                    trigger_type="codegate-secrets",
+                    trigger_category="critical",
+                    timestamp=datetime.datetime(2023, 1, 1, 12, 0, 0),
+                ),
+                v1_models.Alert(
+                    id="2",
+                    prompt_id="p2",
+                    code_snippet=None,
+                    trigger_string="secret1 Context abc",
+                    trigger_type="codegate-secrets",
+                    trigger_category="critical",
+                    timestamp=datetime.datetime(2023, 1, 1, 12, 0, 3),
+                ),
+            ],
+            1,  # Expected count
+            ["2"],  # Only newer alert ID
+        ),
+        # Test Case 3: Similar secrets beyond 5 seconds - keep both
+        (
+            [
+                v1_models.Alert(
+                    id="1",
+                    prompt_id="p1",
+                    code_snippet=None,
+                    trigger_string="secret1 Context xyz",
+                    trigger_type="codegate-secrets",
+                    trigger_category="critical",
+                    timestamp=datetime.datetime(2023, 1, 1, 12, 0, 0),
+                ),
+                v1_models.Alert(
+                    id="2",
+                    prompt_id="p2",
+                    code_snippet=None,
+                    trigger_string="secret1 Context abc",
+                    trigger_type="codegate-secrets",
+                    trigger_category="critical",
+                    timestamp=datetime.datetime(2023, 1, 1, 12, 0, 6),
+                ),
+            ],
+            2,  # Expected count
+            ["1", "2"],  # Both alerts preserved
+        ),
+        # Test Case 4: Mix of secret and non-secret alerts
+        (
+            [
+                v1_models.Alert(
+                    id="1",
+                    prompt_id="p1",
+                    code_snippet=None,
+                    trigger_string="secret1 Context xyz",
+                    trigger_type="codegate-secrets",
+                    trigger_category="critical",
+                    timestamp=datetime.datetime(2023, 1, 1, 12, 0, 0),
+                ),
+                v1_models.Alert(
+                    id="2",
+                    prompt_id="p2",
+                    code_snippet=None,
+                    trigger_string="non-secret alert",
+                    trigger_type="other-alert",
+                    trigger_category="info",
+                    timestamp=datetime.datetime(2023, 1, 1, 12, 0, 1),
+                ),
+                v1_models.Alert(
+                    id="3",
+                    prompt_id="p3",
+                    code_snippet=None,
+                    trigger_string="secret1 Context abc",
+                    trigger_type="codegate-secrets",
+                    trigger_category="critical",
+                    timestamp=datetime.datetime(2023, 1, 1, 12, 0, 3),
+                ),
+            ],
+            2,  # Expected count
+            ["2", "3"],  # Non-secret alert and newest secret alert
+        ),
+    ],
+)
+async def test_remove_duplicate_alerts(alerts, expected_count, expected_ids):
+    result = await remove_duplicate_alerts(alerts)
+    assert len(result) == expected_count
+    result_ids = [alert.id for alert in result]
+    assert sorted(result_ids) == sorted(expected_ids)

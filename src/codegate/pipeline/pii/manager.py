@@ -1,7 +1,8 @@
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import structlog
 
+from codegate.pipeline.base import PipelineContext
 from codegate.pipeline.pii.analyzer import PiiAnalyzer, PiiSessionStore
 
 logger = structlog.get_logger("codegate")
@@ -52,9 +53,11 @@ class PiiManager:
         # Always return the analyzer's current session store
         return self.analyzer.session_store
 
-    def analyze(self, text: str) -> Tuple[str, List[Dict[str, Any]]]:
+    def analyze(
+        self, text: str, context: Optional[PipelineContext] = None
+    ) -> Tuple[str, List[Dict[str, Any]]]:
         # Call analyzer and get results
-        anonymized_text, found_pii, _ = self.analyzer.analyze(text)
+        anonymized_text, found_pii, _ = self.analyzer.analyze(text, context=context)
 
         # Log found PII details (without modifying the found_pii list)
         if found_pii:

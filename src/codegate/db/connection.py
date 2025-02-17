@@ -586,7 +586,7 @@ class DbReader(DbCodeGate):
         return prompts
 
     async def get_prompts_with_output_alerts_usage_by_workspace_id(
-        self, workspace_id: str
+        self, workspace_id: str, trigger_category: Optional[str] = None
     ) -> List[GetPromptWithOutputsRow]:
         """
         Get all prompts with their outputs, alerts and token usage by workspace_id.
@@ -602,12 +602,17 @@ class DbReader(DbCodeGate):
             LEFT JOIN outputs o ON p.id = o.prompt_id
             LEFT JOIN alerts a ON p.id = a.prompt_id
             WHERE p.workspace_id = :workspace_id
+            AND a.trigger_category LIKE :trigger_category
             ORDER BY o.timestamp DESC, a.timestamp DESC
             """  # noqa: E501
         )
-        conditions = {"workspace_id": workspace_id}
-        rows = await self._exec_select_conditions_to_pydantic(
-            IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
+        # If trigger category is None we want to get all alerts
+        trigger_category = trigger_category if trigger_category else "%"
+        conditions = {"workspace_id": workspace_id, "trigger_category": trigger_category}
+        rows: List[IntermediatePromptWithOutputUsageAlerts] = (
+            await self._exec_select_conditions_to_pydantic(
+                IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
+            )
         )
 
         prompts_dict: Dict[str, GetPromptWithOutputsRow] = {}

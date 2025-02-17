@@ -44,7 +44,7 @@ class TestPiiManager:
         assert anonymized_text == text
         assert found_pii == []
         assert manager.session_store is session_store
-        mock_analyzer.analyze.assert_called_once_with(text)
+        mock_analyzer.analyze.assert_called_once_with(text, context=None)
 
     def test_analyze_with_pii(self, manager, mock_analyzer):
         text = "My email is test@example.com"
@@ -71,7 +71,7 @@ class TestPiiManager:
         assert found_pii == pii_details
         assert manager.session_store is session_store
         assert manager.session_store.mappings[placeholder] == "test@example.com"
-        mock_analyzer.analyze.assert_called_once_with(text)
+        mock_analyzer.analyze.assert_called_once_with(text, context=None)
 
     def test_restore_pii_no_session(self, manager, mock_analyzer):
         text = "Anonymized text"

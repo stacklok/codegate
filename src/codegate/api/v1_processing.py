@@ -534,4 +534,4 @@ async def remove_duplicate_alerts(alerts: List[v1_models.Alert]) -> List[v1_mode
         seen[key] = alert
         unique_alerts.append(alert)
 
-    return list(seen.values())
+    return unique_alerts
