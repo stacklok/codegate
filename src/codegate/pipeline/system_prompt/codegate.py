@@ -92,18 +92,15 @@ class SystemPrompt(PipelineStep):
         if not should_add_codegate_sys_prompt and not wrksp_custom_instructions:
             return PipelineResult(request=request, context=context)
 
-        request_system_message = {}
-        req_sys_prompt = ""
-        for sysprompt in request.get_system_prompt():
-            req_sys_prompt = sysprompt
-
         system_prompt = await self._construct_system_prompt(
             context.client,
             wrksp_custom_instructions,
-            req_sys_prompt,
+            "",
             should_add_codegate_sys_prompt,
         )
         context.add_alert(self.name, trigger_string=system_prompt)
-        request.set_system_prompt(system_prompt)
+        # NOTE: this was changed from adding more text to an existing
+        # system prompt to potentially adding a new system prompt.
+        request.add_system_prompt(system_prompt)
 
         return PipelineResult(request=request, context=context)
