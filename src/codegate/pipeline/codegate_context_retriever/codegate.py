@@ -131,11 +131,13 @@ class CodegateContextRetriever(PipelineStep):
             messages = request.get_messages()
             filtered = itertools.dropwhile(lambda x: x[0] < last_user_idx, enumerate(messages))
             for i, message in filtered:
-                message_str = "".join([
-                    txt
-                    for content in message.get_content()
-                    for txt in content.get_text()
-                ])
+                message_str = ""
+                for content in message.get_content():
+                    txt = content.get_text()
+                    if not txt:
+                        logger.debug(f"content has no text: {content}")
+                        continue
+                    message_str += txt
                 context_msg = message_str
                 # Add the context to the last user message
                 if context.client in [ClientType.CLINE, ClientType.KODU]:
