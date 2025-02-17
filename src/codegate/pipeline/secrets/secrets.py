@@ -1,7 +1,7 @@
 import itertools
 import re
 from abc import abstractmethod
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 import pydantic
 import structlog
@@ -18,14 +18,6 @@ from codegate.pipeline.base import (
 from codegate.pipeline.output import OutputPipelineContext, OutputPipelineStep
 from codegate.pipeline.secrets.manager import SecretsManager
 from codegate.pipeline.secrets.signatures import CodegateSignatures, Match
-from codegate.pipeline.systemmsg import add_or_update_system_message
-from codegate.types.common import (
-    ChatCompletionRequest,
-    ChatCompletionSystemMessage,
-    Delta,
-    ModelResponse,
-    StreamingChoices,
-)
 
 
 logger = structlog.get_logger("codegate")
@@ -279,7 +271,7 @@ class CodegateSecrets(PipelineStep):
         return text_encryptor.obfuscate(text, snippet)
 
     async def process(
-        self, request: ChatCompletionRequest, context: PipelineContext
+        self, reques: Any, context: PipelineContext
     ) -> PipelineResult:
         """
         Process the request to find and protect secrets in all messages.
@@ -292,43 +284,6 @@ class CodegateSecrets(PipelineStep):
             PipelineResult containing the processed request and context with redaction metadata
         """
 
-        ##### NEW CODE PATH #####
-
-        if type(request) != ChatCompletionRequest:
-            secrets_manager = context.sensitive.manager
-            if not secrets_manager or not isinstance(secrets_manager, SecretsManager):
-                raise ValueError("Secrets manager not found in context")
-            session_id = context.sensitive.session_id
-            if not session_id:
-                raise ValueError("Session ID not found in context")
-
-            total_matches = []
-
-            # get last user message block to get index for the first relevant user message
-            last_user_message = self.get_last_user_message_block(request, context.client)
-            last_assistant_idx = last_user_message[1] - 1 if last_user_message else -1
-
-            # Process all messages
-            for i, message in enumerate(request.get_messages()):
-                for content in message.get_content():
-                    txt = content.get_text()
-                    if txt is not None:
-                        redacted_content, secrets_matched = self._redact_message_content(
-                            "".join(txt for txt in content.get_text()), secrets_manager, session_id, context
-                        )
-                        content.set_text(redacted_content)
-                        if i > last_assistant_idx:
-                            total_matches += secrets_matched
-
-            # Not count repeated secret matches
-            request = self._finalize_redaction(context, total_matches, request)
-            return PipelineResult(request=request, context=context)
-
-        ##### OLD CODE PATH #####
-
-        if "messages" not in request:
-            return PipelineResult(request=request, context=context)
-
         secrets_manager = context.sensitive.manager
         if not secrets_manager or not isinstance(secrets_manager, SecretsManager):
             raise ValueError("Secrets manager not found in context")
@@ -336,24 +291,27 @@ class CodegateSecrets(PipelineStep):
         if not session_id:
             raise ValueError("Session ID not found in context")
 
-        new_request = request.copy()
         total_matches = []
 
         # get last user message block to get index for the first relevant user message
-        last_user_message = self.get_last_user_message_block(new_request, context.client)
+        last_user_message = self.get_last_user_message_block(request, context.client)
         last_assistant_idx = last_user_message[1] - 1 if last_user_message else -1
 
         # Process all messages
-        for i, message in enumerate(new_request["messages"]):
-            if "content" in message and message["content"]:
-                redacted_content, secrets_matched = self._redact_message_content(
-                    message["content"], secrets_manager, session_id, context
-                )
-                new_request["messages"][i]["content"] = redacted_content
-                if i > last_assistant_idx:
-                    total_matches += secrets_matched
-        new_request = self._finalize_redaction(context, total_matches, new_request)
-        return PipelineResult(request=new_request, context=context)
+        for i, message in enumerate(request.get_messages()):
+            for content in message.get_content():
+                txt = content.get_text()
+                if txt is not None:
+                    redacted_content, secrets_matched = self._redact_message_content(
+                        "".join(txt for txt in content.get_text()), secrets_manager, session_id, context
+                    )
+                    content.set_text(redacted_content)
+                    if i > last_assistant_idx:
+                        total_matches += secrets_matched
+
+        # Not count repeated secret matches
+        request = self._finalize_redaction(context, total_matches, request)
+        return PipelineResult(request=request, context=context)
 
     def _redact_message_content(self, message_content, secrets_manager, session_id, context):
         # Extract any code snippets
@@ -403,14 +361,7 @@ class CodegateSecrets(PipelineStep):
         logger.info(f"Total secrets redacted since last assistant message: {total_redacted}")
         context.metadata["redacted_secrets_count"] = total_redacted
         if total_redacted > 0:
-            if isinstance(new_request, pydantic.BaseModel):
-                new_request.add_system_prompt(Config.get_config().prompts.secrets_redacted)
-                return new_request
-            system_message = ChatCompletionSystemMessage(
-                content=Config.get_config().prompts.secrets_redacted,
-                role="system",
-            )
-            return add_or_update_system_message(new_request, system_message, context)
+            new_request.add_system_prompt(Config.get_config().prompts.secrets_redacted)
         return new_request
 
 
@@ -448,10 +399,10 @@ class SecretUnredactionStep(OutputPipelineStep):
 
     async def process_chunk(
         self,
-        chunk: ModelResponse,
+        chunk: Any,
         context: OutputPipelineContext,
         input_context: Optional[PipelineContext] = None,
-    ) -> list[ModelResponse]:
+    ) -> list[Any]:
         """Process a single chunk of the stream"""
         if not input_context:
             raise ValueError("Input context not found")
@@ -459,9 +410,6 @@ class SecretUnredactionStep(OutputPipelineStep):
             raise ValueError("Secrets manager not found in input context")
         if input_context.sensitive.session_id == "":
             raise ValueError("Session ID not found in input context")
-
-        # if len(chunk.choices) == 0 or not chunk.choices[0].delta.content:
-        #     return [chunk]
 
         for content in chunk.get_content():
             # Check the buffered content
@@ -517,37 +465,20 @@ class SecretRedactionNotifier(OutputPipelineStep):
     def name(self) -> str:
         return "secret-redaction-notifier"
 
-    def _create_chunk(self, original_chunk: ModelResponse, content: str) -> ModelResponse:
+    def _create_chunk(self, original_chunk: Any, content: str) -> Any:
         """
         Creates a new chunk with the given content, preserving the original chunk's metadata
         """
-        if isinstance(original_chunk, ModelResponse):
-            return ModelResponse(
-                id=original_chunk.id,
-                choices=[
-                    StreamingChoices(
-                        finish_reason=None,
-                        index=0,
-                        delta=Delta(content=content, role="assistant"),
-                        logprobs=None,
-                    )
-                ],
-                created=original_chunk.created,
-                model=original_chunk.model,
-                object="chat.completion.chunk",
-            )
-        else:
-            # TODO verify if deep-copy is necessary
-            copy = original_chunk.model_copy(deep=True)
-            copy.set_text(content)
-            return copy
+        copy = original_chunk.model_copy(deep=True)
+        copy.set_text(content)
+        return copy
 
     async def process_chunk(
         self,
-        chunk: ModelResponse,
+        chunk: Any,
         context: OutputPipelineContext,
         input_context: Optional[PipelineContext] = None,
-    ) -> list[ModelResponse]:
+    ) -> list[Any]:
         """Process a single chunk of the stream"""
         if (
             not input_context
@@ -567,20 +498,21 @@ class SecretRedactionNotifier(OutputPipelineStep):
         )
 
         # Check if this is the first chunk (delta role will be present, others will not)
-        # if len(chunk.choices) > 0 and chunk.choices[0].delta.role:
         for _ in itertools.takewhile(lambda x: x[0] == 1, enumerate(chunk.get_content())):
             redacted_count = input_context.metadata["redacted_secrets_count"]
             secret_text = "secret" if redacted_count == 1 else "secrets"
             # Create notification chunk
             if tool_name in ["cline", "kodu"]:
+                # NOTE: Original code was ensuring that role was
+                # "assistant" here, we might have to do that as well,
+                # but I believe it was defensive programming or
+                # leftover of some refactoring.
                 notification_chunk = self._create_chunk(
                     chunk,
                     f"<thinking>\n🛡️ [CodeGate prevented {redacted_count} {secret_text}]"
                     f"(http://localhost:9090/?search=codegate-secrets) from being leaked "
                     f"by redacting them.</thinking>\n\n",
                 )
-                # TODO fix this
-                # notification_chunk.choices[0].delta.role = "assistant"
             else:
                 notification_chunk = self._create_chunk(
                     chunk,

@@ -104,39 +104,3 @@ class OLlamaToModel(AsyncIterator[ModelResponse]):
             return chunk
         except StopAsyncIteration:
             raise StopAsyncIteration
-
-
-class ModelToOllama(AsyncIterator[ChatResponse]):
-
-    def __init__(self, normalized_reply: AsyncIterator[ModelResponse]):
-        self.normalized_reply = normalized_reply
-        self._aiter = normalized_reply.__aiter__()
-
-    def __aiter__(self):
-        return self
-
-    async def __anext__(self) -> Union[ChatResponse]:
-        try:
-            chunk = await self._aiter.__anext__()
-            if not isinstance(chunk, ModelResponse):
-                return chunk
-            # Convert the timestamp to a datetime object
-            datetime_obj = datetime.fromtimestamp(chunk.created, tz=timezone.utc)
-            created_at = datetime_obj.isoformat()
-
-            message = chunk.choices[0].delta.content
-            done = False
-            if chunk.choices[0].finish_reason == "stop":
-                done = True
-                message = ""
-
-            # Convert the model response to an Ollama response
-            ollama_response = ChatResponse(
-                model=chunk.model,
-                created_at=created_at,
-                done=done,
-                message=Message(content=message, role="assistant"),
-            )
-            return ollama_response
-        except StopAsyncIteration:
-            raise StopAsyncIteration
