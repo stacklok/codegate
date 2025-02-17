@@ -213,7 +213,6 @@ class ChatCompletionRequest(pydantic.BaseModel):
         for idx, msg in enumerate(reversed(self.messages)):
             if isinstance(msg, UserMessage):
                 yield  msg, len(self.messages) - 1 - idx
-                break
 
     def get_system_prompt(self) -> Iterable[str]:
         if isinstance(self.system, str):

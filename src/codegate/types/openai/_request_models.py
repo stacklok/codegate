@@ -341,6 +341,11 @@ class ChatCompletionRequest(pydantic.BaseModel):
         for idx, msg in enumerate(reversed(self.messages)):
             if isinstance(msg, UserMessage):
                 yield msg, len(self.messages) - 1 - idx
+            elif isinstance(msg, (SystemMessage, DeveloperMessage, ToolMessage)):
+                # these can occur in the middle of a user block
+                continue
+            elif isinstance(msg, (AssistantMessage, FunctionMessage)):
+                # these are LLM responses, end of user input, break on them
                 break
 
     def get_system_prompt(self) -> Iterable[str]:
