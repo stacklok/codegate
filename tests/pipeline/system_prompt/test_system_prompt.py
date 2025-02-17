@@ -23,7 +23,7 @@ class TestSystemPrompt:
         """
         # Prepare mock request with user message
         user_message = "Test user message"
-        mock_request = {"messages": [{"role": "user", "content": user_message}]}
+        mock_request = {"model": "model", "messages": [{"role": "user", "content": user_message}]}
         mock_context = Mock(spec=PipelineContext)
 
         # Create system prompt step
@@ -38,11 +38,11 @@ class TestSystemPrompt:
         result = await step.process(ChatCompletionRequest(**mock_request), mock_context)
 
         # Check that system message was inserted
-        assert len(result.request["messages"]) == 2
-        assert result.request["messages"][0]["role"] == "system"
-        assert result.request["messages"][0]["content"] == system_prompt
-        assert result.request["messages"][1]["role"] == "user"
-        assert result.request["messages"][1]["content"] == user_message
+        assert len(result.request.messages) == 2
+        assert result.request.messages[0].role == "user"
+        assert result.request.messages[0].content == user_message
+        assert result.request.messages[1].role == "system"
+        assert result.request.messages[1].content == system_prompt
 
     @pytest.mark.asyncio
     async def test_process_system_prompt_update(self):
@@ -53,6 +53,7 @@ class TestSystemPrompt:
         request_system_message = "Existing system message"
         user_message = "Test user message"
         mock_request = {
+            "model": "model",
             "messages": [
                 {"role": "system", "content": request_system_message},
                 {"role": "user", "content": user_message},
@@ -72,14 +73,13 @@ class TestSystemPrompt:
         result = await step.process(ChatCompletionRequest(**mock_request), mock_context)
 
         # Check that system message was inserted
-        assert len(result.request["messages"]) == 2
-        assert result.request["messages"][0]["role"] == "system"
-        assert (
-            result.request["messages"][0]["content"]
-            == system_prompt + "\n\nHere are additional instructions:\n\n" + request_system_message
-        )
-        assert result.request["messages"][1]["role"] == "user"
-        assert result.request["messages"][1]["content"] == user_message
+        assert len(result.request.messages) == 3
+        assert result.request.messages[0].role == "system"
+        assert result.request.messages[0].content == request_system_message
+        assert result.request.messages[1].role == "user"
+        assert result.request.messages[1].content == user_message
+        assert result.request.messages[2].role == "system"
+        assert result.request.messages[2].content == system_prompt
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -93,7 +93,7 @@ class TestSystemPrompt:
         """
         Test edge cases with None or empty message list
         """
-        mock_request = {"messages": edge_case} if edge_case is not None else {}
+        mock_request = {"model": "model", "messages": edge_case if edge_case is not None else []}
         mock_context = Mock(spec=PipelineContext)
 
         system_prompt = "Security edge case prompt"
@@ -107,6 +107,7 @@ class TestSystemPrompt:
         result = await step.process(ChatCompletionRequest(**mock_request), mock_context)
 
         # Verify request remains unchanged
-        assert len(result.request["messages"]) == 1
-        assert result.request["messages"][0]["role"] == "system"
-        assert result.request["messages"][0]["content"] == system_prompt
+        assert len(result.request.messages) == 1
+        # TODO this should use the abstract interface
+        assert result.request.messages[0].role == "system"
+        assert result.request.messages[0].content == system_prompt
