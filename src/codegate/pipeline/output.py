@@ -183,11 +183,20 @@ class OutputPipelineInstance:
                     content=final_content,
                     len=len(self._context.buffer),
                 )
-                # NOTE: Original code created chunks for all remaining
-                # messages in `self._context.buffer`, but it looks
-                # like it was defensive code. We should instead ensure
-                # that no messages remain there at each step of the
-                # pipeline in some way.
+
+                # NOTE: this block ensured that buffered chunks were
+                # flushed at the end of the pipeline. This was
+                # possible as long as the current implementation
+                # assumed that all messages were equivalent and
+                # position was not relevant.
+                #
+                # This is not the case for Anthropic, whose protocol
+                # is much more structured than that of the others.
+                #
+                # We're not there yet to ensure that such a protocol
+                # is not broken in face of messages being arbitrarily
+                # retained at each pipeline step, so we decided to
+                # treat a clogged pipelines as a bug.
                 self._context.buffer.clear()
 
             self._record_to_db()
