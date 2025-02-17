@@ -30,6 +30,8 @@ class FIMAnalyzer:
         Used by: OpenAI and Anthropic
         """
         fim_stop_sequences = ["</COMPLETION>", "<COMPLETION>", "</QUERY>", "<QUERY>"]
+        if data.first_message() is None:
+            return False
         for content in data.first_message().get_content():
             for stop_sequence in fim_stop_sequences:
                 if stop_sequence not in content.get_text():
