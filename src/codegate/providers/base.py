@@ -217,6 +217,10 @@ class BaseProvider(ABC):
 
             with open(fname, "w") as f:
                 json.dump(data, f, indent=2)
+        elif hasattr(data, "json"):
+            # The new format
+            with open(fname, "w") as f:
+                f.write(data.json())
         else:
             with open(fname, "w") as f:
                 f.write(str(data))
