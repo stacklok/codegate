@@ -231,7 +231,7 @@ class PipelineStep(ABC):
                 user_messages.append(txt)
                 last_idx = idx
 
-        if user_messages == []:
+        if not user_messages:
             return None
         return "\n".join(reversed(user_messages)), last_idx
 
