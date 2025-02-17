@@ -1,5 +1,5 @@
 # Builder stage: Install dependencies and build the application
-FROM docker.io/library/python:3.12-slim@sha256:34656cd90456349040784165b9decccbcee4de66f3ead0a1168ba893455afd1e AS builder
+FROM docker.io/library/python:3.13-slim@sha256:ae9f9ac89467077ed1efefb6d9042132d28134ba201b2820227d46c9effd3174 AS builder
 
 ARG CODEGATE_VERSION=dev
 
