@@ -208,14 +208,12 @@ class PipelineStep(ABC):
     @staticmethod
     def get_last_user_message_block(
         request: ChatCompletionRequest,
-        client: ClientType = ClientType.GENERIC,
     ) -> Optional[tuple[str, int]]:
         """
         Get the last block of consecutive 'user' messages from the request.
 
         Args:
             request (ChatCompletionRequest): The chat completion request to process
-            client (ClientType): The client type to consider when processing the request
 
         Returns:
             Optional[str, int]: A string containing all consecutive user messages in the
