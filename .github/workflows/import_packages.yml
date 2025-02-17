@@ -31,7 +31,7 @@ jobs:
           git lfs pull
 
     - name: Configure AWS Credentials for S3
-      uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
+      uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722
       with:
         role-to-assume: ${{ secrets.AWS_ROLE_INSIGHT_DATA_IMPORT }}
         aws-region: ${{ env.AWS_REGION }}
