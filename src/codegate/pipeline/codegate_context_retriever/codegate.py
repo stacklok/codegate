@@ -75,7 +75,7 @@ class CodegateContextRetriever(PipelineStep):
         Use RAG DB to add context to the user request
         """
         # Get the latest user message
-        last_message = self.get_last_user_message_block(request, context.client)
+        last_message = self.get_last_user_message_block(request)
         if not last_message:
             return PipelineResult(request=request)
         user_message, last_user_idx = last_message
