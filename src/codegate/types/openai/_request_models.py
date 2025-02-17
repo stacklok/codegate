@@ -330,7 +330,7 @@ class ChatCompletionRequest(pydantic.BaseModel):
             yield msg
 
     def first_message(self) -> Message | None:
-        return self.messages[0]
+        return self.messages[0] if len(self.messages) > 0 else None
 
     def last_user_message(self) -> tuple[Message, int] | None:
         for idx, msg in enumerate(reversed(self.messages)):
@@ -371,6 +371,5 @@ class ChatCompletionRequest(pydantic.BaseModel):
     def get_prompt(self, default=None):
         for message in self.messages:
             for content in message.get_content():
-                for txt in content.get_text():
-                    return txt
+                return content.get_text()
         return default
