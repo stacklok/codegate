@@ -130,42 +130,34 @@ class CodegateContextRetriever(PipelineStep):
             # perform replacement in all the messages starting from this index
             messages = request.get_messages()
             filtered = itertools.dropwhile(lambda x: x[0] < last_user_idx, enumerate(messages))
-            if context.client != ClientType.OPEN_INTERPRETER:
-                for i, message in filtered:
-                    message_str = "".join([
-                        txt
-                        for content in message.get_content()
-                        for txt in content.get_text()
-                    ])
-                    context_msg = message_str
-                    # Add the context to the last user message
-                    if context.client in [ClientType.CLINE, ClientType.KODU]:
-                        match = re.search(r"<task>\s*(.*?)\s*</task>(.*)", message_str, re.DOTALL)
-                        if match:
-                            task_content = match.group(1)  # Content within <task>...</task>
-                            rest_of_message = match.group(
-                                2
-                            ).strip()  # Content after </task>, if any
+            for i, message in filtered:
+                message_str = "".join([
+                    txt
+                    for content in message.get_content()
+                    for txt in content.get_text()
+                ])
+                context_msg = message_str
+                # Add the context to the last user message
+                if context.client in [ClientType.CLINE, ClientType.KODU]:
+                    match = re.search(r"<task>\s*(.*?)\s*</task>(.*)", message_str, re.DOTALL)
+                    if match:
+                        task_content = match.group(1)  # Content within <task>...</task>
+                        rest_of_message = match.group(
+                            2
+                        ).strip()  # Content after </task>, if any
 
-                            # Embed the context into the task block
-                            updated_task_content = (
-                                f"<task>Context: {context_str}"
-                                + f"Query: {task_content.strip()}</task>"
-                            )
+                        # Embed the context into the task block
+                        updated_task_content = (
+                            f"<task>Context: {context_str}"
+                            + f"Query: {task_content.strip()}</task>"
+                        )
 
-                            # Combine updated task content with the rest of the message
-                            context_msg = updated_task_content + rest_of_message
-                    else:
-                        context_msg = f"Context: {context_str} \n\n Query: {message_str}"
-                    content = next(message.get_content())
-                    content.set_text(context_msg)
-                    logger.debug("Final context message", context_message=context_msg)
-            else:
-                #  just add a message in the end
-                new_request["messages"].append(
-                    {
-                        "content": context_str,
-                        "role": "assistant",
-                    }
-                )
+                        # Combine updated task content with the rest of the message
+                        context_msg = updated_task_content + rest_of_message
+                else:
+                    context_msg = f"Context: {context_str} \n\n Query: {message_str}"
+                content = next(message.get_content())
+                content.set_text(context_msg)
+                logger.debug("Final context message", context_message=context_msg)
+
             return PipelineResult(request=request, context=context)
