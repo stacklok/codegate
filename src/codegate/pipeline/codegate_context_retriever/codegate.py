@@ -116,9 +116,6 @@ class CodegateContextRetriever(PipelineStep):
 
         logger.info(f"Adding {len(all_bad_packages)} bad packages to the context.")
 
-        # Generate context string using the searched objects
-        context_str = "CodeGate did not find any malicious or archived packages."
-
         # Nothing to do if no bad packages are found
         if len(all_bad_packages) == 0:
             return PipelineResult(request=request, context=context)
