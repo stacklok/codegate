@@ -271,7 +271,7 @@ class CodegateSecrets(PipelineStep):
         return text_encryptor.obfuscate(text, snippet)
 
     async def process(
-        self, reques: Any, context: PipelineContext
+        self, request: Any, context: PipelineContext
     ) -> PipelineResult:
         """
         Process the request to find and protect secrets in all messages.
