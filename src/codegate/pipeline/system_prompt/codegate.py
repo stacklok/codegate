@@ -92,38 +92,10 @@ class SystemPrompt(PipelineStep):
         if not should_add_codegate_sys_prompt and not wrksp_custom_instructions:
             return PipelineResult(request=request, context=context)
 
-        
-        ##### NEW CODE PATH #####
-
-        if type(request) != ChatCompletionRequest:
-            request_system_message = {}
-            req_sys_prompt = ""
-            for sysprompt in request.get_system_prompt():
-                req_sys_prompt = sysprompt
-
-            system_prompt = await self._construct_system_prompt(
-                context.client,
-                wrksp_custom_instructions,
-                req_sys_prompt,
-                should_add_codegate_sys_prompt,
-            )
-            context.add_alert(self.name, trigger_string=system_prompt)
-            request.set_system_prompt(system_prompt)
-
-            return PipelineResult(request=request, context=context)
-
-        ##### OLD CODE PATH #####
-
-        new_request = request.copy()
-
-        if "messages" not in new_request:
-            new_request["messages"] = []
-
         request_system_message = {}
-        for message in new_request["messages"]:
-            if message["role"] == "system":
-                request_system_message = message
-        req_sys_prompt = request_system_message.get("content")
+        req_sys_prompt = ""
+        for sysprompt in request.get_system_prompt():
+            req_sys_prompt = sysprompt
 
         system_prompt = await self._construct_system_prompt(
             context.client,
@@ -132,12 +104,6 @@ class SystemPrompt(PipelineStep):
             should_add_codegate_sys_prompt,
         )
         context.add_alert(self.name, trigger_string=system_prompt)
-        if not request_system_message:
-            # Insert the system prompt at the beginning of the messages
-            sytem_message = ChatCompletionSystemMessage(content=system_prompt, role="system")
-            new_request["messages"].insert(0, sytem_message)
-        else:
-            # Update the existing system prompt
-            request_system_message["content"] = system_prompt
+        request.set_system_prompt(system_prompt)
 
-        return PipelineResult(request=new_request, context=context)
+        return PipelineResult(request=request, context=context)
