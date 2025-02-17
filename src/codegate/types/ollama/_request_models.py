@@ -120,7 +120,7 @@ class ChatRequest(pydantic.BaseModel):
     format: dict | None = None
     keep_alive: int | str | None = None
     tools: List[ToolDef] | None = None
-    options: dict
+    options: dict | None = None
 
     def get_stream(self) -> bool:
         return self.stream
@@ -192,7 +192,7 @@ class GenerateRequest(pydantic.BaseModel):
     format: dict | None = None
     keep_alive: int | str | None = None
     images: List[bytes] | None = None
-    options: dict
+    options: dict | None = None
 
     def get_stream(self) -> bool:
         return self.stream

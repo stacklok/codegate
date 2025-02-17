@@ -1,12 +1,17 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from litellm import ChatCompletionRequest, ModelResponse
-from litellm.types.utils import Delta, StreamingChoices
 
 from codegate.pipeline.base import PipelineContext
 from codegate.pipeline.output import OutputPipelineContext
 from codegate.pipeline.pii.pii import CodegatePii, PiiRedactionNotifier, PiiUnRedactionStep
+from codegate.types.openai import (
+    ChatCompletionRequest,
+    ChoiceDelta,
+    MessageDelta,
+    StreamingChatCompletion,
+    UserMessage,
+)
 
 
 class TestCodegatePii:
@@ -43,7 +48,7 @@ class TestCodegatePii:
 
     @pytest.mark.asyncio
     async def test_process_no_messages(self, pii_step):
-        request = ChatCompletionRequest(model="test-model")
+        request = ChatCompletionRequest(model="test-model", messages=[])
         context = PipelineContext()
 
         result = await pii_step.process(request, context)
@@ -55,7 +60,7 @@ class TestCodegatePii:
     async def test_process_with_pii(self, pii_step):
         original_text = "My email is test@example.com"
         request = ChatCompletionRequest(
-            model="test-model", messages=[{"role": "user", "content": original_text}]
+            model="test-model", messages=[UserMessage(role="user", content=original_text)]
         )
         context = PipelineContext()
 
@@ -77,9 +82,10 @@ class TestCodegatePii:
         result = await pii_step.process(request, context)
 
         # Verify the user message was anonymized
-        user_messages = [m for m in result.request["messages"] if m["role"] == "user"]
+        user_messages = [m for m in result.request.get_messages() if isinstance(m, UserMessage)]
         assert len(user_messages) == 1
-        assert user_messages[0]["content"] == anonymized_text
+        content = next(user_messages[0].get_content())
+        assert content.get_text() == anonymized_text
 
         # Verify metadata was updated
         assert result.context.metadata["redacted_pii_count"] == 1
@@ -89,9 +95,9 @@ class TestCodegatePii:
         assert "pii_manager" in result.context.metadata
 
         # Verify system message was added
-        system_messages = [m for m in result.request["messages"] if m["role"] == "system"]
+        system_messages = [m for m in result.request.get_system_prompt()]
         assert len(system_messages) == 1
-        assert system_messages[0]["content"] == "PII has been redacted"
+        assert system_messages[0] == "PII has been redacted"
 
     def test_restore_pii(self, pii_step):
         anonymized_text = "My email is <test-uuid>"
@@ -121,11 +127,11 @@ class TestPiiUnRedactionStep:
 
     @pytest.mark.asyncio
     async def test_process_chunk_no_content(self, unredaction_step):
-        chunk = ModelResponse(
+        chunk = StreamingChatCompletion(
             id="test",
             choices=[
-                StreamingChoices(
-                    finish_reason=None, index=0, delta=Delta(content=None), logprobs=None
+                ChoiceDelta(
+                    finish_reason=None, index=0, delta=MessageDelta(content=None), logprobs=None
                 )
             ],
             created=1234567890,
@@ -142,13 +148,13 @@ class TestPiiUnRedactionStep:
     @pytest.mark.asyncio
     async def test_process_chunk_with_uuid(self, unredaction_step):
         uuid = "12345678-1234-1234-1234-123456789012"
-        chunk = ModelResponse(
+        chunk = StreamingChatCompletion(
             id="test",
             choices=[
-                StreamingChoices(
+                ChoiceDelta(
                     finish_reason=None,
                     index=0,
-                    delta=Delta(content=f"Text with <{uuid}>"),
+                    delta=MessageDelta(content=f"Text with <{uuid}>"),
                     logprobs=None,
                 )
             ],
@@ -168,6 +174,7 @@ class TestPiiUnRedactionStep:
 
         result = await unredaction_step.process_chunk(chunk, context, input_context)
 
+        # TODO this should use the abstract interface
         assert result[0].choices[0].delta.content == "Text with test@example.com"
 
 
@@ -199,11 +206,11 @@ class TestPiiRedactionNotifier:
 
     @pytest.mark.asyncio
     async def test_process_chunk_no_pii(self, notifier):
-        chunk = ModelResponse(
+        chunk = StreamingChatCompletion(
             id="test",
             choices=[
-                StreamingChoices(
-                    finish_reason=None, index=0, delta=Delta(content="Hello"), logprobs=None
+                ChoiceDelta(
+                    finish_reason=None, index=0, delta=MessageDelta(content="Hello"), logprobs=None
                 )
             ],
             created=1234567890,
@@ -219,13 +226,13 @@ class TestPiiRedactionNotifier:
 
     @pytest.mark.asyncio
     async def test_process_chunk_with_pii(self, notifier):
-        chunk = ModelResponse(
+        chunk = StreamingChatCompletion(
             id="test",
             choices=[
-                StreamingChoices(
+                ChoiceDelta(
                     finish_reason=None,
                     index=0,
-                    delta=Delta(content="Hello", role="assistant"),
+                    delta=MessageDelta(content="Hello", role="assistant"),
                     logprobs=None,
                 )
             ],
@@ -244,6 +251,7 @@ class TestPiiRedactionNotifier:
         result = await notifier.process_chunk(chunk, context, input_context)
 
         assert len(result) == 2  # Notification chunk + original chunk
+        # TODO this should use the abstract interface
         notification_content = result[0].choices[0].delta.content
         assert "CodeGate protected" in notification_content
         assert "1 email address" in notification_content
