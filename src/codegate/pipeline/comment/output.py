@@ -12,6 +12,7 @@ from codegate.extract_snippets.message_extractor import (
 )
 from codegate.pipeline.base import PipelineContext
 from codegate.pipeline.output import OutputPipelineContext, OutputPipelineStep
+
 # from codegate.pipeline.suspicious_commands.suspicious_commands import check_suspicious_code
 from codegate.storage import StorageEngine
 from codegate.utils.package_extractor import PackageExtractor
@@ -50,8 +51,8 @@ class CodeCommentStep(OutputPipelineStep):
 
     async def _snippet_comment(self, snippet: CodeSnippet, context: PipelineContext) -> str:
         """Create a comment for a snippet"""
-        comment = ''
-        
+        comment = ""
+
         # Remove this for now. We need to find a better place for it.
         # comment, is_suspicious = await check_suspicious_code(snippet.code, snippet.language)
         # if is_suspicious:
