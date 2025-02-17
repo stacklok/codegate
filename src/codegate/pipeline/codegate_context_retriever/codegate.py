@@ -26,6 +26,21 @@ class CodegateContextRetriever(PipelineStep):
     the word "codegate" in the user message.
     """
 
+    def __init__(
+            self,
+            storage_engine: StorageEngine | None = None,
+            package_extractor: PackageExtractor | None = None,
+        ):
+        """
+        Initialize the CodegateContextRetriever with optional dependencies.
+
+        Args:
+            storage_engine: Optional StorageEngine instance for package searching
+            package_extractor: Optional PackageExtractor class for package extraction
+        """
+        self.storage_engine = storage_engine or StorageEngine()
+        self.package_extractor = package_extractor or PackageExtractor
+
     @property
     def name(self) -> str:
         """
@@ -67,9 +82,6 @@ class CodegateContextRetriever(PipelineStep):
             return PipelineResult(request=request)
         user_message, last_user_idx = last_message
 
-        # Create storage engine object
-        storage_engine = StorageEngine()
-
         # Extract any code snippets
         extractor = MessageCodeExtractorFactory.create_snippet_extractor(context.client)
         snippets = extractor.extract_snippets(user_message)
@@ -81,7 +93,7 @@ class CodegateContextRetriever(PipelineStep):
             snippet_packages = []
             for snippet in snippets:
                 snippet_packages.extend(
-                    PackageExtractor.extract_packages(snippet.code, snippet.language)  # type: ignore
+                    self.package_extractor.extract_packages(snippet.code, snippet.language)  # type: ignore
                 )
 
             logger.info(
@@ -89,7 +101,7 @@ class CodegateContextRetriever(PipelineStep):
                 f"for language {snippet_language} in code snippets."
             )
             # Find bad packages in the snippets
-            bad_snippet_packages = await storage_engine.search(
+            bad_snippet_packages = await self.storage_engine.search(
                 language=snippet_language, packages=snippet_packages
             )  # type: ignore
             logger.info(f"Found {len(bad_snippet_packages)} bad packages in code snippets.")
@@ -107,7 +119,11 @@ class CodegateContextRetriever(PipelineStep):
         collected_bad_packages = []
         for item_message in filter(None, map(str.strip, split_messages)):
             # Vector search to find bad packages
-            bad_packages = await storage_engine.search(query=item_message, distance=0.5, limit=100)
+            bad_packages = await self.storage_engine.search(
+                query=item_message,
+                distance=0.5,
+                limit=100,
+            )
             if bad_packages and len(bad_packages) > 0:
                 collected_bad_packages.extend(bad_packages)
 
