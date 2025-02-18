@@ -129,6 +129,7 @@ class DbRecorder(DbCodeGate):
         active_workspace = await DbReader().get_active_workspace()
         workspace_id = active_workspace.id if active_workspace else "1"
         prompt_params.workspace_id = workspace_id
+
         sql = text(
             """
                 INSERT INTO prompts (id, timestamp, provider, request, type, workspace_id)
@@ -302,7 +303,7 @@ class DbRecorder(DbCodeGate):
                 await self.record_outputs(context.output_responses, initial_id)
                 await self.record_alerts(context.alerts_raised, initial_id)
                 logger.info(
-                    f"Recorded context in DB. Output chunks: {len(context.output_responses)}. "
+                    f"Updated context in DB. Output chunks: {len(context.output_responses)}. "
                     f"Alerts: {len(context.alerts_raised)}."
                 )
         except Exception as e:
