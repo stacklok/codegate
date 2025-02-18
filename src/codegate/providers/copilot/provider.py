@@ -24,11 +24,6 @@ from codegate.providers.copilot.pipeline import (
     CopilotPipeline,
 )
 from codegate.providers.copilot.streaming import SSEProcessor
-from codegate.types.common import (
-    Delta,
-    ModelResponse,
-    StreamingChoices,
-)
 from codegate.types.openai import StreamingChatCompletion
 
 setup_logging()
@@ -236,7 +231,7 @@ class CopilotProvider(asyncio.Protocol):
         path: str,
         headers: list[str],
         body: bytes,
-    ) -> Tuple[bytes, PipelineContext]:
+    ) -> Tuple[bytes, PipelineContext | None]:
         strategy = self._select_pipeline(method, path)
         if len(body) == 0 or strategy is None:
             # if we didn't select any strategy that would change the request
