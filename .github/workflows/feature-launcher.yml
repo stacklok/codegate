@@ -16,9 +16,10 @@ jobs:
           ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_URL: ${{ github.event.issue.html_url }}
         run: |
+          JSON_PAYLOAD=$(jq -n --arg title "$ISSUE_TITLE" --arg body "$ISSUE_BODY" --arg url "$ISSUE_URL" \
+          '{content: "**🚀 New Feature Incoming!**\n\n🎉 *\($title)* is now planned!\n📖 Description: \($body)\n🔗 [Check it out here](\($url))"}')
+
           curl -H "Content-Type: application/json" \
           -X POST \
-          -d '{
-            "content": "**🚀 New Feature Launched!**\n\n🎉 *${{ env.ISSUE_TITLE }}* is now available to try!\n📖 Description: ${{ env.ISSUE_BODY }}\n🔗 [Check it out here](${{ env.ISSUE_URL }})"
-          }' \
+          -d "$JSON_PAYLOAD" \
           $DISCORD_WEBHOOK
