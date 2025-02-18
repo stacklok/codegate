@@ -26,6 +26,21 @@ class CodegateContextRetriever(PipelineStep):
     the word "codegate" in the user message.
     """
 
+    def __init__(
+            self,
+            storage_engine: StorageEngine | None = None,
+            package_extractor: PackageExtractor | None = None,
+        ):
+        """
+        Initialize the CodegateContextRetriever with optional dependencies.
+
+        Args:
+            storage_engine: Optional StorageEngine instance for package searching
+            package_extractor: Optional PackageExtractor class for package extraction
+        """
+        self.storage_engine = storage_engine or StorageEngine()
+        self.package_extractor = package_extractor or PackageExtractor
+
     @property
     def name(self) -> str:
         """
@@ -67,9 +82,6 @@ class CodegateContextRetriever(PipelineStep):
             return PipelineResult(request=request)
         user_message, last_user_idx = last_message
 
-        # Create storage engine object
-        storage_engine = StorageEngine()
-
         # Extract any code snippets
         extractor = MessageCodeExtractorFactory.create_snippet_extractor(context.client)
         snippets = extractor.extract_snippets(user_message)
@@ -81,7 +93,7 @@ class CodegateContextRetriever(PipelineStep):
             snippet_packages = []
             for snippet in snippets:
                 snippet_packages.extend(
-                    PackageExtractor.extract_packages(snippet.code, snippet.language)  # type: ignore
+                    self.package_extractor.extract_packages(snippet.code, snippet.language)  # type: ignore
                 )
 
             logger.info(
@@ -89,7 +101,7 @@ class CodegateContextRetriever(PipelineStep):
                 f"for language {snippet_language} in code snippets."
             )
             # Find bad packages in the snippets
-            bad_snippet_packages = await storage_engine.search(
+            bad_snippet_packages = await self.storage_engine.search(
                 language=snippet_language, packages=snippet_packages
             )  # type: ignore
             logger.info(f"Found {len(bad_snippet_packages)} bad packages in code snippets.")
@@ -107,7 +119,11 @@ class CodegateContextRetriever(PipelineStep):
         collected_bad_packages = []
         for item_message in filter(None, map(str.strip, split_messages)):
             # Vector search to find bad packages
-            bad_packages = await storage_engine.search(query=item_message, distance=0.5, limit=100)
+            bad_packages = await self.storage_engine.search(
+                query=item_message,
+                distance=0.5,
+                limit=100,
+            )
             if bad_packages and len(bad_packages) > 0:
                 collected_bad_packages.extend(bad_packages)
 
@@ -130,42 +146,36 @@ class CodegateContextRetriever(PipelineStep):
             # perform replacement in all the messages starting from this index
             messages = request.get_messages()
             filtered = itertools.dropwhile(lambda x: x[0] < last_user_idx, enumerate(messages))
-            if context.client != ClientType.OPEN_INTERPRETER:
-                for i, message in filtered:
-                    message_str = "".join([
-                        txt
-                        for content in message.get_content()
-                        for txt in content.get_text()
-                    ])
-                    context_msg = message_str
-                    # Add the context to the last user message
-                    if context.client in [ClientType.CLINE, ClientType.KODU]:
-                        match = re.search(r"<task>\s*(.*?)\s*</task>(.*)", message_str, re.DOTALL)
-                        if match:
-                            task_content = match.group(1)  # Content within <task>...</task>
-                            rest_of_message = match.group(
-                                2
-                            ).strip()  # Content after </task>, if any
+            for i, message in filtered:
+                message_str = ""
+                for content in message.get_content():
+                    txt = content.get_text()
+                    if not txt:
+                        logger.debug(f"content has no text: {content}")
+                        continue
+                    message_str += txt
+                context_msg = message_str
+                # Add the context to the last user message
+                if context.client in [ClientType.CLINE, ClientType.KODU]:
+                    match = re.search(r"<task>\s*(.*?)\s*</task>(.*)", message_str, re.DOTALL)
+                    if match:
+                        task_content = match.group(1)  # Content within <task>...</task>
+                        rest_of_message = match.group(
+                            2
+                        ).strip()  # Content after </task>, if any
 
-                            # Embed the context into the task block
-                            updated_task_content = (
-                                f"<task>Context: {context_str}"
-                                + f"Query: {task_content.strip()}</task>"
-                            )
+                        # Embed the context into the task block
+                        updated_task_content = (
+                            f"<task>Context: {context_str}"
+                            + f"Query: {task_content.strip()}</task>"
+                        )
 
-                            # Combine updated task content with the rest of the message
-                            context_msg = updated_task_content + rest_of_message
-                    else:
-                        context_msg = f"Context: {context_str} \n\n Query: {message_str}"
-                    content = next(message.get_content())
-                    content.set_text(context_msg)
-                    logger.debug("Final context message", context_message=context_msg)
-            else:
-                #  just add a message in the end
-                new_request["messages"].append(
-                    {
-                        "content": context_str,
-                        "role": "assistant",
-                    }
-                )
+                        # Combine updated task content with the rest of the message
+                        context_msg = updated_task_content + rest_of_message
+                else:
+                    context_msg = f"Context: {context_str} \n\n Query: {message_str}"
+                content = next(message.get_content())
+                content.set_text(context_msg)
+                logger.debug("Final context message", context_message=context_msg)
+
             return PipelineResult(request=request, context=context)
