@@ -28,6 +28,10 @@ generate_certs() {
 
 # Function to start Nginx server for the dashboard
 start_dashboard() {
+    if [ -n "${DASHBOARD_BASE_URL}" ]; then
+	echo "Overriding dashboard url with $DASHBOARD_BASE_URL"
+	sed -ibck "s|http://localhost:8989|http://$DASHBOARD_BASE_URL:8989|g" /var/www/html/assets/*.js
+    fi
     echo "Starting the dashboard..."
     nginx -g 'daemon off;' &
 }
