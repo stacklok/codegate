@@ -18,6 +18,9 @@ from codegate.types.openai import (
 )
 
 
+logger = structlog.get_logger("codegate")
+
+
 class OpenAIProvider(BaseProvider):
     def __init__(
         self,
@@ -74,7 +77,6 @@ class OpenAIProvider(BaseProvider):
         except Exception as e:
             #  check if we have an status code there
             if hasattr(e, "status_code"):
-                logger = structlog.get_logger("codegate")
                 logger.error("Error in OpenAIProvider completion", error=str(e))
 
                 raise HTTPException(status_code=e.status_code, detail=str(e))  # type: ignore
@@ -105,6 +107,10 @@ class OpenAIProvider(BaseProvider):
             body = await request.body()
             req = ChatCompletionRequest.model_validate_json(body)
             is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, req)
+
+            if not req.stream:
+                logger.warn("We got a non-streaming request, forcing to a streaming one")
+                req.stream = True
 
             return await self.process_request(
                 req,
