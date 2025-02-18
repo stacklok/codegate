@@ -339,9 +339,9 @@ class ChatCompletionRequest(pydantic.BaseModel):
 
     def last_user_block(self) -> Iterable[tuple[Message, int]]:
         for idx, msg in enumerate(reversed(self.messages)):
-            if isinstance(msg, UserMessage):
+            if isinstance(msg, (UserMessage, ToolMessage)):
                 yield msg, len(self.messages) - 1 - idx
-            elif isinstance(msg, (SystemMessage, DeveloperMessage, ToolMessage)):
+            elif isinstance(msg, (SystemMessage, DeveloperMessage)):
                 # these can occur in the middle of a user block
                 continue
             elif isinstance(msg, (AssistantMessage, FunctionMessage)):

@@ -110,7 +110,7 @@ class AssistantMessage(pydantic.BaseModel):
 
     def set_text(self, text) -> None:
         if isinstance(self.content, str):
-            self.content = txt
+            self.content = text
             return
 
         # should have been called on the content
