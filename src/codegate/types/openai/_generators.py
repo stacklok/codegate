@@ -7,6 +7,7 @@ import httpx
 import structlog
 
 from ._response_models import (
+    ChatCompletion,
     ErrorDetails,
     MessageError,
     StreamingChatCompletion,
@@ -62,7 +63,6 @@ async def streaming(request, api_key, url):
     payload = request.json(exclude_defaults=True)
     if os.getenv("CODEGATE_DEBUG_OPENAI") is not None:
         print(payload)
-        print(headers)
 
     client = httpx.AsyncClient()
     async with client.stream(
@@ -74,6 +74,11 @@ async def streaming(request, api_key, url):
         # TODO figure out how to best return failures
         match resp.status_code:
             case 200:
+                if not request.stream:
+                    body = await resp.aread()
+                    yield ChatCompletion.model_validate_json(body)
+                    return
+
                 async for message in message_wrapper(resp.aiter_lines()):
                     yield message
             case 400 | 401 | 403 | 404 | 413 | 429:
@@ -115,7 +120,6 @@ async def message_wrapper(lines):
             item = StreamingChatCompletion.model_validate_json(payload)
             yield item
         except Exception as e:
-            print(f"WAAAGH {payload}")
             logger.warn("HTTP error while consuming SSE stream", payload=payload, exc_info=e)
             err = MessageError(
                 error=ErrorDetails(
