@@ -1478,6 +1478,16 @@
             "type": "string",
             "title": "Name"
           },
+          "config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "rename_to": {
             "anyOf": [
               {
@@ -1590,6 +1600,17 @@
       },
       "MuxRule": {
         "properties": {
+          "provider_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Name"
+          },
           "provider_id": {
             "type": "string",
             "title": "Provider Id"
@@ -1842,6 +1863,27 @@
           "is_active"
         ],
         "title": "Workspace"
+      },
+      "WorkspaceConfig": {
+        "properties": {
+          "system_prompt": {
+            "type": "string",
+            "title": "System Prompt"
+          },
+          "muxing_rules": {
+            "items": {
+              "$ref": "#/components/schemas/MuxRule"
+            },
+            "type": "array",
+            "title": "Muxing Rules"
+          }
+        },
+        "type": "object",
+        "required": [
+          "system_prompt",
+          "muxing_rules"
+        ],
+        "title": "WorkspaceConfig"
       }
     }
   }

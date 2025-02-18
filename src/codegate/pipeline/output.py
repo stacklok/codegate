@@ -127,7 +127,10 @@ class OutputPipelineInstance:
         loop.create_task(self._db_recorder.record_context(self._input_context))
 
     async def process_stream(
-        self, stream: AsyncIterator[ModelResponse], cleanup_sensitive: bool = True, finish_stream: bool = True,
+        self,
+        stream: AsyncIterator[ModelResponse],
+        cleanup_sensitive: bool = True,
+        finish_stream: bool = True,
     ) -> AsyncIterator[ModelResponse]:
         """
         Process a stream through all pipeline steps

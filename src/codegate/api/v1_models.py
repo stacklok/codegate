@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import pydantic
 
+import codegate.muxing.models as mux_models
 from codegate.db import models as db_models
 from codegate.extract_snippets.message_extractor import CodeSnippet
 from codegate.providers.base import BaseProvider
@@ -59,9 +60,19 @@ class ListActiveWorkspacesResponse(pydantic.BaseModel):
         )
 
 
-class CreateOrRenameWorkspaceRequest(pydantic.BaseModel):
+class WorkspaceConfig(pydantic.BaseModel):
+    system_prompt: str
+
+    muxing_rules: List[mux_models.MuxRule]
+
+
+class FullWorkspace(pydantic.BaseModel):
     name: str
 
+    config: Optional[WorkspaceConfig] = None
+
+
+class CreateOrRenameWorkspaceRequest(FullWorkspace):
     # If set, rename the workspace to this name. Note that
     # the 'name' field is still required and the workspace
     # workspace must exist.

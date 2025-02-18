@@ -17,9 +17,9 @@ async def sse_stream_generator(stream: AsyncIterator[Any]) -> AsyncIterator[str]
                 # this might even allow us to tighten the typing of the stream
                 chunk = chunk.model_dump_json(exclude_none=True, exclude_unset=True)
             try:
-                yield f"data:{chunk}\n\n"
+                yield f"data: {chunk}\n\n"
             except Exception as e:
-                yield f"data:{str(e)}\n\n"
+                yield f"data: {str(e)}\n\n"
     except Exception as e:
         yield f"data: {str(e)}\n\n"
     finally:

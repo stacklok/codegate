@@ -912,7 +912,9 @@ class CopilotProxyTargetProtocol(asyncio.Protocol):
                 for choice in record.get("content", {}).get("choices", [])
             )
             async for record in self.output_pipeline_instance.process_stream(
-                stream_iterator(), cleanup_sensitive=False, finish_stream=finish_stream_flag,
+                stream_iterator(),
+                cleanup_sensitive=False,
+                finish_stream=finish_stream_flag,
             ):
                 chunk = record.model_dump_json(exclude_none=True, exclude_unset=True)
                 sse_data = f"data: {chunk}\n\n".encode("utf-8")
