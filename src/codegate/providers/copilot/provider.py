@@ -871,16 +871,15 @@ class CopilotProxyTargetProtocol(asyncio.Protocol):
                 while not self.stream_queue.empty():
                     incoming_record = await self.stream_queue.get()
                     for choice in incoming_record.choices:
-                        if choice.finish_reason and \
-                                choice.finish_reason in ["stop", "length", "content_filter", "tool_calls"]:
+                        if choice.finish_reason and choice.finish_reason is not None:
                             self.finish_stream = True
                     yield incoming_record
 
             # needs to be set as the flag gets reset on finish_data
             finish_stream_flag = any(
-                choice.get("finish_reason") == "stop"
+                choice.finish_reason is not None
                 for record in list(self.stream_queue._queue)
-                for choice in record.get("content", {}).get("choices", [])
+                for choice in record.choices
             )
             async for record in self.output_pipeline_instance.process_stream(
                 stream_iterator(),
