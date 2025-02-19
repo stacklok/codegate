@@ -18,6 +18,12 @@ _muxrules_sgtn = None
 _singleton_lock = Lock()
 
 
+class MuxMatchingError(Exception):
+    """An exception for muxing matching errors."""
+
+    pass
+
+
 async def get_muxing_rules_registry():
     """Returns a singleton instance of the muxing rules registry."""
 
@@ -48,9 +54,9 @@ class ModelRoute:
 class MuxingRuleMatcher(ABC):
     """Base class for matching muxing rules."""
 
-    def __init__(self, route: ModelRoute, matcher_blob: str):
+    def __init__(self, route: ModelRoute, mux_rule: mux_models.MuxRule):
         self._route = route
-        self._matcher_blob = matcher_blob
+        self._mux_rule = mux_rule
 
     @abstractmethod
     def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
@@ -67,32 +73,24 @@ class MuxingMatcherFactory:
     """Factory for creating muxing matchers."""
 
     @staticmethod
-    def create(mux_rule: db_models.MuxRule, route: ModelRoute) -> MuxingRuleMatcher:
+    def create(db_mux_rule: db_models.MuxRule, route: ModelRoute) -> MuxingRuleMatcher:
         """Create a muxing matcher for the given endpoint and model."""
 
         factory: Dict[mux_models.MuxMatcherType, MuxingRuleMatcher] = {
-            mux_models.MuxMatcherType.catch_all: CatchAllMuxingRuleMatcher,
-            mux_models.MuxMatcherType.filename_match: FileMuxingRuleMatcher,
-            mux_models.MuxMatcherType.request_type_match: RequestTypeMuxingRuleMatcher,
+            mux_models.MuxMatcherType.catch_all: RequestTypeAndFileMuxingRuleMatcher,
+            mux_models.MuxMatcherType.fim: RequestTypeAndFileMuxingRuleMatcher,
+            mux_models.MuxMatcherType.chat: RequestTypeAndFileMuxingRuleMatcher,
         }
 
         try:
             # Initialize the MuxingRuleMatcher
-            return factory[mux_rule.matcher_type](route, mux_rule.matcher_blob)
+            mux_rule = mux_models.MuxRule.from_db_mux_rule(db_mux_rule)
+            return factory[mux_rule.matcher_type](route, mux_rule)
         except KeyError:
             raise ValueError(f"Unknown matcher type: {mux_rule.matcher_type}")
 
 
-class CatchAllMuxingRuleMatcher(MuxingRuleMatcher):
-    """A catch all muxing rule matcher."""
-
-    def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
-        logger.info("Catch all rule matched")
-        return True
-
-
-class FileMuxingRuleMatcher(MuxingRuleMatcher):
-    """A file muxing rule matcher."""
+class RequestTypeAndFileMuxingRuleMatcher(MuxingRuleMatcher):
 
     def _extract_request_filenames(self, detected_client: ClientType, data: dict) -> set[str]:
         """
@@ -103,47 +101,51 @@ class FileMuxingRuleMatcher(MuxingRuleMatcher):
             return body_extractor.extract_unique_filenames(data)
         except BodyCodeSnippetExtractorError as e:
             logger.error(f"Error extracting filenames from request: {e}")
-            return set()
+            raise MuxMatchingError("Error extracting filenames from request")
 
-    def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
+    def _is_matcher_in_filenames(self, detected_client: ClientType, data: dict) -> bool:
         """
-        Retun True if there is a filename in the request that matches the matcher_blob.
-        The matcher_blob is either an extension (e.g. .py) or a filename (e.g. main.py).
+        Check if the matcher is in the request filenames.
         """
-        # If there is no matcher_blob, we don't match
-        if not self._matcher_blob:
-            return False
-        filenames_to_match = self._extract_request_filenames(
-            thing_to_match.client_type, thing_to_match.body
+        # Empty matcher_blob means we match everything
+        if not self._mux_rule.matcher:
+            return True
+        filenames_to_match = self._extract_request_filenames(detected_client, data)
+        # _mux_rule.matcher can be a filename or a file extension. We match if any of the filenames
+        # match the rule.
+        is_filename_match = any(
+            self._mux_rule.matcher == filename or filename.endswith(self._mux_rule.matcher)
+            for filename in filenames_to_match
         )
-        is_filename_match = any(self._matcher_blob in filename for filename in filenames_to_match)
-        if is_filename_match:
-            logger.info(
-                "Filename rule matched", filenames=filenames_to_match, matcher=self._matcher_blob
-            )
         return is_filename_match
 
-
-class RequestTypeMuxingRuleMatcher(MuxingRuleMatcher):
-    """A catch all muxing rule matcher."""
+    def _is_request_type_match(self, is_fim_request: bool) -> bool:
+        """
+        Check if the request type matches the MuxMatcherType.
+        """
+        # Catch all rule matches both chat and FIM requests
+        if self._mux_rule.matcher_type == mux_models.MuxMatcherType.catch_all:
+            return True
+        incoming_request_type = "fim" if is_fim_request else "chat"
+        if incoming_request_type == self._mux_rule.matcher_type:
+            return True
+        return False
 
     def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
         """
-        Return True if the request type matches the matcher_blob.
-        The matcher_blob is either "fim" or "chat".
+        Return True if the matcher is in one of the request filenames and
+        if the request type matches the MuxMatcherType.
         """
-        # If there is no matcher_blob, we don't match
-        if not self._matcher_blob:
-            return False
-        incoming_request_type = "fim" if thing_to_match.is_fim_request else "chat"
-        is_request_type_match = self._matcher_blob == incoming_request_type
-        if is_request_type_match:
+        is_rule_matched = self._is_matcher_in_filenames(
+            thing_to_match.client_type, thing_to_match.body
+        ) and self._is_request_type_match(thing_to_match.is_fim_request)
+        if is_rule_matched:
             logger.info(
-                "Request type rule matched",
-                matcher=self._matcher_blob,
-                request_type=incoming_request_type,
+                "Request type and rule matched",
+                matcher=self._mux_rule.matcher,
+                is_fim_request=thing_to_match.is_fim_request,
             )
-        return is_request_type_match
+        return is_rule_matched
 
 
 class MuxingRulesinWorkspaces:
