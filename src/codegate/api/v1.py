@@ -252,7 +252,7 @@ async def create_workspace(
 ) -> v1_models.FullWorkspace:
     """Create a new workspace."""
     try:
-        _ = await wscrud.add_workspace(
+        workspace_row, mux_rules = await wscrud.add_workspace(
             request.name, request.config.custom_instructions, request.config.muxing_rules
         )
     except AlreadyExistsError:
@@ -270,7 +270,13 @@ async def create_workspace(
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
-    return v1_models.Workspace(name=request.name, is_active=False)
+    return v1_models.FullWorkspace(
+        name=workspace_row.name,
+        config=v1_models.WorkspaceConfig(
+            custom_instructions=workspace_row.custom_instructions,
+            muxing_rules=[mux_models.MuxRule.try_from_db_model(mux_rule) for mux_rule in mux_rules],
+        ),
+    )
 
 
 @v1.put(

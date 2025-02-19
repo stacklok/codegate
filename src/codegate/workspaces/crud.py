@@ -43,7 +43,7 @@ class WorkspaceCrud:
         new_workspace_name: str,
         custom_instructions: Optional[str] = None,
         muxing_rules: Optional[List[mux_models.MuxRule]] = None,
-    ) -> db_models.WorkspaceRow:
+    ) -> Tuple[db_models.WorkspaceRow, List[db_models.MuxRule]]:
         """
         Add a workspace
 
@@ -66,11 +66,12 @@ class WorkspaceCrud:
                     workspace_created.custom_instructions = custom_instructions
                     await db_recorder.update_workspace(workspace_created)
 
+                mux_rules = []
                 if muxing_rules:
-                    await self.set_muxes(new_workspace_name, muxing_rules)
+                    mux_rules = await self.set_muxes(new_workspace_name, muxing_rules)
 
                 await transaction.commit()
-                return workspace_created
+                return workspace_created, mux_rules
             except Exception as e:
                 await transaction.rollback()
                 raise WorkspaceCrudError(f"Error adding workspace {new_workspace_name}: {str(e)}")
