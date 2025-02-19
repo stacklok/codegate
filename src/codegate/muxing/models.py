@@ -1,24 +1,33 @@
 from enum import Enum
-from typing import Optional
+from typing import Optional, Self
 
 import pydantic
 
 from codegate.clients.clients import ClientType
+from codegate.db.models import MuxRule as DBMuxRule
 
 
 class MuxMatcherType(str, Enum):
     """
     Represents the different types of matchers we support.
+
+    The 3 rules present match filenames and request types. They're used in conjunction with the
+    matcher field in the MuxRule model.
+    E.g.
+    - catch_all and match: None -> Always match
+    - fim and match: requests.py -> Match the request if the filename is requests.py and FIM
+    - chat and match: None -> Match the request if it's a chat request
+    - chat and match: .js -> Match the request if the filename has a .js extension and is chat
+
+    NOTE: Removing or updating fields from this enum will require a migration.
     """
 
     # Always match this prompt
     catch_all = "catch_all"
-    # Match based on the filename. It will match if there is a filename
-    # in the request that matches the matcher either extension or full name (*.py or main.py)
-    filename_match = "filename_match"
-    # Match based on the request type. It will match if the request type
-    # matches the matcher (e.g. FIM or chat)
-    request_type_match = "request_type_match"
+    # Match based on fim request type. It will match if the request type is fim
+    fim = "fim"
+    # Match based on chat request type. It will match if the request type is chat
+    chat = "chat"
 
 
 class MuxRule(pydantic.BaseModel):
@@ -35,6 +44,18 @@ class MuxRule(pydantic.BaseModel):
     # The actual matcher to use. Note that
     # this depends on the matcher type.
     matcher: Optional[str] = None
+
+    @classmethod
+    def from_db_mux_rule(cls, db_mux_rule: DBMuxRule) -> Self:
+        """
+        Convert a DBMuxRule to a MuxRule.
+        """
+        return MuxRule(
+            provider_id=db_mux_rule.id,
+            model=db_mux_rule.provider_model_name,
+            matcher_type=db_mux_rule.matcher_type,
+            matcher=db_mux_rule.matcher_blob,
+        )
 
 
 class ThingToMatchMux(pydantic.BaseModel):
