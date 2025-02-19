@@ -541,16 +541,9 @@ async def list_workspaces_by_provider(
     provider_id: UUID,
 ) -> List[WorkspaceWithModel]:
     """List workspaces by provider ID."""
-
     try:
-        workspaces = await wscrud.workspaces_by_provider(provider_id)
+        return await wscrud.workspaces_by_provider(provider_id)
 
-        return [
-            WorkspaceWithModel(id=ws.id, name=ws.name, provider_model_name=ws.provider_model_name)
-            for ws in workspaces
-        ]
-    except crud.WorkspaceDoesNotExistError:
-        raise HTTPException(status_code=404, detail="Workspaces not found")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
