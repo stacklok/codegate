@@ -534,7 +534,7 @@ async def set_workspace_muxes(
 
 @v1.get(
     "/workspaces/{provider_id}",
-    tags=["Providers"],
+    tags=["Workspaces"],
     generate_unique_id_function=uniq_name,
 )
 async def list_workspaces_by_provider(
