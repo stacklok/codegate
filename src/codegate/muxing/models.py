@@ -41,7 +41,7 @@ class MuxRule(pydantic.BaseModel):
     def try_from_db_model(cls, db_model: DbMuxRule) -> "MuxRule":
         try:
             return cls(
-                provider_name=db_model.provider_endpoint_name,
+                provider_name=None,
                 provider_id=db_model.provider_endpoint_id,
                 model=db_model.provider_model_name,
                 matcher_type=MuxMatcherType(db_model.matcher_type),
