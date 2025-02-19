@@ -170,8 +170,9 @@ class OutputPipelineInstance:
         finally:
             # NOTE: Don't use await in finally block, it will break the stream
             # Don't flush the buffer if we assume we'll call the pipeline again
-            if cleanup_sensitive is False and finish_stream:
-                self._record_to_db()
+            if cleanup_sensitive is False:
+                if finish_stream:
+                    self._record_to_db()
                 return
 
             # Process any remaining content in buffer when stream ends
