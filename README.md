@@ -21,7 +21,7 @@
 
 ---
 
-# CodeGate: The Smarter, Safer Way to Develop with your AI Applications
+# CodeGate: The Smarter, Safer Way to Develop AI Applications
 
 **By [Stacklok](https://stacklok.com)**
 
