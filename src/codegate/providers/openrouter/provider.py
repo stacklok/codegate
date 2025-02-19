@@ -22,7 +22,32 @@ class OpenRouterNormalizer(CompletionNormalizer):
         return super().normalize(data)
 
     def denormalize(self, data: ChatCompletionRequest) -> Dict:
-        return super().denormalize(data)
+        """
+        Denormalize a FIM OpenRouter request. Force it to be an accepted atext_completion format.
+        """
+        denormalized_data = super().denormalize(data)
+        # We are forcing atext_completion which expects to have a "prompt" key in the data
+        # Forcing it in case is not present
+        if "prompt" in data:
+            return denormalized_data
+        custom_prompt = ""
+        for msg_dict in denormalized_data.get("messages", []):
+            content_obj = msg_dict.get("content")
+            if not content_obj:
+                continue
+            if isinstance(content_obj, list):
+                for content_dict in content_obj:
+                    custom_prompt += (
+                        content_dict.get("text", "") if isinstance(content_dict, dict) else ""
+                    )
+            elif isinstance(content_obj, str):
+                custom_prompt += content_obj
+
+        # Erase the original "messages" key. Replace it by "prompt"
+        del denormalized_data["messages"]
+        denormalized_data["prompt"] = custom_prompt
+
+        return denormalized_data
 
 
 class OpenRouterProvider(OpenAIProvider):
