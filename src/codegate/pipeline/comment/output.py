@@ -33,26 +33,10 @@ class CodeCommentStep(OutputPipelineStep):
         """
         Creates a new chunk with the given content, preserving the original chunk's metadata
         """
-        if isinstance(original_chunk, ModelResponse):
-            return ModelResponse(
-                id=original_chunk.id,
-                choices=[
-                    StreamingChoices(
-                        finish_reason=None,
-                        index=0,
-                        delta=Delta(content=content, role="assistant"),
-                        logprobs=None,
-                    )
-                ],
-                created=original_chunk.created,
-                model=original_chunk.model,
-                object="chat.completion.chunk",
-            )
-        else:
-            # TODO verify if deep-copy is necessary
-            copy = original_chunk.model_copy(deep=True)
-            copy.set_text(content)
-            return copy
+        # TODO verify if deep-copy is necessary
+        copy = original_chunk.model_copy(deep=True)
+        copy.set_text(content)
+        return copy
 
     async def _snippet_comment(self, snippet: CodeSnippet, context: PipelineContext) -> str:
         """Create a comment for a snippet"""
@@ -144,9 +128,6 @@ archived packages: {libobjects_text}\n"
                 last_snippet = snippets[-1]
                 context.snippets = snippets  # Update context with new snippets
 
-                # Keep track of all the commented code
-                # complete_comment = ""
-
                 # Split the chunk content if needed
                 text = content.get_text()
                 before, after = self._split_chunk_at_code_end(text if text else "")
@@ -159,7 +140,6 @@ archived packages: {libobjects_text}\n"
                     # complete_comment += before
 
                 comment = await self._snippet_comment(last_snippet, input_context)
-                # complete_comment += comment
                 chunks.append(
                     self._create_chunk(
                         chunk,
@@ -170,7 +150,6 @@ archived packages: {libobjects_text}\n"
                 # Add the remaining content if any
                 if after:
                     chunks.append(self._create_chunk(chunk, after))
-                    # complete_comment += after
 
                 return chunks
 
