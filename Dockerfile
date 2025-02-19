@@ -100,6 +100,10 @@ COPY --from=builder /app /app
 
 # Copy necessary artifacts from the webbuilder stage
 COPY --from=webbuilder /usr/src/webapp/dist /var/www/html
+USER root
+RUN chown -R codegate /var/www/html
+USER codegate
+
 # Expose nginx
 EXPOSE 9090
 

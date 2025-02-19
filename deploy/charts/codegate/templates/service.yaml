@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "codegate.fullname" . }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    {{- include "codegate.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.port }}
+      protocol: TCP
+      name: http-api
+    {{- with .Values.extraServicePorts }}
+    {{- toYaml . | nindent 6 }}
+    {{- end }}
+  selector:
+    {{- include "codegate.selectorLabels" . | nindent 4 }}
