@@ -219,12 +219,14 @@ class ChatCompletionRequest(pydantic.BaseModel):
                 break # TODO this must be changed
 
     def set_system_prompt(self, text) -> None:
-        if isinstance(self.system, str):
+        if isinstance(self.system, (str, type(None))):
             self.system = text
         if isinstance(self.system, list):
             self.system[0].text = text
 
     def add_system_prompt(self, text, sep="\n") -> None:
+        if isinstance(self.system, type(None)):
+            self.system = text
         if isinstance(self.system, str):
             self.system = f"{self.system}{sep}{text}"
         if isinstance(self.system, list):
