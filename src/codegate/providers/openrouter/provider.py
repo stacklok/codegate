@@ -2,12 +2,14 @@ import json
 from typing import Dict
 
 from fastapi import Header, HTTPException, Request
+from litellm import atext_completion
 from litellm.types.llms.openai import ChatCompletionRequest
 
 from codegate.clients.clients import ClientType
 from codegate.clients.detector import DetectClient
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.fim_analyzer import FIMAnalyzer
+from codegate.providers.litellmshim import LiteLLmShim, sse_stream_generator
 from codegate.providers.normalizer.completion import CompletionNormalizer
 from codegate.providers.openai import OpenAIProvider
 
@@ -20,15 +22,20 @@ class OpenRouterNormalizer(CompletionNormalizer):
         return super().normalize(data)
 
     def denormalize(self, data: ChatCompletionRequest) -> Dict:
-        if data.get("had_prompt_before", False):
-            del data["had_prompt_before"]
-
-        return data
+        return super().denormalize(data)
 
 
 class OpenRouterProvider(OpenAIProvider):
     def __init__(self, pipeline_factory: PipelineFactory):
-        super().__init__(pipeline_factory)
+        super().__init__(
+            pipeline_factory,
+            # We get FIM requests in /completions. LiteLLM is forcing /chat/completions
+            # which returns "choices":[{"delta":{"content":"some text"}}]
+            # instead of "choices":[{"text":"some text"}] expected by the client (Continue)
+            completion_handler=LiteLLmShim(
+                stream_generator=sse_stream_generator, fim_completion_func=atext_completion
+            ),
+        )
         self._fim_normalizer = OpenRouterNormalizer()
 
     @property

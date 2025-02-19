@@ -18,8 +18,9 @@ class OpenAIProvider(BaseProvider):
     def __init__(
         self,
         pipeline_factory: PipelineFactory,
+        # Enable receiving other completion handlers from childs, i.e. OpenRouter and LM Studio
+        completion_handler: LiteLLmShim = LiteLLmShim(stream_generator=sse_stream_generator),
     ):
-        completion_handler = LiteLLmShim(stream_generator=sse_stream_generator)
         super().__init__(
             OpenAIInputNormalizer(),
             OpenAIOutputNormalizer(),
