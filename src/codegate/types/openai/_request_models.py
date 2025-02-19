@@ -318,6 +318,7 @@ class ChatCompletionRequest(pydantic.BaseModel):
     user: str | None = None
     function_call: str | FunctionChoice | None = "auto" # deprecated
     functions: List[LegacyFunctionDef] | None = None # deprecated
+    include_reasoning: bool | None = None # openrouter extension
 
     def get_stream(self) -> bool:
         return self.stream
