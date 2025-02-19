@@ -60,3 +60,7 @@ jobs:
               req.write(JSON.stringify(payload));
               req.end();
             }
+
+            sendNotification(discordWebhook, discordPayload);
+            sendNotification(slackWebhook, slackPayload);
+          '
