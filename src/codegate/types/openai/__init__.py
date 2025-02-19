@@ -22,7 +22,6 @@ from ._response_models import (
     StreamingChatCompletion,
     ToolCall,
     Usage,
-    VllmMessageError,
 )
 
 from ._request_models import (
@@ -53,4 +52,14 @@ from ._request_models import (
 
 from ._shared_models import (
     ServiceTier,
+)
+
+from ._legacy_models import (
+    LegacyCompletionRequest,
+    LegacyCompletionTokenDetails,
+    LegacyPromptTokenDetails,
+    LegacyUsage,
+    LegacyLogProbs,
+    LegacyMessage,
+    LegacyCompletion,
 )
