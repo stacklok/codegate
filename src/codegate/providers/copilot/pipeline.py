@@ -1,6 +1,7 @@
+import json
 import time
 from abc import ABC, abstractmethod
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Any
 
 import structlog
 
@@ -161,7 +162,21 @@ class CopilotFimNormalizer:
         self._completion_normalizer = CompletionNormalizer()
 
     def normalize(self, body: bytes) -> ChatCompletionRequest:
-        return ChatCompletionRequest.model_validate_json(body)
+        # Copilot FIM sometimes doesn't set the model field
+        # to set a sensible default value, we first try to load the JSON
+        # and then set the model field if it's missing, then we call model_validate
+        # on the already loaded dict
+        try:
+            data: Dict[str, Any] = json.loads(body)
+        except json.JSONDecodeError:
+            # If JSON is invalid, let Pydantic handle the error with a nice message
+            return ChatCompletionRequest.model_validate_json(body)
+
+        # Add model field if missing
+        if 'model' not in data:
+            data['model'] = 'gpt-4o-mini'
+
+        return ChatCompletionRequest.model_validate(data)
 
     def denormalize(self, request_from_pipeline: ChatCompletionRequest) -> bytes:
         return request_from_pipeline.model_dump_json(
