@@ -21,15 +21,17 @@
 
 ---
 
-# CodeGate: secure AI code generation
+# CodeGate: The Smarter, Safer Way to Develop with your AI Applications
 
 **By [Stacklok](https://stacklok.com)**
 
-CodeGate is a **local gateway** that makes AI agents and coding assistants safer. It
-ensures AI-generated recommendations adhere to best practices while safeguarding
-your code's integrity and protecting your privacy. With CodeGate, you can
-confidently leverage AI in your development workflow without sacrificing
-security or productivity.
+CodeGate is the ultimate toolkit for developers using AI coding assistants or agents. It simplifies managing projects, prompts, and multiple environments, allowing you to seamlessly work across different AI models, coding assistants, and agents—all in one central workspace.
+
+With CodeGate, you can supercharge your productivity while staying protected from security risks like leaked personal information, secrets, or vulnerable dependencies. Whether you're switching between AI models, LLM providers (OpenAI, Anthropic, etc.), or refining your project prompts, CodeGate keeps everything streamlined, efficient, and secure.
+
+CodeGate can also be leveraged to protect your AI applications by running in the
+serving path, preventing your users from leaking sensitive information or
+accessing vulnerable dependencies or running malicious code and commands.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./static/diagram-dark.png">
@@ -37,16 +39,35 @@ security or productivity.
 </picture>
 
 ---
-## ✨ Why choose CodeGate?
+🚀 Why Developers Love CodeGate
 
-AI coding assistants are powerful, but they can inadvertently introduce risks.
-CodeGate protects your development process by:
+AI coding assistants unlock new levels of productivity, but you need to use them
+with confidence without dealing with the churn of multiple AI models, LLM
+providers, and coding assistants, agents, and tools. CodeGate provides:
 
-- 🔒 Preventing accidental exposure of secrets and sensitive data
-- 🛡️ Ensuring AI suggestions follow secure coding practices
-- ⚠️ Blocking recommendations of known malicious or deprecated libraries
-- 🔍 Providing real-time security analysis of AI suggestions
+⚡ Boosted Productivity
 
+- **Workspaces**: Organize and personalize your AI tooling and environments.
+- **Prompt & Alert History**: Track AI suggestions and security insights in one place.
+- **Model Muxing**: Switch seamlessly between AI models per project or route
+  specfic file types to a particular model or provider.
+- **Custom Instructions**: Tailor your AI’s behavior to match your coding style,
+  by providing custom prompts or instructions per project or workspace.
+- **Prompt Database**: Leverage a growing collection of developer-contributed
+  prompts or create and store your own, to make them available across all your
+  projects and workspaces.
+
+🔒 Built-in Security, Zero Effort
+
+- **Secrets Protection**: Prevent sensitive data from leaking to AI cloud
+  service providers.
+- **Malicious Package Detection**: Block risky dependencies before they reach
+  your code, using Stackloks free AI / ML inteligence threat detection pipeline.
+- **Command Execution Monitoring**: Stop AI-generated shell commands from running
+  unsafe actions within your agent or coding assistant.
+- **PII Protection**: Prevent personally identifiable information from being
+  exposed to AI cloud service providers, such as credit card numbers,
+  social security numbers, and more.
 ---
 ## 🚀 Quickstart
 
@@ -85,8 +106,11 @@ documentation.
 
 CodeGate includes a web dashboard that provides:
 
-- A view of **security risks** detected by CodeGate
-- A **history of interactions** between your AI coding assistant and your LLM
+- **Manage workspaces** and AI model / provider routing rules.
+- **Track security risks** detected by CodeGate.
+- **Manage project prompts** and apply them across all your projects and  
+  workspaces.
+- **History of interactions** between your AI coding assistant and your LLM.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./static/dashboard-dark.webp">
@@ -103,6 +127,48 @@ To learn more, visit the
 
 ---
 ## 🔐 Features
+
+### Workspaces
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./static/workspace-light.png">
+  <img alt="CodeGate logo" src="./static/workspace-dark.png" width="800px" style="max-width: 100%;">
+</picture>
+
+Workspaces are a way to organize your AI tooling and environments. You can
+create multiple workspaces to switch between them as needed. 
+
+Workspaces can be used to:
+
+- Switch between different AI models or providers.
+- Apply different prompts or instructions to different projects.
+- Isolate projects by applying different settings or rules.
+
+Workspaces are then available within all the different AI coding assistants
+and tools that CodeGate supports (i.e. Aider, Cline, Continue, Copilot, Open-Interpreter, etc.)
+
+### Prompt Database
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./static/prompts-light.png">
+  <img alt="CodeGate logo" src="./static/prompts-dark.png" width="800px" style="max-width: 100%;">
+</picture>
+
+The Prompt Database is a collection of prompts that you can use across all your
+projects and workspaces. You can also contribute your own prompts to the
+database.
+
+### Model Muxing
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./static/mux-light.png">
+  <img alt="CodeGate logo" src="./static/mux-dark.png" width="800px" style="max-width: 100%;">
+</picture>
+
+
+Model Muxing is a feature that allows you to route different workspaces or
+to different AI models or providers, even down the level of a single file.
+
 
 ### Secrets encryption
 
