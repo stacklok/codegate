@@ -189,6 +189,14 @@ class WorkspaceWithSessionInfo(BaseModel):
     session_id: Optional[str]
 
 
+class WorkspaceWithModel(BaseModel):
+    """Returns a workspace ID with model name"""
+
+    id: str
+    name: WorkspaceNameStr
+    provider_model_name: str
+
+
 class ActiveWorkspace(BaseModel):
     """Returns a full active workspace object with the
     with the session information.

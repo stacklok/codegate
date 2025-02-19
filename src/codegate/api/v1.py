@@ -12,7 +12,7 @@ import codegate.muxing.models as mux_models
 from codegate import __version__
 from codegate.api import v1_models, v1_processing
 from codegate.db.connection import AlreadyExistsError, DbReader
-from codegate.db.models import AlertSeverity
+from codegate.db.models import AlertSeverity, WorkspaceWithModel
 from codegate.providers import crud as provendcrud
 from codegate.workspaces import crud
 
@@ -530,6 +530,29 @@ async def set_workspace_muxes(
         raise HTTPException(status_code=500, detail="Internal server error")
 
     return Response(status_code=204)
+
+
+@v1.get(
+    "/workspaces/{provider_id}",
+    tags=["Providers"],
+    generate_unique_id_function=uniq_name,
+)
+async def list_workspaces_by_provider(
+    provider_id: UUID,
+) -> List[WorkspaceWithModel]:
+    """List workspaces by provider ID."""
+
+    try:
+        workspaces = await wscrud.workspaces_by_provider(provider_id)
+
+        return [
+            WorkspaceWithModel(id=ws.id, name=ws.name, provider_model_name=ws.provider_model_name)
+            for ws in workspaces
+        ]
+    except crud.WorkspaceDoesNotExistError:
+        raise HTTPException(status_code=404, detail="Workspaces not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @v1.get("/alerts_notification", tags=["Dashboard"], generate_unique_id_function=uniq_name)
