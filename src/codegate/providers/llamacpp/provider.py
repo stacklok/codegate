@@ -12,6 +12,11 @@ from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.fim_analyzer import FIMAnalyzer
 from codegate.providers.llamacpp.completion_handler import LlamaCppCompletionHandler
+from codegate.types.openai import (
+    ChatCompletionRequest,
+    LegacyCompletionRequest,
+)
+
 
 logger = structlog.get_logger("codegate")
 
@@ -21,6 +26,10 @@ class LlamaCppProvider(BaseProvider):
         self,
         pipeline_factory: PipelineFactory,
     ):
+        if self._get_base_url() != "":
+            self.base_url = self._get_base_url()
+        else:
+            self.base_url = "./codegate_volume/models"
         completion_handler = LlamaCppCompletionHandler()
         super().__init__(
             None,
@@ -83,17 +92,32 @@ class LlamaCppProvider(BaseProvider):
         """
 
         @self.router.post(f"/{self.provider_route_name}/completions")
+        @DetectClient()
+        async def create_completion(
+            request: Request,
+        ):
+            body = await request.body()
+            print(body)
+            req = LegacyCompletionRequest.model_validate_json(body)
+            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, req)
+            return await self.process_request(
+                req,
+                None,
+                is_fim_request,
+                request.state.detected_client,
+            )
+
         @self.router.post(f"/{self.provider_route_name}/chat/completions")
         @DetectClient()
         async def create_completion(
             request: Request,
         ):
             body = await request.body()
-            data = json.loads(body)
-            data["base_url"] = Config.get_config().model_base_path
-            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, data)
+            print(body)
+            req = ChatCompletionRequest.model_validate_json(body)
+            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, req)
             return await self.process_request(
-                data,
+                req,
                 None,
                 is_fim_request,
                 request.state.detected_client,
