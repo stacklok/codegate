@@ -7,7 +7,8 @@ metadata:
     {{- include "codegate.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
+  # we hardcode to 1 at the moment as there is only a single file sqlite database
+  replicas: 1
   {{- end }}
   selector:
     matchLabels:
