@@ -115,6 +115,7 @@ class MessageDelta(pydantic.BaseModel):
     tool_calls: List[ToolCall] | None = None
     role: Role | None = None
     function_call: FunctionCall | None = None # deprecated
+    reasoning: str | None = None # openrouter extension
 
 
 class ChoiceDelta(pydantic.BaseModel):
