@@ -11,7 +11,8 @@ from pydantic import BaseModel
 from sqlalchemy import CursorResult, TextClause, event, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError, OperationalError
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
 
 from codegate.db.fim_cache import FimCache
 from codegate.db.models import (
@@ -610,10 +611,10 @@ class DbReader(DbCodeGate):
         # If trigger category is None we want to get all alerts
         trigger_category = trigger_category if trigger_category else "%"
         conditions = {"workspace_id": workspace_id, "trigger_category": trigger_category}
-        rows: List[IntermediatePromptWithOutputUsageAlerts] = (
-            await self._exec_select_conditions_to_pydantic(
-                IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
-            )
+        rows: List[
+            IntermediatePromptWithOutputUsageAlerts
+        ] = await self._exec_select_conditions_to_pydantic(
+            IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
         )
 
         prompts_dict: Dict[str, GetPromptWithOutputsRow] = {}
@@ -869,6 +870,33 @@ class DbReader(DbCodeGate):
             MuxRule, sql, conditions, should_raise=True
         )
         return muxes
+
+
+class DbTransaction:
+    def __init__(self):
+        self._session = None
+
+    async def __aenter__(self):
+        self._session = sessionmaker(
+            bind=DbCodeGate()._async_db_engine,
+            class_=AsyncSession,
+            expire_on_commit=False,
+        )()
+        await self._session.begin()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if exc_type:
+            await self._session.rollback()
+        else:
+            await self._session.commit()
+        await self._session.close()
+
+    async def commit(self):
+        await self._session.commit()
+
+    async def rollback(self):
+        await self._session.rollback()
 
 
 def init_db_sync(db_path: Optional[str] = None):

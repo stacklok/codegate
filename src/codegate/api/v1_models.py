@@ -61,7 +61,7 @@ class ListActiveWorkspacesResponse(pydantic.BaseModel):
 
 
 class WorkspaceConfig(pydantic.BaseModel):
-    system_prompt: str
+    custom_instructions: str
 
     muxing_rules: List[mux_models.MuxRule]
 

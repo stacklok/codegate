@@ -249,19 +249,12 @@ async def activate_workspace(request: v1_models.ActivateWorkspaceRequest, status
 @v1.post("/workspaces", tags=["Workspaces"], generate_unique_id_function=uniq_name, status_code=201)
 async def create_workspace(
     request: v1_models.CreateOrRenameWorkspaceRequest,
-) -> v1_models.Workspace:
+) -> v1_models.FullWorkspace:
     """Create a new workspace."""
-    if request.rename_to is not None:
-        return await rename_workspace(request)
-    return await create_new_workspace(request)
-
-
-async def create_new_workspace(
-    request: v1_models.CreateOrRenameWorkspaceRequest,
-) -> v1_models.Workspace:
-    # Input validation is done in the model
     try:
-        _ = await wscrud.add_workspace(request.name)
+        _ = await wscrud.add_workspace(
+            request.name, request.config.custom_instructions, request.config.muxing_rules
+        )
     except AlreadyExistsError:
         raise HTTPException(status_code=409, detail="Workspace already exists")
     except ValidationError:
@@ -280,15 +273,26 @@ async def create_new_workspace(
     return v1_models.Workspace(name=request.name, is_active=False)
 
 
-async def rename_workspace(
+@v1.put(
+    "/workspaces/{workspace_name}",
+    tags=["Workspaces"],
+    generate_unique_id_function=uniq_name,
+    status_code=201,
+)
+async def update_workspace(
+    workspace_name: str,
     request: v1_models.CreateOrRenameWorkspaceRequest,
-) -> v1_models.Workspace:
+) -> v1_models.FullWorkspace:
+    """Update a workspace."""
     try:
-        _ = await wscrud.rename_workspace(request.name, request.rename_to)
+        workspace_row, mux_rules = await wscrud.update_workspace(
+            workspace_name,
+            request.name,
+            request.config.custom_instructions,
+            request.config.muxing_rules,
+        )
     except crud.WorkspaceDoesNotExistError:
         raise HTTPException(status_code=404, detail="Workspace does not exist")
-    except AlreadyExistsError:
-        raise HTTPException(status_code=409, detail="Workspace already exists")
     except ValidationError:
         raise HTTPException(
             status_code=400,
@@ -302,7 +306,13 @@ async def rename_workspace(
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
-    return v1_models.Workspace(name=request.rename_to, is_active=False)
+    return v1_models.FullWorkspace(
+        name=workspace_row.name,
+        config=v1_models.WorkspaceConfig(
+            custom_instructions=workspace_row.custom_instructions,
+            muxing_rules=[mux_models.MuxRule.try_from_db_model(mux_rule) for mux_rule in mux_rules],
+        ),
+    )
 
 
 @v1.delete(

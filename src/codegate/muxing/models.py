@@ -4,6 +4,7 @@ from typing import Optional
 import pydantic
 
 from codegate.clients.clients import ClientType
+from codegate.db.models import MuxRule as DbMuxRule
 
 
 class MuxMatcherType(str, Enum):
@@ -35,6 +36,19 @@ class MuxRule(pydantic.BaseModel):
     # The actual matcher to use. Note that
     # this depends on the matcher type.
     matcher: Optional[str] = None
+
+    @classmethod
+    def try_from_db_model(cls, db_model: DbMuxRule) -> "MuxRule":
+        try:
+            return cls(
+                provider_name=db_model.provider_endpoint_name,
+                provider_id=db_model.provider_endpoint_id,
+                model=db_model.provider_model_name,
+                matcher_type=MuxMatcherType(db_model.matcher_type),
+                matcher=db_model.matcher_blob,
+            )
+        except Exception as e:
+            raise ValueError(f"Error converting from DbMuxRule: {e}")
 
 
 class ThingToMatchMux(pydantic.BaseModel):

@@ -98,7 +98,6 @@ class Version(CodegateCommand):
 
 
 class CodegateCommandSubcommand(CodegateCommand):
-
     @property
     @abstractmethod
     def subcommands(self) -> Dict[str, Callable[[List[str]], Awaitable[str]]]:
@@ -174,7 +173,6 @@ class CodegateCommandSubcommand(CodegateCommand):
 
 
 class Workspace(CodegateCommandSubcommand):
-
     def __init__(self):
         self.workspace_crud = crud.WorkspaceCrud()
 
@@ -258,7 +256,7 @@ class Workspace(CodegateCommandSubcommand):
             )
 
         try:
-            await self.workspace_crud.rename_workspace(old_workspace_name, new_workspace_name)
+            await self.workspace_crud.update_workspace(old_workspace_name, new_workspace_name)
         except crud.WorkspaceDoesNotExistError:
             return f"Workspace **{old_workspace_name}** does not exist"
         except AlreadyExistsError:
@@ -410,7 +408,6 @@ class Workspace(CodegateCommandSubcommand):
 
 
 class CustomInstructions(CodegateCommandSubcommand):
-
     def __init__(self):
         self.workspace_crud = crud.WorkspaceCrud()
 
