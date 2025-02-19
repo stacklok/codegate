@@ -12,13 +12,51 @@ jobs:
       - name: Send Feature Release Notification to Discord
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_URL: ${{ github.event.issue.html_url }}
         run: |
-          curl -H "Content-Type: application/json" \
-          -X POST \
-          -d '{
-            "content": "**🚀 New Feature Launched!**\n\n🎉 *${{ env.ISSUE_TITLE }}* is now available to try!\n📖 Description: ${{ env.ISSUE_BODY }}\n🔗 [Check it out here](${{ env.ISSUE_URL }})"
-          }' \
-          $DISCORD_WEBHOOK
+          node -e '
+            const https = require("https");
+            const discordWebhook = new URL(process.env.DISCORD_WEBHOOK);
+            const slackWebhook = new URL(process.env.SLACK_WEBHOOK);
+
+            const issueTitle = process.env.ISSUE_TITLE;
+            const issueBody = process.env.ISSUE_BODY;
+            const issueUrl = process.env.ISSUE_URL;
+
+            // Discord Payload
+            const discordPayload = {
+              content: [
+                "**🚀 " +issueTitle + " has been released!**",
+                "",
+                "**🌟 Whats new in CodeGate:**",
+                issueBody,
+                "",
+                "We would 🤍 your feedback! 🔗 [Here’s the GitHub issue](" + issueUrl + ")"
+              ].join("\n")
+            };
+
+            // Slack Payload
+            const slackPayload = {
+              text: `🚀 *${issueTitle}* has been released!\n\n 🔗 <${issueUrl}|Here’s the GitHub issue>`,
+            };
+
+            function sendNotification(webhookUrl, payload) {
+              const url = new URL(webhookUrl);
+              const req = https.request(url, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                }
+              });
+
+              req.on("error", (error) => {
+                console.error("Error:", error);
+                process.exit(1);
+              });
+
+              req.write(JSON.stringify(payload));
+              req.end();
+            }
