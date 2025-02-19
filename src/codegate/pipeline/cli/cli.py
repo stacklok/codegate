@@ -1,5 +1,5 @@
 import shlex
-from typing import Optional
+from typing import Any, Optional
 
 import regex as re
 
@@ -11,7 +11,6 @@ from codegate.pipeline.base import (
     PipelineStep,
 )
 from codegate.pipeline.cli.commands import CustomInstructions, Version, Workspace
-from codegate.types.common import ChatCompletionRequest
 
 codegate_regex = re.compile(r"^codegate(?:\s+(.*))?", re.IGNORECASE)
 
@@ -109,14 +108,14 @@ class CodegateCli(PipelineStep):
         return "codegate-cli"
 
     async def process(
-        self, request: ChatCompletionRequest, context: PipelineContext
+        self, request: Any, context: PipelineContext
     ) -> PipelineResult:
         """
         Checks if the last user message contains "codegate" and process the command.
         This short-circuits the pipeline if the message is found.
 
         Args:
-            request (ChatCompletionRequest): The chat completion request to process
+            request (Any): The chat completion request to process
             context (PipelineContext): The current pipeline context
 
         Returns:

@@ -11,6 +11,8 @@ from codegate.muxing.adapter import BodyAdapter, ResponseAdapter
 from codegate.providers.fim_analyzer import FIMAnalyzer
 from codegate.providers.registry import ProviderRegistry
 from codegate.workspaces.crud import WorkspaceCrud
+from codegate.types.openai import ChatCompletionRequest
+
 
 logger = structlog.get_logger("codegate")
 

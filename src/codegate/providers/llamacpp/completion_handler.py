@@ -11,7 +11,6 @@ from codegate.clients.clients import ClientType
 from codegate.config import Config
 from codegate.inference.inference_engine import LlamaCppInferenceEngine
 from codegate.providers.base import BaseCompletionHandler
-from codegate.types.common import ChatCompletionRequest, ModelResponse
 
 
 async def llamacpp_stream_generator(
@@ -49,12 +48,12 @@ class LlamaCppCompletionHandler(BaseCompletionHandler):
 
     async def execute_completion(
         self,
-        request: ChatCompletionRequest,
+        request: Any,
         base_url: Optional[str],
         api_key: Optional[str],
         stream: bool = False,
         is_fim_request: bool = False,
-    ) -> Union[ModelResponse, AsyncIterator[ModelResponse]]:
+    ) -> Union[Any, AsyncIterator[Any]]:
         """
         Execute the completion request with inference engine API
         """

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 
 from codegate.clients.clients import ClientType
 from codegate.pipeline.base import (
@@ -7,13 +7,6 @@ from codegate.pipeline.base import (
     PipelineStep,
 )
 from codegate.workspaces.crud import WorkspaceCrud
-from codegate.types.common import ChatCompletionRequest, ChatCompletionSystemMessage
-from codegate.types.anthropic import (
-    ChatCompletionRequest as CodegateChatCompletionRequest
-)
-from codegate.types.openai import (
-    ChatCompletionRequest as CodegateOpenaiChatCompletionRequest
-)
 
 
 class SystemPrompt(PipelineStep):
@@ -77,7 +70,7 @@ class SystemPrompt(PipelineStep):
         return context.secrets_found or context.bad_packages_found
 
     async def process(
-        self, request: ChatCompletionRequest, context: PipelineContext
+        self, request: Any, context: PipelineContext
     ) -> PipelineResult:
         """
         Add system prompt if not present, otherwise prepend codegate system prompt

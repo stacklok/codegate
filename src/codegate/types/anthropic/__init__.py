@@ -1,8 +1,3 @@
-from litellm import AnthropicExperimentalPassThroughConfig
-from litellm.adapters.anthropic_adapter import (
-    AnthropicAdapter as LitellmAnthropicAdapter,
-)
-
 from ._generators import (
     acompletion,
     stream_generator,

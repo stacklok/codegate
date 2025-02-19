@@ -1,5 +1,6 @@
 import itertools
 import json
+from typing import Any
 
 import regex as re
 import structlog
@@ -13,7 +14,6 @@ from codegate.pipeline.base import (
     PipelineStep,
 )
 from codegate.storage.storage_engine import StorageEngine
-from codegate.types.common import ChatCompletionRequest
 from codegate.utils.package_extractor import PackageExtractor
 from codegate.utils.utils import generate_vector_string
 
@@ -84,7 +84,7 @@ class CodegateContextRetriever(PipelineStep):
         return context_str
 
     async def process(  # noqa: C901
-        self, request: ChatCompletionRequest, context: PipelineContext
+        self, request: Any, context: PipelineContext
     ) -> PipelineResult:
         """
         Use RAG DB to add context to the user request
