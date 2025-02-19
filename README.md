@@ -29,9 +29,7 @@ CodeGate is the ultimate toolkit for developers using AI coding assistants or ag
 
 With CodeGate, you can supercharge your productivity while staying protected from security risks like leaked personal information, secrets, or vulnerable dependencies. Whether you're switching between AI models, LLM providers (OpenAI, Anthropic, etc.), or refining your project prompts, CodeGate keeps everything streamlined, efficient, and secure.
 
-CodeGate can also be leveraged to protect your AI applications by running in the
-serving path, preventing your users from leaking sensitive information or
-accessing vulnerable dependencies or running malicious code and commands.
+CodeGate can then be migrated from the developer environment to the serving path, enabling continued management of your AI applications by facilitating model routing, prompt management and tracking, blocking security risks, and ensuring privacy and compliance.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./static/diagram-dark.png">
