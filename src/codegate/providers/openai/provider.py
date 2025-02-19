@@ -77,7 +77,7 @@ class OpenAIProvider(BaseProvider):
                 client_type=client_type,
             )
         except Exception as e:
-            #  check if we have an status code there
+            # Check if we have an status code there
             if hasattr(e, "status_code"):
                 logger.error("Error in OpenAIProvider completion", error=str(e))
 

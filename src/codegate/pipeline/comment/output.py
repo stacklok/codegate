@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 from urllib.parse import quote
 
 import structlog
@@ -14,7 +14,7 @@ from codegate.pipeline.output import OutputPipelineContext, OutputPipelineStep
 # from codegate.pipeline.suspicious_commands.suspicious_commands import check_suspicious_code
 from codegate.storage import StorageEngine
 from codegate.utils.package_extractor import PackageExtractor
-from codegate.types.common import ModelResponse, Delta, StreamingChoices
+
 
 logger = structlog.get_logger("codegate")
 
@@ -29,7 +29,7 @@ class CodeCommentStep(OutputPipelineStep):
     def name(self) -> str:
         return "code-comment"
 
-    def _create_chunk(self, original_chunk: ModelResponse, content: str) -> ModelResponse:
+    def _create_chunk(self, original_chunk: Any, content: str) -> Any:
         """
         Creates a new chunk with the given content, preserving the original chunk's metadata
         """
@@ -109,10 +109,10 @@ archived packages: {libobjects_text}\n"
 
     async def process_chunk(
         self,
-        chunk: ModelResponse,
+        chunk: Any,
         context: OutputPipelineContext,
         input_context: Optional[PipelineContext] = None,
-    ) -> list[ModelResponse]:
+    ) -> list[Any]:
         """Process a single chunk of the stream"""
         for content in chunk.get_content():
             # Get current content plus this new chunk

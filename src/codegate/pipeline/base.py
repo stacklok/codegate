@@ -12,7 +12,7 @@ from codegate.clients.clients import ClientType
 from codegate.db.models import Alert, AlertSeverity, Output, Prompt
 from codegate.extract_snippets.message_extractor import CodeSnippet
 from codegate.pipeline.secrets.manager import SecretsManager
-from codegate.types.common import ChatCompletionRequest, ModelResponse
+
 
 logger = structlog.get_logger("codegate")
 
@@ -90,7 +90,7 @@ class PipelineContext:
         # logger.debug(f"Added alert to context: {self.alerts_raised[-1]}")
 
     def add_input_request(
-        self, normalized_request: ChatCompletionRequest, is_fim_request: bool, provider: str
+        self, normalized_request: Any, is_fim_request: bool, provider: str
     ) -> None:
         try:
             if self.prompt_id is None:
@@ -109,7 +109,7 @@ class PipelineContext:
         except Exception as e:
             logger.warning(f"Failed to serialize input request: {normalized_request}", error=str(e))
 
-    def add_output(self, model_response: ModelResponse) -> None:
+    def add_output(self, model_response: Any) -> None:
         try:
             if self.prompt_id is None:
                 logger.warning(f"Tried to record output without response: {model_response}")
@@ -152,7 +152,7 @@ class PipelineResult:
     or a response to return to the client.
     """
 
-    request: Optional[ChatCompletionRequest] = None
+    request: Optional[Any] = None
     response: Optional[PipelineResponse] = None
     context: Optional[PipelineContext] = None
     error_message: Optional[str] = None
@@ -183,13 +183,13 @@ class PipelineStep(ABC):
 
     @staticmethod
     def get_last_user_message(
-        request: ChatCompletionRequest,
+        request: Any,
     ) -> Optional[tuple[str, int]]:
         """
         Get the last user message and its index from the request.
 
         Args:
-            request (ChatCompletionRequest): The chat completion request to process
+            request (Any): The chat completion request to process
 
         Returns:
             Optional[tuple[str, int]]: A tuple containing the message content and
@@ -207,13 +207,13 @@ class PipelineStep(ABC):
 
     @staticmethod
     def get_last_user_message_block(
-        request: ChatCompletionRequest,
+        request: Any,
     ) -> Optional[tuple[str, int]]:
         """
         Get the last block of consecutive 'user' messages from the request.
 
         Args:
-            request (ChatCompletionRequest): The chat completion request to process
+            request (Any): The chat completion request to process
 
         Returns:
             Optional[str, int]: A string containing all consecutive user messages in the
@@ -237,7 +237,7 @@ class PipelineStep(ABC):
 
     @abstractmethod
     async def process(
-        self, request: ChatCompletionRequest, context: PipelineContext
+        self, request: Any, context: PipelineContext
     ) -> PipelineResult:
         """Process a request and return either modified request or response stream"""
         pass
@@ -266,7 +266,7 @@ class InputPipelineInstance:
 
     async def process_request(
         self,
-        request: ChatCompletionRequest,
+        request: Any,
         provider: str,
         model: str,
         api_key: Optional[str] = None,
@@ -336,7 +336,7 @@ class SequentialPipelineProcessor:
 
     async def process_request(
         self,
-        request: ChatCompletionRequest,
+        request: Any,
         provider: str,
         model: str,
         api_key: Optional[str] = None,

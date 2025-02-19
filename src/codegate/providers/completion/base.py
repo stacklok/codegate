@@ -5,8 +5,6 @@ from typing import Any, AsyncIterator, Optional, Union
 
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from codegate.types.common import ChatCompletionRequest, ModelResponse
-
 from codegate.clients.clients import ClientType
 
 
@@ -19,12 +17,12 @@ class BaseCompletionHandler(ABC):
     @abstractmethod
     async def execute_completion(
         self,
-        request: ChatCompletionRequest,
+        request: Any,
         base_url: Optional[str],
         api_key: Optional[str],
         stream: bool = False,  # TODO: remove this param?
         is_fim_request: bool = False,
-    ) -> Union[ModelResponse, AsyncIterator[ModelResponse]]:
+    ) -> Union[Any, AsyncIterator[Any]]:
         """Execute the completion request"""
         pass
 
