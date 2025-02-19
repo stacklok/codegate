@@ -277,6 +277,24 @@ class FunctionMessage(pydantic.BaseModel):
         yield self
 
 
+class PromptWrapperMessage(pydantic.BaseModel):
+    _request: Any = pydantic.PrivateAttr(default=None)
+
+    def __init__(self, **data):
+        request = data.pop('_request', None)
+        super().__init__(**data)
+        self._request = request
+
+    def get_text(self) -> Iterable[str]:
+        return self._request.prompt if self._request else None
+
+    def set_text(self, text) -> None:
+        if self._request:
+            self._request.prompt = text
+
+    def get_content(self):
+        yield self
+
 Message = Union[
     DeveloperMessage,
     SystemMessage,
@@ -284,11 +302,12 @@ Message = Union[
     AssistantMessage,
     ToolMessage,
     FunctionMessage,
+    PromptWrapperMessage,
 ]
 
 
 class ChatCompletionRequest(pydantic.BaseModel):
-    messages: List[Message]
+    messages: List[Message] | None = None
     prompt: str | None = None # deprecated
     model: str
     store: bool | None = False
@@ -319,6 +338,13 @@ class ChatCompletionRequest(pydantic.BaseModel):
     function_call: str | FunctionChoice | None = "auto" # deprecated
     functions: List[LegacyFunctionDef] | None = None # deprecated
     include_reasoning: bool | None = None # openrouter extension
+    _prompt_store: list[str] = pydantic.PrivateAttr(default_factory=list)
+
+    @pydantic.model_validator(mode='after')
+    def validate_message_or_prompt(self) -> 'ChatCompletionRequest':
+        if self.messages is None and self.prompt is None:
+            raise ValueError("Either 'messages' or 'prompt' must be provided")
+        return self
 
     def get_stream(self) -> bool:
         return self.stream
@@ -327,19 +353,32 @@ class ChatCompletionRequest(pydantic.BaseModel):
         return self.model
 
     def get_messages(self) -> Iterable[Message]:
-        for msg in self.messages:
-            yield msg
+        if self.prompt:
+            yield PromptWrapperMessage(_request=self)
+
+        if self.messages:
+            for msg in self.messages:
+                yield msg
 
     def first_message(self) -> Message | None:
+        if self.prompt:
+            return PromptWrapperMessage(_request=self)
+
         return self.messages[0] if len(self.messages) > 0 else None
 
     def last_user_message(self) -> tuple[Message, int] | None:
-        for idx, msg in enumerate(reversed(self.messages)):
+        if self.prompt:
+            return PromptWrapperMessage(_request=self), 0
+
+        for idx, msg in enumerate(reversed(self.messages if self.messages else [])):
             if isinstance(msg, UserMessage):
                 return msg, len(self.messages) - 1 - idx
 
     def last_user_block(self) -> Iterable[tuple[Message, int]]:
-        for idx, msg in enumerate(reversed(self.messages)):
+        if self.prompt:
+            yield PromptWrapperMessage(_request=self), 0
+
+        for idx, msg in enumerate(reversed(self.messages if self.messages else [])):
             if isinstance(msg, (UserMessage, ToolMessage)):
                 yield msg, len(self.messages) - 1 - idx
             elif isinstance(msg, (SystemMessage, DeveloperMessage)):
@@ -350,27 +389,30 @@ class ChatCompletionRequest(pydantic.BaseModel):
                 break
 
     def get_system_prompt(self) -> Iterable[str]:
-        for msg in self.messages:
+        for msg in self.messages if self.messages else []:
             if isinstance(msg, SystemMessage):
                 yield msg.get_text()
                 break # TODO this must be changed
 
     def set_system_prompt(self, text) -> None:
-        for msg in self.messages:
+        for msg in self.messages if self.messages else []:
             if isinstance(msg, SystemMessage):
                 msg.set_text(text)
 
     def add_system_prompt(self, text, sep="\n") -> None:
-        self.messages.append(
-            SystemMessage(
-                role="system",
-                content=text,
-                name="codegate",
+        if self.prompt:
+            self.prompt = sep.join([self.prompt, text])
+        elif self.messages is not None:
+            self.messages.append(
+                SystemMessage(
+                    role="system",
+                    content=text,
+                    name="codegate",
+                )
             )
-        )
 
     def get_prompt(self, default=None):
-        for message in self.messages:
+        for message in self.get_messages():
             for content in message.get_content():
                 return content.get_text()
         return default

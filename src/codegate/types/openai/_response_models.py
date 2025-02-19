@@ -120,16 +120,23 @@ class MessageDelta(pydantic.BaseModel):
 
 class ChoiceDelta(pydantic.BaseModel):
     finish_reason: FinishReason | None = None
-    index: int
-    # TODO: Copilot FIM seems to contain a "text" field only, no delta
-    delta: MessageDelta
+    index: int | None = None
+    text: str | None = None
+    delta: MessageDelta | None = None
     logprobs: LogProbs | None = None
 
     def get_text(self) -> str | None:
         if self.delta:
             return self.delta.content
+        if self.text:
+            return self.text
 
     def set_text(self, text: str) -> None:
+        if self.text:
+            # this is a hack and only really replaces but for the FIM
+            # chunks it should be enough and not break anything
+            self.text = text
+
         self.delta.content = text
 
 
