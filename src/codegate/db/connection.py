@@ -28,6 +28,7 @@ from codegate.db.models import (
     ProviderModel,
     Session,
     WorkspaceRow,
+    WorkspaceWithModel,
     WorkspaceWithSessionInfo,
 )
 from codegate.db.token_usage import TokenUsageParser
@@ -129,6 +130,7 @@ class DbRecorder(DbCodeGate):
         active_workspace = await DbReader().get_active_workspace()
         workspace_id = active_workspace.id if active_workspace else "1"
         prompt_params.workspace_id = workspace_id
+
         sql = text(
             """
                 INSERT INTO prompts (id, timestamp, provider, request, type, workspace_id)
@@ -302,7 +304,7 @@ class DbRecorder(DbCodeGate):
                 await self.record_outputs(context.output_responses, initial_id)
                 await self.record_alerts(context.alerts_raised, initial_id)
                 logger.info(
-                    f"Recorded context in DB. Output chunks: {len(context.output_responses)}. "
+                    f"Updated context in DB. Output chunks: {len(context.output_responses)}. "
                     f"Alerts: {len(context.alerts_raised)}."
                 )
         except Exception as e:
@@ -719,6 +721,23 @@ class DbReader(DbCodeGate):
             WorkspaceRow, sql, conditions, should_raise=True
         )
         return workspaces[0] if workspaces else None
+
+    async def get_workspaces_by_provider(self, provider_id: str) -> List[WorkspaceWithModel]:
+        sql = text(
+            """
+            SELECT
+                w.id, w.name, m.provider_model_name
+            FROM workspaces w
+            JOIN muxes m ON w.id = m.workspace_id
+            WHERE m.provider_endpoint_id = :provider_id
+            AND w.deleted_at IS NULL
+            """
+        )
+        conditions = {"provider_id": provider_id}
+        workspaces = await self._exec_select_conditions_to_pydantic(
+            WorkspaceWithModel, sql, conditions, should_raise=True
+        )
+        return workspaces
 
     async def get_archived_workspace_by_name(self, name: str) -> Optional[WorkspaceRow]:
         sql = text(

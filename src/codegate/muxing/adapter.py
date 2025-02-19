@@ -136,7 +136,7 @@ class StreamChunkFormatter(OutputFormatter):
 
     def _format_as_openai_chunk(self, formatted_chunk: str) -> str:
         """Format the chunk as OpenAI chunk. This is the format how the clients expect the data."""
-        chunk_to_send = f"data:{formatted_chunk}\n\n"
+        chunk_to_send = f"data: {formatted_chunk}\n\n"
         return chunk_to_send
 
     async def _format_streaming_response(

@@ -989,6 +989,55 @@
         }
       }
     },
+    "/api/v1/workspaces/{provider_id}": {
+      "get": {
+        "tags": [
+          "CodeGate API",
+          "Workspaces"
+        ],
+        "summary": "List Workspaces By Provider",
+        "description": "List workspaces by provider ID.",
+        "operationId": "v1_list_workspaces_by_provider",
+        "parameters": [
+          {
+            "name": "provider_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Provider Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkspaceWithModel"
+                  },
+                  "title": "Response V1 List Workspaces By Provider"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/alerts_notification": {
       "get": {
         "tags": [
@@ -1478,6 +1527,16 @@
             "type": "string",
             "title": "Name"
           },
+          "config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "rename_to": {
             "anyOf": [
               {
@@ -1590,6 +1649,17 @@
       },
       "MuxRule": {
         "properties": {
+          "provider_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Name"
+          },
           "provider_id": {
             "type": "string",
             "title": "Provider Id"
@@ -1842,6 +1912,52 @@
           "is_active"
         ],
         "title": "Workspace"
+      },
+      "WorkspaceConfig": {
+        "properties": {
+          "system_prompt": {
+            "type": "string",
+            "title": "System Prompt"
+          },
+          "muxing_rules": {
+            "items": {
+              "$ref": "#/components/schemas/MuxRule"
+            },
+            "type": "array",
+            "title": "Muxing Rules"
+          }
+        },
+        "type": "object",
+        "required": [
+          "system_prompt",
+          "muxing_rules"
+        ],
+        "title": "WorkspaceConfig"
+      },
+      "WorkspaceWithModel": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]+$",
+            "title": "Name"
+          },
+          "provider_model_name": {
+            "type": "string",
+            "title": "Provider Model Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "provider_model_name"
+        ],
+        "title": "WorkspaceWithModel",
+        "description": "Returns a workspace ID with model name"
       }
     }
   }

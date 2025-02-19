@@ -218,6 +218,13 @@ class WorkspaceCrud:
             raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
         return workspace
 
+    async def workspaces_by_provider(self, provider_id: uuid) -> List[db_models.WorkspaceWithModel]:
+        """Get the workspaces by provider."""
+
+        workspaces = await self._db_reader.get_workspaces_by_provider(str(provider_id))
+
+        return workspaces
+
     async def get_muxes(self, workspace_name: str) -> List[mux_models.MuxRule]:
         # Verify if workspace exists
         workspace = await self._db_reader.get_workspace_by_name(workspace_name)

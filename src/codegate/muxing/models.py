@@ -26,6 +26,8 @@ class MuxRule(pydantic.BaseModel):
     Represents a mux rule for a provider.
     """
 
+    # Used for exportable workspaces
+    provider_name: Optional[str] = None
     provider_id: str
     model: str
     # The type of matcher to use

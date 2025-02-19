@@ -1,0 +1,50 @@
+name: Test Charts
+
+on: 
+  pull_request:
+    paths:
+    - deploy/charts/**
+
+jobs:
+  check-readme:
+    runs-on: ubuntu-latest
+    env:
+      GO111MODULE: on
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5
+        with:
+          python-version: '3.x'
+
+      - uses: actions/setup-go@5a083d0e9a84784eb32078397cf5459adecb4c40 # pin@v3
+        with:
+          go-version: ^1
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Helm
+        uses: azure/setup-helm@fe7b79cd5ee1e45176fcad797de68ecaf3ca4814 # pin@v4.2.0
+
+      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5
+        with:
+          python-version: '3.x'
+
+      - name: Set up chart-testing
+        uses: helm/chart-testing-action@v2.7.0
+     
+      - name: Run chart-testing (lint)
+        run: ct lint --config ct.yaml
+
+      - name: Create KIND Cluster
+        uses: helm/kind-action@a1b0e391336a6ee6713a0583f8c6240d70863de3 # pin@v1.12.0
+
+      - name: Run chart-testing (install)
+        run: ct install --config ct.yaml
