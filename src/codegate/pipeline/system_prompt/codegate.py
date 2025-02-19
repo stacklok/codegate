@@ -1,6 +1,7 @@
 from typing import Any, Optional
 
 from codegate.clients.clients import ClientType
+from codegate.config import Config
 from codegate.pipeline.base import (
     PipelineContext,
     PipelineResult,
@@ -36,6 +37,7 @@ class SystemPrompt(PipelineStep):
 
     async def _construct_system_prompt(
         self,
+        secrets_found: bool,
         client: ClientType,
         wrksp_custom_instr: str,
         req_sys_prompt: Optional[str],
@@ -64,6 +66,12 @@ class SystemPrompt(PipelineStep):
         if client and client.value in self.client_prompts:
             system_prompt = _start_or_append(system_prompt, self.client_prompts[client.value])
 
+        # Add secrets redacted system prompt
+        if secrets_found:
+            system_prompt = _start_or_append(
+                system_prompt, Config.get_config().prompts.secrets_redacted
+            )
+
         return system_prompt
 
     async def _should_add_codegate_system_prompt(self, context: PipelineContext) -> bool:
@@ -86,6 +94,7 @@ class SystemPrompt(PipelineStep):
             return PipelineResult(request=request, context=context)
 
         system_prompt = await self._construct_system_prompt(
+            context.secrets_found,
             context.client,
             wrksp_custom_instructions,
             "",
