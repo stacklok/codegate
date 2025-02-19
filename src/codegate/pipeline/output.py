@@ -1,18 +1,14 @@
 import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import AsyncIterator, List, Optional
+from typing import Any, AsyncIterator, List, Optional
 
 import structlog
 
 from codegate.db.connection import DbRecorder
 from codegate.extract_snippets.message_extractor import CodeSnippet
 from codegate.pipeline.base import PipelineContext
-from codegate.types.common import (
-    Delta,
-    ModelResponse,
-    StreamingChoices,
-)
+
 
 logger = structlog.get_logger("codegate")
 
@@ -52,15 +48,15 @@ class OutputPipelineStep(ABC):
     @abstractmethod
     async def process_chunk(
         self,
-        chunk: ModelResponse,
+        chunk: Any,
         context: OutputPipelineContext,
         input_context: Optional[PipelineContext] = None,
-    ) -> List[ModelResponse]:
+    ) -> List[Any]:
         """
         Process a single chunk of the stream.
 
         Args:
-        - chunk: The input chunk to process, normalized to ModelResponse
+        - chunk: The input chunk to process, normalized to Any
         - context: The output pipeline context. Can be used to store state between steps, mainly
           the buffer.
         - input_context: The input context from processing the user's input. Can include the secrets
@@ -68,7 +64,7 @@ class OutputPipelineStep(ABC):
 
         Return:
         - Empty list to pause the stream
-        - List containing one or more ModelResponse objects to emit
+        - List containing one or more Any objects to emit
         """
         pass
 
@@ -97,7 +93,7 @@ class OutputPipelineInstance:
         else:
             self._db_recorder = db_recorder
 
-    def _buffer_chunk(self, chunk: ModelResponse) -> None:
+    def _buffer_chunk(self, chunk: Any) -> None:
         """
         Add chunk content to buffer. This is used to store content that is not yet processed
         when a pipeline pauses streaming.
@@ -108,7 +104,7 @@ class OutputPipelineInstance:
             if text is not None:
                 self._context.buffer.append(text)
 
-    def _store_chunk_content(self, chunk: ModelResponse) -> None:
+    def _store_chunk_content(self, chunk: Any) -> None:
         """
         Store chunk content in processed content. This keeps track of the content that has been
         streamed through the pipeline.
@@ -131,10 +127,10 @@ class OutputPipelineInstance:
 
     async def process_stream(
         self,
-        stream: AsyncIterator[ModelResponse],
+        stream: AsyncIterator[Any],
         cleanup_sensitive: bool = True,
         finish_stream: bool = True,
-    ) -> AsyncIterator[ModelResponse]:
+    ) -> AsyncIterator[Any]:
         """
         Process a stream through all pipeline steps
         """
@@ -223,8 +219,8 @@ class OutputPipelineProcessor:
         return OutputPipelineInstance(self.pipeline_steps)
 
     async def process_stream(
-        self, stream: AsyncIterator[ModelResponse]
-    ) -> AsyncIterator[ModelResponse]:
+        self, stream: AsyncIterator[Any]
+    ) -> AsyncIterator[Any]:
         """Create a new pipeline instance and process the stream"""
         instance = self._create_instance()
         async for chunk in instance.process_stream(stream):

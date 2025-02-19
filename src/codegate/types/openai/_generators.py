@@ -11,6 +11,7 @@ from ._response_models import (
     ErrorDetails,
     MessageError,
     StreamingChatCompletion,
+    VllmMessageError,
 )
 
 
@@ -83,9 +84,20 @@ async def streaming(request, api_key, url):
                     yield message
             case 400 | 401 | 403 | 404 | 413 | 429:
                 text = await resp.aread()
+                # Ugly hack because VLLM is not 100% compatible with
+                # OpenAI message structure.
+                try:
+                    item = MessageError.model_validate_json(text)
+                    yield item
+                except Exception as e:
+                    try:
+                        item = VllmMessageError.model_validate_json(text)
+                        yield item
+                    except:
+                        raise e
+            case 500 | 529:
+                text = await resp.aread()
                 yield MessageError.model_validate_json(text)
-            # case 500 | 529:
-            #     yield MessageError.model_validate_json(resp.text)
             case _:
                 logger.error(f"unexpected status code {resp.status_code}", provider="openai")
                 raise ValueError(f"unexpected status code {resp.status_code}", provider="openai")

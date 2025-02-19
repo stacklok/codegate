@@ -12,7 +12,6 @@ from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.fim_analyzer import FIMAnalyzer
 from codegate.providers.llamacpp.completion_handler import LlamaCppCompletionHandler
-from codegate.providers.llamacpp.normalizer import LLamaCppInputNormalizer, LLamaCppOutputNormalizer
 
 logger = structlog.get_logger("codegate")
 
@@ -24,8 +23,8 @@ class LlamaCppProvider(BaseProvider):
     ):
         completion_handler = LlamaCppCompletionHandler()
         super().__init__(
-            LLamaCppInputNormalizer(),
-            LLamaCppOutputNormalizer(),
+            None,
+            None,
             completion_handler,
             pipeline_factory,
         )

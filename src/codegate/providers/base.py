@@ -22,11 +22,11 @@ from codegate.providers.completion.base import BaseCompletionHandler
 from codegate.providers.formatting.input_pipeline import PipelineResponseFormatter
 from codegate.providers.normalizer.base import ModelInputNormalizer, ModelOutputNormalizer
 from codegate.providers.normalizer.completion import CompletionNormalizer
-from codegate.types.common import ModelResponse
-from codegate.types.openai import ChatCompletionRequest
+
 
 setup_logging()
 logger = structlog.get_logger("codegate")
+
 
 TEMPDIR = None
 if os.getenv("CODEGATE_DUMP_DIR"):
@@ -114,9 +114,9 @@ class BaseProvider(ABC):
     async def _run_output_stream_pipeline(
         self,
         input_context: PipelineContext,
-        model_stream: AsyncIterator[ModelResponse],
+        model_stream: AsyncIterator[Any],
         is_fim_request: bool,
-    ) -> AsyncIterator[ModelResponse]:
+    ) -> AsyncIterator[Any]:
         # Decide which pipeline processor to use
         out_pipeline_processor = None
         if is_fim_request:
@@ -152,7 +152,7 @@ class BaseProvider(ABC):
         self,
         input_context: PipelineContext,
         model_response: Any,
-    ) -> ModelResponse:
+    ) -> Any:
         """
         Run the output pipeline for a single response.
 
@@ -168,7 +168,7 @@ class BaseProvider(ABC):
 
     async def _run_input_pipeline(
         self,
-        normalized_request: ChatCompletionRequest,
+        normalized_request: Any,
         api_key: Optional[str],
         api_base: Optional[str],
         client_type: ClientType,
@@ -200,8 +200,8 @@ class BaseProvider(ABC):
         return result
 
     async def _cleanup_after_streaming(
-        self, stream: AsyncIterator[ModelResponse], context: PipelineContext
-    ) -> AsyncIterator[ModelResponse]:
+        self, stream: AsyncIterator[Any], context: PipelineContext
+    ) -> AsyncIterator[Any]:
         """Wraps the stream to ensure cleanup after consumption"""
         try:
             async for item in stream:
@@ -242,7 +242,7 @@ class BaseProvider(ABC):
         api_key: Optional[str],
         is_fim_request: bool,
         client_type: ClientType,
-    ) -> Union[ModelResponse, AsyncIterator[ModelResponse]]:
+    ) -> Union[Any, AsyncIterator[Any]]:
         """
         Main completion flow with pipeline integration
 
@@ -287,8 +287,8 @@ class BaseProvider(ABC):
         # based on the streaming flag
         model_response = await self._completion_handler.execute_completion(
             provider_request,
-            base_url=self.base_url,
-            api_key=api_key,
+            self.base_url,
+            api_key,
             stream=streaming,
             is_fim_request=is_fim_request,
         )
