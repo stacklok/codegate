@@ -12,8 +12,14 @@ from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.fim_analyzer import FIMAnalyzer
 from codegate.providers.litellmshim import LiteLLmShim
-from codegate.providers.vllm.adapter import VLLMInputNormalizer, VLLMOutputNormalizer
-from codegate.types.generators import legacy_atext_completion, sse_stream_generator
+from codegate.types.vllm import (
+    completions_streaming,
+    stream_generator,
+    ChatCompletionRequest,
+)
+
+
+logger = structlog.get_logger("codegate")
 
 
 class VLLMProvider(BaseProvider):
@@ -21,12 +27,17 @@ class VLLMProvider(BaseProvider):
         self,
         pipeline_factory: PipelineFactory,
     ):
+        if self._get_base_url() != "":
+            self.base_url = self._get_base_url()
+        else:
+            self.base_url = "http://localhost:8000"
         completion_handler = LiteLLmShim(
-            stream_generator=sse_stream_generator, fim_completion_func=legacy_atext_completion
+            completion_func=completions_streaming,
+            stream_generator=stream_generator,
         )
         super().__init__(
-            VLLMInputNormalizer(),
-            VLLMOutputNormalizer(),
+            None,
+            None,
             completion_handler,
             pipeline_factory,
         )
@@ -42,9 +53,6 @@ class VLLMProvider(BaseProvider):
         base_url = super()._get_base_url()
         if base_url:
             base_url = base_url.rstrip("/")
-            # Add /v1 if not present
-            if not base_url.endswith("/v1"):
-                base_url = f"{base_url}/v1"
         return base_url
 
     def models(self, endpoint: str = None, api_key: str = None) -> List[str]:
@@ -118,7 +126,6 @@ class VLLMProvider(BaseProvider):
                     response.raise_for_status()
                     return response.json()
             except httpx.HTTPError as e:
-                logger = structlog.get_logger("codegate")
                 logger.error("Error fetching vLLM models", error=str(e))
                 raise HTTPException(
                     status_code=e.response.status_code if hasattr(e, "response") else 500,
@@ -141,14 +148,15 @@ class VLLMProvider(BaseProvider):
                 api_key = authorization.split(" ")[1]
 
             body = await request.body()
-            data = json.loads(body)
+            req = ChatCompletionRequest.model_validate_json(body)
+            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, req)
 
-            # Add the vLLM base URL to the request
-            base_url = self._get_base_url()
-            data["base_url"] = base_url
-            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, data)
+            if not req.stream:
+                logger.warn("We got a non-streaming request, forcing to a streaming one")
+                req.stream = True
+
             return await self.process_request(
-                data,
+                req,
                 api_key,
                 is_fim_request,
                 request.state.detected_client,

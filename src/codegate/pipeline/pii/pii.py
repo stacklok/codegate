@@ -2,8 +2,6 @@ import re
 from typing import Any, Dict, List, Optional
 
 import structlog
-from litellm import ChatCompletionRequest, ChatCompletionSystemMessage, ModelResponse
-from litellm.types.utils import Delta, StreamingChoices
 
 from codegate.config import Config
 from codegate.pipeline.base import (
@@ -13,7 +11,6 @@ from codegate.pipeline.base import (
 )
 from codegate.pipeline.output import OutputPipelineContext, OutputPipelineStep
 from codegate.pipeline.pii.manager import PiiManager
-from codegate.pipeline.systemmsg import add_or_update_system_message
 from codegate.types.anthropic import UserMessage as AnthropicUserMessage
 from codegate.types.ollama import UserMessage as OllamaUserMessage
 from codegate.types.openai import UserMessage as OpenaiUserMessage
@@ -69,7 +66,7 @@ class CodegatePii(PipelineStep):
         return message[start:end]
 
     async def process(
-        self, request: ChatCompletionRequest, context: PipelineContext
+        self, request: Any, context: PipelineContext
     ) -> PipelineResult:
         total_pii_found = 0
         all_pii_details: List[Dict[str, Any]] = []
@@ -157,10 +154,10 @@ class PiiUnRedactionStep(OutputPipelineStep):
 
     async def process_chunk(
         self,
-        chunk: ModelResponse,
+        chunk: Any,
         context: OutputPipelineContext,
         input_context: Optional[PipelineContext] = None,
-    ) -> list[ModelResponse]:
+    ) -> list[Any]:
         """Process a single chunk of the stream"""
         if not input_context:
             return [chunk]
@@ -241,7 +238,7 @@ class PiiRedactionNotifier(OutputPipelineStep):
 
     Methods:
         name: Returns the name of the pipeline step.
-        _create_chunk: Creates a new ModelResponse chunk with the given content.
+        _create_chunk: Creates a new chunk with the given content.
         _format_pii_summary: Formats PII details into a readable summary.
         process_chunk: Processes a single chunk of stream and adds a notification if PII redacted.
 
@@ -253,27 +250,11 @@ class PiiRedactionNotifier(OutputPipelineStep):
     def name(self) -> str:
         return "pii-redaction-notifier"
 
-    def _create_chunk(self, original_chunk: ModelResponse, content: str) -> ModelResponse:
-        if isinstance(original_chunk, ModelResponse):
-            return ModelResponse(
-                id=original_chunk.id,
-                choices=[
-                    StreamingChoices(
-                        finish_reason=None,
-                        index=0,
-                        delta=Delta(content=content, role="assistant"),
-                        logprobs=None,
-                    )
-                ],
-                created=original_chunk.created,
-                model=original_chunk.model,
-                object="chat.completion.chunk",
-            )
-        else:
-            # TODO verify if deep-copy is necessary
-            copy = original_chunk.model_copy(deep=True)
-            copy.set_text(content)
-            return copy
+    def _create_chunk(self, original_chunk: Any, content: str) -> Any:
+        # TODO verify if deep-copy is necessary
+        copy = original_chunk.model_copy(deep=True)
+        copy.set_text(content)
+        return copy
 
     def _format_pii_summary(self, pii_details: List[Dict[str, Any]]) -> str:
         """Format PII details into a readable summary"""
@@ -300,10 +281,10 @@ class PiiRedactionNotifier(OutputPipelineStep):
 
     async def process_chunk(
         self,
-        chunk: ModelResponse,
+        chunk: Any,
         context: OutputPipelineContext,
         input_context: Optional[PipelineContext] = None,
-    ) -> list[ModelResponse]:
+    ) -> list[Any]:
         """Process a single chunk of the stream"""
         if (
             not input_context
