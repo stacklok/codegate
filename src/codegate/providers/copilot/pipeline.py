@@ -12,7 +12,7 @@ from codegate.providers.normalizer.completion import CompletionNormalizer
 from codegate.types.openai import (
     ChatCompletionRequest,
     ChoiceDelta,
-    LegacyCompletionRequest,
+    CopilotCompletionRequest,
     MessageDelta,
     StreamingChatCompletion,
 )
@@ -162,7 +162,7 @@ class CopilotFimNormalizer:
     def __init__(self):
         self._completion_normalizer = CompletionNormalizer()
 
-    def normalize(self, body: bytes) -> LegacyCompletionRequest:
+    def normalize(self, body: bytes) -> CopilotCompletionRequest:
         # Copilot FIM sometimes doesn't set the model field
         # to set a sensible default value, we first try to load the JSON
         # and then set the model field if it's missing, then we call model_validate
@@ -171,13 +171,13 @@ class CopilotFimNormalizer:
             data: Dict[str, Any] = json.loads(body)
         except json.JSONDecodeError:
             # If JSON is invalid, let Pydantic handle the error with a nice message
-            return LegacyCompletionRequest.model_validate_json(body)
+            return CopilotCompletionRequest.model_validate_json(body)
 
         # Add model field if missing
         if 'model' not in data:
             data['model'] = 'gpt-4o-mini'
 
-        return LegacyCompletionRequest.model_validate(data)
+        return CopilotCompletionRequest.model_validate(data)
 
     def denormalize(self, request_from_pipeline: ChatCompletionRequest) -> bytes:
         return request_from_pipeline.model_dump_json(
