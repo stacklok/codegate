@@ -97,8 +97,8 @@ class DbCodeGate:
 
 
 class DbRecorder(DbCodeGate):
-    def __init__(self, sqlite_path: Optional[str] = None):
-        super().__init__(sqlite_path)
+    def __init__(self, sqlite_path: Optional[str] = None, *args, **kwargs):
+        super().__init__(sqlite_path, *args, **kwargs)
 
     async def _execute_update_pydantic_model(
         self, model: BaseModel, sql_command: TextClause, should_raise: bool = False
@@ -525,8 +525,8 @@ class DbRecorder(DbCodeGate):
 
 
 class DbReader(DbCodeGate):
-    def __init__(self, sqlite_path: Optional[str] = None):
-        super().__init__(sqlite_path)
+    def __init__(self, sqlite_path: Optional[str] = None, *args, **kwargs):
+        super().__init__(sqlite_path, *args, **kwargs)
 
     async def _dump_result_to_pydantic_model(
         self, model_type: Type[BaseModel], result: CursorResult
