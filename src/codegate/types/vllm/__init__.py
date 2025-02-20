@@ -36,6 +36,7 @@ from codegate.types.openai import (
     InputAudio,
     JsonSchema,
     LegacyFunctionDef,
+    LegacyCompletionRequest,
     RefusalContent,
     ResponseFormat,
     StaticContent,
