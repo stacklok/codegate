@@ -92,7 +92,7 @@ class TestSecretsEncryptor:
 
         # Verify the secret was stored
         encrypted_value = hidden[len("REDACTED<$") : -1]
-        original = self.secrets_manager.get_original_value(encrypted_value, self.session_id)
+        original = self.secrets_manager.get_original_value(self.session_id, encrypted_value)
         assert original == "AKIAIOSFODNN7EXAMPLE"
 
     def test_obfuscate(self):
@@ -185,7 +185,7 @@ class TestSecretUnredactionStep:
         """Test processing of a complete REDACTED marker"""
         # Store a secret
         encrypted = self.secrets_manager.store_secret(
-            "secret_value", "test_service", "api_key", self.session_id
+            self.session_id, "secret_value", "test_service", "api_key"
         )
 
         # Add content with REDACTED marker to buffer

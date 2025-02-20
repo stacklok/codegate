@@ -70,7 +70,7 @@ class PiiAnalyzer:
         PiiAnalyzer._instance = self
 
     def analyze(
-        self, text: str, session_id: str, context: Optional[PipelineContext] = None
+        self, session_id: str, text: str, context: Optional[PipelineContext] = None
     ) -> Tuple[str, List[Dict[str, Any]]]:
         # Prioritize credit card detection first
         entities = [
@@ -155,7 +155,7 @@ class PiiAnalyzer:
         # If no PII found, return original text, empty list, and session store
         return text, []
 
-    def restore_pii(self, anonymized_text: str, session_id: str) -> str:
+    def restore_pii(self, session_id: str, anonymized_text: str) -> str:
         """
         Restore the original PII (Personally Identifiable Information) in the given anonymized text.
 
@@ -164,7 +164,7 @@ class PiiAnalyzer:
 
         Args:
             anonymized_text (str): The text containing placeholders for PII.
-            session_store (SessionStore): The session store containing mappings of placeholders
+            session_id (str): The session id containing mappings of placeholders
             to original PII.
 
         Returns:

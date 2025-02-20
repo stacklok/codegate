@@ -1,5 +1,5 @@
 import json
-from typing import Optional
+from typing import Dict, Optional
 
 import structlog
 
@@ -19,6 +19,9 @@ class SecretsManager:
         Encrypts and stores a secret value.
         Returns the encrypted value.
         """
+        if not session_id:
+            raise ValueError("Session id must be provided")
+
         if not value:
             raise ValueError("Value must be provided")
         if not service:
@@ -35,6 +38,16 @@ class SecretsManager:
         )
         return uuid_placeholder
 
+    def get_by_session_id(self, session_id: str) -> Optional[Dict]:
+        session_data = self.session_store.get_by_session_id(session_id)
+        if not session_data:
+            return None
+        # Convert all string values to dictionary objects using json.loads
+        return {
+            key: json.loads(value) if isinstance(value, str) else value
+            for key, value in session_data.items()
+        }
+
     def get_original_value(self, session_id: str, uuid_placeholder: str) -> Optional[str]:
         """Retrieve original value for an encrypted value"""
         secret_entry_json = self.session_store.get_mapping(session_id, uuid_placeholder)
@@ -45,3 +58,6 @@ class SecretsManager:
 
     def cleanup_session(self, session_id):
         self.session_store.cleanup_session(session_id)
+
+    def cleanup(self):
+        self.session_store.cleanup()

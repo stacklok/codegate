@@ -96,9 +96,10 @@ class TestCodegatePii:
     def test_restore_pii(self, pii_step):
         anonymized_text = "My email is <test-uuid>"
         original_text = "My email is test@example.com"
+        session_id = "session-id"
         pii_step.pii_manager.restore_pii = MagicMock(return_value=original_text)
 
-        restored = pii_step.restore_pii(anonymized_text)
+        restored = pii_step.restore_pii(session_id, anonymized_text)
 
         assert restored == original_text
 
@@ -148,7 +149,7 @@ class TestPiiUnRedactionStep:
                 StreamingChoices(
                     finish_reason=None,
                     index=0,
-                    delta=Delta(content=f"Text with <{uuid}>"),
+                    delta=Delta(content=f"Text with #{uuid}#"),
                     logprobs=None,
                 )
             ],
@@ -157,17 +158,16 @@ class TestPiiUnRedactionStep:
             object="chat.completion.chunk",
         )
         context = OutputPipelineContext()
-        input_context = PipelineContext()
+        input_context = PipelineContext(metadata={"session_id": "session-id"})
 
         # Mock PII manager in input context
         mock_pii_manager = MagicMock()
         mock_session = MagicMock()
-        mock_session.get_pii = MagicMock(return_value="test@example.com")
+        mock_session.get_mapping = MagicMock(return_value="test@example.com")
         mock_pii_manager.session_store = mock_session
         input_context.metadata["pii_manager"] = mock_pii_manager
 
         result = await unredaction_step.process_chunk(chunk, context, input_context)
-
         assert result[0].choices[0].delta.content == "Text with test@example.com"
 
 
