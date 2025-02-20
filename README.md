@@ -21,29 +21,29 @@
 
 ---
 
-# CodeGate: The Smarter, Safer Way to Develop AI Applications
+# CodeGate: AI Development environments simplified.
 
-**By [Stacklok](https://stacklok.com)**
+**From [Stacklok](https://stacklok.com)**
 
-CodeGate is the ultimate toolkit for developers using AI coding assistants or agents. It simplifies managing projects, prompts, and multiple environments, allowing you to seamlessly work across different AI models, coding assistants, and agents—all in one central workspace.
+CodeGate is the ultimate toolkit for developers using coding assistants to build AI applications. It streamlines multi-environment workflows, enabling you to consume AI with confidence from development to production. It empowers ongoing AI application management by optimizing model routing, prompt tracking and security enforcement, ensuring privacy, compliance, and robust operational integrity.
 
-With CodeGate, you can supercharge your productivity while staying protected from security risks like leaked personal information, secrets, or vulnerable dependencies. Whether you're switching between AI models, LLM providers (OpenAI, Anthropic, etc.), or refining your project prompts, CodeGate keeps everything streamlined, efficient, and secure.
+---
 
-CodeGate can then be migrated from the developer environment to the serving path, enabling continued management of your AI applications by facilitating model routing, prompt management and tracking, blocking security risks, and ensuring privacy and compliance.
+## CodeGate Architecture
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./static/diagram-dark.png">
   <img alt="CodeGate dashboard" src="./static/diagram-light.png" width="1100px" style="max-width: 100%;">
 </picture>
 
----
-🚀 Why Developers Love CodeGate
 
-AI coding assistants unlock new levels of productivity, but you need to use them
-with confidence without dealing with the churn of multiple AI models, LLM
-providers, and coding assistants, agents, and tools. CodeGate provides:
+## 🚀 Why Developers Love CodeGate
 
-⚡ Boosted Productivity
+AI unlocks new levels of productivity, but you need to use consume
+with confidence. CodeGate helps you do just that, by providing a suite of
+features that make AI development safe and efficient.
+
+### Key Features
 
 - **Workspaces**: Organize and personalize your AI tooling and environments.
 - **Prompt & Alert History**: Track AI suggestions and security insights in one place.
@@ -66,7 +66,9 @@ providers, and coding assistants, agents, and tools. CodeGate provides:
 - **PII Protection**: Prevent personally identifiable information from being
   exposed to AI cloud service providers, such as credit card numbers,
   social security numbers, and more.
+
 ---
+
 ## 🚀 Quickstart
 
 ### Prerequisites
