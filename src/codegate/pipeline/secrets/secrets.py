@@ -3,11 +3,8 @@ from abc import abstractmethod
 from typing import Any, List, Optional, Tuple
 
 import regex as re
-
-import pydantic
 import structlog
 
-from codegate.config import Config
 from codegate.db.models import AlertSeverity
 from codegate.extract_snippets.factory import MessageCodeExtractorFactory
 from codegate.pipeline.base import (
@@ -19,7 +16,6 @@ from codegate.pipeline.base import (
 from codegate.pipeline.output import OutputPipelineContext, OutputPipelineStep
 from codegate.pipeline.secrets.manager import SecretsManager
 from codegate.pipeline.secrets.signatures import CodegateSignatures, Match
-
 
 logger = structlog.get_logger("codegate")
 
@@ -361,8 +357,6 @@ class CodegateSecrets(PipelineStep):
         context.secrets_found = total_redacted > 0
         logger.info(f"Total secrets redacted since last assistant message: {total_redacted}")
         context.metadata["redacted_secrets_count"] = total_redacted
-        if total_redacted > 0:
-            new_request.add_system_prompt(Config.get_config().prompts.secrets_redacted)
         return new_request
 
 
