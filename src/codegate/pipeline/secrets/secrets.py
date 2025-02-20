@@ -430,14 +430,13 @@ class SecretUnredactionStep(OutputPipelineStep):
             if encrypted_value.startswith("$"):
                 encrypted_value = encrypted_value[1:]
 
-            session_id = context.sensitive.session_id
+            session_id = input_context.sensitive.session_id
             if not session_id:
                 raise ValueError("Session ID not found in context")
 
             original_value = input_context.sensitive.manager.get_original_value(
                 session_id,
                 encrypted_value,
-                input_context.sensitive.session_id,
             )
 
             if original_value is None:

@@ -38,7 +38,7 @@ class CodegatePii(PipelineStep):
             Processes the chat completion request to detect and redact PII. Updates the request with
             anonymized text and stores PII details in the context metadata.
 
-        restore_pii(anonymized_text: str, session_id: str) -> str:
+        restore_pii(session_id: str, anonymized_text: str) -> str:
             Restores the original PII from the anonymized text using the PiiManager.
     """
 
@@ -83,7 +83,7 @@ class CodegatePii(PipelineStep):
                 # This is where analyze and anonymize the text
                 original_text = str(message["content"])
                 anonymized_text, pii_details = self.pii_manager.analyze(
-                    original_text, session_id, context
+                    session_id, original_text, context
                 )
 
                 if pii_details:
@@ -118,8 +118,8 @@ class CodegatePii(PipelineStep):
 
         return PipelineResult(request=new_request, context=context)
 
-    def restore_pii(self, anonymized_text: str, session_id: str) -> str:
-        return self.pii_manager.restore_pii(anonymized_text, session_id)
+    def restore_pii(self, session_id: str, anonymized_text: str) -> str:
+        return self.pii_manager.restore_pii(session_id, anonymized_text)
 
 
 class PiiUnRedactionStep(OutputPipelineStep):
@@ -141,12 +141,12 @@ class PiiUnRedactionStep(OutputPipelineStep):
     """
 
     def __init__(self):
-        self.redacted_pattern = re.compile(r"<([0-9a-f-]{0,36})>")
+        self.redacted_pattern = re.compile(r"#([0-9a-f-]{0,36})#")
         self.complete_uuid_pattern = re.compile(
             r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
         )  # noqa: E501
-        self.marker_start = "<"
-        self.marker_end = ">"
+        self.marker_start = "#"
+        self.marker_end = "#"
 
     @property
     def name(self) -> str:
@@ -181,13 +181,13 @@ class PiiUnRedactionStep(OutputPipelineStep):
         current_pos = 0
         result = []
         while current_pos < len(content):
-            start_idx = content.find("<", current_pos)
+            start_idx = content.find("#", current_pos)
             if start_idx == -1:
                 # No more markers!, add remaining content
                 result.append(content[current_pos:])
                 break
 
-            end_idx = content.find(">", start_idx)
+            end_idx = content.find("#", start_idx + 1)
             if end_idx == -1:
                 # Incomplete marker, buffer the rest
                 context.prefix_buffer = content[current_pos:]
@@ -199,7 +199,7 @@ class PiiUnRedactionStep(OutputPipelineStep):
 
             # Extract potential UUID if it's a valid format!
             uuid_marker = content[start_idx : end_idx + 1]
-            uuid_value = uuid_marker[1:-1]  # Remove < >
+            uuid_value = uuid_marker[1:-1]  # Remove # #
 
             if self._is_complete_uuid(uuid_value):
                 # Get the PII manager from context metadata

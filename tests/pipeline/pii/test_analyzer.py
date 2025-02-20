@@ -70,16 +70,17 @@ class TestPiiAnalyzer:
 
     def test_analyze_no_pii(self, analyzer, mock_analyzer_engine):
         text = "Hello world"
+        session_id = "session-id"
         mock_analyzer_engine.analyze.return_value = []
 
-        result_text, found_pii, session_store = analyzer.analyze(text)
+        result_text, found_pii = analyzer.analyze(session_id, text)
 
         assert result_text == text
         assert found_pii == []
-        assert isinstance(session_store, SessionStore)
 
     def test_analyze_with_pii(self, analyzer, mock_analyzer_engine):
         text = "My email is test@example.com"
+        session_id = "session-id"
         email_pii = RecognizerResult(
             entity_type="EMAIL_ADDRESS",
             start=12,
@@ -88,7 +89,7 @@ class TestPiiAnalyzer:
         )
         mock_analyzer_engine.analyze.return_value = [email_pii]
 
-        result_text, found_pii, session_store = analyzer.analyze(text)
+        result_text, found_pii = analyzer.analyze(session_id, text)
 
         assert len(found_pii) == 1
         pii_info = found_pii[0]
@@ -101,36 +102,32 @@ class TestPiiAnalyzer:
         # Verify the placeholder was used to replace the PII
         placeholder = pii_info["uuid_placeholder"]
         assert result_text == f"My email is {placeholder}"
-        # Verify the mapping was stored
-        assert session_store.get_pii(placeholder) == "test@example.com"
 
     def test_restore_pii(self, analyzer):
-        session_store = SessionStore()
         original_text = "test@example.com"
         session_id = "session-id"
-        placeholder = session_store.add_mapping(session_id, original_text)
-        anonymized_text = f"My email is {placeholder}"
 
-        restored_text = analyzer.restore_pii(anonymized_text, session_id)
+        placeholder = analyzer.session_store.add_mapping(session_id, original_text)
+        anonymized_text = f"My email is {placeholder}"
+        restored_text = analyzer.restore_pii(session_id, anonymized_text)
 
         assert restored_text == f"My email is {original_text}"
 
     def test_restore_pii_multiple(self, analyzer):
-        session_store = SessionStore()
         email = "test@example.com"
         phone = "123-456-7890"
         session_id = "session-id"
-        email_placeholder = session_store.add_mapping(session_id, email)
-        phone_placeholder = session_store.add_mapping(session_id, phone)
+        email_placeholder = analyzer.session_store.add_mapping(session_id, email)
+        phone_placeholder = analyzer.session_store.add_mapping(session_id, phone)
         anonymized_text = f"Email: {email_placeholder}, Phone: {phone_placeholder}"
 
-        restored_text = analyzer.restore_pii(anonymized_text, session_id)
+        restored_text = analyzer.restore_pii(session_id, anonymized_text)
 
         assert restored_text == f"Email: {email}, Phone: {phone}"
 
     def test_restore_pii_no_placeholders(self, analyzer):
         text = "No PII here"
         session_id = "session-id"
-        restored_text = analyzer.restore_pii(text, session_id)
+        restored_text = analyzer.restore_pii(session_id, text)
 
         assert restored_text == text

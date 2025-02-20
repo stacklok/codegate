@@ -17,6 +17,9 @@ class SessionStore:
         self.sessions[session_id][uuid_placeholder] = data
         return uuid_placeholder
 
+    def get_by_session_id(self, session_id: str) -> Optional[Dict]:
+        return self.sessions.get(session_id, None)
+
     def get_mapping(self, session_id: str, uuid_placeholder: str) -> Optional[str]:
         return self.sessions.get(session_id, {}).get(uuid_placeholder)
 
