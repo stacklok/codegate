@@ -1,8 +1,8 @@
-import re
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Dict, List, Optional, Self
 
+import regex as re
 import structlog
 from pydantic import BaseModel, field_validator, model_validator
 from pygments.lexers import guess_lexer

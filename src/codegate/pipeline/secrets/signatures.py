@@ -1,10 +1,10 @@
 # signatures.py
 import math
-import re
 from pathlib import Path
 from threading import Lock
 from typing import ClassVar, Dict, List, NamedTuple, Optional, Union
 
+import regex as re
 import structlog
 import yaml
 

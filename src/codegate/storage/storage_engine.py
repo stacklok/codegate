@@ -1,9 +1,9 @@
 import os
-import re
 import sqlite3
 from typing import List, Optional
 
 import numpy as np
+import regex as re
 import sqlite_vec_sl_tmp
 import structlog
 
@@ -19,6 +19,11 @@ LANGUAGE_TO_ECOSYSTEM = {
     "java": "maven",
     "rust": "crates",
 }
+
+
+# Pre-compiled regex patterns for performance
+alpha_numeric_pattern = re.compile(r"[^\w\s]*$")
+non_alphanumeric_pattern = re.compile(r"[^\w@\/\.-]")
 
 
 class StorageEngine:
@@ -231,11 +236,11 @@ class StorageEngine:
             query_words = None
             if query:
                 # Remove all non alphanumeric characters at the end of the string
-                cleaned_query = re.sub(r"[^\w\s]*$", "", query.lower())
+                cleaned_query = alpha_numeric_pattern.sub("", query.lower())
 
                 # Remove all non alphanumeric characters in the middle of the string
                 # except @, /, . and -
-                cleaned_query = re.sub(r"[^\w@\/\.-]", " ", cleaned_query)
+                cleaned_query = non_alphanumeric_pattern.sub(" ", cleaned_query)
 
                 # Tokenize the cleaned query
                 query_words = cleaned_query.split()

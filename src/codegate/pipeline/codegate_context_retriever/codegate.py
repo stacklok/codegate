@@ -1,6 +1,6 @@
 import json
-import re
 
+import regex as re
 import structlog
 from litellm import ChatCompletionRequest
 
@@ -17,6 +17,12 @@ from codegate.utils.package_extractor import PackageExtractor
 from codegate.utils.utils import generate_vector_string
 
 logger = structlog.get_logger("codegate")
+
+
+# Pre-compiled regex patterns for performance
+markdown_code_block = re.compile(r"```.*?```", flags=re.DOTALL)
+markdown_file_listing = re.compile(r"⋮...*?⋮...\n\n", flags=re.DOTALL)
+environment_details = re.compile(r"<environment_details>.*?</environment_details>", flags=re.DOTALL)
 
 
 class CodegateContextRetriever(PipelineStep):
@@ -95,11 +101,9 @@ class CodegateContextRetriever(PipelineStep):
 
         # Remove code snippets and file listing from the user messages and search for bad packages
         # in the rest of the user query/messsages
-        user_messages = re.sub(r"```.*?```", "", user_message, flags=re.DOTALL)
-        user_messages = re.sub(r"⋮...*?⋮...\n\n", "", user_messages, flags=re.DOTALL)
-        user_messages = re.sub(
-            r"<environment_details>.*?</environment_details>", "", user_messages, flags=re.DOTALL
-        )
+        user_messages = markdown_code_block.sub("", user_message)
+        user_messages = markdown_file_listing.sub("", user_messages)
+        user_messages = environment_details.sub("", user_messages)
 
         # split messages into double newlines, to avoid passing so many content in the search
         split_messages = re.split(r"</?task>|\n|\\n", user_messages)

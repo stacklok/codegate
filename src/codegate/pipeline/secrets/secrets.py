@@ -1,7 +1,7 @@
-import re
 from abc import abstractmethod
 from typing import List, Optional, Tuple
 
+import regex as re
 import structlog
 from litellm import ChatCompletionRequest, ChatCompletionSystemMessage, ModelResponse
 from litellm.types.utils import Delta, StreamingChoices
