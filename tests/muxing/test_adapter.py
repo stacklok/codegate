@@ -47,7 +47,7 @@ def test_catch_all(provider_type, endpoint_route, expected_route):
         ),
         (
             (
-                'event: content_block_delta\n'
+                "event: content_block_delta\n"
                 'data:{"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", '
                 '"text": "v1\nkind: NetworkPolicy\nmetadata:"}}'
             ),
