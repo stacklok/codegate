@@ -7,7 +7,6 @@ class TestSecretsManager:
     def setup_method(self):
         """Setup a fresh SecretsManager for each test"""
         self.manager = SecretsManager()
-        self.test_session = "test_session_id"
         self.test_value = "super_secret_value"
         self.test_service = "test_service"
         self.test_type = "api_key"
@@ -15,9 +14,7 @@ class TestSecretsManager:
     def test_store_secret(self):
         """Test basic secret storage and retrieval"""
         # Store a secret
-        encrypted = self.manager.store_secret(
-            self.test_value, self.test_service, self.test_type, self.test_session
-        )
+        encrypted = self.manager.store_secret(self.test_value, self.test_service, self.test_type)
 
         # Verify the secret was stored
         stored = self.manager.get_by_session_id(self.test_session)
@@ -30,9 +27,7 @@ class TestSecretsManager:
 
     def test_get_original_value_wrong_session(self):
         """Test that secrets can't be accessed with wrong session ID"""
-        encrypted = self.manager.store_secret(
-            self.test_value, self.test_service, self.test_type, self.test_session
-        )
+        encrypted = self.manager.store_secret(self.test_value, self.test_service, self.test_type)
 
         # Try to retrieve with wrong session ID
         wrong_session = "wrong_session_id"

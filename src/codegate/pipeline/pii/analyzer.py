@@ -7,39 +7,9 @@ from presidio_anonymizer import AnonymizerEngine
 
 from codegate.db.models import AlertSeverity
 from codegate.pipeline.base import PipelineContext
+from codegate.session.session_store import SessionStore
 
 logger = structlog.get_logger("codegate.pii.analyzer")
-
-
-class PiiSessionStore:
-    """
-    A class to manage PII (Personally Identifiable Information) session storage.
-
-    Attributes:
-        session_id (str): The unique identifier for the session. If not provided, a new UUID
-        is generated. mappings (Dict[str, str]): A dictionary to store mappings between UUID
-        placeholders and PII.
-
-    Methods:
-        add_mapping(pii: str) -> str:
-            Adds a PII string to the session store and returns a UUID placeholder for it.
-
-        get_pii(uuid_placeholder: str) -> str:
-            Retrieves the PII string associated with the given UUID placeholder. If the placeholder
-            is not found, returns the placeholder itself.
-    """
-
-    def __init__(self, session_id: str = None):
-        self.session_id = session_id or str(uuid.uuid4())
-        self.mappings: Dict[str, str] = {}
-
-    def add_mapping(self, pii: str) -> str:
-        uuid_placeholder = f"<{str(uuid.uuid4())}>"
-        self.mappings[uuid_placeholder] = pii
-        return uuid_placeholder
-
-    def get_pii(self, uuid_placeholder: str) -> str:
-        return self.mappings.get(uuid_placeholder, uuid_placeholder)
 
 
 class PiiAnalyzer:
@@ -52,12 +22,12 @@ class PiiAnalyzer:
             Get or create the singleton instance of PiiAnalyzer.
         analyze:
             text (str): The text to analyze for PII.
-            Tuple[str, List[Dict[str, Any]], PiiSessionStore]: The anonymized text, a list of
+            Tuple[str, List[Dict[str, Any]], SessionStore]: The anonymized text, a list of
             found PII details, and the session store.
             entities (List[str]): The PII entities to analyze for.
         restore_pii:
             anonymized_text (str): The text with anonymized PII.
-            session_store (PiiSessionStore): The PiiSessionStore used for anonymization.
+            session_store (SessionStore): The SessionStore used for anonymization.
             str: The text with original PII restored.
     """
 
@@ -95,13 +65,13 @@ class PiiAnalyzer:
         # Create analyzer with custom NLP engine
         self.analyzer = AnalyzerEngine(nlp_engine=nlp_engine)
         self.anonymizer = AnonymizerEngine()
-        self.session_store = PiiSessionStore()
+        self.session_store = SessionStore()
 
         PiiAnalyzer._instance = self
 
     def analyze(
-        self, text: str, context: Optional[PipelineContext] = None
-    ) -> Tuple[str, List[Dict[str, Any]], PiiSessionStore]:
+        self, text: str, session_id: str, context: Optional[PipelineContext] = None
+    ) -> Tuple[str, List[Dict[str, Any]]]:
         # Prioritize credit card detection first
         entities = [
             "PHONE_NUMBER",
@@ -135,7 +105,7 @@ class PiiAnalyzer:
             anonymized_text = text
             for result in analyzer_results:
                 pii_value = text[result.start : result.end]
-                uuid_placeholder = self.session_store.add_mapping(pii_value)
+                uuid_placeholder = self.session_store.add_mapping(session_id, pii_value)
                 pii_info = {
                     "type": result.entity_type,
                     "value": pii_value,
@@ -155,7 +125,7 @@ class PiiAnalyzer:
                     uuid=uuid_placeholder,
                     # Don't log the actual PII value for security
                     value_length=len(pii_value),
-                    session_id=self.session_store.session_id,
+                    session_id=session_id,
                 )
 
             # Log summary of all PII found in this analysis
@@ -176,30 +146,37 @@ class PiiAnalyzer:
                     "PII analysis complete",
                     total_pii_found=len(found_pii),
                     pii_types=[p["type"] for p in found_pii],
-                    session_id=self.session_store.session_id,
+                    session_id=session_id,
                 )
 
             # Return the anonymized text, PII details, and session store
-            return anonymized_text, found_pii, self.session_store
+            return anonymized_text, found_pii
 
         # If no PII found, return original text, empty list, and session store
-        return text, [], self.session_store
+        return text, []
 
-    def restore_pii(self, anonymized_text: str, session_store: PiiSessionStore) -> str:
+    def restore_pii(self, anonymized_text: str, session_id: str) -> str:
         """
         Restore the original PII (Personally Identifiable Information) in the given anonymized text.
 
         This method replaces placeholders in the anonymized text with their corresponding original
-        PII values using the mappings stored in the provided PiiSessionStore.
+        PII values using the mappings stored in the provided SessionStore.
 
         Args:
             anonymized_text (str): The text containing placeholders for PII.
-            session_store (PiiSessionStore): The session store containing mappings of placeholders
+            session_store (SessionStore): The session store containing mappings of placeholders
             to original PII.
 
         Returns:
             str: The text with the original PII restored.
         """
-        for uuid_placeholder, original_pii in session_store.mappings.items():
+        session_data = self.session_store.get_by_session_id(session_id)
+        if not session_data:
+            logger.warning(
+                "No active PII session found for given session ID. Unable to restore PII."
+            )
+            return anonymized_text
+
+        for uuid_placeholder, original_pii in session_data.items():
             anonymized_text = anonymized_text.replace(uuid_placeholder, original_pii)
         return anonymized_text
