@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Optional
+import uuid
 
 import regex as re
 import structlog
@@ -37,7 +38,7 @@ class CodegatePii(PipelineStep):
             Processes the chat completion request to detect and redact PII. Updates the request with
             anonymized text and stores PII details in the context metadata.
 
-        restore_pii(anonymized_text: str) -> str:
+        restore_pii(anonymized_text: str, session_id: str) -> str:
             Restores the original PII from the anonymized text using the PiiManager.
     """
 
@@ -75,12 +76,15 @@ class CodegatePii(PipelineStep):
         total_pii_found = 0
         all_pii_details: List[Dict[str, Any]] = []
         last_redacted_text = ""
+        session_id = context.session_id if hasattr(context, "session_id") else str(uuid.uuid4())
 
         for i, message in enumerate(new_request["messages"]):
             if "content" in message and message["content"]:
                 # This is where analyze and anonymize the text
                 original_text = str(message["content"])
-                anonymized_text, pii_details = self.pii_manager.analyze(original_text, context)
+                anonymized_text, pii_details = self.pii_manager.analyze(
+                    original_text, session_id, context
+                )
 
                 if pii_details:
                     total_pii_found += len(pii_details)
@@ -99,6 +103,7 @@ class CodegatePii(PipelineStep):
         context.metadata["redacted_pii_count"] = total_pii_found
         context.metadata["redacted_pii_details"] = all_pii_details
         context.metadata["redacted_text"] = last_redacted_text
+        context.metadata["session_id"] = session_id
 
         if total_pii_found > 0:
             context.metadata["pii_manager"] = self.pii_manager
@@ -113,8 +118,8 @@ class CodegatePii(PipelineStep):
 
         return PipelineResult(request=new_request, context=context)
 
-    def restore_pii(self, anonymized_text: str) -> str:
-        return self.pii_manager.restore_pii(anonymized_text)
+    def restore_pii(self, anonymized_text: str, session_id: str) -> str:
+        return self.pii_manager.restore_pii(anonymized_text, session_id)
 
 
 class PiiUnRedactionStep(OutputPipelineStep):
@@ -151,7 +156,7 @@ class PiiUnRedactionStep(OutputPipelineStep):
         """Check if the string is a complete UUID"""
         return bool(self.complete_uuid_pattern.match(uuid_str))
 
-    async def process_chunk(
+    async def process_chunk(  # noqa: C901
         self,
         chunk: ModelResponse,
         context: OutputPipelineContext,
@@ -162,6 +167,10 @@ class PiiUnRedactionStep(OutputPipelineStep):
             return [chunk]
 
         content = chunk.choices[0].delta.content
+        session_id = input_context.metadata.get("session_id", "")
+        if not session_id:
+            logger.error("Could not get any session id, cannot process pii")
+            return [chunk]
 
         # Add current chunk to buffer
         if context.prefix_buffer:
@@ -199,7 +208,7 @@ class PiiUnRedactionStep(OutputPipelineStep):
                 if pii_manager and pii_manager.session_store:
                     # Restore original value from PII manager
                     logger.debug("Attempting to restore PII from UUID marker")
-                    original = pii_manager.session_store.get_pii(uuid_marker)
+                    original = pii_manager.session_store.get_mapping(session_id, uuid_marker)
                     logger.debug(f"Restored PII: {original}")
                     result.append(original)
                 else:

@@ -3,44 +3,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from presidio_analyzer import RecognizerResult
 
-from codegate.pipeline.pii.analyzer import PiiAnalyzer, PiiSessionStore
-
-
-class TestPiiSessionStore:
-    def test_init_with_session_id(self):
-        session_id = "test-session"
-        store = PiiSessionStore(session_id)
-        assert store.session_id == session_id
-        assert store.mappings == {}
-
-    def test_init_without_session_id(self):
-        store = PiiSessionStore()
-        assert isinstance(store.session_id, str)
-        assert len(store.session_id) > 0
-        assert store.mappings == {}
-
-    def test_add_mapping(self):
-        store = PiiSessionStore()
-        pii = "test@example.com"
-        placeholder = store.add_mapping(pii)
-
-        assert placeholder.startswith("<")
-        assert placeholder.endswith(">")
-        assert store.mappings[placeholder] == pii
-
-    def test_get_pii_existing(self):
-        store = PiiSessionStore()
-        pii = "test@example.com"
-        placeholder = store.add_mapping(pii)
-
-        result = store.get_pii(placeholder)
-        assert result == pii
-
-    def test_get_pii_nonexistent(self):
-        store = PiiSessionStore()
-        placeholder = "<nonexistent>"
-        result = store.get_pii(placeholder)
-        assert result == placeholder
+from codegate.pipeline.pii.analyzer import PiiAnalyzer
+from codegate.session.session_store import SessionStore
 
 
 class TestPiiAnalyzer:
@@ -112,7 +76,7 @@ class TestPiiAnalyzer:
 
         assert result_text == text
         assert found_pii == []
-        assert isinstance(session_store, PiiSessionStore)
+        assert isinstance(session_store, SessionStore)
 
     def test_analyze_with_pii(self, analyzer, mock_analyzer_engine):
         text = "My email is test@example.com"
@@ -141,31 +105,32 @@ class TestPiiAnalyzer:
         assert session_store.get_pii(placeholder) == "test@example.com"
 
     def test_restore_pii(self, analyzer):
-        session_store = PiiSessionStore()
+        session_store = SessionStore()
         original_text = "test@example.com"
-        placeholder = session_store.add_mapping(original_text)
+        session_id = "session-id"
+        placeholder = session_store.add_mapping(session_id, original_text)
         anonymized_text = f"My email is {placeholder}"
 
-        restored_text = analyzer.restore_pii(anonymized_text, session_store)
+        restored_text = analyzer.restore_pii(anonymized_text, session_id)
 
         assert restored_text == f"My email is {original_text}"
 
     def test_restore_pii_multiple(self, analyzer):
-        session_store = PiiSessionStore()
+        session_store = SessionStore()
         email = "test@example.com"
         phone = "123-456-7890"
-        email_placeholder = session_store.add_mapping(email)
-        phone_placeholder = session_store.add_mapping(phone)
+        session_id = "session-id"
+        email_placeholder = session_store.add_mapping(session_id, email)
+        phone_placeholder = session_store.add_mapping(session_id, phone)
         anonymized_text = f"Email: {email_placeholder}, Phone: {phone_placeholder}"
 
-        restored_text = analyzer.restore_pii(anonymized_text, session_store)
+        restored_text = analyzer.restore_pii(anonymized_text, session_id)
 
         assert restored_text == f"Email: {email}, Phone: {phone}"
 
     def test_restore_pii_no_placeholders(self, analyzer):
-        session_store = PiiSessionStore()
         text = "No PII here"
-
-        restored_text = analyzer.restore_pii(text, session_store)
+        session_id = "session-id"
+        restored_text = analyzer.restore_pii(text, session_id)
 
         assert restored_text == text

@@ -179,15 +179,16 @@ class SecretsEncryptor(SecretsModifier):
         self._session_id = session_id
         self._context = context
         self._name = "codegate-secrets"
+
         super().__init__()
 
     def _hide_secret(self, match: Match) -> str:
         # Encrypt and store the value
         encrypted_value = self._secrets_manager.store_secret(
+            self._session_id,
             match.value,
             match.service,
             match.type,
-            self._session_id,
         )
         return f"REDACTED<${encrypted_value}>"
 
@@ -428,7 +429,13 @@ class SecretUnredactionStep(OutputPipelineStep):
             encrypted_value = match.group(1)
             if encrypted_value.startswith("$"):
                 encrypted_value = encrypted_value[1:]
+
+            session_id = context.sensitive.session_id
+            if not session_id:
+                raise ValueError("Session ID not found in context")
+
             original_value = input_context.sensitive.manager.get_original_value(
+                session_id,
                 encrypted_value,
                 input_context.sensitive.session_id,
             )

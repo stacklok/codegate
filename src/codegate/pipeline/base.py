@@ -30,16 +30,8 @@ class PipelineSensitiveData:
         """Securely cleanup sensitive data for this session"""
         if self.manager is None or self.session_id == "":
             return
-
         self.manager.cleanup_session(self.session_id)
         self.session_id = ""
-
-        # Securely wipe the API key using the same method as secrets manager
-        if self.api_key is not None:
-            api_key_bytes = bytearray(self.api_key.encode())
-            self.manager.crypto.wipe_bytearray(api_key_bytes)
-            self.api_key = None
-
         self.model = None
 
 
