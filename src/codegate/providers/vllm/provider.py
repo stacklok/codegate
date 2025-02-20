@@ -16,6 +16,7 @@ from codegate.types.vllm import (
     completions_streaming,
     stream_generator,
     ChatCompletionRequest,
+    LegacyCompletionRequest,
 )
 
 
@@ -132,8 +133,36 @@ class VLLMProvider(BaseProvider):
                     detail=str(e),
                 )
 
-        @self.router.post(f"/{self.provider_route_name}/chat/completions")
         @self.router.post(f"/{self.provider_route_name}/completions")
+        @DetectClient()
+        async def create_completion(
+            request: Request,
+            authorization: str | None = Header(None, description="Optional Bearer token"),
+        ):
+            api_key = None
+            if authorization:
+                if not authorization.startswith("Bearer "):
+                    raise HTTPException(
+                        status_code=401, detail="Invalid authorization header format"
+                    )
+                api_key = authorization.split(" ")[1]
+
+            body = await request.body()
+            req = LegacyCompletionRequest.model_validate_json(body)
+            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, req)
+
+            if not req.stream:
+                logger.warn("We got a non-streaming request, forcing to a streaming one")
+                req.stream = True
+
+            return await self.process_request(
+                req,
+                api_key,
+                is_fim_request,
+                request.state.detected_client,
+            )
+
+        @self.router.post(f"/{self.provider_route_name}/chat/completions")
         @DetectClient()
         async def create_completion(
             request: Request,
