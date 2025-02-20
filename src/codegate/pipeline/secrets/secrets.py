@@ -1,4 +1,3 @@
-import itertools
 from abc import abstractmethod
 from typing import Any, List, Optional, Tuple
 
