@@ -84,14 +84,20 @@ class StreamChunkFormatter(OutputFormatter):
         """
         pass
 
+    def _clean_chunk(self, chunk: str) -> str:
+        """Clean the chunk from the "data:" and any extra characters."""
+        # Find the first position of 'data:' and add 5 characters to skip 'data:'
+        start_pos = chunk.find("data:") + 5
+        cleaned_chunk = chunk[start_pos:].strip()
+        return cleaned_chunk
+
     def _format_openai(self, chunk: str) -> str:
         """
         The chunk is already in OpenAI format. To standarize remove the "data:" prefix.
 
         This function is used by both chat and FIM formatters
         """
-        cleaned_chunk = chunk.split("data:")[1].strip()
-        return cleaned_chunk
+        return self._clean_chunk(chunk)
 
     def _format_antropic(self, chunk: str) -> str:
         """
@@ -99,7 +105,7 @@ class StreamChunkFormatter(OutputFormatter):
 
         This function is used by both chat and FIM formatters
         """
-        cleaned_chunk = chunk.split("data:")[1].strip()
+        cleaned_chunk = self._clean_chunk(chunk)
         try:
             # Use `strict=False` to allow the JSON payload to contain
             # newlines, tabs and other valid characters that might
