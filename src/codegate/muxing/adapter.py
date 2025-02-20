@@ -101,7 +101,10 @@ class StreamChunkFormatter(OutputFormatter):
         """
         cleaned_chunk = chunk.split("data:")[1].strip()
         try:
-            chunk_dict = json.loads(cleaned_chunk)
+            # Use `strict=False` to allow the JSON payload to contain
+            # newlines, tabs and other valid characters that might
+            # come from Anthropic returning code.
+            chunk_dict = json.loads(cleaned_chunk, strict=False)
         except Exception as e:
             logger.warning(f"Error parsing Anthropic chunk: {chunk}. Error: {e}")
             return cleaned_chunk.strip()
