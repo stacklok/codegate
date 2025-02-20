@@ -2,7 +2,7 @@ from typing import (
     Any,
     Iterable,
     List,
-    Literal,
+    Literal, Dict,
 )
 
 import pydantic
@@ -35,6 +35,8 @@ class LegacyCompletionRequest(pydantic.BaseModel):
     temperature: float | None = 1.0
     top_p: float | None = 1.0
     user: str | None = None
+    nwo: str | None = None # Copilot specific
+    extra: Dict[str, Any] | None = None # Copilot specific
 
     def get_stream(self) -> bool:
         return self.stream

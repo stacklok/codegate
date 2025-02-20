@@ -133,6 +133,40 @@ class ChoiceDelta(pydantic.BaseModel):
         self.delta.content = text
 
 
+class CopilotFIMChoiceDelta(pydantic.BaseModel):
+    """
+    Copilot FIM completion looks like this:
+
+    {
+    "id":"cmpl-B2x5KZVxMwfqytLRFC9QSbbzRmPsS",
+    "created":1740043478,
+    "model":"gpt-35-turbo",
+    "choices":[                 <---- choice
+            {
+                "text":"')",
+                "index":1,
+                "finish_reason":"stop",
+                "logprobs":null,
+                "p":"aaaaa",
+            },
+        ]
+    }:
+    """
+    finish_reason: FinishReason | None = None
+    index: int
+    text: str | None = None
+    logprobs: LogProbs | None = None
+    p: str | None = None
+
+    def get_text(self) -> str | None:
+        return self.text
+
+    def set_text(self, text: str) -> None:
+        self.text = text
+
+
+StreamingChatCompletionChoice = Union[ChoiceDelta, CopilotFIMChoiceDelta]
+
 class ChatCompletion(pydantic.BaseModel):
     id: str
     choices: List[Choice]
@@ -150,7 +184,7 @@ class ChatCompletion(pydantic.BaseModel):
 
 class StreamingChatCompletion(pydantic.BaseModel):
     id: str
-    choices: List[ChoiceDelta]
+    choices: List[StreamingChatCompletionChoice]
     created: int
     model: str
     service_tier: ServiceTier | None = None
@@ -158,7 +192,7 @@ class StreamingChatCompletion(pydantic.BaseModel):
     object: Literal["chat.completion.chunk"] = "chat.completion.chunk"
     usage: Usage | None = None
 
-    def get_content(self) -> Iterable[ChoiceDelta]:
+    def get_content(self) -> Iterable[StreamingChatCompletionChoice]:
         for choice in self.choices:
             yield choice
 
