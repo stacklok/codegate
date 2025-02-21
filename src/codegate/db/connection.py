@@ -66,7 +66,7 @@ class DbCodeGate:
         # It should only be used for testing
         if "_no_singleton" in kwargs and kwargs["_no_singleton"]:
             kwargs.pop("_no_singleton")
-            return super().__new__(cls, *args, **kwargs)
+            return super().__new__(cls)
 
         if cls._instance is None:
             cls._instance = super().__new__(cls)
@@ -618,10 +618,10 @@ class DbReader(DbCodeGate):
         # If trigger category is None we want to get all alerts
         trigger_category = trigger_category if trigger_category else "%"
         conditions = {"workspace_id": workspace_id, "trigger_category": trigger_category}
-        rows: List[IntermediatePromptWithOutputUsageAlerts] = (
-            await self._exec_select_conditions_to_pydantic(
-                IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
-            )
+        rows: List[
+            IntermediatePromptWithOutputUsageAlerts
+        ] = await self._exec_select_conditions_to_pydantic(
+            IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
         )
 
         prompts_dict: Dict[str, GetPromptWithOutputsRow] = {}

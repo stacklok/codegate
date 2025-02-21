@@ -37,6 +37,7 @@ RESERVED_WORKSPACE_KEYWORDS = [DEFAULT_WORKSPACE_NAME, "active", "archived"]
 class WorkspaceCrud:
     def __init__(self):
         self._db_reader = DbReader()
+        self._db_recorder = DbRecorder()
 
     async def add_workspace(
         self,
@@ -59,12 +60,11 @@ class WorkspaceCrud:
 
         async with DbTransaction() as transaction:
             try:
-                db_recorder = DbRecorder()
-                workspace_created = await db_recorder.add_workspace(new_workspace_name)
+                workspace_created = await self._db_recorder.add_workspace(new_workspace_name)
 
                 if custom_instructions:
                     workspace_created.custom_instructions = custom_instructions
-                    await db_recorder.update_workspace(workspace_created)
+                    await self._db_recorder.update_workspace(workspace_created)
 
                 mux_rules = []
                 if muxing_rules:
@@ -117,15 +117,14 @@ class WorkspaceCrud:
                         f"Workspace name {new_workspace_name} is already in use."
                     )
 
-                db_recorder = DbRecorder()
                 new_ws = db_models.WorkspaceRow(
                     id=ws.id, name=new_workspace_name, custom_instructions=ws.custom_instructions
                 )
-                workspace_renamed = await db_recorder.update_workspace(new_ws)
+                workspace_renamed = await self._db_recorder.update_workspace(new_ws)
 
                 if custom_instructions:
                     workspace_renamed.custom_instructions = custom_instructions
-                    await db_recorder.update_workspace(workspace_renamed)
+                    await self._db_recorder.update_workspace(workspace_renamed)
 
                 mux_rules = []
                 if muxing_rules:
@@ -185,8 +184,7 @@ class WorkspaceCrud:
 
         session.active_workspace_id = workspace.id
         session.last_update = datetime.datetime.now(datetime.timezone.utc)
-        db_recorder = DbRecorder()
-        await db_recorder.update_session(session)
+        await self._db_recorder.update_session(session)
 
         # Ensure the mux registry is updated
         mux_registry = await rulematcher.get_muxing_rules_registry()
@@ -201,8 +199,7 @@ class WorkspaceCrud:
         if not selected_workspace:
             raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
 
-        db_recorder = DbRecorder()
-        await db_recorder.recover_workspace(selected_workspace)
+        await self._db_recorder.recover_workspace(selected_workspace)
         return
 
     async def update_workspace_custom_instructions(
@@ -218,8 +215,7 @@ class WorkspaceCrud:
             name=selected_workspace.name,
             custom_instructions=custom_instructions,
         )
-        db_recorder = DbRecorder()
-        updated_workspace = await db_recorder.update_workspace(workspace_update)
+        updated_workspace = await self._db_recorder.update_workspace(workspace_update)
         return updated_workspace
 
     async def soft_delete_workspace(self, workspace_name: str):
@@ -240,9 +236,8 @@ class WorkspaceCrud:
         if active_workspace and active_workspace.id == selected_workspace.id:
             raise WorkspaceCrudError("Cannot archive active workspace.")
 
-        db_recorder = DbRecorder()
         try:
-            _ = await db_recorder.soft_delete_workspace(selected_workspace)
+            _ = await self._db_recorder.soft_delete_workspace(selected_workspace)
         except Exception:
             raise WorkspaceCrudError(f"Error deleting workspace {workspace_name}")
 
@@ -262,9 +257,8 @@ class WorkspaceCrud:
         if not selected_workspace:
             raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
 
-        db_recorder = DbRecorder()
         try:
-            _ = await db_recorder.hard_delete_workspace(selected_workspace)
+            _ = await self._db_recorder.hard_delete_workspace(selected_workspace)
         except Exception:
             raise WorkspaceCrudError(f"Error deleting workspace {workspace_name}")
         return
@@ -313,8 +307,7 @@ class WorkspaceCrud:
             raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
 
         # Delete all muxes for the workspace
-        db_recorder = DbRecorder()
-        await db_recorder.delete_muxes_by_workspace(workspace.id)
+        await self._db_recorder.delete_muxes_by_workspace(workspace.id)
 
         # Add the new muxes
         priority = 0
@@ -339,7 +332,7 @@ class WorkspaceCrud:
                 matcher_blob=mux.matcher if mux.matcher else "",
                 priority=priority,
             )
-            dbmux = await db_recorder.add_mux(new_mux)
+            dbmux = await self._db_recorder.add_mux(new_mux)
             dbmuxes.append(dbmux)
 
             matchers.append(rulematcher.MuxingMatcherFactory.create(dbmux, route))
