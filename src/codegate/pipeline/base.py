@@ -52,8 +52,12 @@ class PipelineContext:
     input_request: Optional[Prompt] = field(default_factory=lambda: None)
     output_responses: List[Output] = field(default_factory=list)
     shortcut_response: bool = False
+    # TODO(jakub): Remove these flags, they couple the steps to the context too much
+    # instead we should be using the metadata field scoped to the step to store anything
+    # the step wants
     bad_packages_found: bool = False
     secrets_found: bool = False
+    pii_found: bool = False
     client: ClientType = ClientType.GENERIC
 
     def add_alert(

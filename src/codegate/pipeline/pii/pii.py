@@ -105,10 +105,12 @@ class CodegatePii(PipelineStep):
         context.metadata["redacted_text"] = last_redacted_text
 
         if total_pii_found > 0:
+            # TODO(jakub): Storing per-step booleans is a temporary hack. We should
+            # instead let the steps store the system message contents they want to
+            # have added and then have a separate step that only adds them without
+            # passing around bools in the context
+            context.pii_found = True
             context.metadata["pii_manager"] = self.pii_manager
-            request.add_system_prompt(
-                Config.get_config().prompts.pii_redacted,
-            )
 
         logger.debug(f"Redacted text: {last_redacted_text}")
 
