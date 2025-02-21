@@ -3,7 +3,7 @@ from typing import List, Optional, Tuple
 from uuid import uuid4 as uuid
 
 from codegate.db import models as db_models
-from codegate.db.connection import DbReader, DbRecorder
+from codegate.db.connection import DbReader, DbRecorder, DbTransaction
 from codegate.muxing import models as mux_models
 from codegate.muxing import rulematcher
 
@@ -13,6 +13,10 @@ class WorkspaceCrudError(Exception):
 
 
 class WorkspaceDoesNotExistError(WorkspaceCrudError):
+    pass
+
+
+class WorkspaceNameAlreadyInUseError(WorkspaceCrudError):
     pass
 
 
@@ -31,34 +35,62 @@ RESERVED_WORKSPACE_KEYWORDS = [DEFAULT_WORKSPACE_NAME, "active", "archived"]
 
 
 class WorkspaceCrud:
-
     def __init__(self):
         self._db_reader = DbReader()
+        self._db_recorder = DbRecorder()
 
-    async def add_workspace(self, new_workspace_name: str) -> db_models.WorkspaceRow:
+    async def add_workspace(
+        self,
+        new_workspace_name: str,
+        custom_instructions: Optional[str] = None,
+        muxing_rules: Optional[List[mux_models.MuxRule]] = None,
+    ) -> Tuple[db_models.WorkspaceRow, List[db_models.MuxRule]]:
         """
         Add a workspace
 
         Args:
-            name (str): The name of the workspace
+            new_workspace_name (str): The name of the workspace
+            system_prompt (Optional[str]): The system prompt for the workspace
+            muxing_rules (Optional[List[mux_models.MuxRule]]): The muxing rules for the workspace
         """
         if new_workspace_name == "":
             raise WorkspaceCrudError("Workspace name cannot be empty.")
         if new_workspace_name in RESERVED_WORKSPACE_KEYWORDS:
             raise WorkspaceCrudError(f"Workspace name {new_workspace_name} is reserved.")
-        db_recorder = DbRecorder()
-        workspace_created = await db_recorder.add_workspace(new_workspace_name)
-        return workspace_created
 
-    async def rename_workspace(
-        self, old_workspace_name: str, new_workspace_name: str
-    ) -> db_models.WorkspaceRow:
+        async with DbTransaction() as transaction:
+            try:
+                workspace_created = await self._db_recorder.add_workspace(new_workspace_name)
+
+                if custom_instructions:
+                    workspace_created.custom_instructions = custom_instructions
+                    await self._db_recorder.update_workspace(workspace_created)
+
+                mux_rules = []
+                if muxing_rules:
+                    mux_rules = await self.set_muxes(new_workspace_name, muxing_rules)
+
+                await transaction.commit()
+                return workspace_created, mux_rules
+            except Exception as e:
+                await transaction.rollback()
+                raise WorkspaceCrudError(f"Error adding workspace {new_workspace_name}: {str(e)}")
+
+    async def update_workspace(
+        self,
+        old_workspace_name: str,
+        new_workspace_name: str,
+        custom_instructions: Optional[str] = None,
+        muxing_rules: Optional[List[mux_models.MuxRule]] = None,
+    ) -> Tuple[db_models.WorkspaceRow, List[db_models.MuxRule]]:
         """
-        Rename a workspace
+        Update a workspace
 
         Args:
-            old_name (str): The old name of the workspace
-            new_name (str): The new name of the workspace
+            old_workspace_name (str): The old name of the workspace
+            new_workspace_name (str): The new name of the workspace
+            system_prompt (Optional[str]): The system prompt for the workspace
+            muxing_rules (Optional[List[mux_models.MuxRule]]): The muxing rules for the workspace
         """
         if new_workspace_name == "":
             raise WorkspaceCrudError("Workspace name cannot be empty.")
@@ -70,15 +102,39 @@ class WorkspaceCrud:
             raise WorkspaceCrudError(f"Workspace name {new_workspace_name} is reserved.")
         if old_workspace_name == new_workspace_name:
             raise WorkspaceCrudError("Old and new workspace names are the same.")
-        ws = await self._db_reader.get_workspace_by_name(old_workspace_name)
-        if not ws:
-            raise WorkspaceDoesNotExistError(f"Workspace {old_workspace_name} does not exist.")
-        db_recorder = DbRecorder()
-        new_ws = db_models.WorkspaceRow(
-            id=ws.id, name=new_workspace_name, custom_instructions=ws.custom_instructions
-        )
-        workspace_renamed = await db_recorder.update_workspace(new_ws)
-        return workspace_renamed
+
+        async with DbTransaction() as transaction:
+            try:
+                ws = await self._db_reader.get_workspace_by_name(old_workspace_name)
+                if not ws:
+                    raise WorkspaceDoesNotExistError(
+                        f"Workspace {old_workspace_name} does not exist."
+                    )
+
+                existing_ws = await self._db_reader.get_workspace_by_name(new_workspace_name)
+                if existing_ws:
+                    raise WorkspaceNameAlreadyInUseError(
+                        f"Workspace name {new_workspace_name} is already in use."
+                    )
+
+                new_ws = db_models.WorkspaceRow(
+                    id=ws.id, name=new_workspace_name, custom_instructions=ws.custom_instructions
+                )
+                workspace_renamed = await self._db_recorder.update_workspace(new_ws)
+
+                if custom_instructions:
+                    workspace_renamed.custom_instructions = custom_instructions
+                    await self._db_recorder.update_workspace(workspace_renamed)
+
+                mux_rules = []
+                if muxing_rules:
+                    mux_rules = await self.set_muxes(new_workspace_name, muxing_rules)
+
+                await transaction.commit()
+                return workspace_renamed, mux_rules
+            except Exception as e:
+                await transaction.rollback()
+                raise WorkspaceCrudError(f"Error updating workspace {old_workspace_name}: {str(e)}")
 
     async def get_workspaces(self) -> List[db_models.WorkspaceWithSessionInfo]:
         """
@@ -128,8 +184,7 @@ class WorkspaceCrud:
 
         session.active_workspace_id = workspace.id
         session.last_update = datetime.datetime.now(datetime.timezone.utc)
-        db_recorder = DbRecorder()
-        await db_recorder.update_session(session)
+        await self._db_recorder.update_session(session)
 
         # Ensure the mux registry is updated
         mux_registry = await rulematcher.get_muxing_rules_registry()
@@ -144,8 +199,7 @@ class WorkspaceCrud:
         if not selected_workspace:
             raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
 
-        db_recorder = DbRecorder()
-        await db_recorder.recover_workspace(selected_workspace)
+        await self._db_recorder.recover_workspace(selected_workspace)
         return
 
     async def update_workspace_custom_instructions(
@@ -161,8 +215,7 @@ class WorkspaceCrud:
             name=selected_workspace.name,
             custom_instructions=custom_instructions,
         )
-        db_recorder = DbRecorder()
-        updated_workspace = await db_recorder.update_workspace(workspace_update)
+        updated_workspace = await self._db_recorder.update_workspace(workspace_update)
         return updated_workspace
 
     async def soft_delete_workspace(self, workspace_name: str):
@@ -183,9 +236,8 @@ class WorkspaceCrud:
         if active_workspace and active_workspace.id == selected_workspace.id:
             raise WorkspaceCrudError("Cannot archive active workspace.")
 
-        db_recorder = DbRecorder()
         try:
-            _ = await db_recorder.soft_delete_workspace(selected_workspace)
+            _ = await self._db_recorder.soft_delete_workspace(selected_workspace)
         except Exception:
             raise WorkspaceCrudError(f"Error deleting workspace {workspace_name}")
 
@@ -205,9 +257,8 @@ class WorkspaceCrud:
         if not selected_workspace:
             raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
 
-        db_recorder = DbRecorder()
         try:
-            _ = await db_recorder.hard_delete_workspace(selected_workspace)
+            _ = await self._db_recorder.hard_delete_workspace(selected_workspace)
         except Exception:
             raise WorkspaceCrudError(f"Error deleting workspace {workspace_name}")
         return
@@ -247,15 +298,16 @@ class WorkspaceCrud:
 
         return muxes
 
-    async def set_muxes(self, workspace_name: str, muxes: mux_models.MuxRule) -> None:
+    async def set_muxes(
+        self, workspace_name: str, muxes: List[mux_models.MuxRule]
+    ) -> List[db_models.MuxRule]:
         # Verify if workspace exists
         workspace = await self._db_reader.get_workspace_by_name(workspace_name)
         if not workspace:
             raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
 
         # Delete all muxes for the workspace
-        db_recorder = DbRecorder()
-        await db_recorder.delete_muxes_by_workspace(workspace.id)
+        await self._db_recorder.delete_muxes_by_workspace(workspace.id)
 
         # Add the new muxes
         priority = 0
@@ -268,6 +320,7 @@ class WorkspaceCrud:
             muxes_with_routes.append((mux, route))
 
         matchers: List[rulematcher.MuxingRuleMatcher] = []
+        dbmuxes: List[db_models.MuxRule] = []
 
         for mux, route in muxes_with_routes:
             new_mux = db_models.MuxRule(
@@ -279,7 +332,8 @@ class WorkspaceCrud:
                 matcher_blob=mux.matcher if mux.matcher else "",
                 priority=priority,
             )
-            dbmux = await db_recorder.add_mux(new_mux)
+            dbmux = await self._db_recorder.add_mux(new_mux)
+            dbmuxes.append(dbmux)
 
             matchers.append(rulematcher.MuxingMatcherFactory.create(dbmux, route))
 
@@ -288,6 +342,8 @@ class WorkspaceCrud:
         # Set routing list for the workspace
         mux_registry = await rulematcher.get_muxing_rules_registry()
         await mux_registry.set_ws_rules(workspace_name, matchers)
+
+        return dbmuxes
 
     async def get_routing_for_mux(self, mux: mux_models.MuxRule) -> rulematcher.ModelRoute:
         """Get the routing for a mux

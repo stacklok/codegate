@@ -61,7 +61,7 @@ class ListActiveWorkspacesResponse(pydantic.BaseModel):
 
 
 class WorkspaceConfig(pydantic.BaseModel):
-    system_prompt: str
+    custom_instructions: str
 
     muxing_rules: List[mux_models.MuxRule]
 
@@ -70,13 +70,6 @@ class FullWorkspace(pydantic.BaseModel):
     name: str
 
     config: Optional[WorkspaceConfig] = None
-
-
-class CreateOrRenameWorkspaceRequest(FullWorkspace):
-    # If set, rename the workspace to this name. Note that
-    # the 'name' field is still required and the workspace
-    # workspace must exist.
-    rename_to: Optional[str] = None
 
 
 class ActivateWorkspaceRequest(pydantic.BaseModel):
