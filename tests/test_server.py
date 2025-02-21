@@ -14,17 +14,11 @@ from uvicorn.config import Config as UvicornConfig
 
 from codegate import __version__
 from codegate.pipeline.factory import PipelineFactory
-from codegate.pipeline.secrets.manager import SecretsManager
+from codegate.pipeline.sensitive_data.manager import SensitiveDataManager
 from codegate.providers.registry import ProviderRegistry
 from codegate.server import init_app
 from src.codegate.cli import UvicornServer, cli
 from src.codegate.codegate_logging import LogFormat, LogLevel
-
-
-@pytest.fixture
-def mock_secrets_manager():
-    """Create a mock secrets manager."""
-    return MagicMock(spec=SecretsManager)
 
 
 @pytest.fixture
@@ -96,9 +90,9 @@ def test_version_endpoint(mock_fetch_latest_version, test_client: TestClient) ->
     assert response_data["is_latest"] is False
 
 
-@patch("codegate.pipeline.secrets.manager.SecretsManager")
+@patch("codegate.pipeline.sensitive_data.manager.SensitiveDataManager")
 @patch("codegate.server.get_provider_registry")
-def test_provider_registration(mock_registry, mock_secrets_mgr, mock_pipeline_factory) -> None:
+def test_provider_registration(mock_registry, mock_pipeline_factory) -> None:
     """Test that all providers are registered correctly."""
     init_app(mock_pipeline_factory)
 
