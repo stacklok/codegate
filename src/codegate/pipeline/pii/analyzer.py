@@ -1,5 +1,4 @@
-import uuid
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, List, Optional
 
 import structlog
 from presidio_analyzer import AnalyzerEngine
@@ -7,7 +6,7 @@ from presidio_anonymizer import AnonymizerEngine
 
 from codegate.db.models import AlertSeverity
 from codegate.pipeline.base import PipelineContext
-from codegate.session.session_store import SessionStore
+from codegate.pipeline.sensitive_data.session_store import SessionStore
 
 logger = structlog.get_logger("codegate.pii.analyzer")
 
@@ -69,9 +68,7 @@ class PiiAnalyzer:
 
         PiiAnalyzer._instance = self
 
-    def analyze(
-        self, session_id: str, text: str, context: Optional[PipelineContext] = None
-    ) -> Tuple[str, List[Dict[str, Any]]]:
+    def analyze(self, text: str, context: Optional[PipelineContext] = None) -> List:
         # Prioritize credit card detection first
         entities = [
             "PHONE_NUMBER",
@@ -95,65 +92,7 @@ class PiiAnalyzer:
             language="en",
             score_threshold=0.3,  # Lower threshold to catch more potential matches
         )
-
-        # Track found PII
-        found_pii = []
-
-        # Only anonymize if PII was found
-        if analyzer_results:
-            # Log each found PII instance and anonymize
-            anonymized_text = text
-            for result in analyzer_results:
-                pii_value = text[result.start : result.end]
-                uuid_placeholder = self.session_store.add_mapping(session_id, pii_value)
-                pii_info = {
-                    "type": result.entity_type,
-                    "value": pii_value,
-                    "score": result.score,
-                    "start": result.start,
-                    "end": result.end,
-                    "uuid_placeholder": uuid_placeholder,
-                }
-                found_pii.append(pii_info)
-                anonymized_text = anonymized_text.replace(pii_value, uuid_placeholder)
-
-                # Log each PII detection with its UUID mapping
-                logger.info(
-                    "PII detected and mapped",
-                    pii_type=result.entity_type,
-                    score=f"{result.score:.2f}",
-                    uuid=uuid_placeholder,
-                    # Don't log the actual PII value for security
-                    value_length=len(pii_value),
-                    session_id=session_id,
-                )
-
-            # Log summary of all PII found in this analysis
-            if found_pii and context:
-                # Create notification string for alert
-                notify_string = (
-                    f"**PII Detected** 🔒\n"
-                    f"- Total PII Found: {len(found_pii)}\n"
-                    f"- Types Found: {', '.join(set(p['type'] for p in found_pii))}\n"
-                )
-                context.add_alert(
-                    self._name,
-                    trigger_string=notify_string,
-                    severity_category=AlertSeverity.CRITICAL,
-                )
-
-                logger.info(
-                    "PII analysis complete",
-                    total_pii_found=len(found_pii),
-                    pii_types=[p["type"] for p in found_pii],
-                    session_id=session_id,
-                )
-
-            # Return the anonymized text, PII details, and session store
-            return anonymized_text, found_pii
-
-        # If no PII found, return original text, empty list, and session store
-        return text, []
+        return analyzer_results
 
     def restore_pii(self, session_id: str, anonymized_text: str) -> str:
         """

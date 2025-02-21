@@ -16,8 +16,8 @@ from codegate.pipeline.base import (
     PipelineStep,
 )
 from codegate.pipeline.output import OutputPipelineContext, OutputPipelineStep
-from codegate.pipeline.secrets.manager import SecretsManager
 from codegate.pipeline.secrets.signatures import CodegateSignatures, Match
+from codegate.pipeline.sensitive_data.manager import SensitiveData, SensitiveDataManager
 from codegate.pipeline.systemmsg import add_or_update_system_message
 
 logger = structlog.get_logger("codegate")
@@ -171,11 +171,11 @@ class SecretsModifier:
 class SecretsEncryptor(SecretsModifier):
     def __init__(
         self,
-        secrets_manager: SecretsManager,
+        sensitive_data_manager: SensitiveDataManager,
         context: PipelineContext,
         session_id: str,
     ):
-        self._secrets_manager = secrets_manager
+        self._sensitive_data_manager = sensitive_data_manager
         self._session_id = session_id
         self._context = context
         self._name = "codegate-secrets"
@@ -184,13 +184,22 @@ class SecretsEncryptor(SecretsModifier):
 
     def _hide_secret(self, match: Match) -> str:
         # Encrypt and store the value
-        encrypted_value = self._secrets_manager.store_secret(
-            self._session_id,
-            match.value,
-            match.service,
-            match.type,
+        if not self._session_id:
+            raise ValueError("Session id must be provided")
+
+        if not match.value:
+            raise ValueError("Value must be provided")
+        if not match.service:
+            raise ValueError("Service must be provided")
+        if not match.type:
+            raise ValueError("Secret type must be provided")
+
+        obj = SensitiveData(match.value, match.service, match.type)
+        uuid_placeholder = self._sensitive_data_manager.store(self._session_id, obj)
+        logger.debug(
+            "Stored secret", service=match.service, type=match.type, placeholder=uuid_placeholder
         )
-        return f"REDACTED<${encrypted_value}>"
+        return f"REDACTED<{uuid_placeholder}>"
 
     def _notify_secret(
         self, match: Match, code_snippet: Optional[CodeSnippet], protected_text: List[str]
@@ -252,7 +261,7 @@ class CodegateSecrets(PipelineStep):
         self,
         text: str,
         snippet: Optional[CodeSnippet],
-        secrets_manager: SecretsManager,
+        sensitive_data_manager: SensitiveDataManager,
         session_id: str,
         context: PipelineContext,
     ) -> tuple[str, List[Match]]:
@@ -261,14 +270,14 @@ class CodegateSecrets(PipelineStep):
 
         Args:
             text: The text to protect
-            secrets_manager: ..
+            sensitive_data_manager: ..
             session_id: ..
             context: The pipeline context to be able to log alerts
         Returns:
             Tuple containing protected text with encrypted values and the count of redacted secrets
         """
         # Find secrets in the text
-        text_encryptor = SecretsEncryptor(secrets_manager, context, session_id)
+        text_encryptor = SecretsEncryptor(sensitive_data_manager, context, session_id)
         return text_encryptor.obfuscate(text, snippet)
 
     async def process(
@@ -288,8 +297,10 @@ class CodegateSecrets(PipelineStep):
         if "messages" not in request:
             return PipelineResult(request=request, context=context)
 
-        secrets_manager = context.sensitive.manager
-        if not secrets_manager or not isinstance(secrets_manager, SecretsManager):
+        sensitive_data_manager = context.sensitive.manager
+        if not sensitive_data_manager or not isinstance(
+            sensitive_data_manager, SensitiveDataManager
+        ):
             raise ValueError("Secrets manager not found in context")
         session_id = context.sensitive.session_id
         if not session_id:
@@ -306,7 +317,7 @@ class CodegateSecrets(PipelineStep):
         for i, message in enumerate(new_request["messages"]):
             if "content" in message and message["content"]:
                 redacted_content, secrets_matched = self._redact_message_content(
-                    message["content"], secrets_manager, session_id, context
+                    message["content"], sensitive_data_manager, session_id, context
                 )
                 new_request["messages"][i]["content"] = redacted_content
                 if i > last_assistant_idx:
@@ -314,7 +325,7 @@ class CodegateSecrets(PipelineStep):
         new_request = self._finalize_redaction(context, total_matches, new_request)
         return PipelineResult(request=new_request, context=context)
 
-    def _redact_message_content(self, message_content, secrets_manager, session_id, context):
+    def _redact_message_content(self, message_content, sensitive_data_manager, session_id, context):
         # Extract any code snippets
         extractor = MessageCodeExtractorFactory.create_snippet_extractor(context.client)
         snippets = extractor.extract_snippets(message_content)
@@ -323,7 +334,7 @@ class CodegateSecrets(PipelineStep):
 
         for snippet in snippets:
             redacted_snippet, secrets_matched = self._redact_text(
-                snippet, snippet, secrets_manager, session_id, context
+                snippet, snippet, sensitive_data_manager, session_id, context
             )
             redacted_snippets[snippet.code] = redacted_snippet
             total_matches.extend(secrets_matched)
@@ -337,7 +348,7 @@ class CodegateSecrets(PipelineStep):
             if start_index > last_end:
                 non_snippet_part = message_content[last_end:start_index]
                 redacted_part, secrets_matched = self._redact_text(
-                    non_snippet_part, "", secrets_manager, session_id, context
+                    non_snippet_part, "", sensitive_data_manager, session_id, context
                 )
                 non_snippet_parts.append(redacted_part)
                 total_matches.extend(secrets_matched)
@@ -348,7 +359,7 @@ class CodegateSecrets(PipelineStep):
         if last_end < len(message_content):
             remaining_text = message_content[last_end:]
             redacted_remaining, secrets_matched = self._redact_text(
-                remaining_text, "", secrets_manager, session_id, context
+                remaining_text, "", sensitive_data_manager, session_id, context
             )
             non_snippet_parts.append(redacted_remaining)
             total_matches.extend(secrets_matched)

@@ -16,7 +16,7 @@ from codegate.codegate_logging import LogFormat, LogLevel, setup_logging
 from codegate.config import Config, ConfigurationError
 from codegate.db.connection import init_db_sync, init_session_if_not_exists
 from codegate.pipeline.factory import PipelineFactory
-from codegate.pipeline.secrets.manager import SecretsManager
+from codegate.pipeline.sensitive_data.manager import SensitiveDataManager
 from codegate.providers import crud as provendcrud
 from codegate.providers.copilot.provider import CopilotProvider
 from codegate.server import init_app
@@ -331,8 +331,8 @@ def serve(  # noqa: C901
             click.echo("Existing Certificates are already present.")
 
         # Initialize secrets manager and pipeline factory
-        secrets_manager = SecretsManager()
-        pipeline_factory = PipelineFactory(secrets_manager)
+        sensitive_data_manager = SensitiveDataManager()
+        pipeline_factory = PipelineFactory(sensitive_data_manager)
 
         app = init_app(pipeline_factory)
 
