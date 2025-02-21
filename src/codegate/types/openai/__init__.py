@@ -63,3 +63,7 @@ from ._legacy_models import (
     LegacyMessage,
     LegacyCompletion,
 )
+
+from ._copilot import (
+    CopilotCompletionRequest
+)
