@@ -38,6 +38,7 @@ class SystemPrompt(PipelineStep):
     async def _construct_system_prompt(
         self,
         secrets_found: bool,
+        pii_found: bool,
         client: ClientType,
         wrksp_custom_instr: str,
         req_sys_prompt: Optional[str],
@@ -72,10 +73,15 @@ class SystemPrompt(PipelineStep):
                 system_prompt, Config.get_config().prompts.secrets_redacted
             )
 
+        if pii_found:
+            system_prompt = _start_or_append(
+                system_prompt, Config.get_config().prompts.pii_redacted,
+            )
+
         return system_prompt
 
     async def _should_add_codegate_system_prompt(self, context: PipelineContext) -> bool:
-        return context.secrets_found or context.bad_packages_found
+        return context.secrets_found or context.pii_found or context.bad_packages_found
 
     async def process(
         self, request: Any, context: PipelineContext
@@ -96,6 +102,7 @@ class SystemPrompt(PipelineStep):
         req_sys_prompt = next(request.get_system_prompt(), "")
         system_prompt = await self._construct_system_prompt(
             context.secrets_found,
+            context.pii_found,
             context.client,
             wrksp_custom_instructions,
             req_sys_prompt,
