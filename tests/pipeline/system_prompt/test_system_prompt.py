@@ -73,13 +73,11 @@ class TestSystemPrompt:
         result = await step.process(ChatCompletionRequest(**mock_request), mock_context)
 
         # Check that system message was inserted
-        assert len(result.request.messages) == 3
+        assert len(result.request.messages) == 2
         assert result.request.messages[0].role == "system"
-        assert result.request.messages[0].content == request_system_message
+        assert result.request.messages[0].content == f"{system_prompt}\n\nHere are additional instructions:\n\n{request_system_message}"
         assert result.request.messages[1].role == "user"
         assert result.request.messages[1].content == user_message
-        assert result.request.messages[2].role == "system"
-        assert result.request.messages[2].content == system_prompt
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(

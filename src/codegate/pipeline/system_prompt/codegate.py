@@ -37,7 +37,6 @@ class SystemPrompt(PipelineStep):
 
     async def _construct_system_prompt(
         self,
-        secrets_found: bool,
         client: ClientType,
         wrksp_custom_instr: str,
         req_sys_prompt: Optional[str],
@@ -66,12 +65,6 @@ class SystemPrompt(PipelineStep):
         if client and client.value in self.client_prompts:
             system_prompt = _start_or_append(system_prompt, self.client_prompts[client.value])
 
-        # Add secrets redacted system prompt
-        if secrets_found:
-            system_prompt = _start_or_append(
-                system_prompt, Config.get_config().prompts.secrets_redacted
-            )
-
         return system_prompt
 
     async def _should_add_codegate_system_prompt(self, context: PipelineContext) -> bool:
@@ -93,16 +86,18 @@ class SystemPrompt(PipelineStep):
         if not should_add_codegate_sys_prompt and not wrksp_custom_instructions:
             return PipelineResult(request=request, context=context)
 
+        req_sys_prompt = next(request.get_system_prompt(), "")
         system_prompt = await self._construct_system_prompt(
-            context.secrets_found,
             context.client,
             wrksp_custom_instructions,
-            "",
+            req_sys_prompt,
             should_add_codegate_sys_prompt,
         )
         context.add_alert(self.name, trigger_string=system_prompt)
-        # NOTE: this was changed from adding more text to an existing
-        # system prompt to potentially adding a new system prompt.
-        request.add_system_prompt(system_prompt)
+
+        if req_sys_prompt:
+            request.set_system_prompt(system_prompt)
+        else:
+            request.add_system_prompt(system_prompt)
 
         return PipelineResult(request=request, context=context)
