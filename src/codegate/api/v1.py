@@ -248,12 +248,15 @@ async def activate_workspace(request: v1_models.ActivateWorkspaceRequest, status
 
 @v1.post("/workspaces", tags=["Workspaces"], generate_unique_id_function=uniq_name, status_code=201)
 async def create_workspace(
-    request: v1_models.CreateOrRenameWorkspaceRequest,
+    request: v1_models.FullWorkspace,
 ) -> v1_models.FullWorkspace:
     """Create a new workspace."""
     try:
+        custom_instructions = request.config.custom_instructions if request.config else None
+        muxing_rules = request.config.muxing_rules if request.config else None
+
         workspace_row, mux_rules = await wscrud.add_workspace(
-            request.name, request.config.custom_instructions, request.config.muxing_rules
+            request.name, custom_instructions, muxing_rules
         )
     except AlreadyExistsError:
         raise HTTPException(status_code=409, detail="Workspace already exists")
@@ -273,7 +276,7 @@ async def create_workspace(
     return v1_models.FullWorkspace(
         name=workspace_row.name,
         config=v1_models.WorkspaceConfig(
-            custom_instructions=workspace_row.custom_instructions,
+            custom_instructions=workspace_row.custom_instructions or "",
             muxing_rules=[mux_models.MuxRule.from_db_mux_rule(mux_rule) for mux_rule in mux_rules],
         ),
     )
@@ -287,15 +290,18 @@ async def create_workspace(
 )
 async def update_workspace(
     workspace_name: str,
-    request: v1_models.CreateOrRenameWorkspaceRequest,
+    request: v1_models.FullWorkspace,
 ) -> v1_models.FullWorkspace:
     """Update a workspace."""
     try:
+        custom_instructions = request.config.custom_instructions if request.config else None
+        muxing_rules = request.config.muxing_rules if request.config else None
+
         workspace_row, mux_rules = await wscrud.update_workspace(
             workspace_name,
             request.name,
-            request.config.custom_instructions,
-            request.config.muxing_rules,
+            custom_instructions,
+            muxing_rules,
         )
     except crud.WorkspaceDoesNotExistError:
         raise HTTPException(status_code=404, detail="Workspace does not exist")
@@ -315,7 +321,7 @@ async def update_workspace(
     return v1_models.FullWorkspace(
         name=workspace_row.name,
         config=v1_models.WorkspaceConfig(
-            custom_instructions=workspace_row.custom_instructions,
+            custom_instructions=workspace_row.custom_instructions or "",
             muxing_rules=[mux_models.MuxRule.from_db_mux_rule(mux_rule) for mux_rule in mux_rules],
         ),
     )

@@ -198,3 +198,47 @@ async def test_create_update_workspace_happy_path(
                 assert rule["model"] == muxing_rules_2[i]["model"]
                 assert rule["matcher"] == muxing_rules_2[i]["matcher"]
                 assert rule["matcher_type"] == muxing_rules_2[i]["matcher_type"]
+
+
+@pytest.mark.asyncio
+async def test_create_update_workspace_name_only(
+    mock_pipeline_factory, mock_workspace_crud, mock_provider_crud
+) -> None:
+    with (
+        patch("codegate.api.v1.wscrud", mock_workspace_crud),
+        patch("codegate.api.v1.pcrud", mock_provider_crud),
+        patch(
+            "codegate.providers.openai.provider.OpenAIProvider.models",
+            return_value=["foo-bar-001", "foo-bar-002"],
+        ),
+    ):
+        """Test creating & updating a workspace (happy path)."""
+
+        app = init_app(mock_pipeline_factory)
+
+        async with AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            name_1: str = str(uuid())
+
+            payload_create = {
+                "name": name_1,
+            }
+
+            response = await ac.post("/api/v1/workspaces", json=payload_create)
+            assert response.status_code == 201
+            response_body = response.json()
+
+            assert response_body["name"] == name_1
+
+            name_2: str = str(uuid())
+
+            payload_update = {
+                "name": name_2,
+            }
+
+            response = await ac.put(f"/api/v1/workspaces/{name_1}", json=payload_update)
+            assert response.status_code == 201
+            response_body = response.json()
+
+            assert response_body["name"] == name_2

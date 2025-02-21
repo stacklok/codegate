@@ -72,13 +72,6 @@ class FullWorkspace(pydantic.BaseModel):
     config: Optional[WorkspaceConfig] = None
 
 
-class CreateOrRenameWorkspaceRequest(FullWorkspace):
-    # If set, rename the workspace to this name. Note that
-    # the 'name' field is still required and the workspace
-    # workspace must exist.
-    rename_to: Optional[str] = None
-
-
 class ActivateWorkspaceRequest(pydantic.BaseModel):
     name: str
 
