@@ -94,6 +94,7 @@ class BaseProvider(ABC):
         self,
         data: dict,
         api_key: str,
+        base_url: str,
         is_fim_request: bool,
         client_type: ClientType,
     ):
@@ -240,6 +241,7 @@ class BaseProvider(ABC):
         self,
         data: Dict,
         api_key: Optional[str],
+        base_url: Optional[str],
         is_fim_request: bool,
         client_type: ClientType,
     ) -> Union[Any, AsyncIterator[Any]]:
@@ -265,7 +267,7 @@ class BaseProvider(ABC):
         input_pipeline_result = await self._run_input_pipeline(
             normalized_request,
             api_key,
-            self.base_url,
+            base_url,
             client_type,
             is_fim_request,
         )
@@ -287,7 +289,7 @@ class BaseProvider(ABC):
         # based on the streaming flag
         model_response = await self._completion_handler.execute_completion(
             provider_request,
-            self.base_url,
+            base_url,
             api_key,
             stream=streaming,
             is_fim_request=is_fim_request,

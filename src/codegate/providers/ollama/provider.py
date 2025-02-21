@@ -64,13 +64,15 @@ class OllamaProvider(BaseProvider):
         self,
         data: dict,
         api_key: str,
+        base_url: str,
         is_fim_request: bool,
         client_type: ClientType,
     ):
         try:
             stream = await self.complete(
                 data,
-                api_key=api_key,
+                api_key,
+                base_url,
                 is_fim_request=is_fim_request,
                 client_type=client_type,
             )
@@ -140,6 +142,7 @@ class OllamaProvider(BaseProvider):
             return await self.process_request(
                 req,
                 None,
+                self.base_url,
                 is_fim_request,
                 request.state.detected_client,
             )
@@ -154,6 +157,7 @@ class OllamaProvider(BaseProvider):
             return await self.process_request(
                 req,
                 None,
+                self.base_url,
                 is_fim_request,
                 request.state.detected_client,
             )
@@ -181,6 +185,7 @@ class OllamaProvider(BaseProvider):
             return await self.process_request(
                 req,
                 api_key,
+                self.base_url,
                 is_fim_request,
                 request.state.detected_client,
             )

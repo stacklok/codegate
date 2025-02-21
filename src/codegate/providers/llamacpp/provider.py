@@ -62,12 +62,13 @@ class LlamaCppProvider(BaseProvider):
         self,
         data: dict,
         api_key: str,
+        base_url: str,
         is_fim_request: bool,
         client_type: ClientType,
     ):
         try:
             stream = await self.complete(
-                data, None, is_fim_request=is_fim_request, client_type=client_type
+                data, None, base_url, is_fim_request=is_fim_request, client_type=client_type
             )
         except RuntimeError as e:
             # propagate as error 500
@@ -103,6 +104,7 @@ class LlamaCppProvider(BaseProvider):
             return await self.process_request(
                 req,
                 None,
+                self.base_url,
                 is_fim_request,
                 request.state.detected_client,
             )
@@ -119,6 +121,7 @@ class LlamaCppProvider(BaseProvider):
             return await self.process_request(
                 req,
                 None,
+                self.base_url,
                 is_fim_request,
                 request.state.detected_client,
             )

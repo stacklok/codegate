@@ -66,6 +66,7 @@ class OpenAIProvider(BaseProvider):
         self,
         data: dict,
         api_key: str,
+        base_url: str,
         is_fim_request: bool,
         client_type: ClientType,
     ):
@@ -73,6 +74,7 @@ class OpenAIProvider(BaseProvider):
             stream = await self.complete(
                 data,
                 api_key,
+                base_url,
                 is_fim_request=is_fim_request,
                 client_type=client_type,
             )
@@ -117,6 +119,7 @@ class OpenAIProvider(BaseProvider):
             return await self.process_request(
                 req,
                 api_key,
+                self.base_url,
                 is_fim_request,
                 request.state.detected_client,
             )

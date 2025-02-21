@@ -68,11 +68,12 @@ class AnthropicProvider(BaseProvider):
         self,
         data: dict,
         api_key: str,
+        base_url: str,
         is_fim_request: bool,
         client_type: ClientType,
     ):
         try:
-            stream = await self.complete(data, api_key, is_fim_request, client_type)
+            stream = await self.complete(data, api_key, base_url, is_fim_request, client_type)
         except Exception as e:
             # check if we have an status code there
             if hasattr(e, "status_code"):
@@ -116,6 +117,7 @@ class AnthropicProvider(BaseProvider):
             return await self.process_request(
                 req,
                 x_api_key,
+                base_url,
                 is_fim_request,
                 request.state.detected_client,
             )

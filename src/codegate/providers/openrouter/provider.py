@@ -29,10 +29,11 @@ class OpenRouterProvider(OpenAIProvider):
         self,
         data: dict,
         api_key: str,
+        base_url: str,
         is_fim_request: bool,
         client_type: ClientType,
     ):
-        return await super().process_request(data, api_key, is_fim_request, client_type)
+        return await super().process_request(data, api_key, base_url, is_fim_request, client_type)
 
     def _setup_routes(self):
         @self.router.post(f"/{self.provider_route_name}/api/v1/chat/completions")
@@ -55,6 +56,7 @@ class OpenRouterProvider(OpenAIProvider):
             return await self.process_request(
                 req,
                 api_key,
+                self.base_url,
                 is_fim_request,
                 request.state.detected_client,
             )

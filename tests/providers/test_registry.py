@@ -93,7 +93,7 @@ class MockProvider(BaseProvider):
     def provider_route_name(self) -> str:
         return "mock_provider"
 
-    async def process_request(self, data: dict, api_key: str, request_url_path: str):
+    async def process_request(self, data: dict, api_key: str, base_url: str, request_url_path: str):
         return {"message": "test"}
 
     def models(self):
