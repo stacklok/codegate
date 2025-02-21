@@ -4,11 +4,13 @@ Testing the suspicious commands
 """
 import csv
 import os
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from codegate.pipeline.suspicious_commands.suspicious_commands import (
     SuspiciousCommands,
+    check_suspicious_code,
 )
 
 try:
@@ -189,3 +191,68 @@ async def test_classify_phrase_confident(sc):
         else:
             print(f"{command['cmd']} {prob} {prediction} 1")
     check_results(tp, tn, fp, fn)
+
+
+@pytest.mark.asyncio
+@patch("codegate.pipeline.suspicious_commands.suspicious_commands.SuspiciousCommands.get_instance")
+async def test_check_suspicious_code_safe(mock_get_instance):
+    """
+    Test check_suspicious_code with safe code.
+    """
+    mock_instance = mock_get_instance.return_value
+    mock_instance.classify_phrase = AsyncMock(return_value=(0, 0.5))
+
+    code = "print('Hello, world!')"
+    comment, is_suspicious = await check_suspicious_code(code, "python")
+
+    assert comment == ""
+    assert is_suspicious is False
+
+
+@pytest.mark.asyncio
+@patch("codegate.pipeline.suspicious_commands.suspicious_commands.SuspiciousCommands.get_instance")
+async def test_check_suspicious_code_suspicious(mock_get_instance):
+    """
+    Test check_suspicious_code with suspicious code.
+    """
+    mock_instance = mock_get_instance.return_value
+    mock_instance.classify_phrase = AsyncMock(return_value=(1, 0.95))
+
+    code = "rm -rf /"
+    comment, is_suspicious = await check_suspicious_code(code, "bash")
+
+    assert "🛡️ CodeGate: The bash supplied is likely unsafe." in comment
+    assert is_suspicious is True
+
+
+@pytest.mark.asyncio
+@patch("codegate.pipeline.suspicious_commands.suspicious_commands.SuspiciousCommands.get_instance")
+async def test_check_suspicious_code_skipped_language(mock_get_instance):
+    """
+    Test check_suspicious_code with a language that should be skipped.
+    """
+    mock_instance = mock_get_instance.return_value
+    mock_instance.classify_phrase = AsyncMock()
+
+    code = "print('Hello, world!')"
+    comment, is_suspicious = await check_suspicious_code(code, "python")
+
+    assert comment == ""
+    assert is_suspicious is False
+    mock_instance.classify_phrase.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch("codegate.pipeline.suspicious_commands.suspicious_commands.SuspiciousCommands.get_instance")
+async def test_check_suspicious_code_no_language(mock_get_instance):
+    """
+    Test check_suspicious_code with no language specified.
+    """
+    mock_instance = mock_get_instance.return_value
+    mock_instance.classify_phrase = AsyncMock(return_value=(1, 0.85))
+
+    code = "rm -rf /"
+    comment, is_suspicious = await check_suspicious_code(code)
+
+    assert "🛡️ CodeGate: The code supplied is possibly unsafe." in comment
+    assert is_suspicious is True
