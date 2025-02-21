@@ -25,6 +25,7 @@ class TestSystemPrompt:
         user_message = "Test user message"
         mock_request = {"model": "model", "messages": [{"role": "user", "content": user_message}]}
         mock_context = Mock(spec=PipelineContext)
+        mock_context.secrets_found = False
 
         # Create system prompt step
         system_prompt = "Security analysis system prompt"
@@ -60,6 +61,7 @@ class TestSystemPrompt:
             ]
         }
         mock_context = Mock(spec=PipelineContext)
+        mock_context.secrets_found = False
 
         # Create system prompt step
         system_prompt = "Security analysis system prompt"
@@ -93,6 +95,7 @@ class TestSystemPrompt:
         """
         mock_request = {"model": "model", "messages": edge_case if edge_case is not None else []}
         mock_context = Mock(spec=PipelineContext)
+        mock_context.secrets_found = False
 
         system_prompt = "Security edge case prompt"
         step = SystemPrompt(system_prompt=system_prompt, client_prompts={})
