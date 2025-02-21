@@ -1,6 +1,6 @@
 import json
-import re
 
+import regex as re
 import structlog
 from litellm import ChatCompletionRequest
 
@@ -19,6 +19,12 @@ from codegate.utils.utils import generate_vector_string
 logger = structlog.get_logger("codegate")
 
 
+# Pre-compiled regex patterns for performance
+markdown_code_block = re.compile(r"```.*?```", flags=re.DOTALL)
+markdown_file_listing = re.compile(r"⋮...*?⋮...\n\n", flags=re.DOTALL)
+environment_details = re.compile(r"<environment_details>.*?</environment_details>", flags=re.DOTALL)
+
+
 class CodegateContextRetriever(PipelineStep):
     """
     Pipeline step that adds a context message to the completion request when it detects
@@ -32,18 +38,25 @@ class CodegateContextRetriever(PipelineStep):
         """
         return "codegate-context-retriever"
 
-    def generate_context_str(self, objects: list[object], context: PipelineContext) -> str:
+    def generate_context_str(
+        self, objects: list[object], context: PipelineContext, snippet_map: dict
+    ) -> str:
         context_str = ""
         matched_packages = []
         for obj in objects:
             # The object is already a dictionary with 'properties'
             package_obj = obj["properties"]  # type: ignore
             matched_packages.append(f"{package_obj['name']} ({package_obj['type']})")
+
+            # Retrieve the related snippet if it exists
+            code_snippet = snippet_map.get(package_obj["name"])
+
             # Add one alert for each package found
             context.add_alert(
                 self.name,
                 trigger_string=json.dumps(package_obj),
                 severity_category=AlertSeverity.CRITICAL,
+                code_snippet=code_snippet,
             )
             package_str = generate_vector_string(package_obj)
             context_str += package_str + "\n"
@@ -74,14 +87,18 @@ class CodegateContextRetriever(PipelineStep):
         snippets = extractor.extract_snippets(user_message)
 
         bad_snippet_packages = []
-        if len(snippets) > 0:
+        snippet_map = {}
+        if snippets and len(snippets) > 0:
             snippet_language = snippets[0].language
             # Collect all packages referenced in the snippets
             snippet_packages = []
             for snippet in snippets:
-                snippet_packages.extend(
-                    PackageExtractor.extract_packages(snippet.code, snippet.language)  # type: ignore
+                extracted_packages = PackageExtractor.extract_packages(
+                    snippet.code, snippet.language
                 )
+                snippet_packages.extend(extracted_packages)
+                for package in extracted_packages:
+                    snippet_map[package] = snippet
 
             logger.info(
                 f"Found {len(snippet_packages)} packages "
@@ -95,11 +112,9 @@ class CodegateContextRetriever(PipelineStep):
 
         # Remove code snippets and file listing from the user messages and search for bad packages
         # in the rest of the user query/messsages
-        user_messages = re.sub(r"```.*?```", "", user_message, flags=re.DOTALL)
-        user_messages = re.sub(r"⋮...*?⋮...\n\n", "", user_messages, flags=re.DOTALL)
-        user_messages = re.sub(
-            r"<environment_details>.*?</environment_details>", "", user_messages, flags=re.DOTALL
-        )
+        user_messages = markdown_code_block.sub("", user_message)
+        user_messages = markdown_file_listing.sub("", user_messages)
+        user_messages = environment_details.sub("", user_messages)
 
         # split messages into double newlines, to avoid passing so many content in the search
         split_messages = re.split(r"</?task>|\n|\\n", user_messages)
@@ -123,7 +138,7 @@ class CodegateContextRetriever(PipelineStep):
             return PipelineResult(request=request, context=context)
         else:
             # Add context for bad packages
-            context_str = self.generate_context_str(all_bad_packages, context)
+            context_str = self.generate_context_str(all_bad_packages, context, snippet_map)
             context.bad_packages_found = True
 
             # Make a copy of the request

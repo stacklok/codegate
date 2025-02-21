@@ -1,9 +1,9 @@
 import datetime
 import hashlib
 import json
-import re
 from typing import Dict, List, Optional
 
+import regex as re
 import structlog
 from pydantic import BaseModel
 
@@ -19,6 +19,11 @@ class CachedFim(BaseModel):
     timestamp: datetime.datetime
     critical_alerts: List[Alert]
     initial_id: str
+
+
+# Regular expression to match file paths in FIM messages.
+# Compiled regex to improve performance.
+filepath_matcher = re.compile(r"^(#|//|<!--|--|%|;).*?\b([a-zA-Z0-9_\-\/]+\.\w+)\b", re.MULTILINE)
 
 
 class FimCache:
@@ -55,8 +60,8 @@ class FimCache:
         # folder/testing_file.py
         # Path: file3.py
         # // Path: file3.js <-- Javascript
-        pattern = r"^(#|//|<!--|--|%|;).*?\b([a-zA-Z0-9_\-\/]+\.\w+)\b"
-        matches = re.findall(pattern, message, re.MULTILINE)
+        matches = filepath_matcher.findall(message)
+
         # If no path is found, hash the entire prompt message.
         if not matches:
             return None

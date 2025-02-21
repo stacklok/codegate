@@ -1,10 +1,10 @@
 import asyncio
 import json
-import re
 from collections import defaultdict
 from typing import AsyncGenerator, Dict, List, Optional, Tuple
 
 import cachetools.func
+import regex as re
 import requests
 import structlog
 

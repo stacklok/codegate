@@ -1,13 +1,13 @@
 import asyncio
 import datetime
 import os
-import re
 import ssl
 import tempfile
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import unquote, urljoin, urlparse
 
+import regex as re
 import structlog
 from litellm.types.utils import Delta, ModelResponse, StreamingChoices
 
@@ -28,6 +28,9 @@ from codegate.providers.copilot.streaming import SSEProcessor
 
 setup_logging()
 logger = structlog.get_logger("codegate").bind(origin="copilot_proxy")
+
+# Pre-compiled regex patterns for performance
+proxy_ep_pattern = re.compile(r"proxy-ep=([^;]+)")
 
 
 TEMPDIR = None
@@ -613,7 +616,7 @@ class CopilotProvider(asyncio.Protocol):
         auth_header = headers_dict.get("authorization", "")
 
         if auth_header:
-            match = re.search(r"proxy-ep=([^;]+)", auth_header)
+            match = proxy_ep_pattern.search(auth_header)
             if match:
                 self.proxy_ep = match.group(1)
                 if not urlparse(self.proxy_ep).scheme:

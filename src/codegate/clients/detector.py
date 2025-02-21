@@ -1,8 +1,8 @@
-import re
 from abc import ABC, abstractmethod
 from functools import wraps
 from typing import List, Optional
 
+import regex as re
 import structlog
 from fastapi import Request
 
