@@ -12,9 +12,12 @@ import os
 
 import numpy as np  # Add this import
 import onnxruntime as ort
+import structlog
 
 from codegate.config import Config
 from codegate.inference.inference_engine import LlamaCppInferenceEngine
+
+logger = structlog.get_logger("codegate")
 
 
 class SuspiciousCommands:
@@ -123,22 +126,29 @@ async def check_suspicious_code(code, language=None):
     Returns:
         tuple: A comment string and a boolean indicating if the code is suspicious.
     """
+    if language is None:
+        language = "code"
+    if language in [
+        "python",
+        "javascript",
+        "typescript",
+        "go",
+        "rust",
+        "java",
+    ]:
+        logger.debug(f"Skipping suspicious command check for {language}")
+        return "", False
+    logger.debug("Checking code for suspicious commands")
     sc = SuspiciousCommands.get_instance()
     comment = ""
     class_, prob = await sc.classify_phrase(code)
-    if class_ == 1:
+    is_suspicious = class_ == 1
+    if is_suspicious:
         liklihood = "possibly"
         if prob > 0.9:
             liklihood = "likely"
-        if language is None:
-            language = "code"
-        if language not in [
-            "python",
-            "javascript",
-            "typescript",
-            "go",
-            "rust",
-            "java",
-        ]:
-            comment = f"{comment}\n\n🛡️ CodeGate: The {language} supplied is {liklihood} unsafe. Please check carefully!\n\n"  # noqa: E501
-    return comment, class_ == 1
+        comment = f"{comment}\n\n🛡️ CodeGate: The {language} supplied is {liklihood} unsafe. Please check carefully!\n\n"  # noqa: E501
+        logger.info(f"Suspicious: {code}")
+    else:
+        logger.debug("Not Suspicious")
+    return comment, is_suspicious
