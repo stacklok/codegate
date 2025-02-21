@@ -96,6 +96,24 @@ class BaseProvider(ABC):
         config = Config.get_config()
         return config.provider_urls.get(self.provider_route_name) if config else ""
 
+    async def process_stream_no_pipeline(
+        self, stream: AsyncIterator[ModelResponse], context: PipelineContext
+    ) -> AsyncIterator[ModelResponse]:
+        """
+        Process a stream when there is no pipeline.
+        This is needed to record the output stream chunks for FIM.
+        """
+        try:
+            async for chunk in stream:
+                context.add_output(chunk)
+                yield chunk
+        except Exception as e:
+            # Log exception and stop processing
+            logger.error(f"Error processing stream: {e}")
+            raise e
+        finally:
+            await self._db_recorder.record_context(context)
+
     async def _run_output_stream_pipeline(
         self,
         input_context: PipelineContext,
@@ -121,7 +139,7 @@ class BaseProvider(ABC):
             and self.provider_route_name != "anthropic"
         ):
             logger.info("No output pipeline steps configured, passing through")
-            return model_stream
+            return self.process_stream_no_pipeline(model_stream, input_context)
 
         normalized_stream = self._output_normalizer.normalize_streaming(model_stream)
 
