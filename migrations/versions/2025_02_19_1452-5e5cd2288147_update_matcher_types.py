@@ -26,22 +26,15 @@ def upgrade() -> None:
     op.execute(
         """
         UPDATE muxes
-        SET matcher_type = 'fim', matcher_blob = ''
+        SET matcher_type = 'fim_filename', matcher_blob = ''
         WHERE matcher_type = 'request_type_match' AND matcher_blob = 'fim';
         """
     )
     op.execute(
         """
         UPDATE muxes
-        SET matcher_type = 'chat', matcher_blob = ''
+        SET matcher_type = 'chat_filename', matcher_blob = ''
         WHERE matcher_type = 'request_type_match' AND matcher_blob = 'chat';
-        """
-    )
-    op.execute(
-        """
-        UPDATE muxes
-        SET matcher_type = 'catch_all'
-        WHERE matcher_type = 'filename_match' AND matcher_blob != '';
         """
     )
 
@@ -65,13 +58,6 @@ def downgrade() -> None:
         UPDATE muxes
         SET matcher_blob = 'chat', matcher_type = 'request_type_match'
         WHERE matcher_type = 'chat';
-        """
-    )
-    op.execute(
-        """
-        UPDATE muxes
-        SET matcher_type = 'filename_match', matcher_blob = 'catch_all'
-        WHERE matcher_type = 'catch_all';
         """
     )
 

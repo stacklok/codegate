@@ -14,20 +14,24 @@ class MuxMatcherType(str, Enum):
     The 3 rules present match filenames and request types. They're used in conjunction with the
     matcher field in the MuxRule model.
     E.g.
-    - catch_all and match: None -> Always match
-    - fim and match: requests.py -> Match the request if the filename is requests.py and FIM
-    - chat and match: None -> Match the request if it's a chat request
-    - chat and match: .js -> Match the request if the filename has a .js extension and is chat
+    - catch_all-> Always match
+    - filename_match and match: requests.py -> Match the request if the filename is requests.py
+    - fim_filename and match: main.py -> Match the request if the request type is fim
+    and the filename is main.py
 
     NOTE: Removing or updating fields from this enum will require a migration.
+    Adding new fields is safe.
     """
 
     # Always match this prompt
     catch_all = "catch_all"
+    # Match based on the filename. It will match if there is a filename
+    # in the request that matches the matcher either extension or full name (*.py or main.py)
+    filename_match = "filename_match"
     # Match based on fim request type. It will match if the request type is fim
-    fim = "fim"
+    fim_filename = "fim_filename"
     # Match based on chat request type. It will match if the request type is chat
-    chat = "chat"
+    chat_filename = "chat_filename"
 
 
 class MuxRule(pydantic.BaseModel):
