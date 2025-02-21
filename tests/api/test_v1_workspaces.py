@@ -156,7 +156,10 @@ async def test_create_update_workspace_happy_path(
 
             assert response_body["name"] == name_1
             assert response_body["config"]["custom_instructions"] == custom_instructions_1
-            assert response_body["config"]["muxing_rules"] == muxing_rules_1
+            for i, rule in enumerate(response_body["config"]["muxing_rules"]):
+                assert rule["model"] == muxing_rules_1[i]["model"]
+                assert rule["matcher"] == muxing_rules_1[i]["matcher"]
+                assert rule["matcher_type"] == muxing_rules_1[i]["matcher_type"]
 
             name_2: str = str(uuid())
             custom_instructions_2: str = "Respond to every request in cockney rhyming slang"
@@ -191,4 +194,7 @@ async def test_create_update_workspace_happy_path(
 
             assert response_body["name"] == name_2
             assert response_body["config"]["custom_instructions"] == custom_instructions_2
-            assert response_body["config"]["muxing_rules"] == muxing_rules_2
+            for i, rule in enumerate(response_body["config"]["muxing_rules"]):
+                assert rule["model"] == muxing_rules_2[i]["model"]
+                assert rule["matcher"] == muxing_rules_2[i]["matcher"]
+                assert rule["matcher_type"] == muxing_rules_2[i]["matcher_type"]

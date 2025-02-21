@@ -274,7 +274,7 @@ async def create_workspace(
         name=workspace_row.name,
         config=v1_models.WorkspaceConfig(
             custom_instructions=workspace_row.custom_instructions,
-            muxing_rules=[mux_models.MuxRule.try_from_db_model(mux_rule) for mux_rule in mux_rules],
+            muxing_rules=[mux_models.MuxRule.from_db_mux_rule(mux_rule) for mux_rule in mux_rules],
         ),
     )
 
@@ -316,7 +316,7 @@ async def update_workspace(
         name=workspace_row.name,
         config=v1_models.WorkspaceConfig(
             custom_instructions=workspace_row.custom_instructions,
-            muxing_rules=[mux_models.MuxRule.try_from_db_model(mux_rule) for mux_rule in mux_rules],
+            muxing_rules=[mux_models.MuxRule.from_db_mux_rule(mux_rule) for mux_rule in mux_rules],
         ),
     )
 
