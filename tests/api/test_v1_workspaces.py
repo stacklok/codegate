@@ -44,7 +44,7 @@ def db_reader(db_path) -> connection.DbReader:
 
 @pytest.fixture()
 def mock_workspace_crud(db_recorder, db_reader) -> WorkspaceCrud:
-    """Creates a DbRecorder instance with test database."""
+    """Creates a WorkspaceCrud instance with test database."""
     ws_crud = WorkspaceCrud()
     ws_crud._db_reader = db_reader
     ws_crud._db_recorder = db_recorder
@@ -53,7 +53,7 @@ def mock_workspace_crud(db_recorder, db_reader) -> WorkspaceCrud:
 
 @pytest.fixture()
 def mock_provider_crud(db_recorder, db_reader, mock_workspace_crud) -> ProviderCrud:
-    """Creates a DbRecorder instance with test database."""
+    """Creates a ProviderCrud instance with test database."""
     p_crud = ProviderCrud()
     p_crud._db_reader = db_reader
     p_crud._db_writer = db_recorder
