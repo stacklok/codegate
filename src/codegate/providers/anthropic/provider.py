@@ -117,7 +117,7 @@ class AnthropicProvider(BaseProvider):
             return await self.process_request(
                 req,
                 x_api_key,
-                base_url,
+                self.base_url,
                 is_fim_request,
                 request.state.detected_client,
             )
