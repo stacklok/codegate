@@ -17,7 +17,7 @@ from codegate.config import Config
 from codegate.pipeline.base import PipelineContext
 from codegate.pipeline.factory import PipelineFactory
 from codegate.pipeline.output import OutputPipelineInstance
-from codegate.pipeline.secrets.manager import SecretsManager
+from codegate.pipeline.sensitive_data.manager import SensitiveDataManager
 from codegate.providers.copilot.mapping import PIPELINE_ROUTES, VALIDATED_ROUTES, PipelineType
 from codegate.providers.copilot.pipeline import (
     CopilotChatPipeline,
@@ -200,7 +200,7 @@ class CopilotProvider(asyncio.Protocol):
         self.ca = CertificateAuthority.get_instance()
         self.cert_manager = TLSCertDomainManager(self.ca)
         self._closing = False
-        self.pipeline_factory = PipelineFactory(SecretsManager())
+        self.pipeline_factory = PipelineFactory(SensitiveDataManager())
         self.input_pipeline: Optional[CopilotPipeline] = None
         self.fim_pipeline: Optional[CopilotPipeline] = None
         # the context as provided by the pipeline

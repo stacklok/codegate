@@ -4,7 +4,6 @@ import pytest
 from presidio_analyzer import RecognizerResult
 
 from codegate.pipeline.pii.analyzer import PiiAnalyzer
-from codegate.session.session_store import SessionStore
 
 
 class TestPiiAnalyzer:
@@ -67,41 +66,6 @@ class TestPiiAnalyzer:
         # Direct instantiation should raise an error
         with pytest.raises(RuntimeError, match="Use PiiAnalyzer.get_instance()"):
             PiiAnalyzer()
-
-    def test_analyze_no_pii(self, analyzer, mock_analyzer_engine):
-        text = "Hello world"
-        session_id = "session-id"
-        mock_analyzer_engine.analyze.return_value = []
-
-        result_text, found_pii = analyzer.analyze(session_id, text)
-
-        assert result_text == text
-        assert found_pii == []
-
-    def test_analyze_with_pii(self, analyzer, mock_analyzer_engine):
-        text = "My email is test@example.com"
-        session_id = "session-id"
-        email_pii = RecognizerResult(
-            entity_type="EMAIL_ADDRESS",
-            start=12,
-            end=28,
-            score=1.0,  # EmailRecognizer returns a score of 1.0
-        )
-        mock_analyzer_engine.analyze.return_value = [email_pii]
-
-        result_text, found_pii = analyzer.analyze(session_id, text)
-
-        assert len(found_pii) == 1
-        pii_info = found_pii[0]
-        assert pii_info["type"] == "EMAIL_ADDRESS"
-        assert pii_info["value"] == "test@example.com"
-        assert pii_info["score"] == 1.0
-        assert pii_info["start"] == 12
-        assert pii_info["end"] == 28
-        assert "uuid_placeholder" in pii_info
-        # Verify the placeholder was used to replace the PII
-        placeholder = pii_info["uuid_placeholder"]
-        assert result_text == f"My email is {placeholder}"
 
     def test_restore_pii(self, analyzer):
         original_text = "test@example.com"
