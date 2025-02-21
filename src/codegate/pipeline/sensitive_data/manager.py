@@ -32,8 +32,11 @@ class SensitiveDataManager:
         self.session_store = SessionStore()
 
     def store(self, session_id: str, value: SensitiveData) -> Optional[str]:
+        print("in store")
         if not session_id or not value.original:
             return None
+        print("i call add mapping")
+        print(self.session_store)
         return self.session_store.add_mapping(session_id, value.to_json())
 
     def get_by_session_id(self, session_id: str) -> Optional[Dict]:
