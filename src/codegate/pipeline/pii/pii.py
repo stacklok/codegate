@@ -141,7 +141,7 @@ class CodegatePii(PipelineStep):
         total_pii_found = 0
         all_pii_details: List[Dict[str, Any]] = []
         last_redacted_text = ""
-        session_id = context.session_id if hasattr(context, "session_id") else str(uuid.uuid4())
+        session_id = context.session_id if hasattr(context, "session_id") else None
 
         for i, message in enumerate(new_request["messages"]):
             if "content" in message and message["content"]:
@@ -271,13 +271,13 @@ class PiiUnRedactionStep(OutputPipelineStep):
         current_pos = 0
         result = []
         while current_pos < len(content):
-            start_idx = content.find("#", current_pos)
+            start_idx = content.find(self.marker_start, current_pos)
             if start_idx == -1:
                 # No more markers!, add remaining content
                 result.append(content[current_pos:])
                 break
 
-            end_idx = content.find("#", start_idx + 1)
+            end_idx = content.find(self.marker_end, start_idx + 1)
             if end_idx == -1:
                 # Incomplete marker, buffer the rest
                 context.prefix_buffer = content[current_pos:]

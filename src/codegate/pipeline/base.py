@@ -21,10 +21,7 @@ logger = structlog.get_logger("codegate")
 class PipelineSensitiveData:
     manager: SensitiveDataManager
     session_id: str
-    api_key: Optional[str] = None
     model: Optional[str] = None
-    provider: Optional[str] = None
-    api_base: Optional[str] = None
 
     def secure_cleanup(self):
         """Securely cleanup sensitive data for this session"""
