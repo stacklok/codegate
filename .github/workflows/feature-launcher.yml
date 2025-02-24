@@ -1,9 +1,7 @@
 name: Automate Engineering Feature Release Campaigns
-
 on:
   issues:
     types: [labeled]
-
 jobs:
   notify-discord:
     if: github.event.label.name == 'feature-release'
@@ -12,51 +10,58 @@ jobs:
       - name: Send Feature Release Notification to Discord
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_COMMUNITY_RELEASE_WEBHOOK: ${{ secrets.SLACK_COMMUNITY_RELEASE_WEBHOOK }}
+          SLACK_COMMUNITY_ENGAGEMENT_WEBHOOK: ${{ secrets.SLACK_COMMUNITY_ENGAGEMENT_WEBHOOK }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_URL: ${{ github.event.issue.html_url }}
         run: |
-          node -e '
-            const https = require("https");
+          node -e "
+            const https = require('https');
             const discordWebhook = new URL(process.env.DISCORD_WEBHOOK);
-            const slackWebhook = new URL(process.env.SLACK_WEBHOOK);
-
+            const slackCommunityReleaseWebhook = new URL(process.env.SLACK_COMMUNITY_RELEASE_WEBHOOK);
+            const slackCommunityEngagementWebhook = new URL(process.env.SLACK_COMMUNITY_ENGAGEMENT_WEBHOOK);
             const issueTitle = process.env.ISSUE_TITLE;
             const issueBody = process.env.ISSUE_BODY;
             const issueUrl = process.env.ISSUE_URL;
 
-            // Discord Payload
             const discordPayload = {
               content: [
-                "**🚀 " +issueTitle + " has been released!**",
-                "",
-                "**🌟 Whats new in CodeGate:**",
+                '**🚀 ' + issueTitle + ' has been released!**',
+                '',
+                '**🌟 Whats new in CodeGate:**',
                 issueBody,
-                "",
-                "We would 🤍 your feedback! 🔗 [Here’s the GitHub issue](" + issueUrl + ")"
-              ].join("\n")
+                '',
+                'We would 🤍 your feedback! 🔗 [Here\'s the GitHub issue](' + issueUrl + ')'
+              ].join('\n')
             };
 
-            // Slack Payload
-            const slackPayload = {
-              text: `🚀 *${issueTitle}* has been released!\n\n 🔗 <${issueUrl}|Here’s the GitHub issue>`,
+            const slackCommunityReleasePayload = {
+              text: '🚀 ' + issueTitle + ' has been released!\\n\\n 🔗 <' + issueUrl + '|Here\'s the GitHub issue>'
+            };
+            
+            const slackCommunityEngagementPayload = {
+              text: '📢 Feature ' + issueTitle + ' has been released! 🔗 <' + issueUrl + '|Here\'s the GitHub issue> \\n\\n • Reddit Advocacy Group check it out and help us spread the word! \\n\\n • Feature anchors, please engage with folks in the <https://discord.com/channels/1184987096302239844/1342205741926318080|#feature-spotlight> post for our new feature, and follow-up with interested users in <https://discord.com/channels/1184987096302239844/1331415710278221846|#ideas-and-issues> and <https://discord.com/channels/1184987096302239844/1340110387453886515|#codegate-users>'
             };
 
             function sendNotification(webhookUrl, payload) {
-              const url = new URL(webhookUrl);
-              const req = https.request(url, {
-                method: "POST",
+              const req = https.request(webhookUrl, {
+                method: 'POST',
                 headers: {
-                  "Content-Type": "application/json",
+                  'Content-Type': 'application/json'
                 }
               });
 
-              req.on("error", (error) => {
-                console.error("Error:", error);
+              req.on('error', (error) => {
+                console.error('Error:', error);
                 process.exit(1);
               });
 
               req.write(JSON.stringify(payload));
               req.end();
             }
+
+            sendNotification(discordWebhook, discordPayload);
+            sendNotification(slackCommunityReleaseWebhook, slackCommunityReleasePayload);
+            sendNotification(slackCommunityEngagementWebhook, slackCommunityEngagementPayload);
+          "

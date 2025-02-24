@@ -1,7 +1,7 @@
-import re
 import shlex
 from typing import Optional
 
+import regex as re
 from litellm import ChatCompletionRequest
 
 from codegate.clients.clients import ClientType

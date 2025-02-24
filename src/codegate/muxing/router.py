@@ -50,8 +50,11 @@ class MuxRouter:
             # Try to get a model route for the active workspace
             model_route = await mux_registry.get_match_for_active_workspace(thing_to_match)
             return model_route
+        except rulematcher.MuxMatchingError as e:
+            logger.exception(f"Error matching rule and getting model route: {e}")
+            raise HTTPException(detail=str(e), status_code=404)
         except Exception as e:
-            logger.error(f"Error getting active workspace muxes: {e}")
+            logger.exception(f"Error getting active workspace muxes: {e}")
             raise HTTPException(detail=str(e), status_code=404)
 
     def _setup_routes(self):

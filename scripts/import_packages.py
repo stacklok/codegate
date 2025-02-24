@@ -22,6 +22,7 @@ class PackageImporter:
             os.path.join(jsonl_dir, "malicious.jsonl"),
         ]
         self.conn = self._get_connection()
+        Config.load()  # Load the configuration
         self.inference_engine = LlamaCppInferenceEngine()
         self.model_path = "./codegate_volume/models/all-minilm-L6-v2-q5_k_m.gguf"
 

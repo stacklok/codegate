@@ -61,11 +61,17 @@ class DbCodeGate:
     _instance = None
 
     def __new__(cls, *args, **kwargs):
+        # The _no_singleton flag is used to create a new instance of the class
+        # It should only be used for testing
+        if "_no_singleton" in kwargs and kwargs["_no_singleton"]:
+            kwargs.pop("_no_singleton")
+            return super().__new__(cls, *args, **kwargs)
+
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def __init__(self, sqlite_path: Optional[str] = None):
+    def __init__(self, sqlite_path: Optional[str] = None, **kwargs):
         if not hasattr(self, "_initialized"):
             # Ensure __init__ is only executed once
             self._initialized = True
@@ -91,8 +97,8 @@ class DbCodeGate:
 
 
 class DbRecorder(DbCodeGate):
-    def __init__(self, sqlite_path: Optional[str] = None):
-        super().__init__(sqlite_path)
+    def __init__(self, sqlite_path: Optional[str] = None, *args, **kwargs):
+        super().__init__(sqlite_path, *args, **kwargs)
 
     async def _execute_update_pydantic_model(
         self, model: BaseModel, sql_command: TextClause, should_raise: bool = False
@@ -519,8 +525,8 @@ class DbRecorder(DbCodeGate):
 
 
 class DbReader(DbCodeGate):
-    def __init__(self, sqlite_path: Optional[str] = None):
-        super().__init__(sqlite_path)
+    def __init__(self, sqlite_path: Optional[str] = None, *args, **kwargs):
+        super().__init__(sqlite_path, *args, **kwargs)
 
     async def _dump_result_to_pydantic_model(
         self, model_type: Type[BaseModel], result: CursorResult

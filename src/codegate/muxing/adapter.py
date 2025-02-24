@@ -84,14 +84,20 @@ class StreamChunkFormatter(OutputFormatter):
         """
         pass
 
+    def _clean_chunk(self, chunk: str) -> str:
+        """Clean the chunk from the "data:" and any extra characters."""
+        # Find the first position of 'data:' and add 5 characters to skip 'data:'
+        start_pos = chunk.find("data:") + 5
+        cleaned_chunk = chunk[start_pos:].strip()
+        return cleaned_chunk
+
     def _format_openai(self, chunk: str) -> str:
         """
         The chunk is already in OpenAI format. To standarize remove the "data:" prefix.
 
         This function is used by both chat and FIM formatters
         """
-        cleaned_chunk = chunk.split("data:")[1].strip()
-        return cleaned_chunk
+        return self._clean_chunk(chunk)
 
     def _format_antropic(self, chunk: str) -> str:
         """
@@ -99,39 +105,48 @@ class StreamChunkFormatter(OutputFormatter):
 
         This function is used by both chat and FIM formatters
         """
-        cleaned_chunk = chunk.split("data:")[1].strip()
+        cleaned_chunk = self._clean_chunk(chunk)
         try:
-            chunk_dict = json.loads(cleaned_chunk)
-            msg_type = chunk_dict.get("type", "")
+            # Use `strict=False` to allow the JSON payload to contain
+            # newlines, tabs and other valid characters that might
+            # come from Anthropic returning code.
+            chunk_dict = json.loads(cleaned_chunk, strict=False)
+        except Exception as e:
+            logger.warning(f"Error parsing Anthropic chunk: {chunk}. Error: {e}")
+            return cleaned_chunk.strip()
 
-            finish_reason = None
-            if msg_type == "message_stop":
-                finish_reason = "stop"
+        msg_type = chunk_dict.get("type", "")
 
-            # In type == "content_block_start" the content comes in "content_block"
-            # In type == "content_block_delta" the content comes in "delta"
-            msg_content_dict = chunk_dict.get("delta", {}) or chunk_dict.get("content_block", {})
-            # We couldn't obtain the content from the chunk. Skip it.
-            if not msg_content_dict:
-                return ""
+        finish_reason = None
+        if msg_type == "message_stop":
+            finish_reason = "stop"
 
-            msg_content = msg_content_dict.get("text", "")
-            open_ai_chunk = ModelResponse(
-                id=f"anthropic-chat-{str(uuid.uuid4())}",
-                model="anthropic-muxed-model",
-                object="chat.completion.chunk",
-                choices=[
-                    StreamingChoices(
-                        finish_reason=finish_reason,
-                        index=0,
-                        delta=Delta(content=msg_content, role="assistant"),
-                        logprobs=None,
-                    )
-                ],
-            )
+        # In type == "content_block_start" the content comes in "content_block"
+        # In type == "content_block_delta" the content comes in "delta"
+        msg_content_dict = chunk_dict.get("delta", {}) or chunk_dict.get("content_block", {})
+        # We couldn't obtain the content from the chunk. Skip it.
+        if not msg_content_dict:
+            return ""
+        msg_content = msg_content_dict.get("text", "")
+
+        open_ai_chunk = ModelResponse(
+            id=f"anthropic-chat-{str(uuid.uuid4())}",
+            model="anthropic-muxed-model",
+            object="chat.completion.chunk",
+            choices=[
+                StreamingChoices(
+                    finish_reason=finish_reason,
+                    index=0,
+                    delta=Delta(content=msg_content, role="assistant"),
+                    logprobs=None,
+                )
+            ],
+        )
+
+        try:
             return open_ai_chunk.model_dump_json(exclude_none=True, exclude_unset=True)
         except Exception as e:
-            logger.warning(f"Error formatting Anthropic chunk: {chunk}. Error: {e}")
+            logger.warning(f"Error serializing Anthropic chunk: {chunk}. Error: {e}")
             return cleaned_chunk.strip()
 
     def _format_as_openai_chunk(self, formatted_chunk: str) -> str:

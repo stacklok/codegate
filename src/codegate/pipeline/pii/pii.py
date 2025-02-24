@@ -1,6 +1,6 @@
-import re
 from typing import Any, Dict, List, Optional
 
+import regex as re
 import structlog
 from litellm import ChatCompletionRequest, ChatCompletionSystemMessage, ModelResponse
 from litellm.types.utils import Delta, StreamingChoices
