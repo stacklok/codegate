@@ -81,7 +81,7 @@ class CodegatePii(PipelineStep):
             pii_value = text[result.start : result.end]
 
             # add to session store
-            obj = SensitiveData(pii_value, "pii", result.entity_type)
+            obj = SensitiveData(original=pii_value, service="pii", type=result.entity_type)
             uuid_placeholder = self.sensitive_data_manager.store(session_id, obj)
             anonymized_text = anonymized_text.replace(pii_value, uuid_placeholder)
 

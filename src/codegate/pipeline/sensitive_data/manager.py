@@ -10,10 +10,9 @@ logger = structlog.get_logger("codegate")
 class SensitiveData(pydantic.BaseModel):
     """Represents sensitive data with additional metadata."""
 
-    def __init__(self, original: str, service: Optional[str], type: Optional[str]):
-        self.original = original
-        self.service = service
-        self.type = type
+    original: str
+    service: Optional[str] = None
+    type: Optional[str] = None
 
 
 class SensitiveDataManager:

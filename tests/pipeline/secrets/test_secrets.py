@@ -186,7 +186,7 @@ class TestSecretUnredactionStep:
     async def test_complete_marker_processing(self):
         """Test processing of a complete REDACTED marker"""
         # Store a secret
-        obj = SensitiveData("secret_value", "test_service", "api_key")
+        obj = SensitiveData(original="secret_value", service="test_service", type="api_key")
         encrypted = self.sensitive_data_manager.store(self.session_id, obj)
 
         # Add content with REDACTED marker to buffer
@@ -272,7 +272,7 @@ class TestSecretUnredactionStep:
     async def test_wrong_session(self):
         """Test unredaction with wrong session ID"""
         # Store secret with one session
-        obj = SensitiveData("test_service", "api_key", "different_session")
+        obj = SensitiveData(original="test_service", service="api_key", type="different_session")
         encrypted = self.sensitive_data_manager.store("different_session", obj)
 
         # Try to unredact with different session

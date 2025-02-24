@@ -194,7 +194,7 @@ class SecretsEncryptor(SecretsModifier):
         if not match.type:
             raise ValueError("Secret type must be provided")
 
-        obj = SensitiveData(match.value, match.service, match.type)
+        obj = SensitiveData(original=match.value, service=match.service, type=match.type)
         uuid_placeholder = self._sensitive_data_manager.store(self._session_id, obj)
         logger.debug(
             "Stored secret", service=match.service, type=match.type, placeholder=uuid_placeholder
