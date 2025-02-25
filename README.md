@@ -21,15 +21,15 @@
 
 ---
 
-# CodeGate: secure AI code generation
+# CodeGate: An Agent to provide centralised management and security for AI coding assistants, agents and agentic frameworks.
 
 **By [Stacklok](https://stacklok.com)**
 
-CodeGate is a **local gateway** that makes AI agents and coding assistants safer. It
-ensures AI-generated recommendations adhere to best practices while safeguarding
-your code's integrity and protecting your privacy. With CodeGate, you can
-confidently leverage AI in your development workflow without sacrificing
-security or productivity.
+CodeGate is an agent designed to make AI applications, coding assistants and agentic frameworks, safer and easier to consume and manage. It provides a centralized, abstracted environment for managing prompts, model provider configurations, model muxing, and more. Additionally, CodeGate offers security analysis of AI-generated code, ensuring that recommendations follow best practices and safeguard your code's integrity.
+
+With CodeGate, you can configure all your AI coding assistants and agents to use a single workspace
+and benefit from a unified view of all the interactions between your AI coding assistants and your
+models.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./static/diagram-dark.png">
@@ -39,13 +39,15 @@ security or productivity.
 ---
 ## ✨ Why choose CodeGate?
 
-AI coding assistants are powerful, but they can inadvertently introduce risks.
-CodeGate protects your development process by:
+AI coding assistants are powerful, but they can inadvertently introduce risks and configurations
+can sprawl across multiple IDE extensions, plugins and agent systems. CodeGate simplifies the management of AI model and provider configurations and provides additional features to help you keep your development process safe.
 
-- 🔒 Preventing accidental exposure of secrets and sensitive data
-- 🛡️ Ensuring AI suggestions follow secure coding practices
-- ⚠️ Blocking recommendations of known malicious or deprecated libraries
-- 🔍 Providing real-time security analysis of AI suggestions
+- 🌐 Centralize and manage all your AI coding assistants in one place
+- 🔄 Mux / Route prompts to different AI models based on workspaces or file types 
+- 🔑 Centrally configure and manage your provider credentials and API keys
+- 🛡️ Protect your development process from accidental exposure of secrets and sensitive personal data to the cloud
+- 🔒 Ensure that the recommendations provided by your AI coding assistants follow secure coding practices
+- 🚫 Prevent malicious or deprecated libraries from being recommended to you by an LLM
 
 ---
 ## 🚀 Quickstart
@@ -104,12 +106,32 @@ To learn more, visit the
 ---
 ## 🔐 Features
 
-### Secrets encryption
+### Workspace management
+
+CodeGate allows you to create workspaces, each with its own set of AI
+models, configurations, prompts and chat history to help you manage your AI application
+and development environment more effectively. [Learn more](https://docs.codegate.ai/features/workspaces)
+
+### Model Muxing
+
+CodeGate lets you route traffic between multiple AI models using a configurable
+model muxer. This feature is useful when you want to use different models for
+different purposes, such as code generation, summarization, documentation, etc.
+[Learn more](https://docs.codegate.ai/features/model-muxing)
+
+### Secrets Redaction
 
 CodeGate helps you protect sensitive information from being accidentally exposed
 to AI models and third-party AI provider systems by redacting detected secrets
-from your prompts using encryption.
+from your prompts.
 [Learn more](https://docs.codegate.ai/features/secrets-encryption)
+
+### Personal Identifiable Information (PII) detection and redaction
+
+CodeGate helps you protect personal data from being accidentally exposed to AI
+models and third-party AI provider systems by redacting detected PII from your prompts.
+
+Should CodeGate sense that a prompt contains PII, such as credit card numbers, social security numbers, or other sensitive information, it will automatically redact the PII from the prompt before sending it to the AI model, to then unredact the response before sending it back to the client.
 
 ### Dependency risk awareness
 
@@ -164,6 +186,14 @@ or potential vulnerabilities to help you adopt more secure coding practices.
 
 - The Copilot plugin works with **Visual Studio Code (VS Code)** (JetBrains is
   coming soon!)
+
+### OpenIntepreter
+
+- **Local / self-managed:**
+  - Ollama
+- **Hosted:**
+  - Anthropic
+  - OpenAI and compatible APIs
 
 ---
 ## 🛡️ Privacy first
