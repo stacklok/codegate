@@ -21,7 +21,7 @@
 
 ---
 
-# CodeGate: An Agent to provide centralised management and security for AI coding assistants, agents and agentic frameworks.
+# CodeGate: Centralised management and security for AI Applications, coding assistants, and agentic frameworks.
 
 **By [Stacklok](https://stacklok.com)**
 
