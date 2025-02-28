@@ -520,11 +520,13 @@ async def remove_duplicate_alerts(alerts: List[v1_models.Alert]) -> List[v1_mode
         trigger_string_content = ""
         if isinstance(alert.trigger_string, dict):
             # If it's a dict, use relevant fields for deduplication
-            trigger_string_content = json.dumps({
-                'name': alert.trigger_string.get('name'),
-                'type': alert.trigger_string.get('type'),
-                'status': alert.trigger_string.get('status')
-            })
+            trigger_string_content = json.dumps(
+                {
+                    "name": alert.trigger_string.get("name"),
+                    "type": alert.trigger_string.get("type"),
+                    "status": alert.trigger_string.get("status"),
+                }
+            )
         elif isinstance(alert.trigger_string, str):
             # If it's a string, use the part before "Context" if it exists
             trigger_string_content = alert.trigger_string.split("Context")[0]
