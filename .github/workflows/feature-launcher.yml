@@ -4,7 +4,7 @@ on:
     types: [labeled]
 jobs:
   notify-discord:
-    if: github.event.label.name == 'feature-release'
+    if: github.event.label.name == 'feature-spotlight'
     runs-on: ubuntu-latest
     steps:
       - name: Send Feature Release Notification to Discord
