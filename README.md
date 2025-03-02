@@ -21,7 +21,7 @@
 
 ---
 
-# CodeGate: Centralised management and security for AI Applications, coding assistants, and agentic frameworks.
+# CodeGate: Security, Workspaces and Muxing for AI Applications, coding assistants, and agentic frameworks.
 
 **By [Stacklok](https://stacklok.com)**
 
