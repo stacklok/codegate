@@ -95,6 +95,25 @@ def _get_cli_from_continue(last_user_message_str: str) -> Optional[re.Match[str]
     return codegate_regex.match(last_user_message_str)
 
 
+def _get_cli_from_copilot(last_user_message_str: str) -> Optional[re.Match[str]]:
+    """
+    Process Copilot-specific CLI command format.
+
+    Copilot sends messages in the format:
+    <attachment>file contents</attachment>codegate command
+
+    Args:
+        last_user_message_str (str): The message string from Copilot
+
+    Returns:
+        Optional[re.Match[str]]: A regex match object if command is found, None otherwise
+    """
+    cleaned_text = re.sub(
+        r"<attachment>.*</attachment>", "", last_user_message_str, flags=re.DOTALL
+    )
+    return codegate_regex.match(cleaned_text.strip())
+
+
 class CodegateCli(PipelineStep):
     """Pipeline step that handles codegate cli."""
 
@@ -136,6 +155,8 @@ class CodegateCli(PipelineStep):
                 match = _get_cli_from_open_interpreter(last_user_message_str)
             elif context.client in [ClientType.CONTINUE]:
                 match = _get_cli_from_continue(last_user_message_str)
+            elif context.client in [ClientType.COPILOT]:
+                match = _get_cli_from_copilot(last_user_message_str)
             else:
                 # Check if "codegate" is the first word in the message
                 match = codegate_regex.match(last_user_message_str)
