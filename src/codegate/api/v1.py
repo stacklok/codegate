@@ -1,13 +1,14 @@
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 import requests
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import StreamingResponse
 from fastapi.routing import APIRoute
 from pydantic import BaseModel, ValidationError
 
+from codegate.config import API_DEFAULT_PAGE_SIZE, API_MAX_PAGE_SIZE
 import codegate.muxing.models as mux_models
 from codegate import __version__
 from codegate.api import v1_models, v1_processing
@@ -378,7 +379,11 @@ async def hard_delete_workspace(workspace_name: str):
     tags=["Workspaces"],
     generate_unique_id_function=uniq_name,
 )
-async def get_workspace_alerts(workspace_name: str) -> List[Optional[v1_models.AlertConversation]]:
+async def get_workspace_alerts(
+    workspace_name: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(API_DEFAULT_PAGE_SIZE, get=1, le=API_MAX_PAGE_SIZE),
+) -> Dict[str, Any]:
     """Get alerts for a workspace."""
     try:
         ws = await wscrud.get_workspace_by_name(workspace_name)
@@ -388,13 +393,35 @@ async def get_workspace_alerts(workspace_name: str) -> List[Optional[v1_models.A
         logger.exception("Error while getting workspace")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-    try:
-        alerts = await dbreader.get_alerts_by_workspace(ws.id, AlertSeverity.CRITICAL.value)
-        prompts_outputs = await dbreader.get_prompts_with_output(ws.id)
-        return await v1_processing.parse_get_alert_conversation(alerts, prompts_outputs)
-    except Exception:
-        logger.exception("Error while getting alerts and messages")
-        raise HTTPException(status_code=500, detail="Internal server error")
+    total_alerts = 0
+    fetched_alerts = []
+    offset = (page - 1) * page_size
+    batch_size = page_size * 2  # fetch more alerts per batch to allow deduplication
+
+    while len(fetched_alerts) < page_size:
+        alerts_batch, total_alerts = await dbreader.get_alerts_by_workspace(
+            ws.id, AlertSeverity.CRITICAL.value, page_size, offset
+        )
+        if not alerts_batch:
+            break
+
+        dedup_alerts = await v1_processing.remove_duplicate_alerts(alerts_batch)
+        fetched_alerts.extend(dedup_alerts)
+        offset += batch_size
+
+    final_alerts = fetched_alerts[:page_size]
+    prompt_ids = list({alert.prompt_id for alert in final_alerts if alert.prompt_id})
+    prompts_outputs = await dbreader.get_prompts_with_output(prompt_ids)
+    alert_conversations = await v1_processing.parse_get_alert_conversation(
+        final_alerts, prompts_outputs
+    )
+    return {
+        "page": page,
+        "page_size": page_size,
+        "total_alerts": total_alerts,
+        "total_pages": (total_alerts + page_size - 1) // page_size,
+        "alerts": alert_conversations,
+    }
 
 
 @v1.get(

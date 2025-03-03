@@ -2,7 +2,7 @@ import asyncio
 import json
 import uuid
 from pathlib import Path
-from typing import Dict, List, Optional, Type
+from typing import Dict, List, Optional, Tuple, Type
 
 import structlog
 from alembic import command as alembic_command
@@ -13,6 +13,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from codegate.config import API_DEFAULT_PAGE_SIZE
 from codegate.db.fim_cache import FimCache
 from codegate.db.models import (
     ActiveWorkspace,
@@ -569,7 +570,10 @@ class DbReader(DbCodeGate):
                     raise e
                 return None
 
-    async def get_prompts_with_output(self, workpace_id: str) -> List[GetPromptWithOutputsRow]:
+    async def get_prompts_with_output(self, prompt_ids: List[str]) -> List[GetPromptWithOutputsRow]:
+        if not prompt_ids:
+            return []
+
         sql = text(
             """
             SELECT
@@ -583,11 +587,11 @@ class DbReader(DbCodeGate):
                 o.output_cost
             FROM prompts p
             LEFT JOIN outputs o ON p.id = o.prompt_id
-            WHERE p.workspace_id = :workspace_id
+            WHERE p.id IN :prompt_ids
             ORDER BY o.timestamp DESC
             """
         )
-        conditions = {"workspace_id": workpace_id}
+        conditions = {"prompt_ids": tuple(prompt_ids)}
         prompts = await self._exec_select_conditions_to_pydantic(
             GetPromptWithOutputsRow, sql, conditions, should_raise=True
         )
@@ -656,8 +660,12 @@ class DbReader(DbCodeGate):
         return list(prompts_dict.values())
 
     async def get_alerts_by_workspace(
-        self, workspace_id: str, trigger_category: Optional[str] = None
-    ) -> List[Alert]:
+        self,
+        workspace_id: str,
+        trigger_category: Optional[str] = None,
+        limit: int = API_DEFAULT_PAGE_SIZE,
+        offset: int = 0,
+    ) -> Tuple[List[Alert], int]:
         sql = text(
             """
             SELECT
@@ -679,12 +687,28 @@ class DbReader(DbCodeGate):
             sql = text(sql.text + " AND a.trigger_category = :trigger_category")
             conditions["trigger_category"] = trigger_category
 
-        sql = text(sql.text + " ORDER BY a.timestamp DESC")
+        sql = text(sql.text + " ORDER BY a.timestamp DESC LIMIT :limit OFFSET :offset")
+        conditions["limit"] = limit
+        conditions["offset"] = offset
 
-        prompts = await self._exec_select_conditions_to_pydantic(
+        alerts = await self._exec_select_conditions_to_pydantic(
             Alert, sql, conditions, should_raise=True
         )
-        return prompts
+
+        # Count total alerts for pagination
+        count_sql = text(
+            """
+            SELECT COUNT(*)
+            FROM alerts a
+            INNER JOIN prompts p ON p.id = a.prompt_id
+            WHERE p.workspace_id = :workspace_id
+        """
+        )
+        if trigger_category:
+            count_sql = text(count_sql.text + " AND a.trigger_category = :trigger_category")
+
+        total_alerts = await self._exec_select_count(count_sql, conditions)
+        return alerts, total_alerts
 
     async def get_workspaces(self) -> List[WorkspaceWithSessionInfo]:
         sql = text(
