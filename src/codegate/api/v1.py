@@ -392,14 +392,12 @@ async def get_workspace_alerts(
     except Exception:
         logger.exception("Error while getting workspace")
         raise HTTPException(status_code=500, detail="Internal server error")
-
-    total_alerts = 0
-    fetched_alerts = []
+    
     offset = (page - 1) * page_size
-    batch_size = page_size * 2  # fetch more alerts per batch to allow deduplication
+    fetched_alerts = []
 
     while len(fetched_alerts) < page_size:
-        alerts_batch, total_alerts = await dbreader.get_alerts_by_workspace(
+        alerts_batch  = await dbreader.get_alerts_by_workspace(
             ws.id, AlertSeverity.CRITICAL.value, page_size, offset
         )
         if not alerts_batch:
@@ -407,9 +405,11 @@ async def get_workspace_alerts(
 
         dedup_alerts = await v1_processing.remove_duplicate_alerts(alerts_batch)
         fetched_alerts.extend(dedup_alerts)
-        offset += batch_size
+        offset += page_size
 
     final_alerts = fetched_alerts[:page_size]
+    total_alerts = len(fetched_alerts)
+
     prompt_ids = list({alert.prompt_id for alert in final_alerts if alert.prompt_id})
     prompts_outputs = await dbreader.get_prompts_with_output(prompt_ids)
     alert_conversations = await v1_processing.parse_get_alert_conversation(
@@ -417,9 +417,6 @@ async def get_workspace_alerts(
     )
     return {
         "page": page,
-        "page_size": page_size,
-        "total_alerts": total_alerts,
-        "total_pages": (total_alerts + page_size - 1) // page_size,
         "alerts": alert_conversations,
     }
 

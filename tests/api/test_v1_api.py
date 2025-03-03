@@ -109,16 +109,13 @@ async def test_get_workspace_alerts_empty(mock_ws):
     """Test when no alerts are found (empty list)"""
     with (
         patch("codegate.workspaces.crud.WorkspaceCrud.get_workspace_by_name", return_value=mock_ws),
-        patch("codegate.db.connection.DbReader.get_alerts_by_workspace", return_value=([], 0)),
+        patch("codegate.db.connection.DbReader.get_alerts_by_workspace", return_value=[]),
     ):
 
         response = client.get("/workspaces/test_workspace/alerts?page=1&page_size=10")
         assert response.status_code == 200
         assert response.json() == {
             "page": 1,
-            "page_size": 10,
-            "total_alerts": 0,
-            "total_pages": 0,
             "alerts": [],
         }
 
@@ -141,9 +138,6 @@ async def test_get_workspace_alerts_with_results(mock_ws, mock_alerts, mock_prom
         assert response.status_code == 200
         data = response.json()
         assert data["page"] == 1
-        assert data["page_size"] == 2
-        assert data["total_alerts"] == 2
-        assert data["total_pages"] == 1
         assert len(data["alerts"]) == 2
 
 
@@ -167,7 +161,4 @@ async def test_get_workspace_alerts_deduplication(mock_ws, mock_alerts, mock_pro
         assert response.status_code == 200
         data = response.json()
         assert data["page"] == 1
-        assert data["page_size"] == 2
-        assert data["total_alerts"] == 2  # Total alerts remain the same
-        assert data["total_pages"] == 1
         assert len(data["alerts"]) == 1  # Only one alert left after deduplication

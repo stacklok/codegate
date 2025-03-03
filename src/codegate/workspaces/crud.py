@@ -213,12 +213,8 @@ class WorkspaceCrud:
         return
 
     async def get_workspace_by_name(self, workspace_name: str) -> db_models.WorkspaceRow:
-        print("i get by name")
         workspace = await self._db_reader.get_workspace_by_name(workspace_name)
-        print("workspace is")
-        print(workspace)
         if not workspace:
-            print("in not exist")
             raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
         return workspace
 

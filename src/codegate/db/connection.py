@@ -8,7 +8,7 @@ import structlog
 from alembic import command as alembic_command
 from alembic.config import Config as AlembicConfig
 from pydantic import BaseModel
-from sqlalchemy import CursorResult, TextClause, event, text
+from sqlalchemy import CursorResult, TextClause, bindparam, event, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -587,11 +587,12 @@ class DbReader(DbCodeGate):
                 o.output_cost
             FROM prompts p
             LEFT JOIN outputs o ON p.id = o.prompt_id
-            WHERE p.id IN :prompt_ids
+            WHERE (p.id IN :prompt_ids)
             ORDER BY o.timestamp DESC
             """
-        )
-        conditions = {"prompt_ids": tuple(prompt_ids)}
+        ).bindparams(bindparam("prompt_ids", expanding=True)) 
+
+        conditions = {"prompt_ids": prompt_ids if prompt_ids else None}
         prompts = await self._exec_select_conditions_to_pydantic(
             GetPromptWithOutputsRow, sql, conditions, should_raise=True
         )
@@ -659,13 +660,23 @@ class DbReader(DbCodeGate):
 
         return list(prompts_dict.values())
 
+    async def _exec_select_count(self, sql_command: str, conditions: dict) -> int:
+        """Executes a COUNT SQL command and returns an integer result."""
+        async with self._async_db_engine.begin() as conn:
+            try:
+                result = await conn.execute(text(sql_command), conditions)
+                return result.scalar_one()  # Ensures it returns exactly one integer value
+            except Exception as e:
+                logger.error(f"Failed to execute COUNT query.", error=str(e))
+                return 0  # Return 0 in case of failure to avoid crashes
+        
     async def get_alerts_by_workspace(
         self,
         workspace_id: str,
         trigger_category: Optional[str] = None,
         limit: int = API_DEFAULT_PAGE_SIZE,
         offset: int = 0,
-    ) -> Tuple[List[Alert], int]:
+    ) -> List[Alert]:
         sql = text(
             """
             SELECT
@@ -691,24 +702,9 @@ class DbReader(DbCodeGate):
         conditions["limit"] = limit
         conditions["offset"] = offset
 
-        alerts = await self._exec_select_conditions_to_pydantic(
+        return await self._exec_select_conditions_to_pydantic(
             Alert, sql, conditions, should_raise=True
         )
-
-        # Count total alerts for pagination
-        count_sql = text(
-            """
-            SELECT COUNT(*)
-            FROM alerts a
-            INNER JOIN prompts p ON p.id = a.prompt_id
-            WHERE p.workspace_id = :workspace_id
-        """
-        )
-        if trigger_category:
-            count_sql = text(count_sql.text + " AND a.trigger_category = :trigger_category")
-
-        total_alerts = await self._exec_select_count(count_sql, conditions)
-        return alerts, total_alerts
 
     async def get_workspaces(self) -> List[WorkspaceWithSessionInfo]:
         sql = text(
