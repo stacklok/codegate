@@ -134,6 +134,7 @@ class ProviderType(str, Enum):
     lm_studio = "lm_studio"
     llamacpp = "llamacpp"
     openrouter = "openrouter"
+    gemini = "gemini"
 
 
 class IntermediatePromptWithOutputUsageAlerts(BaseModel):

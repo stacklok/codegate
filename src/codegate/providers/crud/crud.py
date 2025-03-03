@@ -453,6 +453,7 @@ def provider_default_endpoints(provider_type: str) -> str:
     defaults = {
         "openai": "https://api.openai.com",
         "anthropic": "https://api.anthropic.com",
+        "gemini": "https://generativelanguage.googleapis.com",
     }
 
     # If we have a default, we return it

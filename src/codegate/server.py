@@ -14,6 +14,7 @@ from codegate.db.models import ProviderType
 from codegate.muxing.router import MuxRouter
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.anthropic.provider import AnthropicProvider
+from codegate.providers.gemini.provider import GeminiProvider
 from codegate.providers.llamacpp.provider import LlamaCppProvider
 from codegate.providers.lm_studio.provider import LmStudioProvider
 from codegate.providers.ollama.provider import OllamaProvider
@@ -107,6 +108,12 @@ def init_app(pipeline_factory: PipelineFactory) -> CodeGateServer:
     registry.add_provider(
         ProviderType.lm_studio,
         LmStudioProvider(
+            pipeline_factory,
+        ),
+    )
+    registry.add_provider(
+        ProviderType.gemini,
+        GeminiProvider(
             pipeline_factory,
         ),
     )

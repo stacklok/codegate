@@ -39,6 +39,9 @@ class BodyAdapter:
             return urljoin(model_route.endpoint.endpoint, "/v1")
         if model_route.endpoint.provider_type == db_models.ProviderType.openrouter:
             return urljoin(model_route.endpoint.endpoint, "/api/v1")
+        if model_route.endpoint.provider_type == db_models.ProviderType.gemini:
+            # Gemini API uses /v1beta/openai as the base URL
+            return urljoin(model_route.endpoint.endpoint, "/v1beta/openai")
         return model_route.endpoint.endpoint
 
     def set_destination_info(self, model_route: rulematcher.ModelRoute, data: dict) -> dict:
@@ -209,6 +212,8 @@ class ChatStreamChunkFormatter(StreamChunkFormatter):
             db_models.ProviderType.openrouter: self._format_openai,
             # VLLM is a dialect of OpenAI
             db_models.ProviderType.vllm: self._format_openai,
+            # Gemini provider emits OpenAI-compatible chunks
+            db_models.ProviderType.gemini: self._format_openai,
         }
 
     def _format_ollama(self, chunk: str) -> str:
@@ -245,6 +250,8 @@ class FimStreamChunkFormatter(StreamChunkFormatter):
             # VLLM is a dialect of OpenAI
             db_models.ProviderType.vllm: self._format_openai,
             db_models.ProviderType.anthropic: self._format_antropic,
+            # Gemini provider emits OpenAI-compatible chunks
+            db_models.ProviderType.gemini: self._format_openai,
         }
 
     def _format_ollama(self, chunk: str) -> str:
