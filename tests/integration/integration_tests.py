@@ -231,7 +231,7 @@ class CodegateTestRunner:
         provider_endpoint = muxing_config.get("provider_endpoint")
         try:
             data_with_api_keys = self.replace_env_variables(provider_endpoint["data"], os.environ)
-            response_create_provider = self.call_codegate(
+            response_create_provider = self.call_provider(
                 provider=provider,
                 url=provider_endpoint["url"],
                 headers=provider_endpoint["headers"],
@@ -250,7 +250,7 @@ class CodegateTestRunner:
                 mux["provider_id"] = created_provider_endpoint["id"]
 
             # The endpoint actually takes a list
-            self.call_codegate(
+            self.call_provider(
                 provider=provider,
                 url=muxes_rules["url"],
                 headers=muxes_rules["headers"],
