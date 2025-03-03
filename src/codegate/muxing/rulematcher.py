@@ -1,4 +1,5 @@
 import copy
+import fnmatch
 from abc import ABC, abstractmethod
 from asyncio import Lock
 from typing import Dict, List, Optional
@@ -116,16 +117,16 @@ class FileMuxingRuleMatcher(MuxingRuleMatcher):
     def _is_matcher_in_filenames(self, detected_client: ClientType, data: dict) -> bool:
         """
         Check if the matcher is in the request filenames.
+        The matcher is treated as a glob pattern and matched against the filenames.
         """
         # Empty matcher_blob means we match everything
         if not self._mux_rule.matcher:
             return True
         filenames_to_match = self._extract_request_filenames(detected_client, data)
-        # _mux_rule.matcher can be a filename or a file extension. We match if any of the filenames
-        # match the rule.
+        # _mux_rule.matcher is a glob pattern. We match if any of the filenames
+        # match the pattern.
         is_filename_match = any(
-            self._mux_rule.matcher == filename or filename.endswith(self._mux_rule.matcher)
-            for filename in filenames_to_match
+            fnmatch.fnmatch(filename, self._mux_rule.matcher) for filename in filenames_to_match
         )
         return is_filename_match
 
