@@ -2,7 +2,8 @@ import datetime
 from enum import Enum
 from typing import Annotated, Any, Dict, List, Optional
 
-from pydantic import BaseModel, StringConstraints
+import numpy as np
+from pydantic import BaseModel, BeforeValidator, ConfigDict, PlainSerializer, StringConstraints
 
 
 class AlertSeverity(str, Enum):
@@ -240,3 +241,39 @@ class MuxRule(BaseModel):
     priority: int
     created_at: Optional[datetime.datetime] = None
     updated_at: Optional[datetime.datetime] = None
+
+
+# Pydantic doesn't support numpy arrays out of the box. Defining a custom type
+# Reference: https://github.com/pydantic/pydantic/issues/7017
+def nd_array_custom_before_validator(x):
+    # custome before validation logic
+    return x
+
+
+def nd_array_custom_serializer(x):
+    # custome serialization logic
+    return str(x)
+
+
+NdArray = Annotated[
+    np.ndarray,
+    BeforeValidator(nd_array_custom_before_validator),
+    PlainSerializer(nd_array_custom_serializer, return_type=str),
+]
+
+
+class Persona(BaseModel):
+    id: str
+    name: str
+    description: str
+
+
+class PersonaEmbedding(Persona):
+    description_embedding: NdArray  # sqlite-vec will handle numpy arrays directly
+
+    # Part of the workaround to allow numpy arrays in pydantic models
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
+class PersonaDistance(Persona):
+    distance: float

@@ -57,6 +57,7 @@ class Config:
     force_certs: bool = False
 
     max_fim_hash_lifetime: int = 60 * 5  # Time in seconds. Default is 5 minutes.
+    persona_threshold = 0.75  # Min value is 0 (max similarity), max value is 2 (orthogonal)
 
     # Provider URLs with defaults
     provider_urls: Dict[str, str] = field(default_factory=lambda: DEFAULT_PROVIDER_URLS.copy())
