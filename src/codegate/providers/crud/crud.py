@@ -401,7 +401,7 @@ async def try_update_to_provider(
             dbprovend.endpoint, authm.auth_type, authm.auth_blob, prov
         )
     except Exception as err:
-        logger.error(
+        logger.info(
             "Unable to get models from provider. Skipping",
             provider=dbprovend.name,
             err=str(err),
