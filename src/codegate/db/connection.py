@@ -590,7 +590,7 @@ class DbReader(DbCodeGate):
             WHERE (p.id IN :prompt_ids)
             ORDER BY o.timestamp DESC
             """
-        ).bindparams(bindparam("prompt_ids", expanding=True)) 
+        ).bindparams(bindparam("prompt_ids", expanding=True))
 
         conditions = {"prompt_ids": prompt_ids if prompt_ids else None}
         prompts = await self._exec_select_conditions_to_pydantic(
@@ -599,12 +599,15 @@ class DbReader(DbCodeGate):
         return prompts
 
     async def get_prompts_with_output_alerts_usage_by_workspace_id(
-        self, workspace_id: str, trigger_category: Optional[str] = None
+        self,
+        workspace_id: str,
+        trigger_category: Optional[str] = None,
+        limit: int = API_DEFAULT_PAGE_SIZE,
+        offset: int = 0,
     ) -> List[GetPromptWithOutputsRow]:
         """
         Get all prompts with their outputs, alerts and token usage by workspace_id.
         """
-
         sql = text(
             """
             SELECT
@@ -615,20 +618,26 @@ class DbReader(DbCodeGate):
             LEFT JOIN outputs o ON p.id = o.prompt_id
             LEFT JOIN alerts a ON p.id = a.prompt_id
             WHERE p.workspace_id = :workspace_id
-            AND (a.trigger_category = :trigger_category OR a.trigger_category is NULL)
-            ORDER BY o.timestamp DESC, a.timestamp DESC
             """  # noqa: E501
         )
-        # If trigger category is None we want to get all alerts
-        trigger_category = trigger_category if trigger_category else "%"
-        conditions = {"workspace_id": workspace_id, "trigger_category": trigger_category}
-        rows: List[IntermediatePromptWithOutputUsageAlerts] = (
+        conditions = {"workspace_id": workspace_id}
+        if trigger_category:
+            sql = text(sql.text + " AND a.trigger_category = :trigger_category")
+            conditions["trigger_category"] = trigger_category
+
+        sql = text(
+            sql.text + " ORDER BY o.timestamp DESC, a.timestamp DESC LIMIT :limit OFFSET :offset"
+        )
+        conditions["limit"] = limit
+        conditions["offset"] = offset
+
+        fetched_rows: List[IntermediatePromptWithOutputUsageAlerts] = (
             await self._exec_select_conditions_to_pydantic(
                 IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
             )
         )
         prompts_dict: Dict[str, GetPromptWithOutputsRow] = {}
-        for row in rows:
+        for row in fetched_rows:
             prompt_id = row.prompt_id
             if prompt_id not in prompts_dict:
                 prompts_dict[prompt_id] = GetPromptWithOutputsRow(
@@ -669,7 +678,7 @@ class DbReader(DbCodeGate):
             except Exception as e:
                 logger.error(f"Failed to execute COUNT query.", error=str(e))
                 return 0  # Return 0 in case of failure to avoid crashes
-        
+
     async def get_alerts_by_workspace(
         self,
         workspace_id: str,

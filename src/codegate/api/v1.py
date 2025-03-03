@@ -383,7 +383,7 @@ async def get_workspace_alerts(
     workspace_name: str,
     page: int = Query(1, ge=1),
     page_size: int = Query(API_DEFAULT_PAGE_SIZE, get=1, le=API_MAX_PAGE_SIZE),
-) -> Dict[str, Any]:
+) -> List[v1_models.AlertConversation]:
     """Get alerts for a workspace."""
     try:
         ws = await wscrud.get_workspace_by_name(workspace_name)
@@ -392,12 +392,12 @@ async def get_workspace_alerts(
     except Exception:
         logger.exception("Error while getting workspace")
         raise HTTPException(status_code=500, detail="Internal server error")
-    
+
     offset = (page - 1) * page_size
     fetched_alerts = []
 
     while len(fetched_alerts) < page_size:
-        alerts_batch  = await dbreader.get_alerts_by_workspace(
+        alerts_batch = await dbreader.get_alerts_by_workspace(
             ws.id, AlertSeverity.CRITICAL.value, page_size, offset
         )
         if not alerts_batch:
@@ -408,17 +408,13 @@ async def get_workspace_alerts(
         offset += page_size
 
     final_alerts = fetched_alerts[:page_size]
-    total_alerts = len(fetched_alerts)
 
     prompt_ids = list({alert.prompt_id for alert in final_alerts if alert.prompt_id})
     prompts_outputs = await dbreader.get_prompts_with_output(prompt_ids)
     alert_conversations = await v1_processing.parse_get_alert_conversation(
         final_alerts, prompts_outputs
     )
-    return {
-        "page": page,
-        "alerts": alert_conversations,
-    }
+    return alert_conversations
 
 
 @v1.get(
@@ -426,7 +422,11 @@ async def get_workspace_alerts(
     tags=["Workspaces"],
     generate_unique_id_function=uniq_name,
 )
-async def get_workspace_messages(workspace_name: str) -> List[v1_models.Conversation]:
+async def get_workspace_messages(
+    workspace_name: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(API_DEFAULT_PAGE_SIZE, ge=1, le=API_MAX_PAGE_SIZE),
+) -> List[v1_models.Conversation]:
     """Get messages for a workspace."""
     try:
         ws = await wscrud.get_workspace_by_name(workspace_name)
@@ -436,19 +436,23 @@ async def get_workspace_messages(workspace_name: str) -> List[v1_models.Conversa
         logger.exception("Error while getting workspace")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-    try:
-        prompts_with_output_alerts_usage = (
-            await dbreader.get_prompts_with_output_alerts_usage_by_workspace_id(
-                ws.id, AlertSeverity.CRITICAL.value
-            )
+    offset = (page - 1) * page_size
+    fetched_messages = []
+
+    while len(fetched_messages) < page_size:
+        messages_batch = await dbreader.get_prompts_with_output_alerts_usage_by_workspace_id(
+            ws.id, AlertSeverity.CRITICAL.value, page_size, offset
         )
-        conversations, _ = await v1_processing.parse_messages_in_conversations(
-            prompts_with_output_alerts_usage
+        if not messages_batch:
+            break
+        parsed_conversations, _ = await v1_processing.parse_messages_in_conversations(
+            messages_batch
         )
-        return conversations
-    except Exception:
-        logger.exception("Error while getting messages")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        fetched_messages.extend(parsed_conversations)
+        offset += page_size
+
+    final_messages = fetched_messages[:page_size]
+    return final_messages
 
 
 @v1.get(
