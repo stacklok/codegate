@@ -39,7 +39,7 @@ if os.getenv("CODEGATE_DUMP_DIR"):
     TEMPDIR = tempfile.TemporaryDirectory(prefix="codegate-", dir=basedir, delete=False)
 
 
-def _dump_data(suffix, func):
+def _dump_data(suffix, func, trigger: bytes | None = None):
     if os.getenv("CODEGATE_DUMP_DIR"):
         buf = bytearray(b"")
 
@@ -48,7 +48,7 @@ def _dump_data(suffix, func):
             func(self, data)
             buf.extend(data)
 
-            if data == b"0\r\n\r\n":
+            if not trigger or data == trigger:
                 ts = datetime.datetime.now()
                 fname = os.path.join(TEMPDIR.name, ts.strftime(f"{suffix}-%Y%m%dT%H%M%S%f.txt"))
                 with open(fname, mode="wb") as fd:
@@ -64,7 +64,7 @@ def _dump_request(func):
 
 
 def _dump_response(func):
-    return _dump_data("response", func)
+    return _dump_data("response", func, b"0\r\n\r\n")
 
 
 # Constants
@@ -336,7 +336,12 @@ class CopilotProvider(asyncio.Protocol):
         """Check if adding new data would exceed buffer size limit"""
         return len(self.buffer) + len(new_data) <= MAX_BUFFER_SIZE
 
+    @_dump_request
+    def _dump_create_http_request(self, data: bytes) -> bytes:
+        return data
+
     async def _forward_data_through_pipeline(self, data: bytes) -> Union[HttpRequest, HttpResponse]:
+        self._dump_create_http_request(data)
         http_request = http_request_from_bytes(data)
         if not http_request:
             # we couldn't parse this into an HTTP request, so we just pass through
