@@ -32,7 +32,7 @@ class PipelineFactory:
             # and without obfuscating the secrets, we'd leak the secrets during those
             # later steps
             CodegateSecrets(),
-            CodegatePii(),
+            CodegatePii(self.sensitive_data_manager),
             CodegateCli(),
             CodegateContextRetriever(),
             SystemPrompt(
@@ -49,7 +49,7 @@ class PipelineFactory:
     def create_fim_pipeline(self, client_type: ClientType) -> SequentialPipelineProcessor:
         fim_steps: List[PipelineStep] = [
             CodegateSecrets(),
-            CodegatePii(),
+            CodegatePii(self.sensitive_data_manager),
         ]
         return SequentialPipelineProcessor(
             fim_steps,

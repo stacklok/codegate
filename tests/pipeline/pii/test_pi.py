@@ -4,9 +4,10 @@ import pytest
 from litellm import ChatCompletionRequest, ModelResponse
 from litellm.types.utils import Delta, StreamingChoices
 
-from codegate.pipeline.base import PipelineContext
+from codegate.pipeline.base import PipelineContext, PipelineSensitiveData
 from codegate.pipeline.output import OutputPipelineContext
 from codegate.pipeline.pii.pii import CodegatePii, PiiRedactionNotifier, PiiUnRedactionStep
+from codegate.pipeline.sensitive_data.manager import SensitiveDataManager
 
 
 class TestCodegatePii:
@@ -19,8 +20,9 @@ class TestCodegatePii:
             yield mock_config
 
     @pytest.fixture
-    def pii_step(self, mock_config):
-        return CodegatePii()
+    def pii_step(self):
+        mock_sensitive_data_manager = MagicMock()
+        return CodegatePii(mock_sensitive_data_manager)
 
     def test_name(self, pii_step):
         assert pii_step.name == "codegate-pii"
@@ -106,7 +108,9 @@ class TestPiiUnRedactionStep:
             object="chat.completion.chunk",
         )
         context = OutputPipelineContext()
-        input_context = PipelineContext(metadata={"session_id": "session-id"})
+        manager = SensitiveDataManager()
+        sensitive = PipelineSensitiveData(manager=manager, session_id="session-id")
+        input_context = PipelineContext(sensitive=sensitive)
 
         # Mock PII manager in input context
         mock_sensitive_data_manager = MagicMock()

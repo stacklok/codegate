@@ -44,10 +44,10 @@ class CodegatePii(PipelineStep):
             Restores the original PII from the anonymized text using the SensitiveDataManager.
     """
 
-    def __init__(self):
+    def __init__(self, sensitive_data_manager: SensitiveDataManager):
         """Initialize the CodegatePii pipeline step."""
         super().__init__()
-        self.sensitive_data_manager = SensitiveDataManager()
+        self.sensitive_data_manager = sensitive_data_manager
         self.analyzer = PiiAnalyzer.get_instance()
 
     @property
@@ -141,7 +141,7 @@ class CodegatePii(PipelineStep):
         total_pii_found = 0
         all_pii_details: List[Dict[str, Any]] = []
         last_redacted_text = ""
-        session_id = context.session_id if hasattr(context, "session_id") else None
+        session_id = context.sensitive.session_id
 
         for i, message in enumerate(new_request["messages"]):
             if "content" in message and message["content"]:
@@ -257,7 +257,7 @@ class PiiUnRedactionStep(OutputPipelineStep):
             return [chunk]
 
         content = chunk.choices[0].delta.content
-        session_id = input_context.metadata.get("session_id", "")
+        session_id = input_context.sensitive.session_id
         if not session_id:
             logger.error("Could not get any session id, cannot process pii")
             return [chunk]
