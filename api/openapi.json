@@ -720,6 +720,50 @@
         }
       }
     },
+    "/api/v1/workspaces/{workspace_name}/alerts-summary": {
+      "get": {
+        "tags": [
+          "CodeGate API",
+          "Workspaces"
+        ],
+        "summary": "Get Workspace Alerts Summary",
+        "description": "Get alert summary for a workspace.",
+        "operationId": "v1_get_workspace_alerts_summary",
+        "parameters": [
+          {
+            "name": "workspace_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces/{workspace_name}/messages": {
       "get": {
         "tags": [
@@ -1351,6 +1395,30 @@
           "critical"
         ],
         "title": "AlertSeverity"
+      },
+      "AlertSummary": {
+        "properties": {
+          "malicious_packages": {
+            "type": "integer",
+            "title": "Malicious Packages"
+          },
+          "pii": {
+            "type": "integer",
+            "title": "Pii"
+          },
+          "secrets": {
+            "type": "integer",
+            "title": "Secrets"
+          }
+        },
+        "type": "object",
+        "required": [
+          "malicious_packages",
+          "pii",
+          "secrets"
+        ],
+        "title": "AlertSummary",
+        "description": "Represents a set of summary alerts"
       },
       "ChatMessage": {
         "properties": {
