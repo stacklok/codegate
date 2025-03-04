@@ -16,6 +16,7 @@ from codegate.api.v1_models import (
     PartialQuestionAnswer,
     PartialQuestions,
     QuestionAnswer,
+    QuestionType,
     TokenUsageAggregate,
     TokenUsageByModel,
 )
@@ -384,8 +385,13 @@ async def match_conversations(
                     selected_partial_qa = partial_qa
                     break
 
-            #  check if we have a question and answer, otherwise do not add it
-            if selected_partial_qa and selected_partial_qa.answer is not None:
+            # check if we have a question and answer, otherwise do not add it
+            # if the question is a FIM question, we should add it even if there is no answer
+            # not add Chat questions without answers
+            if selected_partial_qa and (
+                selected_partial_qa.answer is not None
+                or selected_partial_qa.partial_questions.type == QuestionType.fim
+            ):
                 # if we don't have a first question, set it. We will use it
                 # to set the conversation timestamp and provider
                 first_partial_qa = first_partial_qa or selected_partial_qa
@@ -396,7 +402,7 @@ async def match_conversations(
                 alerts.extend(deduped_alerts)
                 token_usage_agg.add_model_token_usage(selected_partial_qa.model_token_usage)
 
-        # only add conversation if we have some answers
+        # if we have a conversation with at least one question and answer
         if len(questions_answers) > 0 and first_partial_qa is not None:
             if token_usage_agg.token_usage.input_tokens == 0:
                 token_usage_agg = None
@@ -435,7 +441,6 @@ async def parse_messages_in_conversations(
     Get all the messages from the database and return them as a list of conversations.
     """
     partial_question_answers = await _process_prompt_output_to_partial_qa(prompts_outputs)
-
     conversations, map_q_id_to_conversation = await match_conversations(partial_question_answers)
     return conversations, map_q_id_to_conversation
 
@@ -510,12 +515,24 @@ async def remove_duplicate_alerts(alerts: List[v1_models.Alert]) -> List[v1_mode
     for alert in sorted(
         alerts, key=lambda x: x.timestamp, reverse=True
     ):  # Sort alerts by timestamp descending
-        if alert.trigger_type != "codegate-secrets":
-            unique_alerts.append(alert)
-            continue
 
-        # Extract trigger string content until "Context"
-        trigger_string_content = alert.trigger_string.split("Context")[0]
+        # Handle trigger_string based on its type
+        trigger_string_content = ""
+        if isinstance(alert.trigger_string, dict):
+            # If it's a dict, use relevant fields for deduplication
+            trigger_string_content = json.dumps(
+                {
+                    "name": alert.trigger_string.get("name"),
+                    "type": alert.trigger_string.get("type"),
+                    "status": alert.trigger_string.get("status"),
+                }
+            )
+        elif isinstance(alert.trigger_string, str):
+            # If it's a string, use the part before "Context" if it exists
+            trigger_string_content = alert.trigger_string.split("Context")[0]
+        else:
+            # For any other case, convert to string
+            trigger_string_content = str(alert.trigger_string)
 
         key = (
             alert.code_snippet,

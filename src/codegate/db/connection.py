@@ -611,7 +611,7 @@ class DbReader(DbCodeGate):
             LEFT JOIN outputs o ON p.id = o.prompt_id
             LEFT JOIN alerts a ON p.id = a.prompt_id
             WHERE p.workspace_id = :workspace_id
-            AND a.trigger_category LIKE :trigger_category
+            AND (a.trigger_category = :trigger_category OR a.trigger_category is NULL)
             ORDER BY o.timestamp DESC, a.timestamp DESC
             """  # noqa: E501
         )
@@ -623,7 +623,6 @@ class DbReader(DbCodeGate):
                 IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
             )
         )
-
         prompts_dict: Dict[str, GetPromptWithOutputsRow] = {}
         for row in rows:
             prompt_id = row.prompt_id

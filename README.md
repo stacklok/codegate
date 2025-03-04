@@ -21,15 +21,15 @@
 
 ---
 
-# CodeGate: secure AI code generation
+# CodeGate: Security, Workspaces and Muxing for AI Applications, coding assistants, and agentic frameworks.
 
 **By [Stacklok](https://stacklok.com)**
 
-CodeGate is a **local gateway** that makes AI agents and coding assistants safer. It
-ensures AI-generated recommendations adhere to best practices while safeguarding
-your code's integrity and protecting your privacy. With CodeGate, you can
-confidently leverage AI in your development workflow without sacrificing
-security or productivity.
+CodeGate is an agent designed to make AI applications, coding assistants and agentic frameworks, safer and easier to consume and manage. It provides a centralized, abstracted environment for managing prompts, model provider configurations, model muxing, and more. Additionally, CodeGate offers security analysis of AI-generated code, ensuring that recommendations follow best practices and safeguard your code's integrity.
+
+With CodeGate, you can configure all your AI coding assistants and agents to use a single workspace
+and benefit from a unified view of all the interactions between your AI coding assistants and your
+models.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./static/diagram-dark.png">
@@ -37,18 +37,20 @@ security or productivity.
 </picture>
 
 ---
-## ✨ Why choose CodeGate?
+## Why choose CodeGate?
 
-AI coding assistants are powerful, but they can inadvertently introduce risks.
-CodeGate protects your development process by:
+AI coding assistants are powerful, but they can inadvertently introduce risks and configurations
+can sprawl across multiple IDE extensions, plugins and agent systems. CodeGate simplifies the management of AI model and provider configurations and provides additional features to help you keep your development process safe.
 
-- 🔒 Preventing accidental exposure of secrets and sensitive data
-- 🛡️ Ensuring AI suggestions follow secure coding practices
-- ⚠️ Blocking recommendations of known malicious or deprecated libraries
-- 🔍 Providing real-time security analysis of AI suggestions
+-  Centralize and manage all your AI coding assistants in one place
+-  Mux / Route prompts to different AI models based on workspaces or file types 
+-  Centrally configure and manage your provider credentials and API keys
+-  Protect your development process from accidental exposure of secrets and sensitive personal data to the cloud
+-  Ensure that the recommendations provided by your AI coding assistants follow secure coding practices
+-  Prevent malicious or deprecated libraries from being recommended to you by an LLM
 
 ---
-## 🚀 Quickstart
+##  Quickstart
 
 ### Prerequisites
 
@@ -81,7 +83,7 @@ Now it's time to configure your preferred AI coding assistant to use CodeGate
 documentation.
 
 ---
-## 🖥️ Dashboard
+##  Dashboard
 
 CodeGate includes a web dashboard that provides:
 
@@ -102,14 +104,34 @@ To learn more, visit the
 [CodeGate Dashboard documentation](https://docs.codegate.ai/how-to/dashboard).
 
 ---
-## 🔐 Features
+## Features
 
-### Secrets encryption
+### Workspace management
+
+CodeGate allows you to create workspaces, each with its own set of AI
+models, configurations, prompts and chat history to help you manage your AI application
+and development environment more effectively. [Learn more](https://docs.codegate.ai/features/workspaces)
+
+### Model Muxing
+
+CodeGate lets you route traffic between multiple AI models using a configurable
+model muxer. This feature is useful when you want to use different models for
+different purposes, such as code generation, summarization, documentation, etc.
+[Learn more](https://docs.codegate.ai/features/model-muxing)
+
+### Secrets Redaction
 
 CodeGate helps you protect sensitive information from being accidentally exposed
 to AI models and third-party AI provider systems by redacting detected secrets
-from your prompts using encryption.
+from your prompts.
 [Learn more](https://docs.codegate.ai/features/secrets-encryption)
+
+### Personal Identifiable Information (PII) detection and redaction
+
+CodeGate helps you protect personal data from being accidentally exposed to AI
+models and third-party AI provider systems by redacting detected PII from your prompts.
+
+Should CodeGate sense that a prompt contains PII, such as credit card numbers, social security numbers, or other sensitive information, it will automatically redact the PII from the prompt before sending it to the AI model, to then unredact the response before sending it back to the client.
 
 ### Dependency risk awareness
 
@@ -165,19 +187,27 @@ or potential vulnerabilities to help you adopt more secure coding practices.
 - The Copilot plugin works with **Visual Studio Code (VS Code)** (JetBrains is
   coming soon!)
 
+### OpenIntepreter
+
+- **Local / self-managed:**
+  - Ollama
+- **Hosted:**
+  - Anthropic
+  - OpenAI and compatible APIs
+
 ---
-## 🛡️ Privacy first
+## Privacy first
 
 Unlike other tools, with CodeGate **your code never leaves your machine**.
 CodeGate is built with privacy at its core:
 
-- 🏠 **Everything stays local**
-- 🚫 **No external data collection**
-- 🔐 **No calling home or telemetry**
-- 💪 **Complete control over your data**
+-  **Everything stays local**
+-  **No external data collection**
+-  **No calling home or telemetry**
+-  **Complete control over your data**
 
 ---
-## 🛠️ Development
+## Development
 
 Are you a developer looking to contribute? Dive into our technical resources:
 
@@ -187,13 +217,13 @@ Are you a developer looking to contribute? Dive into our technical resources:
 - [Logging system](https://github.com/stacklok/codegate/blob/main/docs/logging.md)
 
 ---
-## 📜 License
+## License
 
 CodeGate is licensed under the terms specified in the
 [LICENSE file](https://github.com/stacklok/codegate/blob/main/LICENSE).
 
 ---
-## 🌟 Support us
+## Support us
 
 Love CodeGate? Starring this repository and sharing it with others helps
 CodeGate grow 🌱
@@ -201,7 +231,7 @@ CodeGate grow 🌱
 [![Star on GitHub](https://img.shields.io/github/stars/stacklok/codegate.svg?style=social)](https://github.com/stacklok/codegate)
 
 ---
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Whether you're submitting bug reports, feature
 requests, or code contributions, your input makes CodeGate better for everyone.
