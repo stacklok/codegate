@@ -22,6 +22,7 @@ logger = structlog.get_logger("codegate")
 # Pre-compiled regex patterns for performance
 markdown_code_block = re.compile(r"```.*?```", flags=re.DOTALL)
 markdown_file_listing = re.compile(r"⋮...*?⋮...\n\n", flags=re.DOTALL)
+cline_file_listing = re.compile(r"(?i)<\s*file_content\s*[^>]*>.*?</\s*file_content\s*>", flags=re.DOTALL)
 environment_details = re.compile(r"<environment_details>.*?</environment_details>", flags=re.DOTALL)
 
 
@@ -114,6 +115,7 @@ class CodegateContextRetriever(PipelineStep):
         # in the rest of the user query/messsages
         user_messages = markdown_code_block.sub("", user_message)
         user_messages = markdown_file_listing.sub("", user_messages)
+        user_messages = cline_file_listing.sub("", user_messages)
         user_messages = environment_details.sub("", user_messages)
 
         # split messages into double newlines, to avoid passing so many content in the search
