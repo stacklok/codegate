@@ -407,6 +407,7 @@ async def get_workspace_messages(
     workspace_name: str,
     page: int = Query(1, ge=1),
     page_size: int = Query(API_DEFAULT_PAGE_SIZE, ge=1, le=API_MAX_PAGE_SIZE),
+    filter_by_ids: Optional[List[str]] = Query(None),
 ) -> v1_models.PaginatedMessagesResponse:
     """Get messages for a workspace."""
     try:
@@ -422,7 +423,7 @@ async def get_workspace_messages(
 
     while len(fetched_messages) < page_size:
         messages_batch = await dbreader.get_prompts_with_output_alerts_usage_by_workspace_id(
-            ws.id, AlertSeverity.CRITICAL.value, page_size, offset
+            ws.id, AlertSeverity.CRITICAL.value, page_size, offset, filter_by_ids
         )
         if not messages_batch:
             break
