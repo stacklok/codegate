@@ -57,7 +57,8 @@ class CodeCommentStep(OutputPipelineStep):
         #     and "filepath" not in snippet.code
         #     and "existing code" not in snippet.code
         # ):
-        #     new_comment, is_suspicious = await check_suspicious_code(snippet.code, snippet.language)
+        #     new_comment, is_suspicious = await check_suspicious_code(snippet.code,
+        #                                                              snippet.language)
         #     if is_suspicious:
         #         comment += new_comment
 
