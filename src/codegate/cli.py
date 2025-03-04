@@ -147,6 +147,12 @@ def show_prompts(prompts: Optional[Path]) -> None:
     help="Host to bind to (default: localhost)",
 )
 @click.option(
+    "--read-only",
+    is_flag=True,
+    default=False,
+    help="Run in read-only mode (v1 API will not be served)",
+)
+@click.option(
     "--log-level",
     type=click.Choice([level.value for level in LogLevel]),
     default=None,
@@ -258,6 +264,7 @@ def serve(  # noqa: C901
     port: Optional[int],
     proxy_port: Optional[int],
     host: Optional[str],
+    read_only: bool,
     log_level: Optional[str],
     log_format: Optional[str],
     config: Optional[Path],
@@ -334,7 +341,10 @@ def serve(  # noqa: C901
         secrets_manager = SecretsManager()
         pipeline_factory = PipelineFactory(secrets_manager)
 
-        app = init_app(pipeline_factory)
+        app = init_app(pipeline_factory, read_only=read_only)
+
+        if read_only:
+            logger.info("Starting server in read-only mode (v1 API disabled)")
 
         # Set up event loop
         loop = asyncio.new_event_loop()
@@ -382,6 +392,7 @@ async def run_servers(cfg: Config, app) -> None:
                 "certs_dir": cfg.certs_dir,
                 "db_path": cfg.db_path,
                 "vec_db_path": cfg.vec_db_path,
+                "read_only": app.read_only,
             },
         )
 

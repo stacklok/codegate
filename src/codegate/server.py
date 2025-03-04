@@ -36,18 +36,25 @@ async def custom_error_handler(request, exc: Exception):
 
 class CodeGateServer(FastAPI):
     provider_registry: ProviderRegistry = None
+    read_only: bool = False
 
     def set_provider_registry(self, registry: ProviderRegistry):
         self.provider_registry = registry
 
 
-def init_app(pipeline_factory: PipelineFactory) -> CodeGateServer:
-    """Create the FastAPI application."""
+def init_app(pipeline_factory: PipelineFactory, read_only: bool = False) -> CodeGateServer:
+    """Create the FastAPI application.
+
+    Args:
+        pipeline_factory: The pipeline factory to use
+        read_only: If True, the v1 API will not be served (read-only mode)
+    """
     app = CodeGateServer(
         title="CodeGate",
         description=__description__,
         version=__version__,
     )
+    app.read_only = read_only
 
     @app.middleware("http")
     async def log_user_agent(request: Request, call_next):
@@ -123,14 +130,18 @@ def init_app(pipeline_factory: PipelineFactory) -> CodeGateServer:
 
     app.include_router(system_router)
 
-    # CodeGate API
-    app.include_router(v1, prefix="/api/v1", tags=["CodeGate API"])
+    # CodeGate API - only include if not in read-only mode
+    if not read_only:
+        app.include_router(v1, prefix="/api/v1", tags=["CodeGate API"])
+        logger.info("V1 API enabled")
+    else:
+        logger.info("Running in read-only mode - V1 API disabled")
 
     return app
 
 
 def generate_openapi():
-    app = init_app(Mock(spec=PipelineFactory))
+    app = init_app(Mock(spec=PipelineFactory), read_only=False)
 
     # Generate OpenAPI JSON
     openapi_schema = app.openapi()
