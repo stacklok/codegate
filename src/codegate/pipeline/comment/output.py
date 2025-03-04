@@ -12,7 +12,6 @@ from codegate.extract_snippets.message_extractor import (
 )
 from codegate.pipeline.base import PipelineContext
 from codegate.pipeline.output import OutputPipelineContext, OutputPipelineStep
-# from codegate.pipeline.suspicious_commands.suspicious_commands import check_suspicious_code
 from codegate.storage import StorageEngine
 from codegate.utils.package_extractor import PackageExtractor
 
