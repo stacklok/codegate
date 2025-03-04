@@ -8,7 +8,7 @@ import structlog
 from alembic import command as alembic_command
 from alembic.config import Config as AlembicConfig
 from pydantic import BaseModel
-from sqlalchemy import CursorResult, TextClause, event, text
+from sqlalchemy import CursorResult, TextClause, bindparam, event, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -600,6 +600,7 @@ class DbReader(DbCodeGate):
         trigger_category: Optional[str] = None,
         limit: int = API_DEFAULT_PAGE_SIZE,
         offset: int = 0,
+        filter_by_ids: Optional[List[str]] = None,
     ) -> List[GetPromptWithOutputsRow]:
         """
         Get all prompts with their outputs, alerts and token usage by workspace_id.
@@ -621,16 +622,22 @@ class DbReader(DbCodeGate):
             sql = text(sql.text + " AND a.trigger_category = :trigger_category")
             conditions["trigger_category"] = trigger_category
 
+        if filter_by_ids:
+            placeholders = ", ".join([":filter_by_id_" + str(i) for i in range(len(filter_by_ids))])
+            sql = text(sql.text + f" AND p.id IN ({placeholders})")
+            for i, filter_id in enumerate(filter_by_ids):
+                conditions[f"filter_by_id_{i}"] = filter_id
+
         sql = text(
             sql.text + " ORDER BY o.timestamp DESC, a.timestamp DESC LIMIT :limit OFFSET :offset"
         )
         conditions["limit"] = limit
         conditions["offset"] = offset
 
-        fetched_rows: List[IntermediatePromptWithOutputUsageAlerts] = (
-            await self._exec_select_conditions_to_pydantic(
-                IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
-            )
+        fetched_rows: List[
+            IntermediatePromptWithOutputUsageAlerts
+        ] = await self._exec_select_conditions_to_pydantic(
+            IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
         )
         prompts_dict: Dict[str, GetPromptWithOutputsRow] = {}
         for row in fetched_rows:
