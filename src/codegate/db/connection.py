@@ -798,10 +798,10 @@ class DbReader(DbCodeGate):
     async def get_total_messages_count_by_workspace_id(
         self, workspace_id: str, trigger_category: Optional[str] = None
     ) -> int:
-        """Get total count of messages for a given workspace_id, considering trigger_category."""
+        """Get total count of unique messages for a given workspace_id, considering trigger_category."""
         sql = text(
             """
-            SELECT COUNT(*)
+            SELECT COUNT(DISTINCT p.id)
             FROM prompts p
             LEFT JOIN alerts a ON p.id = a.prompt_id
             WHERE p.workspace_id = :workspace_id
