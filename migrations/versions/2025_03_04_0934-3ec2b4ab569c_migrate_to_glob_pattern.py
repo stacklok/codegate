@@ -21,12 +21,11 @@ def upgrade() -> None:
     # Begin transaction
     op.execute("BEGIN TRANSACTION;")
 
-    # Update the matcher types. We need to do this every time we change the matcher types.
-    # in /muxing/models.py
+    # Update the matcher blobs to use glob patterns
     op.execute(
         """
         UPDATE muxes
-        SET matcher_blob = CONCAT('*', matcher_blob)
+        SET matcher_blob = '*' || matcher_blob
         WHERE matcher_type LIKE "%filename%" AND matcher_blob LIKE ".%"
         """
     )
