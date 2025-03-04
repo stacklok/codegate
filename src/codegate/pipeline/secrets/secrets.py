@@ -7,7 +7,7 @@ from litellm import ChatCompletionRequest, ChatCompletionSystemMessage, ModelRes
 from litellm.types.utils import Delta, StreamingChoices
 
 from codegate.config import Config
-from codegate.db.models import AlertSeverity
+from codegate.db.models import AlertSeverity, AlertTriggerType
 from codegate.extract_snippets.factory import MessageCodeExtractorFactory
 from codegate.pipeline.base import (
     CodeSnippet,
@@ -178,7 +178,7 @@ class SecretsEncryptor(SecretsModifier):
         self._sensitive_data_manager = sensitive_data_manager
         self._session_id = session_id
         self._context = context
-        self._name = "codegate-secrets"
+        self._name = AlertTriggerType.CODEGATE_SECRETS.value
 
         super().__init__()
 
@@ -255,7 +255,7 @@ class CodegateSecrets(PipelineStep):
         Returns:
             str: The identifier 'codegate-secrets'.
         """
-        return "codegate-secrets"
+        return AlertTriggerType.CODEGATE_SECRETS.value
 
     def _redact_text(
         self,
@@ -547,7 +547,7 @@ class SecretRedactionNotifier(OutputPipelineStep):
                 notification_chunk = self._create_chunk(
                     chunk,
                     f"<thinking>\n🛡️ [CodeGate prevented {redacted_count} {secret_text}]"
-                    f"(http://localhost:9090/?search=codegate-secrets) from being leaked "
+                    f"(http://localhost:9090/?search={AlertTriggerType.CODEGATE_SECRETS.value}) from being leaked "  # noqa: E501
                     f"by redacting them.</thinking>\n\n",
                 )
                 notification_chunk.choices[0].delta.role = "assistant"
@@ -555,7 +555,7 @@ class SecretRedactionNotifier(OutputPipelineStep):
                 notification_chunk = self._create_chunk(
                     chunk,
                     f"\n🛡️ [CodeGate prevented {redacted_count} {secret_text}]"
-                    f"(http://localhost:9090/?search=codegate-secrets) from being leaked "
+                    f"(http://localhost:9090/?search={AlertTriggerType.CODEGATE_SECRETS.value}) from being leaked "  # noqa: E501
                     f"by redacting them.\n\n",
                 )
 

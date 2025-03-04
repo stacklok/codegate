@@ -14,7 +14,6 @@ from uvicorn.config import Config as UvicornConfig
 
 from codegate import __version__
 from codegate.pipeline.factory import PipelineFactory
-from codegate.pipeline.sensitive_data.manager import SensitiveDataManager
 from codegate.providers.registry import ProviderRegistry
 from codegate.server import init_app
 from src.codegate.cli import UvicornServer, cli

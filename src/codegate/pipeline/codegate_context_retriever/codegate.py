@@ -5,7 +5,7 @@ import structlog
 from litellm import ChatCompletionRequest
 
 from codegate.clients.clients import ClientType
-from codegate.db.models import AlertSeverity
+from codegate.db.models import AlertSeverity, AlertTriggerType
 from codegate.extract_snippets.factory import MessageCodeExtractorFactory
 from codegate.pipeline.base import (
     PipelineContext,
@@ -36,7 +36,7 @@ class CodegateContextRetriever(PipelineStep):
         """
         Returns the name of this pipeline step.
         """
-        return "codegate-context-retriever"
+        return AlertTriggerType.CODEGATE_CONTEXT_RETRIEVER.value
 
     def generate_context_str(
         self, objects: list[object], context: PipelineContext, snippet_map: dict

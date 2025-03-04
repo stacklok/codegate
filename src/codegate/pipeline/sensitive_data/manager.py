@@ -1,7 +1,8 @@
-import json
 from typing import Dict, Optional
+
 import pydantic
 import structlog
+
 from codegate.pipeline.sensitive_data.session_store import SessionStore
 
 logger = structlog.get_logger("codegate")

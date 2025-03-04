@@ -13,7 +13,7 @@ from codegate import __version__
 from codegate.api import v1_models, v1_processing
 from codegate.config import API_DEFAULT_PAGE_SIZE, API_MAX_PAGE_SIZE
 from codegate.db.connection import AlreadyExistsError, DbReader
-from codegate.db.models import AlertSeverity, WorkspaceWithModel
+from codegate.db.models import AlertSeverity, AlertTriggerType, WorkspaceWithModel
 from codegate.providers import crud as provendcrud
 from codegate.workspaces import crud
 
@@ -435,6 +435,7 @@ async def get_workspace_messages(
     page: int = Query(1, ge=1),
     page_size: int = Query(API_DEFAULT_PAGE_SIZE, ge=1, le=API_MAX_PAGE_SIZE),
     filter_by_ids: Optional[List[str]] = Query(None),
+    filter_by_alert_trigger_types: Optional[List[AlertTriggerType]] = Query(None),
 ) -> v1_models.PaginatedMessagesResponse:
     """Get messages for a workspace."""
     try:
@@ -448,47 +449,40 @@ async def get_workspace_messages(
     offset = (page - 1) * page_size
     fetched_messages: List[v1_models.Conversation] = []
 
-    while len(fetched_messages) < page_size:
-        messages_batch = await dbreader.get_prompts_with_output_alerts_usage_by_workspace_id(
-            ws.id,
-            AlertSeverity.CRITICAL.value,
-            page_size - len(fetched_messages),
-            offset,
-            filter_by_ids,
-        )
-        if not messages_batch:
-            break
-        parsed_conversations, _ = await v1_processing.parse_messages_in_conversations(
-            messages_batch
-        )
-
-        for conversation in parsed_conversations:
-            existing_conversation = next(
-                (msg for msg in fetched_messages if msg.chat_id == conversation.chat_id), None
+    try:
+        while len(fetched_messages) < page_size:
+            messages_batch = await dbreader.get_messages(
+                ws.id,
+                offset,
+                page_size,
+                filter_by_ids,
+                list([AlertSeverity.CRITICAL.value]),  # TODO: Configurable severity
+                filter_by_alert_trigger_types,
             )
-            if existing_conversation:
-                existing_conversation.alerts.extend(
-                    alert
-                    for alert in conversation.alerts
-                    if alert not in existing_conversation.alerts
-                )
-            else:
-                fetched_messages.append(conversation)
+            if not messages_batch:
+                break
+            parsed_conversations, _ = await v1_processing.parse_messages_in_conversations(
+                messages_batch
+            )
+            fetched_messages.extend(parsed_conversations)
 
-        offset += len(messages_batch)
+            offset += len(messages_batch)
 
-    final_messages = fetched_messages[:page_size]
+        final_messages = fetched_messages[:page_size]
 
-    # Fetch total message count
-    total_count = await dbreader.get_total_messages_count_by_workspace_id(
-        ws.id, AlertSeverity.CRITICAL.value
-    )
-    return v1_models.PaginatedMessagesResponse(
-        data=final_messages,
-        limit=page_size,
-        offset=(page - 1) * page_size,
-        total=total_count,
-    )
+        # Fetch total message count
+        total_count = await dbreader.get_total_messages_count_by_workspace_id(
+            ws.id, AlertSeverity.CRITICAL.value
+        )
+        return v1_models.PaginatedMessagesResponse(
+            data=final_messages,
+            limit=page_size,
+            offset=(page - 1) * page_size,
+            total=total_count,
+        )
+    except Exception:
+        logger.exception("Error while getting messages")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @v1.get(

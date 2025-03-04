@@ -1,5 +1,4 @@
 from typing import Any, Dict, List, Optional, Tuple
-import uuid
 
 import regex as re
 import structlog
@@ -7,7 +6,7 @@ from litellm import ChatCompletionRequest, ChatCompletionSystemMessage, ModelRes
 from litellm.types.utils import Delta, StreamingChoices
 
 from codegate.config import Config
-from codegate.db.models import AlertSeverity
+from codegate.db.models import AlertSeverity, AlertTriggerType
 from codegate.pipeline.base import (
     PipelineContext,
     PipelineResult,
@@ -52,7 +51,7 @@ class CodegatePii(PipelineStep):
 
     @property
     def name(self) -> str:
-        return "codegate-pii"
+        return AlertTriggerType.CODEGATE_PII.value
 
     def _get_redacted_snippet(self, message: str, pii_details: List[Dict[str, Any]]) -> str:
         # If no PII found, return empty string
@@ -420,7 +419,7 @@ class PiiRedactionNotifier(OutputPipelineStep):
             # TODO: Might want to check these  with James!
             notification_text = (
                 f"🛡️ [CodeGate protected {redacted_count} instances of PII, including {pii_summary}]"
-                f"(http://localhost:9090/?search=codegate-pii) from being leaked "
+                f"(http://localhost:9090/?search={AlertTriggerType.CODEGATE_PII.value}) from being leaked "  # noqa: E501
                 f"by redacting them.\n\n"
             )
 

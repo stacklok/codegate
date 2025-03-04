@@ -16,14 +16,14 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from codegate.config import API_DEFAULT_PAGE_SIZE
 from codegate.db.fim_cache import FimCache
 from codegate.db.models import (
     ActiveWorkspace,
     Alert,
-    GetPromptWithOutputsRow,
+    AlertTriggerType,
+    GetMessagesRow,
     GetWorkspaceByNameConditions,
-    IntermediatePromptWithOutputUsageAlerts,
+    IntermediateMessagesRow,
     MuxRule,
     Output,
     Persona,
@@ -630,7 +630,7 @@ class DbReader(DbCodeGate):
         conn.close()
         return results
 
-    async def get_prompts_with_output(self, workpace_id: str) -> List[GetPromptWithOutputsRow]:
+    async def get_prompts_with_output(self, workpace_id: str) -> List[GetMessagesRow]:
         sql = text(
             """
             SELECT
@@ -650,66 +650,121 @@ class DbReader(DbCodeGate):
         )
         conditions = {"workspace_id": workpace_id}
         prompts = await self._exec_select_conditions_to_pydantic(
-            GetPromptWithOutputsRow, sql, conditions, should_raise=True
+            GetMessagesRow, sql, conditions, should_raise=True
         )
         return prompts
 
-    async def get_prompts_with_output_alerts_usage_by_workspace_id(
+    async def get_messages(
         self,
         workspace_id: str,
-        trigger_category: Optional[str] = None,
-        limit: int = API_DEFAULT_PAGE_SIZE,
         offset: int = 0,
+        page_size: int = 20,
         filter_by_ids: Optional[List[str]] = None,
-    ) -> List[GetPromptWithOutputsRow]:
+        filter_by_alert_trigger_categories: Optional[List[str]] = None,
+        filter_by_alert_trigger_types: Optional[List[str]] = None,
+    ) -> List[GetMessagesRow]:
         """
-        Get all prompts with their outputs, alerts and token usage by workspace_id.
-        """
+        Retrieve prompts with their associated outputs and alerts, with filtering and pagination.
 
+        Args:
+            workspace_id: The ID of the workspace to fetch prompts from
+            offset: Number of records to skip (for pagination)
+            page_size: Number of records per page
+            filter_by_ids: Optional list of prompt IDs to filter by
+            filter_by_alert_trigger_categories: Optional list of alert categories to filter by
+            filter_by_alert_trigger_types: Optional list of alert trigger types to filter by
+
+        Returns:
+            List of GetPromptWithOutputsRow containing prompts, outputs, and alerts
+        """
+        # Build base query
         base_query = """
+            WITH filtered_prompts AS (
+                SELECT DISTINCT p.*
+                FROM prompts p
+                LEFT JOIN alerts a ON p.id = a.prompt_id
+                WHERE p.workspace_id = :workspace_id
+                {filter_conditions}
+                ORDER BY p.timestamp DESC
+                LIMIT :page_size OFFSET :offset
+            )
             SELECT
-            p.id as prompt_id, p.timestamp as prompt_timestamp, p.provider, p.request, p.type,
-            o.id as output_id, o.output, o.timestamp as output_timestamp, o.input_tokens, o.output_tokens, o.input_cost, o.output_cost,
-            a.id as alert_id, a.code_snippet, a.trigger_string, a.trigger_type, a.trigger_category, a.timestamp as alert_timestamp
-            FROM prompts p
+                p.id as prompt_id,
+                p.timestamp as prompt_timestamp,
+                p.provider,
+                p.request,
+                p.type,
+                o.id as output_id,
+                o.output,
+                o.timestamp as output_timestamp,
+                o.input_tokens,
+                o.output_tokens,
+                o.input_cost,
+                o.output_cost,
+                a.id as alert_id,
+                a.code_snippet,
+                a.trigger_string,
+                a.trigger_type,
+                a.trigger_category,
+                a.timestamp as alert_timestamp
+            FROM filtered_prompts p
             LEFT JOIN outputs o ON p.id = o.prompt_id
             LEFT JOIN alerts a ON p.id = a.prompt_id
-            WHERE p.workspace_id = :workspace_id
-            AND (:trigger_category IS NULL OR a.trigger_category = :trigger_category)
-        """  # noqa: E501
-
-        if filter_by_ids:
-            base_query += " AND p.id IN :filter_ids"
-
-        base_query += """
-            ORDER BY o.timestamp DESC, a.timestamp DESC
-            LIMIT :limit OFFSET :offset
+            ORDER BY p.timestamp DESC, o.timestamp ASC, a.timestamp ASC
         """
 
-        sql = text(base_query)
-
+        # Build conditions and filters
         conditions = {
             "workspace_id": workspace_id,
-            "trigger_category": trigger_category,
-            "limit": limit,
+            "page_size": page_size,
             "offset": offset,
         }
 
-        if filter_by_ids:
-            sql = sql.bindparams(bindparam("filter_ids", expanding=True))
-            conditions["filter_ids"] = filter_by_ids
+        # Conditionally add filter clauses and conditions
 
-        fetched_rows: List[IntermediatePromptWithOutputUsageAlerts] = (
-            await self._exec_select_conditions_to_pydantic(
-                IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
+        filter_conditions = []
+
+        if filter_by_alert_trigger_categories:
+            filter_conditions.append(
+                "AND a.trigger_category IN :filter_by_alert_trigger_categories"
             )
+            conditions["filter_by_alert_trigger_categories"] = filter_by_alert_trigger_categories
+
+        if filter_by_alert_trigger_types:
+            filter_conditions.append(
+                "AND EXISTS (SELECT 1 FROM alerts a2 WHERE a2.prompt_id = p.id AND a2.trigger_type IN :filter_by_alert_trigger_types)"  # noqa: E501
+            )
+            conditions["filter_by_alert_trigger_types"] = filter_by_alert_trigger_types
+
+        if filter_by_ids:
+            filter_conditions.append("AND p.id IN :filter_by_ids")
+            conditions["filter_by_ids"] = filter_by_ids
+
+        filter_clause = " ".join(filter_conditions)
+        query = base_query.format(filter_conditions=filter_clause)
+
+        sql = text(query)
+
+        # Bind optional params
+
+        if filter_by_alert_trigger_categories:
+            sql = sql.bindparams(bindparam("filter_by_alert_trigger_categories", expanding=True))
+        if filter_by_alert_trigger_types:
+            sql = sql.bindparams(bindparam("filter_by_alert_trigger_types", expanding=True))
+        if filter_by_ids:
+            sql = sql.bindparams(bindparam("filter_by_ids", expanding=True))
+
+        # Execute query
+        rows = await self._exec_select_conditions_to_pydantic(
+            IntermediateMessagesRow, sql, conditions, should_raise=True
         )
 
-        prompts_dict: Dict[str, GetPromptWithOutputsRow] = {}
-        for row in fetched_rows:
-            prompt_id = row.prompt_id
-            if prompt_id not in prompts_dict:
-                prompts_dict[prompt_id] = GetPromptWithOutputsRow(
+        # Process results
+        prompts_dict: Dict[str, GetMessagesRow] = {}
+
+        for row in rows:
+            if row.prompt_id not in prompts_dict:
+                prompts_dict[row.prompt_id] = GetMessagesRow(
                     id=row.prompt_id,
                     timestamp=row.prompt_timestamp,
                     provider=row.provider,
@@ -724,6 +779,7 @@ class DbReader(DbCodeGate):
                     output_cost=row.output_cost,
                     alerts=[],
                 )
+
             if row.alert_id:
                 alert = Alert(
                     id=row.alert_id,
@@ -734,7 +790,8 @@ class DbReader(DbCodeGate):
                     trigger_category=row.trigger_category,
                     timestamp=row.alert_timestamp,
                 )
-                prompts_dict[prompt_id].alerts.append(alert)
+                if alert not in prompts_dict[row.prompt_id].alerts:
+                    prompts_dict[row.prompt_id].alerts.append(alert)
 
         return list(prompts_dict.values())
 
@@ -799,19 +856,19 @@ class DbReader(DbCodeGate):
     async def get_alerts_summary_by_workspace(self, workspace_id: str) -> dict:
         """Get aggregated alert summary counts for a given workspace_id."""
         sql = text(
-            """
+            f"""
             SELECT
-                COUNT(*) AS total_alerts,
-                SUM(CASE WHEN a.trigger_type = 'codegate-secrets' THEN 1 ELSE 0 END)
-                AS codegate_secrets_count,
-                SUM(CASE WHEN a.trigger_type = 'codegate-context-retriever' THEN 1 ELSE 0 END)
-                AS codegate_context_retriever_count,
-                SUM(CASE WHEN a.trigger_type = 'codegate-pii' THEN 1 ELSE 0 END)
-                AS codegate_pii_count
+            COUNT(*) AS total_alerts,
+            SUM(CASE WHEN a.trigger_type = '{AlertTriggerType.CODEGATE_SECRETS.value}' THEN 1 ELSE 0 END)
+            AS codegate_secrets_count,
+            SUM(CASE WHEN a.trigger_type = '{AlertTriggerType.CODEGATE_CONTEXT_RETRIEVER.value}' THEN 1 ELSE 0 END)
+            AS codegate_context_retriever_count,
+            SUM(CASE WHEN a.trigger_type = '{AlertTriggerType.CODEGATE_PII.value}' THEN 1 ELSE 0 END)
+            AS codegate_pii_count
             FROM alerts a
             INNER JOIN prompts p ON p.id = a.prompt_id
             WHERE p.workspace_id = :workspace_id
-            """
+            """  # noqa: E501 # nosec
         )
         conditions = {"workspace_id": workspace_id}
 

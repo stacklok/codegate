@@ -1,10 +1,10 @@
-from typing import Any, List, Optional
+from typing import List, Optional
 
 import structlog
 from presidio_analyzer import AnalyzerEngine
 from presidio_anonymizer import AnonymizerEngine
 
-from codegate.db.models import AlertSeverity
+from codegate.db.models import AlertTriggerType
 from codegate.pipeline.base import PipelineContext
 from codegate.pipeline.sensitive_data.session_store import SessionStore
 
@@ -31,7 +31,7 @@ class PiiAnalyzer:
     """
 
     _instance: Optional["PiiAnalyzer"] = None
-    _name = "codegate-pii"
+    _name = AlertTriggerType.CODEGATE_PII.value
 
     @classmethod
     def get_instance(cls) -> "PiiAnalyzer":

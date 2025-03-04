@@ -21,7 +21,7 @@ from codegate.api.v1_models import (
     TokenUsageByModel,
 )
 from codegate.db.connection import alert_queue
-from codegate.db.models import Alert, GetPromptWithOutputsRow, TokenUsage
+from codegate.db.models import Alert, GetMessagesRow, TokenUsage
 
 logger = structlog.get_logger("codegate")
 
@@ -152,7 +152,7 @@ async def parse_output(output_str: str) -> Optional[str]:  # noqa: C901
 
 
 async def _get_partial_question_answer(
-    row: GetPromptWithOutputsRow,
+    row: GetMessagesRow,
 ) -> Optional[PartialQuestionAnswer]:
     """
     Parse a row from the get_prompt_with_outputs query and return a PartialConversation
@@ -423,7 +423,7 @@ async def match_conversations(
 
 
 async def _process_prompt_output_to_partial_qa(
-    prompts_outputs: List[GetPromptWithOutputsRow],
+    prompts_outputs: List[GetMessagesRow],
 ) -> List[PartialQuestionAnswer]:
     """
     Process the prompts and outputs to PartialQuestionAnswer objects.
@@ -435,7 +435,7 @@ async def _process_prompt_output_to_partial_qa(
 
 
 async def parse_messages_in_conversations(
-    prompts_outputs: List[GetPromptWithOutputsRow],
+    prompts_outputs: List[GetMessagesRow],
 ) -> Tuple[List[Conversation], Dict[str, Conversation]]:
     """
     Get all the messages from the database and return them as a list of conversations.
@@ -477,7 +477,7 @@ async def parse_row_alert_conversation(
 
 async def parse_get_alert_conversation(
     alerts: List[Alert],
-    prompts_outputs: List[GetPromptWithOutputsRow],
+    prompts_outputs: List[GetMessagesRow],
 ) -> List[AlertConversation]:
     """
     Parse a list of rows from the get_alerts_with_prompt_and_output query and return a list of
@@ -496,7 +496,7 @@ async def parse_get_alert_conversation(
 
 
 async def parse_workspace_token_usage(
-    prompts_outputs: List[GetPromptWithOutputsRow],
+    prompts_outputs: List[GetMessagesRow],
 ) -> TokenUsageAggregate:
     """
     Parse the token usage from the workspace.
@@ -515,7 +515,6 @@ async def remove_duplicate_alerts(alerts: List[v1_models.Alert]) -> List[v1_mode
     for alert in sorted(
         alerts, key=lambda x: x.timestamp, reverse=True
     ):  # Sort alerts by timestamp descending
-
         # Handle trigger_string based on its type
         trigger_string_content = ""
         if isinstance(alert.trigger_string, dict):

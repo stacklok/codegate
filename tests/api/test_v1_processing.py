@@ -13,7 +13,7 @@ from codegate.api.v1_processing import (
     parse_request,
     remove_duplicate_alerts,
 )
-from codegate.db.models import GetPromptWithOutputsRow
+from codegate.db.models import AlertTriggerType, GetMessagesRow
 
 
 @pytest.mark.asyncio
@@ -147,7 +147,7 @@ timestamp_now = datetime.datetime.now(datetime.timezone.utc)
 @pytest.mark.parametrize(
     "row",
     [
-        GetPromptWithOutputsRow(
+        GetMessagesRow(
             id="1",
             timestamp=timestamp_now,
             provider="openai",
@@ -446,7 +446,7 @@ def test_group_partial_messages(pq_list, expected_group_ids):
                     prompt_id="p1",
                     code_snippet=None,
                     trigger_string="secret1 Context xyz",
-                    trigger_type="codegate-secrets",
+                    trigger_type=AlertTriggerType.CODEGATE_SECRETS.value,
                     trigger_category="critical",
                     timestamp=datetime.datetime(2023, 1, 1, 12, 0, 0),
                 ),
@@ -455,7 +455,7 @@ def test_group_partial_messages(pq_list, expected_group_ids):
                     prompt_id="p2",
                     code_snippet=None,
                     trigger_string="secret1 Context abc",
-                    trigger_type="codegate-secrets",
+                    trigger_type=AlertTriggerType.CODEGATE_SECRETS.value,
                     trigger_category="critical",
                     timestamp=datetime.datetime(2023, 1, 1, 12, 0, 3),
                 ),
@@ -471,7 +471,7 @@ def test_group_partial_messages(pq_list, expected_group_ids):
                     prompt_id="p1",
                     code_snippet=None,
                     trigger_string="secret1 Context xyz",
-                    trigger_type="codegate-secrets",
+                    trigger_type=AlertTriggerType.CODEGATE_SECRETS.value,
                     trigger_category="critical",
                     timestamp=datetime.datetime(2023, 1, 1, 12, 0, 0),
                 ),
@@ -480,7 +480,7 @@ def test_group_partial_messages(pq_list, expected_group_ids):
                     prompt_id="p2",
                     code_snippet=None,
                     trigger_string="secret1 Context abc",
-                    trigger_type="codegate-secrets",
+                    trigger_type=AlertTriggerType.CODEGATE_SECRETS.value,
                     trigger_category="critical",
                     timestamp=datetime.datetime(2023, 1, 1, 12, 0, 6),
                 ),
@@ -496,7 +496,7 @@ def test_group_partial_messages(pq_list, expected_group_ids):
                     prompt_id="p1",
                     code_snippet=None,
                     trigger_string="secret1 Context xyz",
-                    trigger_type="codegate-secrets",
+                    trigger_type=AlertTriggerType.CODEGATE_SECRETS.value,
                     trigger_category="critical",
                     timestamp=datetime.datetime(2023, 1, 1, 12, 0, 0),
                 ),
@@ -514,7 +514,7 @@ def test_group_partial_messages(pq_list, expected_group_ids):
                     prompt_id="p3",
                     code_snippet=None,
                     trigger_string="secret1 Context abc",
-                    trigger_type="codegate-secrets",
+                    trigger_type=AlertTriggerType.CODEGATE_SECRETS.value,
                     trigger_category="critical",
                     timestamp=datetime.datetime(2023, 1, 1, 12, 0, 3),
                 ),

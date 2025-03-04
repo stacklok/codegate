@@ -1,6 +1,7 @@
-import json
 from unittest.mock import MagicMock, patch
+
 import pytest
+
 from codegate.pipeline.sensitive_data.manager import SensitiveData, SensitiveDataManager
 from codegate.pipeline.sensitive_data.session_store import SessionStore
 

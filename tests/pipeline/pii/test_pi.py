@@ -4,6 +4,7 @@ import pytest
 from litellm import ChatCompletionRequest, ModelResponse
 from litellm.types.utils import Delta, StreamingChoices
 
+from codegate.db.models import AlertTriggerType
 from codegate.pipeline.base import PipelineContext, PipelineSensitiveData
 from codegate.pipeline.output import OutputPipelineContext
 from codegate.pipeline.pii.pii import CodegatePii, PiiRedactionNotifier, PiiUnRedactionStep
@@ -25,7 +26,7 @@ class TestCodegatePii:
         return CodegatePii(mock_sensitive_data_manager)
 
     def test_name(self, pii_step):
-        assert pii_step.name == "codegate-pii"
+        assert pii_step.name == AlertTriggerType.CODEGATE_PII.value
 
     def test_get_redacted_snippet_no_pii(self, pii_step):
         message = "Hello world"

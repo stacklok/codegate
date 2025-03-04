@@ -11,6 +11,12 @@ class AlertSeverity(str, Enum):
     CRITICAL = "critical"
 
 
+class AlertTriggerType(str, Enum):
+    CODEGATE_PII = "codegate-pii"
+    CODEGATE_CONTEXT_RETRIEVER = "codegate-context-retriever"
+    CODEGATE_SECRETS = "codegate-secrets"
+
+
 class Alert(BaseModel):
     id: str
     prompt_id: str
@@ -137,7 +143,7 @@ class ProviderType(str, Enum):
     openrouter = "openrouter"
 
 
-class IntermediatePromptWithOutputUsageAlerts(BaseModel):
+class IntermediateMessagesRow(BaseModel):
     """
     An intermediate model to represent the result of a query
     for a prompt and related outputs, usage stats & alerts.
@@ -163,7 +169,7 @@ class IntermediatePromptWithOutputUsageAlerts(BaseModel):
     alert_timestamp: Optional[Any]
 
 
-class GetPromptWithOutputsRow(BaseModel):
+class GetMessagesRow(BaseModel):
     id: Any
     timestamp: Any
     provider: Optional[Any]
