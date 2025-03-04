@@ -419,19 +419,36 @@ async def get_workspace_messages(
         raise HTTPException(status_code=500, detail="Internal server error")
 
     offset = (page - 1) * page_size
-    fetched_messages = []
+    fetched_messages: List[v1_models.Conversation] = []
 
     while len(fetched_messages) < page_size:
         messages_batch = await dbreader.get_prompts_with_output_alerts_usage_by_workspace_id(
-            ws.id, AlertSeverity.CRITICAL.value, page_size, offset, filter_by_ids
+            ws.id,
+            AlertSeverity.CRITICAL.value,
+            page_size - len(fetched_messages),
+            offset,
+            filter_by_ids,
         )
         if not messages_batch:
             break
         parsed_conversations, _ = await v1_processing.parse_messages_in_conversations(
             messages_batch
         )
-        fetched_messages.extend(parsed_conversations)
-        offset += page_size
+
+        for conversation in parsed_conversations:
+            existing_conversation = next(
+                (msg for msg in fetched_messages if msg.chat_id == conversation.chat_id), None
+            )
+            if existing_conversation:
+                existing_conversation.alerts.extend(
+                    alert
+                    for alert in conversation.alerts
+                    if alert not in existing_conversation.alerts
+                )
+            else:
+                fetched_messages.append(conversation)
+
+        offset += len(messages_batch)
 
     final_messages = fetched_messages[:page_size]
 
