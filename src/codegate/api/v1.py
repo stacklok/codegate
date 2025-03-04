@@ -258,8 +258,8 @@ async def create_workspace(
         workspace_row, mux_rules = await wscrud.add_workspace(
             request.name, custom_instructions, muxing_rules
         )
-    except AlreadyExistsError:
-        raise HTTPException(status_code=409, detail="Workspace already exists")
+    except crud.WorkspaceNameAlreadyInUseError:
+        raise HTTPException(status_code=409, detail="Workspace name already in use")
     except ValidationError:
         raise HTTPException(
             status_code=400,
@@ -305,6 +305,8 @@ async def update_workspace(
         )
     except crud.WorkspaceDoesNotExistError:
         raise HTTPException(status_code=404, detail="Workspace does not exist")
+    except crud.WorkspaceNameAlreadyInUseError:
+        raise HTTPException(status_code=409, detail="Workspace name already in use")
     except ValidationError:
         raise HTTPException(
             status_code=400,

@@ -60,6 +60,12 @@ class WorkspaceCrud:
 
         async with DbTransaction() as transaction:
             try:
+                existing_ws = await self._db_reader.get_workspace_by_name(new_workspace_name)
+                if existing_ws:
+                    raise WorkspaceNameAlreadyInUseError(
+                        f"Workspace name {new_workspace_name} is already in use."
+                    )
+
                 workspace_created = await self._db_recorder.add_workspace(new_workspace_name)
 
                 if custom_instructions:
@@ -72,6 +78,9 @@ class WorkspaceCrud:
 
                 await transaction.commit()
                 return workspace_created, mux_rules
+            except WorkspaceNameAlreadyInUseError as e:
+                await transaction.rollback()
+                raise WorkspaceNameAlreadyInUseError(e)
             except Exception as e:
                 await transaction.rollback()
                 raise WorkspaceCrudError(f"Error adding workspace {new_workspace_name}: {str(e)}")
@@ -132,6 +141,12 @@ class WorkspaceCrud:
 
                 await transaction.commit()
                 return workspace_renamed, mux_rules
+            except WorkspaceNameAlreadyInUseError as e:
+                await transaction.rollback()
+                raise WorkspaceNameAlreadyInUseError(e)
+            except WorkspaceDoesNotExistError as e:
+                await transaction.rollback()
+                raise WorkspaceDoesNotExistError(e)
             except Exception as e:
                 await transaction.rollback()
                 raise WorkspaceCrudError(f"Error updating workspace {old_workspace_name}: {str(e)}")

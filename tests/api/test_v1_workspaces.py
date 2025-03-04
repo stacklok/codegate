@@ -88,10 +88,6 @@ async def test_create_update_workspace_happy_path(
 
         app = init_app(mock_pipeline_factory)
 
-        registry = ProviderRegistry(app)
-
-        registry.add_provider("ollama", MockProvider())
-
         provider_payload_1 = {
             "name": "foo",
             "description": "",
@@ -242,3 +238,143 @@ async def test_create_update_workspace_name_only(
             response_body = response.json()
 
             assert response_body["name"] == name_2
+
+
+@pytest.mark.asyncio
+async def test_create_workspace_name_already_in_use(
+    mock_pipeline_factory, mock_workspace_crud, mock_provider_crud
+) -> None:
+    with (
+        patch("codegate.api.v1.wscrud", mock_workspace_crud),
+        patch("codegate.api.v1.pcrud", mock_provider_crud),
+        patch(
+            "codegate.providers.openai.provider.OpenAIProvider.models",
+            return_value=["foo-bar-001", "foo-bar-002"],
+        ),
+    ):
+        """Test creating a workspace when the name is already in use."""
+
+        app = init_app(mock_pipeline_factory)
+
+        async with AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            name: str = str(uuid())
+
+            payload_create = {
+                "name": name,
+            }
+
+            # Create the workspace for the first time
+            response = await ac.post("/api/v1/workspaces", json=payload_create)
+            assert response.status_code == 201
+
+            # Try to create the workspace again with the same name
+            response = await ac.post("/api/v1/workspaces", json=payload_create)
+            assert response.status_code == 409
+            assert response.json()["detail"] == "Workspace name already in use"
+
+
+@pytest.mark.asyncio
+async def test_rename_workspace_name_already_in_use(
+    mock_pipeline_factory, mock_workspace_crud, mock_provider_crud
+) -> None:
+    with (
+        patch("codegate.api.v1.wscrud", mock_workspace_crud),
+        patch("codegate.api.v1.pcrud", mock_provider_crud),
+        patch(
+            "codegate.providers.openai.provider.OpenAIProvider.models",
+            return_value=["foo-bar-001", "foo-bar-002"],
+        ),
+    ):
+        """Test renaming a workspace when the new name is already in use."""
+
+        app = init_app(mock_pipeline_factory)
+
+        async with AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            name_1: str = str(uuid())
+            name_2: str = str(uuid())
+
+            payload_create_1 = {
+                "name": name_1,
+            }
+
+            payload_create_2 = {
+                "name": name_2,
+            }
+
+            # Create two workspaces
+            response = await ac.post("/api/v1/workspaces", json=payload_create_1)
+            assert response.status_code == 201
+
+            response = await ac.post("/api/v1/workspaces", json=payload_create_2)
+            assert response.status_code == 201
+
+            # Try to rename the first workspace to the name of the second workspace
+            payload_update = {
+                "name": name_2,
+            }
+
+            response = await ac.put(f"/api/v1/workspaces/{name_1}", json=payload_update)
+            assert response.status_code == 409
+            assert response.json()["detail"] == "Workspace name already in use"
+
+
+@pytest.mark.asyncio
+async def test_create_workspace_with_nonexistent_model_in_muxing_rule(
+    mock_pipeline_factory, mock_workspace_crud, mock_provider_crud
+) -> None:
+    with (
+        patch("codegate.api.v1.wscrud", mock_workspace_crud),
+        patch("codegate.api.v1.pcrud", mock_provider_crud),
+        patch(
+            "codegate.providers.openai.provider.OpenAIProvider.models",
+            return_value=["foo-bar-001", "foo-bar-002"],
+        ),
+    ):
+        """Test creating a workspace with a muxing rule that uses a nonexistent model."""
+
+        app = init_app(mock_pipeline_factory)
+
+        provider_payload = {
+            "name": "foo",
+            "description": "",
+            "auth_type": "none",
+            "provider_type": "openai",
+            "endpoint": "https://api.openai.com",
+            "api_key": "sk-proj-foo-bar-123-xzy",
+        }
+
+        async with AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            # Create the first provider
+            response = await ac.post("/api/v1/provider-endpoints", json=provider_payload)
+            assert response.status_code == 201
+            provider = response.json()
+
+            name: str = str(uuid())
+            custom_instructions: str = "Respond to every request in iambic pentameter"
+            muxing_rules = [
+                {
+                    "provider_name": None,
+                    "provider_id": provider["id"],
+                    "model": "nonexistent-model",
+                    "matcher": "*.ts",
+                    "matcher_type": "filename_match",
+                },
+            ]
+
+            payload_create = {
+                "name": name,
+                "config": {
+                    "custom_instructions": custom_instructions,
+                    "muxing_rules": muxing_rules,
+                },
+            }
+
+            response = await ac.post("/api/v1/workspaces", json=payload_create)
+            assert response.status_code == 400
+            assert "Model nonexistent-model does not exist" in response.json()["detail"]
