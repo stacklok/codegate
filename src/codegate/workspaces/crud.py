@@ -3,7 +3,7 @@ from typing import List, Optional, Tuple
 from uuid import uuid4 as uuid
 
 from codegate.db import models as db_models
-from codegate.db.connection import DbReader, DbRecorder, DbTransaction
+from codegate.db.connection import AlreadyExistsError, DbReader, DbRecorder, DbTransaction
 from codegate.muxing import models as mux_models
 from codegate.muxing import rulematcher
 
@@ -78,11 +78,13 @@ class WorkspaceCrud:
 
                 await transaction.commit()
                 return workspace_created, mux_rules
-            except WorkspaceNameAlreadyInUseError as e:
-                await transaction.rollback()
+            except (
+                AlreadyExistsError,
+                WorkspaceDoesNotExistError,
+                WorkspaceNameAlreadyInUseError,
+            ) as e:
                 raise e
             except Exception as e:
-                await transaction.rollback()
                 raise WorkspaceCrudError(f"Error adding workspace {new_workspace_name}: {str(e)}")
 
     async def update_workspace(
@@ -142,10 +144,8 @@ class WorkspaceCrud:
                 await transaction.commit()
                 return workspace_renamed, mux_rules
             except (WorkspaceNameAlreadyInUseError, WorkspaceDoesNotExistError) as e:
-                await transaction.rollback()
                 raise e
             except Exception as e:
-                await transaction.rollback()
                 raise WorkspaceCrudError(f"Error updating workspace {old_workspace_name}: {str(e)}")
 
     async def get_workspaces(self) -> List[db_models.WorkspaceWithSessionInfo]:

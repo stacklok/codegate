@@ -1010,6 +1010,7 @@ class DbTransaction:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if exc_type:
             await self._session.rollback()
+            raise exc_val
         else:
             await self._session.commit()
         await self._session.close()
