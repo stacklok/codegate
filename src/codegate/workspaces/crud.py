@@ -80,7 +80,7 @@ class WorkspaceCrud:
                 return workspace_created, mux_rules
             except WorkspaceNameAlreadyInUseError as e:
                 await transaction.rollback()
-                raise WorkspaceNameAlreadyInUseError(e)
+                raise e
             except Exception as e:
                 await transaction.rollback()
                 raise WorkspaceCrudError(f"Error adding workspace {new_workspace_name}: {str(e)}")
@@ -141,12 +141,9 @@ class WorkspaceCrud:
 
                 await transaction.commit()
                 return workspace_renamed, mux_rules
-            except WorkspaceNameAlreadyInUseError as e:
+            except (WorkspaceNameAlreadyInUseError, WorkspaceDoesNotExistError) as e:
                 await transaction.rollback()
-                raise WorkspaceNameAlreadyInUseError(e)
-            except WorkspaceDoesNotExistError as e:
-                await transaction.rollback()
-                raise WorkspaceDoesNotExistError(e)
+                raise e
             except Exception as e:
                 await transaction.rollback()
                 raise WorkspaceCrudError(f"Error updating workspace {old_workspace_name}: {str(e)}")
