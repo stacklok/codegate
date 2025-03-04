@@ -407,7 +407,7 @@ async def get_workspace_messages(
     workspace_name: str,
     page: int = Query(1, ge=1),
     page_size: int = Query(API_DEFAULT_PAGE_SIZE, ge=1, le=API_MAX_PAGE_SIZE),
-) -> List[v1_models.Conversation]:
+) -> v1_models.PaginatedMessagesResponse:
     """Get messages for a workspace."""
     try:
         ws = await wscrud.get_workspace_by_name(workspace_name)
@@ -433,7 +433,17 @@ async def get_workspace_messages(
         offset += page_size
 
     final_messages = fetched_messages[:page_size]
-    return final_messages
+
+    # Fetch total message count
+    total_count = await dbreader.get_total_messages_count_by_workspace_id(
+        ws.id, AlertSeverity.CRITICAL.value
+    )
+    return v1_models.PaginatedMessagesResponse(
+        data=final_messages,
+        limit=page_size,
+        offset=(page - 1) * page_size,
+        total=total_count,
+    )
 
 
 @v1.get(

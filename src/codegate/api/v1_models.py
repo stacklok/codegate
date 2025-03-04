@@ -312,3 +312,10 @@ class ModelByProvider(pydantic.BaseModel):
 
     def __str__(self):
         return f"{self.provider_name} / {self.name}"
+
+
+class PaginatedMessagesResponse(pydantic.BaseModel):
+    data: List[Conversation]
+    limit: int
+    offset: int
+    total: int

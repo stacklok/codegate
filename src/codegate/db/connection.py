@@ -665,15 +665,32 @@ class DbReader(DbCodeGate):
 
         return list(prompts_dict.values())
 
-    async def _exec_select_count(self, sql_command: str, conditions: dict) -> int:
-        """Executes a COUNT SQL command and returns an integer result."""
+    async def get_total_messages_count_by_workspace_id(
+        self, workspace_id: str, trigger_category: Optional[str] = None
+    ) -> int:
+        """Get total count of messages for a given workspace_id, considering trigger_category if provided."""
+        sql = text(
+            """
+            SELECT COUNT(*) 
+            FROM prompts p
+            LEFT JOIN alerts a ON p.id = a.prompt_id
+            WHERE p.workspace_id = :workspace_id
+            """
+        )
+        conditions = {"workspace_id": workspace_id}
+
+        if trigger_category:
+            sql = text(sql.text + " AND a.trigger_category = :trigger_category")
+            conditions["trigger_category"] = trigger_category
+
         async with self._async_db_engine.begin() as conn:
             try:
-                result = await conn.execute(text(sql_command), conditions)
-                return result.scalar_one()  # Ensures it returns exactly one integer value
+                result = await conn.execute(sql, conditions)
+                count = result.scalar()  # Fetches the integer result directly
+                return count or 0  # Ensure it returns an integer
             except Exception as e:
-                logger.error(f"Failed to execute COUNT query.", error=str(e))
-                return 0  # Return 0 in case of failure to avoid crashes
+                logger.error(f"Failed to fetch message count. Error: {e}")
+                return 0  # Return 0 in case of failure
 
     async def get_alerts_by_workspace(
         self, workspace_id: str, trigger_category: Optional[str] = None
