@@ -8,7 +8,7 @@ import structlog
 from alembic import command as alembic_command
 from alembic.config import Config as AlembicConfig
 from pydantic import BaseModel
-from sqlalchemy import CursorResult, TextClause, event, text
+from sqlalchemy import CursorResult, TextClause, bindparam, event, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -605,40 +605,46 @@ class DbReader(DbCodeGate):
         """
         Get all prompts with their outputs, alerts and token usage by workspace_id.
         """
-        sql = text(
-            """
+
+        base_query = """
             SELECT
-                p.id as prompt_id, p.timestamp as prompt_timestamp, p.provider, p.request, p.type,
-                o.id as output_id, o.output, o.timestamp as output_timestamp, o.input_tokens, o.output_tokens, o.input_cost, o.output_cost,
-                a.id as alert_id, a.code_snippet, a.trigger_string, a.trigger_type, a.trigger_category, a.timestamp as alert_timestamp
+            p.id as prompt_id, p.timestamp as prompt_timestamp, p.provider, p.request, p.type,
+            o.id as output_id, o.output, o.timestamp as output_timestamp, o.input_tokens, o.output_tokens, o.input_cost, o.output_cost,
+            a.id as alert_id, a.code_snippet, a.trigger_string, a.trigger_type, a.trigger_category, a.timestamp as alert_timestamp
             FROM prompts p
             LEFT JOIN outputs o ON p.id = o.prompt_id
             LEFT JOIN alerts a ON p.id = a.prompt_id
             WHERE p.workspace_id = :workspace_id
-            """  # noqa: E501
-        )
-        conditions = {"workspace_id": workspace_id}
-        if trigger_category:
-            sql = text(sql.text + " AND a.trigger_category = :trigger_category")
-            conditions["trigger_category"] = trigger_category
+            AND (:trigger_category IS NULL OR a.trigger_category = :trigger_category)
+        """  # noqa: E501
 
         if filter_by_ids:
-            placeholders = ", ".join([":filter_by_id_" + str(i) for i in range(len(filter_by_ids))])
-            sql = text(sql.text + f" AND p.id IN ({placeholders})")
-            for i, filter_id in enumerate(filter_by_ids):
-                conditions[f"filter_by_id_{i}"] = filter_id
+            base_query += " AND p.id IN :filter_ids"
 
-        sql = text(
-            sql.text + " ORDER BY o.timestamp DESC, a.timestamp DESC LIMIT :limit OFFSET :offset"
-        )
-        conditions["limit"] = limit
-        conditions["offset"] = offset
+        base_query += """
+            ORDER BY o.timestamp DESC, a.timestamp DESC
+            LIMIT :limit OFFSET :offset
+        """
 
-        fetched_rows: List[IntermediatePromptWithOutputUsageAlerts] = (
-            await self._exec_select_conditions_to_pydantic(
-                IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
-            )
+        sql = text(base_query)
+
+        conditions = {
+            "workspace_id": workspace_id,
+            "trigger_category": trigger_category,
+            "limit": limit,
+            "offset": offset,
+        }
+
+        if filter_by_ids:
+            sql = sql.bindparams(bindparam("filter_ids", expanding=True))
+            conditions["filter_ids"] = filter_by_ids
+
+        fetched_rows: List[
+            IntermediatePromptWithOutputUsageAlerts
+        ] = await self._exec_select_conditions_to_pydantic(
+            IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
         )
+
         prompts_dict: Dict[str, GetPromptWithOutputsRow] = {}
         for row in fetched_rows:
             prompt_id = row.prompt_id
