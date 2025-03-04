@@ -7,13 +7,13 @@ from litellm.types.utils import Delta, StreamingChoices
 
 from codegate.pipeline.base import PipelineContext, PipelineSensitiveData
 from codegate.pipeline.output import OutputPipelineContext
-from codegate.pipeline.secrets.manager import SecretsManager
 from codegate.pipeline.secrets.secrets import (
     SecretsEncryptor,
     SecretsObfuscator,
     SecretUnredactionStep,
 )
 from codegate.pipeline.secrets.signatures import CodegateSignatures, Match
+from codegate.pipeline.sensitive_data.manager import SensitiveData, SensitiveDataManager
 
 
 class TestSecretsModifier:
@@ -69,9 +69,11 @@ class TestSecretsEncryptor:
     def setup(self, temp_yaml_file):
         CodegateSignatures.initialize(temp_yaml_file)
         self.context = PipelineContext()
-        self.secrets_manager = SecretsManager()
+        self.sensitive_data_manager = SensitiveDataManager()
         self.session_id = "test_session"
-        self.encryptor = SecretsEncryptor(self.secrets_manager, self.context, self.session_id)
+        self.encryptor = SecretsEncryptor(
+            self.sensitive_data_manager, self.context, self.session_id
+        )
 
     def test_hide_secret(self):
         # Create a test match
@@ -87,12 +89,12 @@ class TestSecretsEncryptor:
 
         # Test secret hiding
         hidden = self.encryptor._hide_secret(match)
-        assert hidden.startswith("REDACTED<$")
+        assert hidden.startswith("REDACTED<")
         assert hidden.endswith(">")
 
         # Verify the secret was stored
-        encrypted_value = hidden[len("REDACTED<$") : -1]
-        original = self.secrets_manager.get_original_value(encrypted_value, self.session_id)
+        encrypted_value = hidden[len("REDACTED<") : -1]
+        original = self.sensitive_data_manager.get_original_value(self.session_id, encrypted_value)
         assert original == "AKIAIOSFODNN7EXAMPLE"
 
     def test_obfuscate(self):
@@ -101,7 +103,7 @@ class TestSecretsEncryptor:
         protected, matched_secrets = self.encryptor.obfuscate(text, None)
 
         assert len(matched_secrets) == 1
-        assert "REDACTED<$" in protected
+        assert "REDACTED<" in protected
         assert "AKIAIOSFODNN7EXAMPLE" not in protected
         assert "Other text" in protected
 
@@ -171,25 +173,24 @@ class TestSecretUnredactionStep:
         """Setup fresh instances for each test"""
         self.step = SecretUnredactionStep()
         self.context = OutputPipelineContext()
-        self.secrets_manager = SecretsManager()
+        self.sensitive_data_manager = SensitiveDataManager()
         self.session_id = "test_session"
 
         # Setup input context with secrets manager
         self.input_context = PipelineContext()
         self.input_context.sensitive = PipelineSensitiveData(
-            manager=self.secrets_manager, session_id=self.session_id
+            manager=self.sensitive_data_manager, session_id=self.session_id
         )
 
     @pytest.mark.asyncio
     async def test_complete_marker_processing(self):
         """Test processing of a complete REDACTED marker"""
         # Store a secret
-        encrypted = self.secrets_manager.store_secret(
-            "secret_value", "test_service", "api_key", self.session_id
-        )
+        obj = SensitiveData(original="secret_value", service="test_service", type="api_key")
+        encrypted = self.sensitive_data_manager.store(self.session_id, obj)
 
         # Add content with REDACTED marker to buffer
-        self.context.buffer.append(f"Here is the REDACTED<${encrypted}> in text")
+        self.context.buffer.append(f"Here is the REDACTED<{encrypted}> in text")
 
         # Process a chunk
         result = await self.step.process_chunk(
@@ -204,7 +205,7 @@ class TestSecretUnredactionStep:
     async def test_partial_marker_buffering(self):
         """Test handling of partial REDACTED markers"""
         # Add partial marker to buffer
-        self.context.buffer.append("Here is REDACTED<$")
+        self.context.buffer.append("Here is REDACTED<")
 
         # Process a chunk
         result = await self.step.process_chunk(
@@ -218,7 +219,7 @@ class TestSecretUnredactionStep:
     async def test_invalid_encrypted_value(self):
         """Test handling of invalid encrypted values"""
         # Add content with invalid encrypted value
-        self.context.buffer.append("Here is REDACTED<$invalid_value> in text")
+        self.context.buffer.append("Here is REDACTED<invalid_value> in text")
 
         # Process chunk
         result = await self.step.process_chunk(
@@ -227,7 +228,7 @@ class TestSecretUnredactionStep:
 
         # Should keep the REDACTED marker for invalid values
         assert len(result) == 1
-        assert result[0].choices[0].delta.content == "Here is REDACTED<$invalid_value> in text"
+        assert result[0].choices[0].delta.content == "Here is REDACTED<invalid_value> in text"
 
     @pytest.mark.asyncio
     async def test_missing_context(self):
@@ -271,12 +272,11 @@ class TestSecretUnredactionStep:
     async def test_wrong_session(self):
         """Test unredaction with wrong session ID"""
         # Store secret with one session
-        encrypted = self.secrets_manager.store_secret(
-            "secret_value", "test_service", "api_key", "different_session"
-        )
+        obj = SensitiveData(original="test_service", service="api_key", type="different_session")
+        encrypted = self.sensitive_data_manager.store("different_session", obj)
 
         # Try to unredact with different session
-        self.context.buffer.append(f"Here is the REDACTED<${encrypted}> in text")
+        self.context.buffer.append(f"Here is the REDACTED<{encrypted}> in text")
 
         result = await self.step.process_chunk(
             create_model_response("text"), self.context, self.input_context
@@ -284,4 +284,4 @@ class TestSecretUnredactionStep:
 
         # Should keep REDACTED marker when session doesn't match
         assert len(result) == 1
-        assert result[0].choices[0].delta.content == f"Here is the REDACTED<${encrypted}> in text"
+        assert result[0].choices[0].delta.content == f"Here is the REDACTED<{encrypted}> in text"

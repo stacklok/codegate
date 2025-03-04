@@ -747,6 +747,38 @@ class DbReader(DbCodeGate):
         )
         return prompts
 
+    async def get_alerts_summary_by_workspace(self, workspace_id: str) -> dict:
+        """Get aggregated alert summary counts for a given workspace_id."""
+        sql = text(
+            """
+            SELECT
+                COUNT(*) AS total_alerts,
+                SUM(CASE WHEN a.trigger_type = 'codegate-secrets' THEN 1 ELSE 0 END)
+                AS codegate_secrets_count,
+                SUM(CASE WHEN a.trigger_type = 'codegate-context-retriever' THEN 1 ELSE 0 END)
+                AS codegate_context_retriever_count,
+                SUM(CASE WHEN a.trigger_type = 'codegate-pii' THEN 1 ELSE 0 END)
+                AS codegate_pii_count
+            FROM alerts a
+            INNER JOIN prompts p ON p.id = a.prompt_id
+            WHERE p.workspace_id = :workspace_id
+            """
+        )
+        conditions = {"workspace_id": workspace_id}
+
+        async with self._async_db_engine.begin() as conn:
+            result = await conn.execute(sql, conditions)
+            row = result.fetchone()
+
+        # Return a dictionary with counts (handling None values safely)
+        return {
+            "codegate_secrets_count": row.codegate_secrets_count or 0 if row else 0,
+            "codegate_context_retriever_count": (
+                row.codegate_context_retriever_count or 0 if row else 0
+            ),
+            "codegate_pii_count": row.codegate_pii_count or 0 if row else 0,
+        }
+
     async def get_workspaces(self) -> List[WorkspaceWithSessionInfo]:
         sql = text(
             """

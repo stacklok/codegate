@@ -1,4 +1,5 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
+import uuid
 
 import regex as re
 import structlog
@@ -6,13 +7,15 @@ from litellm import ChatCompletionRequest, ChatCompletionSystemMessage, ModelRes
 from litellm.types.utils import Delta, StreamingChoices
 
 from codegate.config import Config
+from codegate.db.models import AlertSeverity
 from codegate.pipeline.base import (
     PipelineContext,
     PipelineResult,
     PipelineStep,
 )
 from codegate.pipeline.output import OutputPipelineContext, OutputPipelineStep
-from codegate.pipeline.pii.manager import PiiManager
+from codegate.pipeline.pii.analyzer import PiiAnalyzer
+from codegate.pipeline.sensitive_data.manager import SensitiveData, SensitiveDataManager
 from codegate.pipeline.systemmsg import add_or_update_system_message
 
 logger = structlog.get_logger("codegate")
@@ -25,7 +28,7 @@ class CodegatePii(PipelineStep):
 
     Methods:
         __init__:
-            Initializes the CodegatePii pipeline step and sets up the PiiManager.
+            Initializes the CodegatePii pipeline step and sets up the SensitiveDataManager.
 
         name:
             Returns the name of the pipeline step.
@@ -37,14 +40,15 @@ class CodegatePii(PipelineStep):
             Processes the chat completion request to detect and redact PII. Updates the request with
             anonymized text and stores PII details in the context metadata.
 
-        restore_pii(anonymized_text: str) -> str:
-            Restores the original PII from the anonymized text using the PiiManager.
+        restore_pii(session_id: str, anonymized_text: str) -> str:
+            Restores the original PII from the anonymized text using the SensitiveDataManager.
     """
 
-    def __init__(self):
+    def __init__(self, sensitive_data_manager: SensitiveDataManager):
         """Initialize the CodegatePii pipeline step."""
         super().__init__()
-        self.pii_manager = PiiManager()
+        self.sensitive_data_manager = sensitive_data_manager
+        self.analyzer = PiiAnalyzer.get_instance()
 
     @property
     def name(self) -> str:
@@ -65,6 +69,68 @@ class CodegatePii(PipelineStep):
 
         return message[start:end]
 
+    def process_results(
+        self, session_id: str, text: str, results: List, context: PipelineContext
+    ) -> Tuple[List, str]:
+        # Track found PII
+        found_pii = []
+
+        # Log each found PII instance and anonymize
+        anonymized_text = text
+        for result in results:
+            pii_value = text[result.start : result.end]
+
+            # add to session store
+            obj = SensitiveData(original=pii_value, service="pii", type=result.entity_type)
+            uuid_placeholder = self.sensitive_data_manager.store(session_id, obj)
+            anonymized_text = anonymized_text.replace(pii_value, uuid_placeholder)
+
+            # Add to found PII list
+            pii_info = {
+                "type": result.entity_type,
+                "value": pii_value,
+                "score": result.score,
+                "start": result.start,
+                "end": result.end,
+                "uuid_placeholder": uuid_placeholder,
+            }
+            found_pii.append(pii_info)
+
+            # Log each PII detection with its UUID mapping
+            logger.info(
+                "PII detected and mapped",
+                pii_type=result.entity_type,
+                score=f"{result.score:.2f}",
+                uuid=uuid_placeholder,
+                # Don't log the actual PII value for security
+                value_length=len(pii_value),
+                session_id=session_id,
+            )
+
+        # Log summary of all PII found in this analysis
+        if found_pii and context:
+            # Create notification string for alert
+            notify_string = (
+                f"**PII Detected** 🔒\n"
+                f"- Total PII Found: {len(found_pii)}\n"
+                f"- Types Found: {', '.join(set(p['type'] for p in found_pii))}\n"
+            )
+            context.add_alert(
+                self.name,
+                trigger_string=notify_string,
+                severity_category=AlertSeverity.CRITICAL,
+            )
+
+            logger.info(
+                "PII analysis complete",
+                total_pii_found=len(found_pii),
+                pii_types=[p["type"] for p in found_pii],
+                session_id=session_id,
+            )
+
+        # Return the anonymized text, PII details, and session store
+        return found_pii, anonymized_text
+
     async def process(
         self, request: ChatCompletionRequest, context: PipelineContext
     ) -> PipelineResult:
@@ -75,23 +141,28 @@ class CodegatePii(PipelineStep):
         total_pii_found = 0
         all_pii_details: List[Dict[str, Any]] = []
         last_redacted_text = ""
+        session_id = context.sensitive.session_id
 
         for i, message in enumerate(new_request["messages"]):
             if "content" in message and message["content"]:
                 # This is where analyze and anonymize the text
                 original_text = str(message["content"])
-                anonymized_text, pii_details = self.pii_manager.analyze(original_text, context)
+                results = self.analyzer.analyze(original_text, context)
+                if results:
+                    pii_details, anonymized_text = self.process_results(
+                        session_id, original_text, results, context
+                    )
 
-                if pii_details:
-                    total_pii_found += len(pii_details)
-                    all_pii_details.extend(pii_details)
-                    new_request["messages"][i]["content"] = anonymized_text
+                    if pii_details:
+                        total_pii_found += len(pii_details)
+                        all_pii_details.extend(pii_details)
+                        new_request["messages"][i]["content"] = anonymized_text
 
-                    # If this is a user message, grab the redacted snippet!
-                    if message.get("role") == "user":
-                        last_redacted_text = self._get_redacted_snippet(
-                            anonymized_text, pii_details
-                        )
+                        # If this is a user message, grab the redacted snippet!
+                        if message.get("role") == "user":
+                            last_redacted_text = self._get_redacted_snippet(
+                                anonymized_text, pii_details
+                            )
 
         logger.info(f"Total PII instances redacted: {total_pii_found}")
 
@@ -99,9 +170,10 @@ class CodegatePii(PipelineStep):
         context.metadata["redacted_pii_count"] = total_pii_found
         context.metadata["redacted_pii_details"] = all_pii_details
         context.metadata["redacted_text"] = last_redacted_text
+        context.metadata["session_id"] = session_id
 
         if total_pii_found > 0:
-            context.metadata["pii_manager"] = self.pii_manager
+            context.metadata["sensitive_data_manager"] = self.sensitive_data_manager
 
             system_message = ChatCompletionSystemMessage(
                 content=Config.get_config().prompts.pii_redacted,
@@ -113,8 +185,31 @@ class CodegatePii(PipelineStep):
 
         return PipelineResult(request=new_request, context=context)
 
-    def restore_pii(self, anonymized_text: str) -> str:
-        return self.pii_manager.restore_pii(anonymized_text)
+    def restore_pii(self, session_id: str, anonymized_text: str) -> str:
+        """
+        Restore the original PII (Personally Identifiable Information) in the given anonymized text.
+
+        This method replaces placeholders in the anonymized text with their corresponding original
+        PII values using the mappings stored in the provided SessionStore.
+
+        Args:
+            anonymized_text (str): The text containing placeholders for PII.
+            session_id (str): The session id containing mappings of placeholders
+            to original PII.
+
+        Returns:
+            str: The text with the original PII restored.
+        """
+        session_data = self.sensitive_data_manager.get_by_session_id(session_id)
+        if not session_data:
+            logger.warning(
+                "No active PII session found for given session ID. Unable to restore PII."
+            )
+            return anonymized_text
+
+        for uuid_placeholder, original_pii in session_data.items():
+            anonymized_text = anonymized_text.replace(uuid_placeholder, original_pii)
+        return anonymized_text
 
 
 class PiiUnRedactionStep(OutputPipelineStep):
@@ -136,12 +231,12 @@ class PiiUnRedactionStep(OutputPipelineStep):
     """
 
     def __init__(self):
-        self.redacted_pattern = re.compile(r"<([0-9a-f-]{0,36})>")
+        self.redacted_pattern = re.compile(r"#([0-9a-f-]{0,36})#")
         self.complete_uuid_pattern = re.compile(
             r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
         )  # noqa: E501
-        self.marker_start = "<"
-        self.marker_end = ">"
+        self.marker_start = "#"
+        self.marker_end = "#"
 
     @property
     def name(self) -> str:
@@ -151,7 +246,7 @@ class PiiUnRedactionStep(OutputPipelineStep):
         """Check if the string is a complete UUID"""
         return bool(self.complete_uuid_pattern.match(uuid_str))
 
-    async def process_chunk(
+    async def process_chunk(  # noqa: C901
         self,
         chunk: ModelResponse,
         context: OutputPipelineContext,
@@ -162,6 +257,10 @@ class PiiUnRedactionStep(OutputPipelineStep):
             return [chunk]
 
         content = chunk.choices[0].delta.content
+        session_id = input_context.sensitive.session_id
+        if not session_id:
+            logger.error("Could not get any session id, cannot process pii")
+            return [chunk]
 
         # Add current chunk to buffer
         if context.prefix_buffer:
@@ -172,13 +271,13 @@ class PiiUnRedactionStep(OutputPipelineStep):
         current_pos = 0
         result = []
         while current_pos < len(content):
-            start_idx = content.find("<", current_pos)
+            start_idx = content.find(self.marker_start, current_pos)
             if start_idx == -1:
                 # No more markers!, add remaining content
                 result.append(content[current_pos:])
                 break
 
-            end_idx = content.find(">", start_idx)
+            end_idx = content.find(self.marker_end, start_idx + 1)
             if end_idx == -1:
                 # Incomplete marker, buffer the rest
                 context.prefix_buffer = content[current_pos:]
@@ -190,16 +289,18 @@ class PiiUnRedactionStep(OutputPipelineStep):
 
             # Extract potential UUID if it's a valid format!
             uuid_marker = content[start_idx : end_idx + 1]
-            uuid_value = uuid_marker[1:-1]  # Remove < >
+            uuid_value = uuid_marker[1:-1]  # Remove # #
 
             if self._is_complete_uuid(uuid_value):
                 # Get the PII manager from context metadata
                 logger.debug(f"Valid UUID found: {uuid_value}")
-                pii_manager = input_context.metadata.get("pii_manager") if input_context else None
-                if pii_manager and pii_manager.session_store:
+                sensitive_data_manager = (
+                    input_context.metadata.get("sensitive_data_manager") if input_context else None
+                )
+                if sensitive_data_manager and sensitive_data_manager.session_store:
                     # Restore original value from PII manager
                     logger.debug("Attempting to restore PII from UUID marker")
-                    original = pii_manager.session_store.get_pii(uuid_marker)
+                    original = sensitive_data_manager.get_original_value(session_id, uuid_marker)
                     logger.debug(f"Restored PII: {original}")
                     result.append(original)
                 else:
