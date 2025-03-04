@@ -1,9 +1,12 @@
 import asyncio
 import json
+import sqlite3
 import uuid
 from pathlib import Path
 from typing import Dict, List, Optional, Type
 
+import numpy as np
+import sqlite_vec_sl_tmp
 import structlog
 from alembic import command as alembic_command
 from alembic.config import Config as AlembicConfig
@@ -22,6 +25,9 @@ from codegate.db.models import (
     IntermediatePromptWithOutputUsageAlerts,
     MuxRule,
     Output,
+    Persona,
+    PersonaDistance,
+    PersonaEmbedding,
     Prompt,
     ProviderAuthMaterial,
     ProviderEndpoint,
@@ -65,7 +71,7 @@ class DbCodeGate:
         # It should only be used for testing
         if "_no_singleton" in kwargs and kwargs["_no_singleton"]:
             kwargs.pop("_no_singleton")
-            return super().__new__(cls, *args, **kwargs)
+            return super().__new__(cls)
 
         if cls._instance is None:
             cls._instance = super().__new__(cls)
@@ -91,6 +97,22 @@ class DbCodeGate:
                 "isolation_level": "AUTOCOMMIT",  # Required for SQLite
             }
             self._async_db_engine = create_async_engine(**engine_dict)
+
+    def _get_vec_db_connection(self):
+        """
+        Vector database connection is a separate connection to the SQLite database. aiosqlite
+        does not support loading extensions, so we need to use the sqlite3 module to load the
+        vector extension.
+        """
+        try:
+            conn = sqlite3.connect(self._db_path)
+            conn.enable_load_extension(True)
+            sqlite_vec_sl_tmp.load(conn)
+            conn.enable_load_extension(False)
+            return conn
+        except Exception:
+            logger.exception("Failed to initialize vector database connection")
+            raise
 
     def does_db_exist(self):
         return self._db_path.is_file()
@@ -523,6 +545,30 @@ class DbRecorder(DbCodeGate):
         added_mux = await self._execute_update_pydantic_model(mux, sql, should_raise=True)
         return added_mux
 
+    async def add_persona(self, persona: PersonaEmbedding) -> None:
+        """Add a new Persona to the DB.
+
+        This handles validation and insertion of a new persona.
+
+        It may raise a AlreadyExistsError if the persona already exists.
+        """
+        sql = text(
+            """
+            INSERT INTO personas (id, name, description, description_embedding)
+            VALUES (:id, :name, :description, :description_embedding)
+            """
+        )
+
+        try:
+            # For Pydantic we convert the numpy array to string when serializing with .model_dumpy()
+            # We need to convert it back to a numpy array before inserting it into the DB.
+            persona_dict = persona.model_dump()
+            persona_dict["description_embedding"] = persona.description_embedding
+            await self._execute_with_no_return(sql, persona_dict)
+        except IntegrityError as e:
+            logger.debug(f"Exception type: {type(e)}")
+            raise AlreadyExistsError(f"Persona '{persona.name}' already exists.")
+
 
 class DbReader(DbCodeGate):
     def __init__(self, sqlite_path: Optional[str] = None, *args, **kwargs):
@@ -568,6 +614,20 @@ class DbReader(DbCodeGate):
                 if should_raise:
                     raise e
                 return None
+
+    async def _exec_vec_db_query_to_pydantic(
+        self, sql_command: str, conditions: dict, model_type: Type[BaseModel]
+    ) -> List[BaseModel]:
+        """
+        Execute a query on the vector database. This is a separate connection to the SQLite
+        database that has the vector extension loaded.
+        """
+        conn = self._get_vec_db_connection()
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        results = [model_type(**row) for row in cursor.execute(sql_command, conditions)]
+        conn.close()
+        return results
 
     async def get_prompts_with_output(self, workpace_id: str) -> List[GetPromptWithOutputsRow]:
         sql = text(
@@ -892,6 +952,45 @@ class DbReader(DbCodeGate):
             MuxRule, sql, conditions, should_raise=True
         )
         return muxes
+
+    async def get_persona_by_name(self, persona_name: str) -> Optional[Persona]:
+        """
+        Get a persona by name.
+        """
+        sql = text(
+            """
+            SELECT
+                id, name, description
+            FROM personas
+            WHERE name = :name
+            """
+        )
+        conditions = {"name": persona_name}
+        personas = await self._exec_select_conditions_to_pydantic(
+            Persona, sql, conditions, should_raise=True
+        )
+        return personas[0] if personas else None
+
+    async def get_distance_to_persona(
+        self, persona_id: str, query_embedding: np.ndarray
+    ) -> PersonaDistance:
+        """
+        Get the distance between a persona and a query embedding.
+        """
+        sql = """
+            SELECT
+                id,
+                name,
+                description,
+                vec_distance_cosine(description_embedding, :query_embedding) as distance
+            FROM personas
+            WHERE id = :id
+        """
+        conditions = {"id": persona_id, "query_embedding": query_embedding}
+        persona_distance = await self._exec_vec_db_query_to_pydantic(
+            sql, conditions, PersonaDistance
+        )
+        return persona_distance[0]
 
 
 def init_db_sync(db_path: Optional[str] = None):
