@@ -570,10 +570,7 @@ class DbReader(DbCodeGate):
                     raise e
                 return None
 
-    async def get_prompts_with_output(self, prompt_ids: List[str]) -> List[GetPromptWithOutputsRow]:
-        if not prompt_ids:
-            return []
-
+    async def get_prompts_with_output(self, workpace_id: str) -> List[GetPromptWithOutputsRow]:
         sql = text(
             """
             SELECT
@@ -587,12 +584,11 @@ class DbReader(DbCodeGate):
                 o.output_cost
             FROM prompts p
             LEFT JOIN outputs o ON p.id = o.prompt_id
-            WHERE (p.id IN :prompt_ids)
+            WHERE p.workspace_id = :workspace_id
             ORDER BY o.timestamp DESC
             """
-        ).bindparams(bindparam("prompt_ids", expanding=True))
-
-        conditions = {"prompt_ids": prompt_ids if prompt_ids else None}
+        )
+        conditions = {"workspace_id": workpace_id}
         prompts = await self._exec_select_conditions_to_pydantic(
             GetPromptWithOutputsRow, sql, conditions, should_raise=True
         )
@@ -680,11 +676,7 @@ class DbReader(DbCodeGate):
                 return 0  # Return 0 in case of failure to avoid crashes
 
     async def get_alerts_by_workspace(
-        self,
-        workspace_id: str,
-        trigger_category: Optional[str] = None,
-        limit: int = API_DEFAULT_PAGE_SIZE,
-        offset: int = 0,
+        self, workspace_id: str, trigger_category: Optional[str] = None
     ) -> List[Alert]:
         sql = text(
             """
@@ -707,13 +699,12 @@ class DbReader(DbCodeGate):
             sql = text(sql.text + " AND a.trigger_category = :trigger_category")
             conditions["trigger_category"] = trigger_category
 
-        sql = text(sql.text + " ORDER BY a.timestamp DESC LIMIT :limit OFFSET :offset")
-        conditions["limit"] = limit
-        conditions["offset"] = offset
+        sql = text(sql.text + " ORDER BY a.timestamp DESC")
 
-        return await self._exec_select_conditions_to_pydantic(
+        prompts = await self._exec_select_conditions_to_pydantic(
             Alert, sql, conditions, should_raise=True
         )
+        return prompts
 
     async def get_workspaces(self) -> List[WorkspaceWithSessionInfo]:
         sql = text(

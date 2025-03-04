@@ -379,11 +379,7 @@ async def hard_delete_workspace(workspace_name: str):
     tags=["Workspaces"],
     generate_unique_id_function=uniq_name,
 )
-async def get_workspace_alerts(
-    workspace_name: str,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(API_DEFAULT_PAGE_SIZE, get=1, le=API_MAX_PAGE_SIZE),
-) -> List[v1_models.AlertConversation]:
+async def get_workspace_alerts(workspace_name: str) -> List[Optional[v1_models.AlertConversation]]:
     """Get alerts for a workspace."""
     try:
         ws = await wscrud.get_workspace_by_name(workspace_name)
@@ -393,28 +389,13 @@ async def get_workspace_alerts(
         logger.exception("Error while getting workspace")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-    offset = (page - 1) * page_size
-    fetched_alerts = []
-
-    while len(fetched_alerts) < page_size:
-        alerts_batch = await dbreader.get_alerts_by_workspace(
-            ws.id, AlertSeverity.CRITICAL.value, page_size, offset
-        )
-        if not alerts_batch:
-            break
-
-        dedup_alerts = await v1_processing.remove_duplicate_alerts(alerts_batch)
-        fetched_alerts.extend(dedup_alerts)
-        offset += page_size
-
-    final_alerts = fetched_alerts[:page_size]
-
-    prompt_ids = list({alert.prompt_id for alert in final_alerts if alert.prompt_id})
-    prompts_outputs = await dbreader.get_prompts_with_output(prompt_ids)
-    alert_conversations = await v1_processing.parse_get_alert_conversation(
-        final_alerts, prompts_outputs
-    )
-    return alert_conversations
+    try:
+        alerts = await dbreader.get_alerts_by_workspace(ws.id, AlertSeverity.CRITICAL.value)
+        prompts_outputs = await dbreader.get_prompts_with_output(ws.id)
+        return await v1_processing.parse_get_alert_conversation(alerts, prompts_outputs)
+    except Exception:
+        logger.exception("Error while getting alerts and messages")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @v1.get(
