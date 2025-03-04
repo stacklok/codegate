@@ -8,7 +8,7 @@ import structlog
 from alembic import command as alembic_command
 from alembic.config import Config as AlembicConfig
 from pydantic import BaseModel
-from sqlalchemy import CursorResult, TextClause, bindparam, event, text
+from sqlalchemy import CursorResult, TextClause, event, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -634,10 +634,10 @@ class DbReader(DbCodeGate):
         conditions["limit"] = limit
         conditions["offset"] = offset
 
-        fetched_rows: List[
-            IntermediatePromptWithOutputUsageAlerts
-        ] = await self._exec_select_conditions_to_pydantic(
-            IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
+        fetched_rows: List[IntermediatePromptWithOutputUsageAlerts] = (
+            await self._exec_select_conditions_to_pydantic(
+                IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
+            )
         )
         prompts_dict: Dict[str, GetPromptWithOutputsRow] = {}
         for row in fetched_rows:
