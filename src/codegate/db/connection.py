@@ -639,10 +639,10 @@ class DbReader(DbCodeGate):
             sql = sql.bindparams(bindparam("filter_ids", expanding=True))
             conditions["filter_ids"] = filter_by_ids
 
-        fetched_rows: List[
-            IntermediatePromptWithOutputUsageAlerts
-        ] = await self._exec_select_conditions_to_pydantic(
-            IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
+        fetched_rows: List[IntermediatePromptWithOutputUsageAlerts] = (
+            await self._exec_select_conditions_to_pydantic(
+                IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
+            )
         )
 
         prompts_dict: Dict[str, GetPromptWithOutputsRow] = {}
