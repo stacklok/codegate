@@ -627,10 +627,10 @@ class DbReader(DbCodeGate):
         conditions["limit"] = limit
         conditions["offset"] = offset
 
-        fetched_rows: List[
-            IntermediatePromptWithOutputUsageAlerts
-        ] = await self._exec_select_conditions_to_pydantic(
-            IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
+        fetched_rows: List[IntermediatePromptWithOutputUsageAlerts] = (
+            await self._exec_select_conditions_to_pydantic(
+                IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
+            )
         )
         prompts_dict: Dict[str, GetPromptWithOutputsRow] = {}
         for row in fetched_rows:
@@ -671,7 +671,7 @@ class DbReader(DbCodeGate):
         """Get total count of messages for a given workspace_id, considering trigger_category."""
         sql = text(
             """
-            SELECT COUNT(*) 
+            SELECT COUNT(*)
             FROM prompts p
             LEFT JOIN alerts a ON p.id = a.prompt_id
             WHERE p.workspace_id = :workspace_id
