@@ -418,7 +418,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/FullWorkspace-Input"
+                "$ref": "#/components/schemas/CreateOrRenameWorkspaceRequest"
               }
             }
           },
@@ -430,7 +430,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FullWorkspace-Output"
+                  "$ref": "#/components/schemas/Workspace"
                 }
               }
             }
@@ -522,58 +522,6 @@
       }
     },
     "/api/v1/workspaces/{workspace_name}": {
-      "put": {
-        "tags": [
-          "CodeGate API",
-          "Workspaces"
-        ],
-        "summary": "Update Workspace",
-        "description": "Update a workspace.",
-        "operationId": "v1_update_workspace",
-        "parameters": [
-          {
-            "name": "workspace_name",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Workspace Name"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/FullWorkspace-Input"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FullWorkspace-Output"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
       "delete": {
         "tags": [
           "CodeGate API",
@@ -1573,6 +1521,40 @@
         "title": "Conversation",
         "description": "Represents a conversation."
       },
+      "CreateOrRenameWorkspaceRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rename_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rename To"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "CreateOrRenameWorkspaceRequest"
+      },
       "CustomInstructions": {
         "properties": {
           "prompt": {
@@ -1585,52 +1567,6 @@
           "prompt"
         ],
         "title": "CustomInstructions"
-      },
-      "FullWorkspace-Input": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "config": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/WorkspaceConfig-Input"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "type": "object",
-        "required": [
-          "name"
-        ],
-        "title": "FullWorkspace"
-      },
-      "FullWorkspace-Output": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "config": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/WorkspaceConfig-Output"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "type": "object",
-        "required": [
-          "name"
-        ],
-        "title": "FullWorkspace"
       },
       "HTTPValidationError": {
         "properties": {
@@ -1978,11 +1914,11 @@
         ],
         "title": "Workspace"
       },
-      "WorkspaceConfig-Input": {
+      "WorkspaceConfig": {
         "properties": {
-          "custom_instructions": {
+          "system_prompt": {
             "type": "string",
-            "title": "Custom Instructions"
+            "title": "System Prompt"
           },
           "muxing_rules": {
             "items": {
@@ -1994,28 +1930,7 @@
         },
         "type": "object",
         "required": [
-          "custom_instructions",
-          "muxing_rules"
-        ],
-        "title": "WorkspaceConfig"
-      },
-      "WorkspaceConfig-Output": {
-        "properties": {
-          "custom_instructions": {
-            "type": "string",
-            "title": "Custom Instructions"
-          },
-          "muxing_rules": {
-            "items": {
-              "$ref": "#/components/schemas/MuxRule"
-            },
-            "type": "array",
-            "title": "Muxing Rules"
-          }
-        },
-        "type": "object",
-        "required": [
-          "custom_instructions",
+          "system_prompt",
           "muxing_rules"
         ],
         "title": "WorkspaceConfig"
