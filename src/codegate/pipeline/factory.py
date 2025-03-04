@@ -12,18 +12,18 @@ from codegate.pipeline.pii.pii import (
     PiiRedactionNotifier,
     PiiUnRedactionStep,
 )
-from codegate.pipeline.secrets.manager import SecretsManager
 from codegate.pipeline.secrets.secrets import (
     CodegateSecrets,
     SecretRedactionNotifier,
     SecretUnredactionStep,
 )
+from codegate.pipeline.sensitive_data.manager import SensitiveDataManager
 from codegate.pipeline.system_prompt.codegate import SystemPrompt
 
 
 class PipelineFactory:
-    def __init__(self, secrets_manager: SecretsManager):
-        self.secrets_manager = secrets_manager
+    def __init__(self, sensitive_data_manager: SensitiveDataManager):
+        self.sensitive_data_manager = sensitive_data_manager
 
     def create_input_pipeline(self, client_type: ClientType) -> SequentialPipelineProcessor:
         input_steps: List[PipelineStep] = [
@@ -32,7 +32,7 @@ class PipelineFactory:
             # and without obfuscating the secrets, we'd leak the secrets during those
             # later steps
             CodegateSecrets(),
-            CodegatePii(),
+            CodegatePii(self.sensitive_data_manager),
             CodegateCli(),
             CodegateContextRetriever(),
             SystemPrompt(
@@ -41,7 +41,7 @@ class PipelineFactory:
         ]
         return SequentialPipelineProcessor(
             input_steps,
-            self.secrets_manager,
+            self.sensitive_data_manager,
             client_type,
             is_fim=False,
         )
@@ -49,11 +49,11 @@ class PipelineFactory:
     def create_fim_pipeline(self, client_type: ClientType) -> SequentialPipelineProcessor:
         fim_steps: List[PipelineStep] = [
             CodegateSecrets(),
-            CodegatePii(),
+            CodegatePii(self.sensitive_data_manager),
         ]
         return SequentialPipelineProcessor(
             fim_steps,
-            self.secrets_manager,
+            self.sensitive_data_manager,
             client_type,
             is_fim=True,
         )

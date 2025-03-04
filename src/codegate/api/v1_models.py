@@ -190,6 +190,16 @@ class Alert(pydantic.BaseModel):
     timestamp: datetime.datetime
 
 
+class AlertSummary(pydantic.BaseModel):
+    """
+    Represents a set of summary alerts
+    """
+
+    malicious_packages: int
+    pii: int
+    secrets: int
+
+
 class PartialQuestionAnswer(pydantic.BaseModel):
     """
     Represents a partial conversation.

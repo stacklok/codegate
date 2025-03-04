@@ -2,7 +2,8 @@ import datetime
 from enum import Enum
 from typing import Annotated, Any, Dict, List, Optional
 
-from pydantic import BaseModel, StringConstraints
+import numpy as np
+from pydantic import BaseModel, BeforeValidator, ConfigDict, PlainSerializer, StringConstraints
 
 
 class AlertSeverity(str, Enum):
@@ -240,3 +241,58 @@ class MuxRule(BaseModel):
     priority: int
     created_at: Optional[datetime.datetime] = None
     updated_at: Optional[datetime.datetime] = None
+
+
+def nd_array_custom_before_validator(x):
+    # custome before validation logic
+    return x
+
+
+def nd_array_custom_serializer(x):
+    # custome serialization logic
+    return str(x)
+
+
+# Pydantic doesn't support numpy arrays out of the box hence we need to construct a custom type.
+# There are 2 things necessary for a Pydantic custom type: Validator and Serializer
+# The lines below build our custom type
+# Docs: https://docs.pydantic.dev/latest/concepts/types/#adding-validation-and-serialization
+# Open Pydantic issue for npy support: https://github.com/pydantic/pydantic/issues/7017
+NdArray = Annotated[
+    np.ndarray,
+    BeforeValidator(nd_array_custom_before_validator),
+    PlainSerializer(nd_array_custom_serializer, return_type=str),
+]
+
+
+class Persona(BaseModel):
+    """
+    Represents a persona object.
+    """
+
+    id: str
+    name: str
+    description: str
+
+
+class PersonaEmbedding(Persona):
+    """
+    Represents a persona object with an embedding.
+    """
+
+    description_embedding: NdArray
+
+    # Part of the workaround to allow numpy arrays in pydantic models
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
+class PersonaDistance(Persona):
+    """
+    Result of an SQL query to get the distance between the query and the persona description.
+
+    A vector similarity search is performed to get the distance. Distance values ranges [0, 2].
+    0 means the vectors are identical, 2 means they are orthogonal.
+    See [sqlite docs](https://alexgarcia.xyz/sqlite-vec/api-reference.html#vec_distance_cosine)
+    """
+
+    distance: float

@@ -60,6 +60,9 @@ class Config:
     force_certs: bool = False
 
     max_fim_hash_lifetime: int = 60 * 5  # Time in seconds. Default is 5 minutes.
+    # Min value is 0 (max similarity), max value is 2 (orthogonal)
+    # The value 0.75 was found through experimentation. See /tests/muxing/test_semantic_router.py
+    persona_threshold = 0.75
 
     # Provider URLs with defaults
     provider_urls: Dict[str, str] = field(default_factory=lambda: DEFAULT_PROVIDER_URLS.copy())

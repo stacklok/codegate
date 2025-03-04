@@ -12,34 +12,23 @@ from pydantic import BaseModel
 from codegate.clients.clients import ClientType
 from codegate.db.models import Alert, AlertSeverity, Output, Prompt
 from codegate.extract_snippets.message_extractor import CodeSnippet
-from codegate.pipeline.secrets.manager import SecretsManager
+from codegate.pipeline.sensitive_data.manager import SensitiveDataManager
 
 logger = structlog.get_logger("codegate")
 
 
 @dataclass
 class PipelineSensitiveData:
-    manager: SecretsManager
+    manager: SensitiveDataManager
     session_id: str
-    api_key: Optional[str] = None
     model: Optional[str] = None
-    provider: Optional[str] = None
-    api_base: Optional[str] = None
 
     def secure_cleanup(self):
         """Securely cleanup sensitive data for this session"""
         if self.manager is None or self.session_id == "":
             return
-
         self.manager.cleanup_session(self.session_id)
         self.session_id = ""
-
-        # Securely wipe the API key using the same method as secrets manager
-        if self.api_key is not None:
-            api_key_bytes = bytearray(self.api_key.encode())
-            self.manager.crypto.wipe_bytearray(api_key_bytes)
-            self.api_key = None
-
         self.model = None
 
 
@@ -274,19 +263,19 @@ class InputPipelineInstance:
     def __init__(
         self,
         pipeline_steps: List[PipelineStep],
-        secret_manager: SecretsManager,
+        sensitive_data_manager: SensitiveDataManager,
         is_fim: bool,
         client: ClientType = ClientType.GENERIC,
     ):
         self.pipeline_steps = pipeline_steps
-        self.secret_manager = secret_manager
+        self.sensitive_data_manager = sensitive_data_manager
         self.is_fim = is_fim
         self.context = PipelineContext(client=client)
 
         # we create the sesitive context here so that it is not shared between individual requests
         # TODO: could we get away with just generating the session ID for an instance?
         self.context.sensitive = PipelineSensitiveData(
-            manager=self.secret_manager,
+            manager=self.sensitive_data_manager,
             session_id=str(uuid.uuid4()),
         )
         self.context.metadata["is_fim"] = is_fim
@@ -343,12 +332,12 @@ class SequentialPipelineProcessor:
     def __init__(
         self,
         pipeline_steps: List[PipelineStep],
-        secret_manager: SecretsManager,
+        sensitive_data_manager: SensitiveDataManager,
         client_type: ClientType,
         is_fim: bool,
     ):
         self.pipeline_steps = pipeline_steps
-        self.secret_manager = secret_manager
+        self.sensitive_data_manager = sensitive_data_manager
         self.is_fim = is_fim
         self.instance = self._create_instance(client_type)
 
@@ -356,7 +345,7 @@ class SequentialPipelineProcessor:
         """Create a new pipeline instance for processing a request"""
         return InputPipelineInstance(
             self.pipeline_steps,
-            self.secret_manager,
+            self.sensitive_data_manager,
             self.is_fim,
             client_type,
         )
