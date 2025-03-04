@@ -10,10 +10,8 @@ from httpx import AsyncClient
 from codegate.db import connection
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.crud.crud import ProviderCrud
-from codegate.providers.registry import ProviderRegistry
 from codegate.server import init_app
 from codegate.workspaces.crud import WorkspaceCrud
-from tests.providers.test_registry import MockProvider
 
 logger = structlog.get_logger("codegate")
 
