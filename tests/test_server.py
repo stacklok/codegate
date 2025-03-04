@@ -48,7 +48,14 @@ def mock_pipeline_factory():
 @pytest.fixture
 def test_client(mock_pipeline_factory) -> TestClient:
     """Create a test client for the FastAPI application."""
-    app = init_app(mock_pipeline_factory)
+    app = init_app(mock_pipeline_factory, read_only=False)
+    return TestClient(app)
+
+
+@pytest.fixture
+def test_client_read_only(mock_pipeline_factory) -> TestClient:
+    """Create a test client for the FastAPI application in read-only mode."""
+    app = init_app(mock_pipeline_factory, read_only=True)
     return TestClient(app)
 
 
@@ -58,6 +65,12 @@ def test_app_initialization(mock_pipeline_factory) -> None:
     assert app is not None
     assert app.title == "CodeGate"
     assert app.version == __version__
+    assert hasattr(app, "read_only")
+    assert app.read_only is False
+
+    # Test with read_only=True
+    app_read_only = init_app(mock_pipeline_factory, read_only=True)
+    assert app_read_only.read_only is True
 
 
 def test_cors_middleware(mock_pipeline_factory) -> None:
@@ -94,6 +107,12 @@ def test_version_endpoint(mock_fetch_latest_version, test_client: TestClient) ->
     assert response_data["latest_version"] == "foo"
     assert isinstance(response_data["is_latest"], bool)
     assert response_data["is_latest"] is False
+
+
+def test_version_endpoint_read_only(test_client_read_only: TestClient) -> None:
+    """Test the version endpoint is not available in read-only mode."""
+    response = test_client_read_only.get("/api/v1/version")
+    assert response.status_code == 404  # Should return 404 Not Found in read-only mode
 
 
 @patch("codegate.pipeline.secrets.manager.SecretsManager")
@@ -143,6 +162,21 @@ def test_workspaces_routes(mock_pipeline_factory) -> None:
     # Verify dashboard endpoints are included
     dashboard_routes = [route for route in routes if route.startswith("/api/v1/workspaces")]
     assert len(dashboard_routes) > 0
+
+
+def test_read_only_mode(mock_pipeline_factory) -> None:
+    """Test that v1 API is not included in read-only mode."""
+    # Test with read_only=False (default)
+    app = init_app(mock_pipeline_factory, read_only=False)
+    routes = [route.path for route in app.routes]
+    v1_routes = [route for route in routes if route.startswith("/api/v1")]
+    assert len(v1_routes) > 0
+
+    # Test with read_only=True
+    app_read_only = init_app(mock_pipeline_factory, read_only=True)
+    routes_read_only = [route.path for route in app_read_only.routes]
+    v1_routes_read_only = [route for route in routes_read_only if route.startswith("/api/v1")]
+    assert len(v1_routes_read_only) == 0
 
 
 def test_system_routes(mock_pipeline_factory) -> None:
@@ -467,6 +501,37 @@ def test_serve_certificate_options(cli_runner: CliRunner) -> None:
             assert (
                 getattr(config_arg, key) == expected_value
             ), f"{key} does not match expected value"
+
+
+def test_serve_read_only_mode(cli_runner: CliRunner) -> None:
+    """Test serve command with read-only mode."""
+    with (
+        patch("src.codegate.cli.setup_logging") as mock_setup_logging,
+        patch("src.codegate.cli.init_app") as mock_init_app,
+    ):
+        # Mock the init_app function to return a MagicMock
+        mock_app = MagicMock()
+        mock_init_app.return_value = mock_app
+
+        # Execute CLI command with read-only flag
+        result = cli_runner.invoke(
+            cli,
+            [
+                "serve",
+                "--read-only",
+            ],
+        )
+
+        # Check the result of the command
+        assert result.exit_code == 0
+
+        # Ensure logging setup was called with expected arguments
+        mock_setup_logging.assert_called_once_with("INFO", "JSON")
+
+        # Verify that init_app was called with read_only=True
+        mock_init_app.assert_called_once()
+        _, kwargs = mock_init_app.call_args
+        assert kwargs.get("read_only") is True
 
 
 def test_main_function() -> None:
