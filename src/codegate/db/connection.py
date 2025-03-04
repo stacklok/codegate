@@ -560,7 +560,7 @@ class DbRecorder(DbCodeGate):
         )
 
         try:
-            # For Pydantic we conver the numpy array to a string when serializing.
+            # For Pydantic we convert the numpy array to string when serializing with .model_dumpy()
             # We need to convert it back to a numpy array before inserting it into the DB.
             persona_dict = persona.model_dump()
             persona_dict["description_embedding"] = persona.description_embedding
@@ -615,17 +615,19 @@ class DbReader(DbCodeGate):
                     raise e
                 return None
 
-    async def _exec_vec_db_query(
-        self, sql_command: str, conditions: dict
-    ) -> Optional[CursorResult]:
+    async def _exec_vec_db_query_to_pydantic(
+        self, sql_command: str, conditions: dict, model_type: Type[BaseModel]
+    ) -> List[BaseModel]:
         """
         Execute a query on the vector database. This is a separate connection to the SQLite
         database that has the vector extension loaded.
         """
         conn = self._get_vec_db_connection()
+        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        cursor.execute(sql_command, conditions)
-        return cursor
+        results = [model_type(**row) for row in cursor.execute(sql_command, conditions)]
+        conn.close()
+        return results
 
     async def get_prompts_with_output(self, workpace_id: str) -> List[GetPromptWithOutputsRow]:
         sql = text(
@@ -985,14 +987,10 @@ class DbReader(DbCodeGate):
             WHERE id = :id
         """
         conditions = {"id": persona_id, "query_embedding": query_embedding}
-        persona_distance_cursor = await self._exec_vec_db_query(sql, conditions)
-        persona_distance_raw = persona_distance_cursor.fetchone()
-        return PersonaDistance(
-            id=persona_distance_raw[0],
-            name=persona_distance_raw[1],
-            description=persona_distance_raw[2],
-            distance=persona_distance_raw[3],
+        persona_distance = await self._exec_vec_db_query_to_pydantic(
+            sql, conditions, PersonaDistance
         )
+        return persona_distance[0]
 
 
 def init_db_sync(db_path: Optional[str] = None):

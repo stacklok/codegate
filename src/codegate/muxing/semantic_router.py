@@ -13,6 +13,17 @@ from codegate.inference.inference_engine import LlamaCppInferenceEngine
 logger = structlog.get_logger("codegate")
 
 
+REMOVE_URLS = re.compile(r"https?://\S+|www\.\S+")
+REMOVE_EMAILS = re.compile(r"\S+@\S+")
+REMOVE_CODE_BLOCKS = re.compile(r"```[\s\S]*?```")
+REMOVE_INLINE_CODE = re.compile(r"`[^`]*`")
+REMOVE_HTML_TAGS = re.compile(r"<[^>]+>")
+REMOVE_PUNCTUATION = re.compile(r"[^\w\s\']")
+NORMALIZE_WHITESPACE = re.compile(r"\s+")
+NORMALIZE_DECIMAL_NUMBERS = re.compile(r"\b\d+\.\d+\b")
+NORMALIZE_INTEGER_NUMBERS = re.compile(r"\b\d+\b")
+
+
 class PersonaDoesNotExistError(Exception):
     pass
 
@@ -54,27 +65,27 @@ class SemanticRouter:
         text = "".join([c for c in text if not unicodedata.combining(c)])
 
         # Remove URLs
-        text = re.sub(r"https?://\S+|www\.\S+", " ", text)
+        text = REMOVE_URLS.sub(" ", text)
 
         # Remove email addresses
-        text = re.sub(r"\S+@\S+", " ", text)
+        text = REMOVE_EMAILS.sub(" ", text)
 
         # Remove code block markers and other markdown/code syntax
-        text = re.sub(r"```[\s\S]*?```", " ", text)  # Code blocks
-        text = re.sub(r"`[^`]*`", " ", text)  # Inline code
+        text = REMOVE_CODE_BLOCKS.sub(" ", text)
+        text = REMOVE_INLINE_CODE.sub(" ", text)
 
         # Remove HTML/XML tags
-        text = re.sub(r"<[^>]+>", " ", text)
+        text = REMOVE_HTML_TAGS.sub(" ", text)
 
         # Normalize numbers (replace with placeholder)
-        text = re.sub(r"\b\d+\.\d+\b", " NUM ", text)  # Decimal numbers
-        text = re.sub(r"\b\d+\b", " NUM ", text)  # Integer numbers
+        text = NORMALIZE_DECIMAL_NUMBERS.sub(" NUM ", text)  # Decimal numbers
+        text = NORMALIZE_INTEGER_NUMBERS.sub(" NUM ", text)  # Integer numbers
 
         # Replace punctuation with spaces (keeping apostrophes for contractions)
-        text = re.sub(r"[^\w\s\']", " ", text)
+        text = REMOVE_PUNCTUATION.sub(" ", text)
 
         # Normalize whitespace (replace multiple spaces with a single space)
-        text = re.sub(r"\s+", " ", text)
+        text = NORMALIZE_WHITESPACE.sub(" ", text)
 
         # Convert to lowercase and strip
         text = text.strip()
@@ -91,7 +102,7 @@ class SemanticRouter:
             self._embeddings_model, [cleaned_text], n_gpu_layers=self._n_gpu
         )
         # Use only the first entry in the list and make sure we have the appropriate type
-        logger.debug("Text embedded in semantic routing", text=cleaned_text[:100])
+        logger.debug("Text embedded in semantic routing", text=cleaned_text[:50])
         return np.array(embed_list[0], dtype=np.float32)
 
     async def add_persona(self, persona_name: str, persona_desc: str) -> None:
