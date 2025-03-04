@@ -2,13 +2,13 @@ import asyncio
 import json
 import uuid
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Type
+from typing import Dict, List, Optional, Type
 
 import structlog
 from alembic import command as alembic_command
 from alembic.config import Config as AlembicConfig
 from pydantic import BaseModel
-from sqlalchemy import CursorResult, TextClause, bindparam, event, text
+from sqlalchemy import CursorResult, TextClause, event, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -627,10 +627,10 @@ class DbReader(DbCodeGate):
         conditions["limit"] = limit
         conditions["offset"] = offset
 
-        fetched_rows: List[IntermediatePromptWithOutputUsageAlerts] = (
-            await self._exec_select_conditions_to_pydantic(
-                IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
-            )
+        fetched_rows: List[
+            IntermediatePromptWithOutputUsageAlerts
+        ] = await self._exec_select_conditions_to_pydantic(
+            IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
         )
         prompts_dict: Dict[str, GetPromptWithOutputsRow] = {}
         for row in fetched_rows:
@@ -668,7 +668,7 @@ class DbReader(DbCodeGate):
     async def get_total_messages_count_by_workspace_id(
         self, workspace_id: str, trigger_category: Optional[str] = None
     ) -> int:
-        """Get total count of messages for a given workspace_id, considering trigger_category if provided."""
+        """Get total count of messages for a given workspace_id, considering trigger_category."""
         sql = text(
             """
             SELECT COUNT(*) 

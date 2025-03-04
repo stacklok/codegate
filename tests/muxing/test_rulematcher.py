@@ -51,13 +51,13 @@ def test_catch_all(matcher_blob, thing_to_match):
     [
         (None, [], True),  # Empty filenames and no blob
         (None, ["main.py"], True),  # Empty blob should match
-        (".py", ["main.py"], True),  # Extension match
+        ("*.py", ["main.py"], True),  # Extension match
         ("main.py", ["main.py"], True),  # Full name match
-        (".py", ["main.py", "test.py"], True),  # Extension match
+        ("*.py", ["main.py", "test.py"], True),  # Extension match
         ("main.py", ["main.py", "test.py"], True),  # Full name match
         ("main.py", ["test.py"], False),  # Full name no match
-        (".js", ["main.py", "test.py"], False),  # Extension no match
-        (".ts", ["main.tsx", "test.tsx"], False),  # Extension no match
+        ("*.js", ["main.py", "test.py"], False),  # Extension no match
+        ("*.ts", ["main.tsx", "test.tsx"], False),  # Extension no match
     ],
 )
 def test_file_matcher(
@@ -89,13 +89,13 @@ def test_file_matcher(
     [
         (None, [], True),  # Empty filenames and no blob
         (None, ["main.py"], True),  # Empty blob should match
-        (".py", ["main.py"], True),  # Extension match
+        ("*.py", ["main.py"], True),  # Extension match
         ("main.py", ["main.py"], True),  # Full name match
-        (".py", ["main.py", "test.py"], True),  # Extension match
+        ("*.py", ["main.py", "test.py"], True),  # Extension match
         ("main.py", ["main.py", "test.py"], True),  # Full name match
         ("main.py", ["test.py"], False),  # Full name no match
-        (".js", ["main.py", "test.py"], False),  # Extension no match
-        (".ts", ["main.tsx", "test.tsx"], False),  # Extension no match
+        ("*.js", ["main.py", "test.py"], False),  # Extension no match
+        ("*.ts", ["main.tsx", "test.tsx"], False),  # Extension no match
     ],
 )
 @pytest.mark.parametrize(

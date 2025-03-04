@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 from uuid import UUID
 
 import requests
@@ -8,10 +8,10 @@ from fastapi.responses import StreamingResponse
 from fastapi.routing import APIRoute
 from pydantic import BaseModel, ValidationError
 
-from codegate.config import API_DEFAULT_PAGE_SIZE, API_MAX_PAGE_SIZE
 import codegate.muxing.models as mux_models
 from codegate import __version__
 from codegate.api import v1_models, v1_processing
+from codegate.config import API_DEFAULT_PAGE_SIZE, API_MAX_PAGE_SIZE
 from codegate.db.connection import AlreadyExistsError, DbReader
 from codegate.db.models import AlertSeverity, WorkspaceWithModel
 from codegate.providers import crud as provendcrud
