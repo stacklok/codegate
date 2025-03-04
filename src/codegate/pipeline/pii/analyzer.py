@@ -1,10 +1,9 @@
-from typing import Any, List, Optional
+from typing import List, Optional
 
 import structlog
 from presidio_analyzer import AnalyzerEngine
 from presidio_anonymizer import AnonymizerEngine
 
-from codegate.db.models import AlertSeverity
 from codegate.pipeline.base import PipelineContext
 from codegate.pipeline.sensitive_data.session_store import SessionStore
 

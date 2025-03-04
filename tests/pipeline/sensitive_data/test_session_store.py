@@ -1,5 +1,5 @@
-import uuid
 import pytest
+
 from codegate.pipeline.sensitive_data.session_store import SessionStore
 
 
