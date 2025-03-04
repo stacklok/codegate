@@ -1,7 +1,7 @@
 """migrate to glob pattern
 
 Revision ID: 3ec2b4ab569c
-Revises: 5e5cd2288147
+Revises: 02b710eda156
 Create Date: 2025-03-04 09:34:09.966863+00:00
 
 """
@@ -12,7 +12,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "3ec2b4ab569c"
-down_revision: Union[str, None] = "5e5cd2288147"
+down_revision: Union[str, None] = "02b710eda156"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
