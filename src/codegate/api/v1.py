@@ -398,6 +398,33 @@ async def get_workspace_alerts(workspace_name: str) -> List[Optional[v1_models.A
 
 
 @v1.get(
+    "/workspaces/{workspace_name}/alerts-summary",
+    tags=["Workspaces"],
+    generate_unique_id_function=uniq_name,
+)
+async def get_workspace_alerts_summary(workspace_name: str) -> v1_models.AlertSummary:
+    """Get alert summary for a workspace."""
+    try:
+        ws = await wscrud.get_workspace_by_name(workspace_name)
+    except crud.WorkspaceDoesNotExistError:
+        raise HTTPException(status_code=404, detail="Workspace does not exist")
+    except Exception:
+        logger.exception("Error while getting workspace")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    try:
+        summary = await dbreader.get_alerts_summary_by_workspace(ws.id)
+        return v1_models.AlertSummary(
+            malicious_packages=summary["codegate_context_retriever_count"],
+            pii=summary["codegate_pii_count"],
+            secrets=summary["codegate_secrets_count"],
+        )
+    except Exception:
+        logger.exception("Error while getting alerts summary")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@v1.get(
     "/workspaces/{workspace_name}/messages",
     tags=["Workspaces"],
     generate_unique_id_function=uniq_name,
