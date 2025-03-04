@@ -339,7 +339,7 @@ def serve(  # noqa: C901
 
         # Initialize secrets manager and pipeline factory
         secrets_manager = SecretsManager()
-        pipeline_factory = PipelineFactory(secrets_manager)
+        pipeline_factory = PipelineFactory(secrets_manager, read_only=read_only)
 
         app = init_app(pipeline_factory, read_only=read_only)
 

@@ -98,6 +98,15 @@ def _get_cli_from_continue(last_user_message_str: str) -> Optional[re.Match[str]
 class CodegateCli(PipelineStep):
     """Pipeline step that handles codegate cli."""
 
+    def __init__(self, read_only: bool = False):
+        """
+        Initialize the CodegateCli step.
+
+        Args:
+            read_only: If True, the CLI commands will be disabled
+        """
+        self.read_only = read_only
+
     @property
     def name(self) -> str:
         """
@@ -123,6 +132,10 @@ class CodegateCli(PipelineStep):
             PipelineResult: Contains the response if triggered, otherwise continues
             pipeline
         """
+        # If in read-only mode, don't process CLI commands and just fall through
+        if self.read_only:
+            return PipelineResult(request=request, context=context)
+
         last_user_message = self.get_last_user_message(request)
 
         if last_user_message is not None:

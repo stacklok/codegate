@@ -22,8 +22,9 @@ from codegate.pipeline.system_prompt.codegate import SystemPrompt
 
 
 class PipelineFactory:
-    def __init__(self, secrets_manager: SecretsManager):
+    def __init__(self, secrets_manager: SecretsManager, read_only: bool = False):
         self.secrets_manager = secrets_manager
+        self.read_only = read_only
 
     def create_input_pipeline(self, client_type: ClientType) -> SequentialPipelineProcessor:
         input_steps: List[PipelineStep] = [
@@ -33,7 +34,7 @@ class PipelineFactory:
             # later steps
             CodegateSecrets(),
             CodegatePii(),
-            CodegateCli(),
+            CodegateCli(read_only=self.read_only),
             CodegateContextRetriever(),
             SystemPrompt(
                 Config.get_config().prompts.default_chat, Config.get_config().prompts.client_prompts
