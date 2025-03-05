@@ -71,6 +71,184 @@ def mock_pipeline_factory():
 
 
 @pytest.mark.asyncio
+async def test_get_workspaces(
+    mock_pipeline_factory, mock_workspace_crud, mock_provider_crud
+) -> None:
+    with (
+        patch("codegate.api.v1.wscrud", mock_workspace_crud),
+        patch("codegate.api.v1.pcrud", mock_provider_crud),
+        patch(
+            "codegate.providers.openai.provider.OpenAIProvider.models",
+            return_value=["foo-bar-001", "foo-bar-002"],
+        ),
+    ):
+        """Test getting all workspaces."""
+        app = init_app(mock_pipeline_factory)
+
+        async with AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            # Create a provider for muxing rules
+            provider_payload = {
+                "name": "test-provider",
+                "description": "",
+                "auth_type": "none",
+                "provider_type": "openai",
+                "endpoint": "https://api.openai.com",
+                "api_key": "sk-proj-foo-bar-123-xzy",
+            }
+            response = await ac.post("/api/v1/provider-endpoints", json=provider_payload)
+            assert response.status_code == 201
+            provider = response.json()
+
+            # Create first workspace
+            name_1 = str(uuid())
+            workspace_1 = {
+                "name": name_1,
+                "config": {
+                    "custom_instructions": "Respond in haiku format",
+                    "muxing_rules": [
+                        {
+                            "provider_id": provider["id"],
+                            "model": "foo-bar-001",
+                            "matcher": "*.py",
+                            "matcher_type": "filename_match",
+                        }
+                    ],
+                },
+            }
+            response = await ac.post("/api/v1/workspaces", json=workspace_1)
+            assert response.status_code == 201
+
+            # Create second workspace
+            name_2 = str(uuid())
+            workspace_2 = {
+                "name": name_2,
+                "config": {
+                    "custom_instructions": "Respond in prose",
+                    "muxing_rules": [
+                        {
+                            "provider_id": provider["id"],
+                            "model": "foo-bar-002",
+                            "matcher": "*.js",
+                            "matcher_type": "filename_match",
+                        }
+                    ],
+                },
+            }
+            response = await ac.post("/api/v1/workspaces", json=workspace_2)
+            assert response.status_code == 201
+
+            response = await ac.get("/api/v1/workspaces")
+            assert response.status_code == 200
+            workspaces = response.json()["workspaces"]
+
+            # Verify response structure
+            assert isinstance(workspaces, list)
+            assert len(workspaces) >= 2
+
+            workspace_names = [w["name"] for w in workspaces]
+            assert name_1 in workspace_names
+            assert name_2 in workspace_names
+            assert len([n for n in workspace_names if n in [name_1, name_2]]) == 2
+
+
+@pytest.mark.asyncio
+async def test_get_workspaces_filter_by_provider(
+    mock_pipeline_factory, mock_workspace_crud, mock_provider_crud
+) -> None:
+    with (
+        patch("codegate.api.v1.wscrud", mock_workspace_crud),
+        patch("codegate.api.v1.pcrud", mock_provider_crud),
+        patch(
+            "codegate.providers.openai.provider.OpenAIProvider.models",
+            return_value=["foo-bar-001", "foo-bar-002"],
+        ),
+    ):
+        """Test filtering workspaces by provider ID."""
+        app = init_app(mock_pipeline_factory)
+
+        async with AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            # Create first provider
+            provider_payload_1 = {
+                "name": "provider-1",
+                "description": "",
+                "auth_type": "none",
+                "provider_type": "openai",
+                "endpoint": "https://api.openai.com",
+                "api_key": "sk-proj-foo-bar-123-xyz",
+            }
+            response = await ac.post("/api/v1/provider-endpoints", json=provider_payload_1)
+            assert response.status_code == 201
+            provider_1 = response.json()
+
+            # Create second provider
+            provider_payload_2 = {
+                "name": "provider-2",
+                "description": "",
+                "auth_type": "none",
+                "provider_type": "openai",
+                "endpoint": "https://api.openai.com",
+                "api_key": "sk-proj-foo-bar-456-xyz",
+            }
+            response = await ac.post("/api/v1/provider-endpoints", json=provider_payload_2)
+            assert response.status_code == 201
+            provider_2 = response.json()
+
+            # Create workspace using provider 1
+            workspace_1 = {
+                "name": str(uuid()),
+                "config": {
+                    "custom_instructions": "Instructions 1",
+                    "muxing_rules": [
+                        {
+                            "provider_id": provider_1["id"],
+                            "model": "foo-bar-001",
+                            "matcher": "*.py",
+                            "matcher_type": "filename_match",
+                        }
+                    ],
+                },
+            }
+            response = await ac.post("/api/v1/workspaces", json=workspace_1)
+            assert response.status_code == 201
+
+            # Create workspace using provider 2
+            workspace_2 = {
+                "name": str(uuid()),
+                "config": {
+                    "custom_instructions": "Instructions 2",
+                    "muxing_rules": [
+                        {
+                            "provider_id": provider_2["id"],
+                            "model": "foo-bar-002",
+                            "matcher": "*.js",
+                            "matcher_type": "filename_match",
+                        }
+                    ],
+                },
+            }
+            response = await ac.post("/api/v1/workspaces", json=workspace_2)
+            assert response.status_code == 201
+
+            # Test filtering by provider 1
+            response = await ac.get(f"/api/v1/workspaces?provider_id={provider_1['id']}")
+            assert response.status_code == 200
+            workspaces = response.json()["workspaces"]
+            assert len(workspaces) == 1
+            assert workspaces[0]["name"] == workspace_1["name"]
+
+            # Test filtering by provider 2
+            response = await ac.get(f"/api/v1/workspaces?provider_id={provider_2['id']}")
+            assert response.status_code == 200
+            workspaces = response.json()["workspaces"]
+            assert len(workspaces) == 1
+            assert workspaces[0]["name"] == workspace_2["name"]
+
+
+@pytest.mark.asyncio
 async def test_create_update_workspace_happy_path(
     mock_pipeline_factory, mock_workspace_crud, mock_provider_crud
 ) -> None:
@@ -146,6 +324,10 @@ async def test_create_update_workspace_happy_path(
 
             response = await ac.post("/api/v1/workspaces", json=payload_create)
             assert response.status_code == 201
+
+            # Verify created workspace
+            response = await ac.get(f"/api/v1/workspaces/{name_1}")
+            assert response.status_code == 200
             response_body = response.json()
 
             assert response_body["name"] == name_1
@@ -184,6 +366,10 @@ async def test_create_update_workspace_happy_path(
 
             response = await ac.put(f"/api/v1/workspaces/{name_1}", json=payload_update)
             assert response.status_code == 201
+
+            # Verify updated workspace
+            response = await ac.get(f"/api/v1/workspaces/{name_2}")
+            assert response.status_code == 200
             response_body = response.json()
 
             assert response_body["name"] == name_2
@@ -222,8 +408,15 @@ async def test_create_update_workspace_name_only(
             response = await ac.post("/api/v1/workspaces", json=payload_create)
             assert response.status_code == 201
             response_body = response.json()
-
             assert response_body["name"] == name_1
+
+            # Verify created workspace
+            response = await ac.get(f"/api/v1/workspaces/{name_1}")
+            assert response.status_code == 200
+            response_body = response.json()
+            assert response_body["name"] == name_1
+            assert response_body["config"]["custom_instructions"] == ""
+            assert response_body["config"]["muxing_rules"] == []
 
             name_2: str = str(uuid())
 
@@ -234,8 +427,15 @@ async def test_create_update_workspace_name_only(
             response = await ac.put(f"/api/v1/workspaces/{name_1}", json=payload_update)
             assert response.status_code == 201
             response_body = response.json()
-
             assert response_body["name"] == name_2
+
+            # Verify updated workspace
+            response = await ac.get(f"/api/v1/workspaces/{name_2}")
+            assert response.status_code == 200
+            response_body = response.json()
+            assert response_body["name"] == name_2
+            assert response_body["config"]["custom_instructions"] == ""
+            assert response_body["config"]["muxing_rules"] == []
 
 
 @pytest.mark.asyncio

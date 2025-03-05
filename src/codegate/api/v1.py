@@ -3,7 +3,7 @@ from uuid import UUID
 
 import requests
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import StreamingResponse
 from fastapi.routing import APIRoute
 from pydantic import BaseModel, ValidationError
@@ -12,7 +12,7 @@ import codegate.muxing.models as mux_models
 from codegate import __version__
 from codegate.api import v1_models, v1_processing
 from codegate.db.connection import AlreadyExistsError, DbReader
-from codegate.db.models import AlertSeverity, WorkspaceWithModel
+from codegate.db.models import AlertSeverity
 from codegate.providers import crud as provendcrud
 from codegate.workspaces import crud
 
@@ -209,13 +209,32 @@ async def delete_provider_endpoint(
 
 
 @v1.get("/workspaces", tags=["Workspaces"], generate_unique_id_function=uniq_name)
-async def list_workspaces() -> v1_models.ListWorkspacesResponse:
-    """List all workspaces."""
-    wslist = await wscrud.get_workspaces()
+async def list_workspaces(
+    provider_id: Optional[UUID] = Query(None),
+) -> v1_models.ListWorkspacesResponse:
+    """
+    List all workspaces.
 
-    resp = v1_models.ListWorkspacesResponse.from_db_workspaces_with_sessioninfo(wslist)
+    Args:
+        provider_id (Optional[UUID]): Filter workspaces by provider ID. If provided,
+        will return workspaces where models from the specified provider (e.g., OpenAI,
+        Anthropic) have been used in workspace muxing rules. Note that you must
+        refer to a provider by ID, not by name.
 
-    return resp
+    Returns:
+        ListWorkspacesResponse: A response object containing the list of workspaces.
+    """
+    try:
+        if provider_id:
+            wslist = await wscrud.workspaces_by_provider(provider_id)
+            resp = v1_models.ListWorkspacesResponse.from_db_workspaces(wslist)
+            return resp
+        else:
+            wslist = await wscrud.get_workspaces()
+            resp = v1_models.ListWorkspacesResponse.from_db_workspaces_with_sessioninfo(wslist)
+            return resp
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @v1.get("/workspaces/active", tags=["Workspaces"], generate_unique_id_function=uniq_name)
@@ -584,17 +603,28 @@ async def set_workspace_muxes(
 
 
 @v1.get(
-    "/workspaces/{provider_id}",
+    "/workspaces/{workspace_name}",
     tags=["Workspaces"],
     generate_unique_id_function=uniq_name,
 )
-async def list_workspaces_by_provider(
-    provider_id: UUID,
-) -> List[WorkspaceWithModel]:
+async def get_workspace_by_name(
+    workspace_name: str,
+) -> v1_models.FullWorkspace:
     """List workspaces by provider ID."""
     try:
-        return await wscrud.workspaces_by_provider(provider_id)
+        ws = await wscrud.get_workspace_by_name(workspace_name)
+        muxes = await wscrud.get_muxes(workspace_name)
 
+        return v1_models.FullWorkspace(
+            name=ws.name,
+            config=v1_models.WorkspaceConfig(
+                custom_instructions=ws.custom_instructions or "",
+                muxing_rules=muxes,
+            ),
+        )
+
+    except crud.WorkspaceDoesNotExistError:
+        raise HTTPException(status_code=404, detail="Workspace does not exist")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

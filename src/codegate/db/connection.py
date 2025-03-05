@@ -35,7 +35,6 @@ from codegate.db.models import (
     ProviderModel,
     Session,
     WorkspaceRow,
-    WorkspaceWithModel,
     WorkspaceWithSessionInfo,
 )
 from codegate.db.token_usage import TokenUsageParser
@@ -820,11 +819,13 @@ class DbReader(DbCodeGate):
         )
         return workspaces[0] if workspaces else None
 
-    async def get_workspaces_by_provider(self, provider_id: str) -> List[WorkspaceWithModel]:
+    async def get_workspaces_by_provider(self, provider_id: str) -> List[WorkspaceRow]:
         sql = text(
             """
             SELECT
-                w.id, w.name, m.provider_model_name
+                w.id,
+                w.name,
+                w.custom_instructions
             FROM workspaces w
             JOIN muxes m ON w.id = m.workspace_id
             WHERE m.provider_endpoint_id = :provider_id
@@ -833,7 +834,7 @@ class DbReader(DbCodeGate):
         )
         conditions = {"provider_id": provider_id}
         workspaces = await self._exec_select_conditions_to_pydantic(
-            WorkspaceWithModel, sql, conditions, should_raise=True
+            WorkspaceRow, sql, conditions, should_raise=True
         )
         return workspaces
 

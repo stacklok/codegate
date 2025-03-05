@@ -281,7 +281,9 @@ class WorkspaceCrud:
             raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
         return workspace
 
-    async def workspaces_by_provider(self, provider_id: uuid) -> List[db_models.WorkspaceWithModel]:
+    async def workspaces_by_provider(
+        self, provider_id: uuid
+    ) -> List[db_models.WorkspaceWithSessionInfo]:
         """Get the workspaces by provider."""
 
         workspaces = await self._db_reader.get_workspaces_by_provider(str(provider_id))
