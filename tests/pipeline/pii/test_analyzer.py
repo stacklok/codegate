@@ -1,7 +1,6 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from presidio_analyzer import RecognizerResult
 
 from codegate.pipeline.pii.analyzer import PiiAnalyzer
 
