@@ -316,8 +316,17 @@ class CodegateSecrets(PipelineStep):
         # Process all messages
         for i, message in enumerate(new_request["messages"]):
             if "content" in message and message["content"]:
+                message_content = message["content"]
+
+                # cline with anthropic seems to be sending a list of dicts with type:text instead of
+                # a string
+                # this hack will not be needed once we access the native functions through an API
+                # (I tested this actually)
+                if isinstance(message_content, list) and "text" in message_content[0]:
+                    message_content = message_content[0]["text"]
+
                 redacted_content, secrets_matched = self._redact_message_content(
-                    message["content"], sensitive_data_manager, session_id, context
+                    message_content, sensitive_data_manager, session_id, context
                 )
                 new_request["messages"][i]["content"] = redacted_content
                 if i > last_assistant_idx:
