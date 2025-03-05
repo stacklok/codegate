@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import json
 import sqlite3
 import uuid
@@ -23,6 +24,7 @@ from codegate.db.models import (
     Alert,
     GetPromptWithOutputsRow,
     GetWorkspaceByNameConditions,
+    Instance,
     IntermediatePromptWithOutputUsageAlerts,
     MuxRule,
     Output,
@@ -596,6 +598,27 @@ class DbRecorder(DbCodeGate):
         conditions = {"id": persona_id}
         await self._execute_with_no_return(sql, conditions)
 
+    async def init_instance(self) -> None:
+        """
+        Initializes instance details in the database.
+        """
+        sql = text(
+            """
+            INSERT INTO instance (id, created_at)
+            VALUES (:id, :created_at)
+            """
+        )
+
+        try:
+            instance = Instance(
+                id=str(uuid.uuid4()),
+                created_at=datetime.datetime.now(datetime.timezone.utc),
+            )
+            await self._execute_with_no_return(sql, instance.model_dump())
+        except IntegrityError as e:
+            logger.debug(f"Exception type: {type(e)}")
+            raise AlreadyExistsError(f"Instance already initialized.")
+
 
 class DbReader(DbCodeGate):
     def __init__(self, sqlite_path: Optional[str] = None, *args, **kwargs):
@@ -1098,6 +1121,13 @@ class DbReader(DbCodeGate):
         personas = await self._execute_select_pydantic_model(Persona, sql, should_raise=True)
         return personas
 
+    async def get_instance(self) -> Instance:
+        """
+        Get the details of the instance.
+        """
+        sql = text("SELECT id, created_at FROM instance")
+        return await self._execute_select_pydantic_model(Instance, sql)
+
 
 class DbTransaction:
     def __init__(self):
@@ -1148,8 +1178,6 @@ def init_db_sync(db_path: Optional[str] = None):
 
 
 def init_session_if_not_exists(db_path: Optional[str] = None):
-    import datetime
-
     db_reader = DbReader(db_path)
     sessions = asyncio.run(db_reader.get_sessions())
     # If there are no sessions, create a new one
@@ -1167,6 +1195,20 @@ def init_session_if_not_exists(db_path: Optional[str] = None):
             logger.error(f"Failed to initialize session in DB: {e}")
             return
         logger.info("Session in DB initialized successfully.")
+
+
+def init_instance(db_path: Optional[str] = None):
+    db_reader = DbReader(db_path)
+    instance = asyncio.run(db_reader.get_instance())
+    # Initialize instance if not already initialized.
+    if not instance:
+        db_recorder = DbRecorder(db_path)
+        try:
+            asyncio.run(db_recorder.init_instance())
+        except Exception as e:
+            logger.error(f"Failed to initialize instance in DB: {e}")
+            raise
+        logger.info("Instance initialized successfully.")
 
 
 if __name__ == "__main__":

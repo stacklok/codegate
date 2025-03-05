@@ -120,6 +120,11 @@ class Session(BaseModel):
     last_update: datetime.datetime
 
 
+class Instance(BaseModel):
+    id: str
+    created_at: datetime.datetime
+
+
 # Models for select queries
 
 
