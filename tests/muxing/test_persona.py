@@ -6,10 +6,10 @@ import pytest
 from pydantic import BaseModel
 
 from codegate.db import connection
-from codegate.muxing.semantic_router import (
+from codegate.muxing.persona import (
     PersonaDoesNotExistError,
+    PersonaManager,
     PersonaSimilarDescriptionError,
-    SemanticRouter,
 )
 
 
@@ -40,16 +40,16 @@ def db_reader(db_path) -> connection.DbReader:
 @pytest.fixture()
 def semantic_router_mocked_db(
     db_recorder: connection.DbRecorder, db_reader: connection.DbReader
-) -> SemanticRouter:
+) -> PersonaManager:
     """Creates a SemanticRouter instance with mocked database."""
-    semantic_router = SemanticRouter()
+    semantic_router = PersonaManager()
     semantic_router._db_reader = db_reader
     semantic_router._db_recorder = db_recorder
     return semantic_router
 
 
 @pytest.mark.asyncio
-async def test_add_persona(semantic_router_mocked_db: SemanticRouter):
+async def test_add_persona(semantic_router_mocked_db: PersonaManager):
     """Test adding a persona to the database."""
     persona_name = "test_persona"
     persona_desc = "test_persona_desc"
@@ -60,7 +60,7 @@ async def test_add_persona(semantic_router_mocked_db: SemanticRouter):
 
 
 @pytest.mark.asyncio
-async def test_add_duplicate_persona(semantic_router_mocked_db: SemanticRouter):
+async def test_add_duplicate_persona(semantic_router_mocked_db: PersonaManager):
     """Test adding a persona to the database."""
     persona_name = "test_persona"
     persona_desc = "test_persona_desc"
@@ -73,7 +73,7 @@ async def test_add_duplicate_persona(semantic_router_mocked_db: SemanticRouter):
 
 
 @pytest.mark.asyncio
-async def test_persona_not_exist_match(semantic_router_mocked_db: SemanticRouter):
+async def test_persona_not_exist_match(semantic_router_mocked_db: PersonaManager):
     """Test checking persona match when persona does not exist"""
     persona_name = "test_persona"
     query = "test_query"
@@ -311,7 +311,7 @@ devops_sre = PersonaMatchTest(
     ],
 )
 async def test_check_persona_pass_match(
-    semantic_router_mocked_db: SemanticRouter, persona_match_test: PersonaMatchTest
+    semantic_router_mocked_db: PersonaManager, persona_match_test: PersonaMatchTest
 ):
     """Test checking persona match."""
     await semantic_router_mocked_db.add_persona(
@@ -337,7 +337,7 @@ async def test_check_persona_pass_match(
     ],
 )
 async def test_check_persona_fail_match(
-    semantic_router_mocked_db: SemanticRouter, persona_match_test: PersonaMatchTest
+    semantic_router_mocked_db: PersonaManager, persona_match_test: PersonaMatchTest
 ):
     """Test checking persona match."""
     await semantic_router_mocked_db.add_persona(
@@ -364,7 +364,7 @@ async def test_check_persona_fail_match(
     ],
 )
 async def test_persona_diff_description(
-    semantic_router_mocked_db: SemanticRouter,
+    semantic_router_mocked_db: PersonaManager,
     personas: List[PersonaMatchTest],
 ):
     # First, add all existing personas
@@ -376,3 +376,78 @@ async def test_persona_diff_description(
         await semantic_router_mocked_db.add_persona(
             "repeated persona", last_added_persona.persona_desc
         )
+
+
+@pytest.mark.asyncio
+async def test_update_persona(semantic_router_mocked_db: PersonaManager):
+    """Test updating a persona to the database different name and description."""
+    persona_name = "test_persona"
+    persona_desc = "test_persona_desc"
+    await semantic_router_mocked_db.add_persona(persona_name, persona_desc)
+
+    updated_description = "foo and bar description"
+    await semantic_router_mocked_db.update_persona(
+        persona_name, new_persona_name="new test persona", new_persona_desc=updated_description
+    )
+
+
+@pytest.mark.asyncio
+async def test_update_persona_same_desc(semantic_router_mocked_db: PersonaManager):
+    """Test updating a persona to the database with same description."""
+    persona_name = "test_persona"
+    persona_desc = "test_persona_desc"
+    await semantic_router_mocked_db.add_persona(persona_name, persona_desc)
+
+    await semantic_router_mocked_db.update_persona(
+        persona_name, new_persona_name="new test persona", new_persona_desc=persona_desc
+    )
+
+
+@pytest.mark.asyncio
+async def test_update_persona_not_exists(semantic_router_mocked_db: PersonaManager):
+    """Test updating a persona to the database."""
+    persona_name = "test_persona"
+    persona_desc = "test_persona_desc"
+
+    with pytest.raises(PersonaDoesNotExistError):
+        await semantic_router_mocked_db.update_persona(
+            persona_name, new_persona_name="new test persona", new_persona_desc=persona_desc
+        )
+
+
+@pytest.mark.asyncio
+async def test_update_persona_same_name(semantic_router_mocked_db: PersonaManager):
+    """Test updating a persona to the database."""
+    persona_name = "test_persona"
+    persona_desc = "test_persona_desc"
+    await semantic_router_mocked_db.add_persona(persona_name, persona_desc)
+
+    persona_name_2 = "test_persona_2"
+    persona_desc_2 = "foo and bar"
+    await semantic_router_mocked_db.add_persona(persona_name_2, persona_desc_2)
+
+    with pytest.raises(connection.AlreadyExistsError):
+        await semantic_router_mocked_db.update_persona(
+            persona_name_2, new_persona_name=persona_name, new_persona_desc=persona_desc_2
+        )
+
+
+@pytest.mark.asyncio
+async def test_delete_persona(semantic_router_mocked_db: PersonaManager):
+    """Test deleting a persona from the database."""
+    persona_name = "test_persona"
+    persona_desc = "test_persona_desc"
+    await semantic_router_mocked_db.add_persona(persona_name, persona_desc)
+
+    await semantic_router_mocked_db.delete_persona(persona_name)
+
+    persona_found = await semantic_router_mocked_db._db_reader.get_persona_by_name(persona_name)
+    assert persona_found is None
+
+
+@pytest.mark.asyncio
+async def test_delete_persona_not_exists(semantic_router_mocked_db: PersonaManager):
+    persona_name = "test_persona"
+
+    with pytest.raises(PersonaDoesNotExistError):
+        await semantic_router_mocked_db.delete_persona(persona_name)

@@ -1,5 +1,6 @@
 import unicodedata
 import uuid
+from typing import Optional
 
 import numpy as np
 import regex as re
@@ -32,11 +33,12 @@ class PersonaSimilarDescriptionError(Exception):
     pass
 
 
-class SemanticRouter:
+class PersonaManager:
 
     def __init__(self):
-        self._inference_engine = LlamaCppInferenceEngine()
+        Config.load()
         conf = Config.get_config()
+        self._inference_engine = LlamaCppInferenceEngine()
         self._embeddings_model = f"{conf.model_base_path}/{conf.embedding_model}"
         self._n_gpu = conf.chat_model_n_gpu_layers
         self._persona_threshold = conf.persona_threshold
@@ -110,13 +112,15 @@ class SemanticRouter:
         logger.debug("Text embedded in semantic routing", text=cleaned_text[:50])
         return np.array(embed_list[0], dtype=np.float32)
 
-    async def _is_persona_description_diff(self, emb_persona_desc: np.ndarray) -> bool:
+    async def _is_persona_description_diff(
+        self, emb_persona_desc: np.ndarray, exclude_id: Optional[str]
+    ) -> bool:
         """
         Check if the persona description is different enough from existing personas.
         """
         # The distance calculation is done in the database
         persona_distances = await self._db_reader.get_distance_to_existing_personas(
-            emb_persona_desc
+            emb_persona_desc, exclude_id
         )
         if not persona_distances:
             return True
@@ -131,16 +135,26 @@ class SemanticRouter:
                 return False
         return True
 
+    async def _validate_persona_description(
+        self, persona_desc: str, exclude_id: str = None
+    ) -> np.ndarray:
+        """
+        Validate the persona description by embedding the text and checking if it is
+        different enough from existing personas.
+        """
+        emb_persona_desc = await self._embed_text(persona_desc)
+        if not await self._is_persona_description_diff(emb_persona_desc, exclude_id):
+            raise PersonaSimilarDescriptionError(
+                "The persona description is too similar to existing personas."
+            )
+        return emb_persona_desc
+
     async def add_persona(self, persona_name: str, persona_desc: str) -> None:
         """
         Add a new persona to the database. The persona description is embedded
         and stored in the database.
         """
-        emb_persona_desc = await self._embed_text(persona_desc)
-        if not await self._is_persona_description_diff(emb_persona_desc):
-            raise PersonaSimilarDescriptionError(
-                "The persona description is too similar to existing personas."
-            )
+        emb_persona_desc = await self._validate_persona_description(persona_desc)
 
         new_persona = db_models.PersonaEmbedding(
             id=str(uuid.uuid4()),
@@ -150,6 +164,43 @@ class SemanticRouter:
         )
         await self._db_recorder.add_persona(new_persona)
         logger.info(f"Added persona {persona_name} to the database.")
+
+    async def update_persona(
+        self, persona_name: str, new_persona_name: str, new_persona_desc: str
+    ) -> None:
+        """
+        Update an existing persona in the database. The name and description are
+        updated in the database, but the ID remains the same.
+        """
+        # First we check if the persona exists, if not we raise an error
+        found_persona = await self._db_reader.get_persona_by_name(persona_name)
+        if not found_persona:
+            raise PersonaDoesNotExistError(f"Person {persona_name} does not exist.")
+
+        emb_persona_desc = await self._validate_persona_description(
+            new_persona_desc, exclude_id=found_persona.id
+        )
+
+        # Then we update the attributes in the database
+        updated_persona = db_models.PersonaEmbedding(
+            id=found_persona.id,
+            name=new_persona_name,
+            description=new_persona_desc,
+            description_embedding=emb_persona_desc,
+        )
+        await self._db_recorder.update_persona(updated_persona)
+        logger.info(f"Updated persona {persona_name} in the database.")
+
+    async def delete_persona(self, persona_name: str) -> None:
+        """
+        Delete a persona from the database.
+        """
+        persona = await self._db_reader.get_persona_by_name(persona_name)
+        if not persona:
+            raise PersonaDoesNotExistError(f"Persona {persona_name} does not exist.")
+
+        await self._db_recorder.delete_persona(persona.id)
+        logger.info(f"Deleted persona {persona_name} from the database.")
 
     async def check_persona_match(self, persona_name: str, query: str) -> bool:
         """

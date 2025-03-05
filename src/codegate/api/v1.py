@@ -12,7 +12,12 @@ import codegate.muxing.models as mux_models
 from codegate import __version__
 from codegate.api import v1_models, v1_processing
 from codegate.db.connection import AlreadyExistsError, DbReader
-from codegate.db.models import AlertSeverity, WorkspaceWithModel
+from codegate.db.models import AlertSeverity, Persona, WorkspaceWithModel
+from codegate.muxing.persona import (
+    PersonaDoesNotExistError,
+    PersonaManager,
+    PersonaSimilarDescriptionError,
+)
 from codegate.providers import crud as provendcrud
 from codegate.workspaces import crud
 
@@ -21,6 +26,7 @@ logger = structlog.get_logger("codegate")
 v1 = APIRouter()
 wscrud = crud.WorkspaceCrud()
 pcrud = provendcrud.ProviderCrud()
+persona_manager = PersonaManager()
 
 # This is a singleton object
 dbreader = DbReader()
@@ -664,4 +670,90 @@ async def get_workspace_token_usage(workspace_name: str) -> v1_models.TokenUsage
         return ws_token_usage
     except Exception:
         logger.exception("Error while getting messages")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@v1.get("/personas", tags=["Personas"], generate_unique_id_function=uniq_name)
+async def list_personas() -> List[Persona]:
+    """List all personas."""
+    try:
+        personas = await dbreader.get_all_personas()
+        return personas
+    except Exception:
+        logger.exception("Error while getting personas")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@v1.get("/personas/{persona_name}", tags=["Personas"], generate_unique_id_function=uniq_name)
+async def get_persona(persona_name: str) -> Persona:
+    """Get a persona by name."""
+    try:
+        persona = await dbreader.get_persona_by_name(persona_name)
+        if not persona:
+            raise HTTPException(status_code=404, detail=f"Persona {persona_name} not found")
+        return persona
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        logger.exception(f"Error while getting persona {persona_name}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@v1.post("/personas", tags=["Personas"], generate_unique_id_function=uniq_name, status_code=201)
+async def create_persona(request: v1_models.PersonaRequest) -> Persona:
+    """Create a new persona."""
+    try:
+        await persona_manager.add_persona(request.name, request.description)
+        persona = await dbreader.get_persona_by_name(request.name)
+        return persona
+    except PersonaSimilarDescriptionError:
+        logger.exception("Error while creating persona")
+        raise HTTPException(status_code=409, detail="Persona has a similar description to another")
+    except AlreadyExistsError:
+        logger.exception("Error while creating persona")
+        raise HTTPException(status_code=409, detail="Persona already exists")
+    except Exception:
+        logger.exception("Error while creating persona")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@v1.put("/personas/{persona_name}", tags=["Personas"], generate_unique_id_function=uniq_name)
+async def update_persona(persona_name: str, request: v1_models.PersonaUpdateRequest) -> Persona:
+    """Update an existing persona."""
+    try:
+        await persona_manager.update_persona(
+            persona_name, request.new_name, request.new_description
+        )
+        persona = await dbreader.get_persona_by_name(request.new_name)
+        return persona
+    except PersonaSimilarDescriptionError:
+        logger.exception("Error while updating persona")
+        raise HTTPException(status_code=409, detail="Persona has a similar description to another")
+    except PersonaDoesNotExistError:
+        logger.exception("Error while updating persona")
+        raise HTTPException(status_code=404, detail="Persona does not exist")
+    except AlreadyExistsError:
+        logger.exception("Error while updating persona")
+        raise HTTPException(status_code=409, detail="Persona already exists")
+    except Exception:
+        logger.exception("Error while updating persona")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@v1.delete(
+    "/personas/{persona_name}",
+    tags=["Personas"],
+    generate_unique_id_function=uniq_name,
+    status_code=204,
+)
+async def delete_persona(persona_name: str):
+    """Delete a persona."""
+    try:
+        await persona_manager.delete_persona(persona_name)
+        return Response(status_code=204)
+    except PersonaDoesNotExistError:
+        logger.exception("Error while updating persona")
+        raise HTTPException(status_code=404, detail="Persona does not exist")
+    except Exception:
+        logger.exception("Error while deleting persona")
         raise HTTPException(status_code=500, detail="Internal server error")

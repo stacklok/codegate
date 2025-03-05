@@ -315,3 +315,19 @@ class ModelByProvider(pydantic.BaseModel):
 
     def __str__(self):
         return f"{self.provider_name} / {self.name}"
+
+
+class PersonaRequest(pydantic.BaseModel):
+    """
+    Model for creating a new Persona.
+    """
+    name: str
+    description: str
+
+
+class PersonaUpdateRequest(pydantic.BaseModel):
+    """
+    Model for updating a Persona.
+    """
+    new_name: str
+    new_description: str
