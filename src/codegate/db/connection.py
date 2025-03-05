@@ -680,7 +680,7 @@ class DbReader(DbCodeGate):
         # Build base query
         base_query = """
             WITH filtered_prompts AS (
-                SELECT DISTINCT p.*
+                SELECT distinct p.id, p.timestamp, p.provider, p.request, p.type
                 FROM prompts p
                 LEFT JOIN alerts a ON p.id = a.prompt_id
                 WHERE p.workspace_id = :workspace_id
@@ -710,7 +710,6 @@ class DbReader(DbCodeGate):
             FROM filtered_prompts p
             LEFT JOIN outputs o ON p.id = o.prompt_id
             LEFT JOIN alerts a ON p.id = a.prompt_id
-            ORDER BY p.timestamp DESC, o.timestamp ASC, a.timestamp ASC
         """
 
         # Build conditions and filters
