@@ -3,16 +3,17 @@ from uuid import UUID
 
 import requests
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import StreamingResponse
 from fastapi.routing import APIRoute
 from pydantic import BaseModel, ValidationError
 
+from codegate.config import API_DEFAULT_PAGE_SIZE, API_MAX_PAGE_SIZE
 import codegate.muxing.models as mux_models
 from codegate import __version__
 from codegate.api import v1_models, v1_processing
 from codegate.db.connection import AlreadyExistsError, DbReader
-from codegate.db.models import AlertSeverity, Persona, WorkspaceWithModel
+from codegate.db.models import AlertSeverity, AlertTriggerType, Persona, WorkspaceWithModel
 from codegate.muxing.persona import (
     PersonaDoesNotExistError,
     PersonaManager,
@@ -443,11 +444,11 @@ async def get_workspace_alerts_summary(workspace_name: str) -> v1_models.AlertSu
         raise HTTPException(status_code=500, detail="Internal server error")
 
     try:
-        summary = await dbreader.get_alerts_summary_by_workspace(ws.id)
+        summary = await dbreader.get_alerts_summary(workspace_id=ws.id)
         return v1_models.AlertSummary(
-            malicious_packages=summary["codegate_context_retriever_count"],
-            pii=summary["codegate_pii_count"],
-            secrets=summary["codegate_secrets_count"],
+            malicious_packages=summary.total_packages_count,
+            pii=summary.total_pii_count,
+            secrets=summary.total_secrets_count,
         )
     except Exception:
         logger.exception("Error while getting alerts summary")
@@ -459,7 +460,13 @@ async def get_workspace_alerts_summary(workspace_name: str) -> v1_models.AlertSu
     tags=["Workspaces"],
     generate_unique_id_function=uniq_name,
 )
-async def get_workspace_messages(workspace_name: str) -> List[v1_models.Conversation]:
+async def get_workspace_messages(
+    workspace_name: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(API_DEFAULT_PAGE_SIZE, ge=1, le=API_MAX_PAGE_SIZE),
+    filter_by_ids: Optional[List[str]] = Query(None),
+    filter_by_alert_trigger_types: Optional[List[AlertTriggerType]] = Query(None),
+) -> v1_models.PaginatedMessagesResponse:
     """Get messages for a workspace."""
     try:
         ws = await wscrud.get_workspace_by_name(workspace_name)
@@ -469,19 +476,88 @@ async def get_workspace_messages(workspace_name: str) -> List[v1_models.Conversa
         logger.exception("Error while getting workspace")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+    offset = (page - 1) * page_size
+
+    prompts = await dbreader.get_prompts(
+        ws.id,
+        offset,
+        page_size,
+        filter_by_ids,
+        list([AlertSeverity.CRITICAL.value]),  # TODO: Configurable severity
+        filter_by_alert_trigger_types,
+    )
+    # Fetch total message count
+    total_count = await dbreader.get_total_messages_count_by_workspace_id(
+        ws.id, AlertSeverity.CRITICAL.value
+    )
+
+    # iterate for all prompts to compose the conversation summary
+    conversation_summaries: List[v1_models.ConversationSummary] = []
+    for prompt in prompts:
+        if not prompt.request:
+            logger.warning(f"Skipping prompt {prompt.id}. Empty request field")
+            continue
+
+        messages, _ = await v1_processing.parse_request(prompt.request)
+        if not messages or len(messages) == 0:
+            logger.warning(f"Skipping prompt {prompt.id}. No messages found")
+            continue
+
+        # message is just the first entry in the request
+        message_obj = v1_models.ChatMessage(
+            message=messages[0], timestamp=prompt.timestamp, message_id=prompt.id
+        )
+
+        # count total alerts for the prompt
+        total_alerts_row = await dbreader.get_alerts_summary(prompt_id=prompt.id)
+
+        # get token usage for the prompt
+        prompts_outputs = await dbreader.get_prompts_with_output(prompt_id=prompt.id)
+        ws_token_usage = await v1_processing.parse_workspace_token_usage(prompts_outputs)
+
+        conversation_summary = v1_models.ConversationSummary(
+            chat_id=prompt.id,
+            prompt=message_obj,
+            provider=prompt.provider,
+            type=prompt.type,
+            conversation_timestamp=prompt.timestamp,
+            total_alerts=total_alerts_row.total_alerts,
+            token_usage_agg=ws_token_usage,
+        )
+
+        conversation_summaries.append(conversation_summary)
+
+    return v1_models.PaginatedMessagesResponse(
+        data=conversation_summaries,
+        limit=page_size,
+        offset=(page - 1) * page_size,
+        total=total_count,
+    )
+
+
+@v1.get(
+    "/workspaces/{workspace_name}/messages/{prompt_id}",
+    tags=["Workspaces"],
+    generate_unique_id_function=uniq_name,
+)
+async def get_messages_by_prompt_id(
+    workspace_name: str,
+    prompt_id: str,
+) -> List[v1_models.Conversation]:
+    """Get messages for a workspace."""
     try:
-        prompts_with_output_alerts_usage = (
-            await dbreader.get_prompts_with_output_alerts_usage_by_workspace_id(
-                ws.id, AlertSeverity.CRITICAL.value
-            )
-        )
-        conversations, _ = await v1_processing.parse_messages_in_conversations(
-            prompts_with_output_alerts_usage
-        )
-        return conversations
+        ws = await wscrud.get_workspace_by_name(workspace_name)
+    except crud.WorkspaceDoesNotExistError:
+        raise HTTPException(status_code=404, detail="Workspace does not exist")
     except Exception:
-        logger.exception("Error while getting messages")
+        logger.exception("Error while getting workspace")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+    prompts_outputs = await dbreader.get_prompts_with_output(
+        workspace_id=ws.id, prompt_id=prompt_id
+    )
+    conversations, _ = await v1_processing.parse_messages_in_conversations(prompts_outputs)
+    return conversations
 
 
 @v1.get(
@@ -665,7 +741,7 @@ async def get_workspace_token_usage(workspace_name: str) -> v1_models.TokenUsage
         raise HTTPException(status_code=500, detail="Internal server error")
 
     try:
-        prompts_outputs = await dbreader.get_prompts_with_output(ws.id)
+        prompts_outputs = await dbreader.get_prompts_with_output(worskpace_id=ws.id)
         ws_token_usage = await v1_processing.parse_workspace_token_usage(prompts_outputs)
         return ws_token_usage
     except Exception:
