@@ -1004,6 +1004,26 @@ class DbReader(DbCodeGate):
         )
         return personas[0] if personas else None
 
+    async def get_distance_to_existing_personas(
+        self, query_embedding: np.ndarray
+    ) -> List[PersonaDistance]:
+        """
+        Get the distance between a persona and a query embedding.
+        """
+        sql = """
+            SELECT
+                id,
+                name,
+                description,
+                vec_distance_cosine(description_embedding, :query_embedding) as distance
+            FROM personas
+        """
+        conditions = {"query_embedding": query_embedding}
+        persona_distances = await self._exec_vec_db_query_to_pydantic(
+            sql, conditions, PersonaDistance
+        )
+        return persona_distances
+
     async def get_distance_to_persona(
         self, persona_id: str, query_embedding: np.ndarray
     ) -> PersonaDistance:

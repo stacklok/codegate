@@ -245,6 +245,8 @@ class MuxRule(BaseModel):
 
 def nd_array_custom_before_validator(x):
     # custome before validation logic
+    if isinstance(x, bytes):
+        return np.frombuffer(x, dtype=np.float32)
     return x
 
 

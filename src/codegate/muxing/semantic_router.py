@@ -28,6 +28,10 @@ class PersonaDoesNotExistError(Exception):
     pass
 
 
+class PersonaSimilarDescriptionError(Exception):
+    pass
+
+
 class SemanticRouter:
 
     def __init__(self):
@@ -36,6 +40,7 @@ class SemanticRouter:
         self._embeddings_model = f"{conf.model_base_path}/{conf.embedding_model}"
         self._n_gpu = conf.chat_model_n_gpu_layers
         self._persona_threshold = conf.persona_threshold
+        self._persona_diff_desc_threshold = conf.persona_diff_desc_threshold
         self._db_recorder = DbRecorder()
         self._db_reader = DbReader()
 
@@ -105,12 +110,38 @@ class SemanticRouter:
         logger.debug("Text embedded in semantic routing", text=cleaned_text[:50])
         return np.array(embed_list[0], dtype=np.float32)
 
+    async def _is_persona_description_diff(self, emb_persona_desc: np.ndarray) -> bool:
+        """
+        Check if the persona description is different enough from existing personas.
+        """
+        # The distance calculation is done in the database
+        persona_distances = await self._db_reader.get_distance_to_existing_personas(
+            emb_persona_desc
+        )
+        if not persona_distances:
+            return True
+
+        for persona_distance in persona_distances:
+            logger.info(
+                f"Persona description distance to {persona_distance.name}",
+                distance=persona_distance.distance,
+            )
+            # If the distance is less than the threshold, the persona description is too similar
+            if persona_distance.distance < self._persona_diff_desc_threshold:
+                return False
+        return True
+
     async def add_persona(self, persona_name: str, persona_desc: str) -> None:
         """
         Add a new persona to the database. The persona description is embedded
         and stored in the database.
         """
         emb_persona_desc = await self._embed_text(persona_desc)
+        if not await self._is_persona_description_diff(emb_persona_desc):
+            raise PersonaSimilarDescriptionError(
+                "The persona description is too similar to existing personas."
+            )
+
         new_persona = db_models.PersonaEmbedding(
             id=str(uuid.uuid4()),
             name=persona_name,
