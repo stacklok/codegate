@@ -13,6 +13,7 @@ from codegate.db.connection import DbReader, DbRecorder
 from codegate.providers.base import BaseProvider
 from codegate.providers.registry import ProviderRegistry, get_provider_registry
 from codegate.workspaces import crud as workspace_crud
+from src.codegate.db.models import ProviderType
 
 logger = structlog.get_logger("codegate")
 
@@ -114,9 +115,9 @@ class ProviderCrud:
 
         for model in models:
             await self._db_writer.add_provider_model(
-                dbmodels.ProviderModel(
-                    provider_endpoint_id=dbendpoint.id,
+                dbmodels.ProviderModelIntermediate(
                     name=model,
+                    provider_endpoint_id=dbendpoint.id,
                 )
             )
         return apimodelsv1.ProviderEndpoint.from_db_model(dbendpoint)
@@ -236,9 +237,9 @@ class ProviderCrud:
         # Add the models that are in the provider but not in the DB
         for model in models_set - models_in_db_set:
             await self._db_writer.add_provider_model(
-                dbmodels.ProviderModel(
-                    provider_endpoint_id=dbendpoint.id,
+                dbmodels.ProviderModelIntermediate(
                     name=model,
+                    provider_endpoint_id=dbendpoint.id,
                 )
             )
 
@@ -274,8 +275,8 @@ class ProviderCrud:
             outmodels.append(
                 apimodelsv1.ModelByProvider(
                     name=dbmodel.name,
-                    provider_id=dbmodel.provider_endpoint_id,
                     provider_name=dbendpoint.name,
+                    provider_type=dbendpoint.provider_type,
                 )
             )
 
@@ -290,9 +291,10 @@ class ProviderCrud:
             ename = dbmodel.provider_endpoint_name if dbmodel.provider_endpoint_name else ""
             outmodels.append(
                 apimodelsv1.ModelByProvider(
-                    name=dbmodel.name,
                     provider_id=dbmodel.provider_endpoint_id,
+                    name=dbmodel.name,
                     provider_name=ename,
+                    provider_type=dbmodel.provider_endpoint_type,
                 )
             )
 
@@ -383,6 +385,8 @@ async def try_initialize_provider_endpoints(
                 dbmodels.ProviderModel(
                     provider_endpoint_id=provend.id,
                     name=model,
+                    provider_endpoint_type=provend.provider_type,
+                    provider_endpoint_name=provend.name,
                 )
             )
         )
@@ -393,7 +397,6 @@ async def try_initialize_provider_endpoints(
 async def try_update_to_provider(
     provcrud: ProviderCrud, prov: BaseProvider, dbprovend: dbmodels.ProviderEndpoint
 ):
-
     authm = await provcrud._db_reader.get_auth_material_by_provider_id(str(dbprovend.id))
 
     try:

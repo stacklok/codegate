@@ -36,6 +36,25 @@ def uniq_name(route: APIRoute):
     return f"v1_{route.name}"
 
 
+async def _add_provider_id_to_mux_rule(
+    mux_rule: mux_models.MuxRule,
+) -> mux_models.MuxRuleWithProviderId:
+    """
+    Convert a `MuxRule` to `MuxRuleWithProviderId` by looking up the provider ID.
+    Extracts provider name and type from the MuxRule and queries the database to get the ID.
+    """
+    provider = await dbreader.try_get_provider_endpoint_by_name_and_type(
+        mux_rule.provider_name,
+        mux_rule.provider_type,
+    )
+    if provider is None:
+        raise crud.WorkspaceCrudError(
+            f'Provider "{mux_rule.provider_name}" of type "{mux_rule.provider_type}" not found'  # noqa: E501
+        )
+
+    return mux_models.MuxRuleWithProviderId(**mux_rule.model_dump(), provider_id=provider.id)
+
+
 class FilterByNameParams(BaseModel):
     name: Optional[str] = None
 
@@ -94,14 +113,14 @@ async def list_models_by_provider(
 
 
 @v1.get(
-    "/provider-endpoints/{provider_id}", tags=["Providers"], generate_unique_id_function=uniq_name
+    "/provider-endpoints/{provider_name}", tags=["Providers"], generate_unique_id_function=uniq_name
 )
 async def get_provider_endpoint(
-    provider_id: UUID,
+    provider_name: str,
 ) -> v1_models.ProviderEndpoint:
-    """Get a provider endpoint by ID."""
+    """Get a provider endpoint by name."""
     try:
-        provend = await pcrud.get_endpoint_by_id(provider_id)
+        provend = await pcrud.get_endpoint_by_name(provider_name)
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -278,7 +297,11 @@ async def create_workspace(
     """Create a new workspace."""
     try:
         custom_instructions = request.config.custom_instructions if request.config else None
-        muxing_rules = request.config.muxing_rules if request.config else None
+        muxing_rules: List[mux_models.MuxRuleWithProviderId] = []
+        if request.config and request.config.muxing_rules:
+            for rule in request.config.muxing_rules:
+                mux_rule_with_provider = await _add_provider_id_to_mux_rule(rule)
+                muxing_rules.append(mux_rule_with_provider)
 
         workspace_row, mux_rules = await wscrud.add_workspace(
             request.name, custom_instructions, muxing_rules
@@ -320,7 +343,11 @@ async def update_workspace(
     """Update a workspace."""
     try:
         custom_instructions = request.config.custom_instructions if request.config else None
-        muxing_rules = request.config.muxing_rules if request.config else None
+        muxing_rules: List[mux_models.MuxRuleWithProviderId] = []
+        if request.config and request.config.muxing_rules:
+            for rule in request.config.muxing_rules:
+                mux_rule_with_provider = await _add_provider_id_to_mux_rule(rule)
+                muxing_rules.append(mux_rule_with_provider)
 
         workspace_row, mux_rules = await wscrud.update_workspace(
             workspace_name,
@@ -581,7 +608,7 @@ async def get_workspace_muxes(
         logger.exception("Error while getting workspace")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-    return muxes
+    return [mux_models.MuxRule.from_mux_rule_with_provider_id(mux) for mux in muxes]
 
 
 @v1.put(
@@ -596,7 +623,12 @@ async def set_workspace_muxes(
 ):
     """Set the mux rules of a workspace."""
     try:
-        await wscrud.set_muxes(workspace_name, request)
+        mux_rules = []
+        for rule in request:
+            mux_rule_with_provider = await _add_provider_id_to_mux_rule(rule)
+            mux_rules.append(mux_rule_with_provider)
+
+        await wscrud.set_muxes(workspace_name, mux_rules)
     except crud.WorkspaceDoesNotExistError:
         raise HTTPException(status_code=404, detail="Workspace does not exist")
     except crud.WorkspaceCrudError as e:
@@ -619,7 +651,10 @@ async def get_workspace_by_name(
     """List workspaces by provider ID."""
     try:
         ws = await wscrud.get_workspace_by_name(workspace_name)
-        muxes = await wscrud.get_muxes(workspace_name)
+        muxes = [
+            mux_models.MuxRule.from_mux_rule_with_provider_id(mux)
+            for mux in await wscrud.get_muxes(workspace_name)
+        ]
 
         return v1_models.FullWorkspace(
             name=ws.name,

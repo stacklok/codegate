@@ -33,6 +33,7 @@ from codegate.db.models import (
     ProviderAuthMaterial,
     ProviderEndpoint,
     ProviderModel,
+    ProviderModelIntermediate,
     Session,
     WorkspaceRow,
     WorkspaceWithSessionInfo,
@@ -494,7 +495,9 @@ class DbRecorder(DbCodeGate):
         _ = await self._execute_update_pydantic_model(auth_material, sql, should_raise=True)
         return
 
-    async def add_provider_model(self, model: ProviderModel) -> ProviderModel:
+    async def add_provider_model(
+        self, model: ProviderModelIntermediate
+    ) -> ProviderModelIntermediate:
         sql = text(
             """
             INSERT INTO provider_models (provider_endpoint_id, name)
@@ -533,11 +536,13 @@ class DbRecorder(DbCodeGate):
             """
             INSERT INTO muxes (
                 id, provider_endpoint_id, provider_model_name, workspace_id, matcher_type,
-                matcher_blob, priority, created_at, updated_at
+                matcher_blob, priority, created_at, updated_at,
+                provider_endpoint_type, provider_endpoint_name
             )
             VALUES (
                 :id, :provider_endpoint_id, :provider_model_name, :workspace_id,
-                :matcher_type, :matcher_blob, :priority, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                :matcher_type, :matcher_blob, :priority, CURRENT_TIMESTAMP,
+                CURRENT_TIMESTAMP, :provider_endpoint_type, :provider_endpoint_name
             )
             RETURNING *
             """
@@ -709,10 +714,10 @@ class DbReader(DbCodeGate):
         # If trigger category is None we want to get all alerts
         trigger_category = trigger_category if trigger_category else "%"
         conditions = {"workspace_id": workspace_id, "trigger_category": trigger_category}
-        rows: List[IntermediatePromptWithOutputUsageAlerts] = (
-            await self._exec_select_conditions_to_pydantic(
-                IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
-            )
+        rows: List[
+            IntermediatePromptWithOutputUsageAlerts
+        ] = await self._exec_select_conditions_to_pydantic(
+            IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
         )
         prompts_dict: Dict[str, GetPromptWithOutputsRow] = {}
         for row in rows:
@@ -922,10 +927,63 @@ class DbReader(DbCodeGate):
         )
         return provider[0] if provider else None
 
-    async def get_provider_endpoint_by_id(self, provider_id: str) -> Optional[ProviderEndpoint]:
+    async def try_get_provider_endpoint_by_name_and_type(
+        self, provider_name: str, provider_type: str
+    ) -> Optional[ProviderEndpoint]:
+        """
+        Best effort attempt to find a provider endpoint matching name and type.
+
+        With shareable workspaces, a user may share a workspace with mux rules
+        that refer to a provider name & type.
+
+        Another user may want to consume those rules, but may not have the exact
+        same provider names configured.
+
+        This makes the shareable workspace feature a little more robust.
+        """
+        # First try exact match on both name and type
         sql = text(
             """
             SELECT id, name, description, provider_type, endpoint, auth_type, created_at, updated_at
+            FROM provider_endpoints
+            WHERE name = :name AND provider_type = :provider_type
+            LIMIT 1
+            """
+        )
+        conditions = {"name": provider_name, "provider_type": provider_type}
+        provider = await self._exec_select_conditions_to_pydantic(
+            ProviderEndpoint, sql, conditions, should_raise=True
+        )
+        if provider:
+            logger.debug(
+                f'Found provider "{provider[0].name}" by name "{provider_name}" and type "{provider_type}"'  # noqa: E501
+            )
+            return provider[0]
+
+        # If no exact match, try matching just provider_type
+        sql = text(
+            """
+            SELECT id, name, description, provider_type, endpoint, auth_type, created_at, updated_at
+            FROM provider_endpoints
+            WHERE provider_type = :provider_type
+            LIMIT 1
+            """
+        )
+        conditions = {"provider_type": provider_type}
+        provider = await self._exec_select_conditions_to_pydantic(
+            ProviderEndpoint, sql, conditions, should_raise=True
+        )
+        if provider:
+            logger.debug(
+                f'Found provider "{provider[0].name}" by type {provider_type}. Name "{provider_name}" did not match any providers.'  # noqa: E501
+            )
+            return provider[0]
+        return None
+
+    async def get_provider_endpoint_by_id(self, provider_id: str) -> Optional[ProviderEndpoint]:
+        sql = text(
+            """
+            SELECT id, name, description, provider_type, endpoint, auth_type
             FROM provider_endpoints
             WHERE id = :id
             """
@@ -965,10 +1023,11 @@ class DbReader(DbCodeGate):
     async def get_provider_models_by_provider_id(self, provider_id: str) -> List[ProviderModel]:
         sql = text(
             """
-            SELECT provider_endpoint_id, name
-            FROM provider_models
-            WHERE provider_endpoint_id = :provider_endpoint_id
-            """
+            SELECT pm.provider_endpoint_id, pm.name, pe.name as provider_endpoint_name, pe.provider_type as provider_endpoint_type
+            FROM provider_models pm
+            INNER JOIN provider_endpoints pe ON pm.provider_endpoint_id = pe.id
+            WHERE pm.provider_endpoint_id = :provider_endpoint_id
+            """  # noqa: E501
         )
         conditions = {"provider_endpoint_id": provider_id}
         models = await self._exec_select_conditions_to_pydantic(
@@ -981,10 +1040,11 @@ class DbReader(DbCodeGate):
     ) -> Optional[ProviderModel]:
         sql = text(
             """
-            SELECT provider_endpoint_id, name
-            FROM provider_models
-            WHERE provider_endpoint_id = :provider_endpoint_id AND name = :name
-            """
+            SELECT pm.provider_endpoint_id, pm.name, pe.name as provider_endpoint_name, pe.provider_type as provider_endpoint_type
+            FROM provider_models pm
+            INNER JOIN provider_endpoints pe ON pm.provider_endpoint_id = pe.id
+            WHERE pm.provider_endpoint_id = :provider_endpoint_id AND pm.name = :name
+            """  # noqa: E501
         )
         conditions = {"provider_endpoint_id": provider_id, "name": model_name}
         models = await self._exec_select_conditions_to_pydantic(
@@ -995,7 +1055,8 @@ class DbReader(DbCodeGate):
     async def get_all_provider_models(self) -> List[ProviderModel]:
         sql = text(
             """
-            SELECT pm.provider_endpoint_id, pm.name, pe.name as provider_endpoint_name
+            SELECT pm.provider_endpoint_id, pm.name, pe.name as
+            provider_endpoint_name, pe.provider_type as provider_endpoint_type
             FROM provider_models pm
             INNER JOIN provider_endpoints pe ON pm.provider_endpoint_id = pe.id
             """
@@ -1007,7 +1068,8 @@ class DbReader(DbCodeGate):
         sql = text(
             """
             SELECT id, provider_endpoint_id, provider_model_name, workspace_id, matcher_type,
-            matcher_blob, priority, created_at, updated_at
+            matcher_blob, priority, created_at, updated_at,
+            provider_endpoint_type, provider_endpoint_name
             FROM muxes
             WHERE workspace_id = :workspace_id
             ORDER BY priority ASC

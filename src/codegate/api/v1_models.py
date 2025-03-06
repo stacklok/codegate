@@ -256,19 +256,24 @@ class ProviderEndpoint(pydantic.BaseModel):
     id: Optional[str] = ""
     name: str
     description: str = ""
-    provider_type: db_models.ProviderType
+    provider_type: str
     endpoint: str = ""  # Some providers have defaults we can leverage
     auth_type: ProviderAuthType = ProviderAuthType.none
 
     @staticmethod
     def from_db_model(db_model: db_models.ProviderEndpoint) -> "ProviderEndpoint":
+        auth_type = (
+            ProviderAuthType.none
+            if not db_model.auth_type
+            else ProviderAuthType(db_model.auth_type)
+        )
         return ProviderEndpoint(
             id=db_model.id,
             name=db_model.name,
             description=db_model.description,
             provider_type=db_model.provider_type,
             endpoint=db_model.endpoint,
-            auth_type=db_model.auth_type,
+            auth_type=auth_type,
         )
 
     def to_db_model(self) -> db_models.ProviderEndpoint:
@@ -309,8 +314,9 @@ class ModelByProvider(pydantic.BaseModel):
     Note that these are auto-discovered by the provider.
     """
 
-    name: str
     provider_id: str
+    name: str
+    provider_type: db_models.ProviderType
     provider_name: str
 
     def __str__(self):
