@@ -256,7 +256,7 @@ class ProviderEndpoint(pydantic.BaseModel):
     id: Optional[str] = ""
     name: str
     description: str = ""
-    provider_type: str
+    provider_type: db_models.ProviderType
     endpoint: str = ""  # Some providers have defaults we can leverage
     auth_type: ProviderAuthType = ProviderAuthType.none
 
