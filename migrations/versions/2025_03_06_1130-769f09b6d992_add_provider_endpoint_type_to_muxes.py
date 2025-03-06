@@ -46,7 +46,8 @@ def upgrade() -> None:
     # swap the table
     op.execute("CREATE TABLE muxes_new AS SELECT * FROM muxes;")
     op.execute("DROP TABLE muxes;")
-    op.execute("""
+    op.execute(
+        """
         CREATE TABLE muxes (
             id TEXT PRIMARY KEY,
             provider_endpoint_id TEXT NOT NULL,
@@ -59,7 +60,8 @@ def upgrade() -> None:
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             provider_endpoint_type TEXT NOT NULL,
             FOREIGN KEY(provider_endpoint_id) REFERENCES provider_endpoints(id)
-        );""")
+        );"""
+    )
     op.execute("INSERT INTO muxes SELECT * FROM muxes_new;")
     op.execute("DROP TABLE muxes_new;")
 

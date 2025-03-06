@@ -56,7 +56,7 @@ class WorkspaceCrud:
             new_workspace_name (str): The name of the workspace
             system_prompt (Optional[str]): The system prompt for the workspace
             muxing_rules (Optional[List[mux_models.MuxRuleWithProviderId]]): The muxing rules for the workspace
-        """
+        """  # noqa: E501
         if new_workspace_name == "":
             raise WorkspaceCrudError("Workspace name cannot be empty.")
         if new_workspace_name in RESERVED_WORKSPACE_KEYWORDS:
@@ -146,7 +146,7 @@ class WorkspaceCrud:
 
                 await transaction.commit()
                 return workspace_renamed, mux_rules
-            except WorkspaceDoesNotExistError as e:
+            except (WorkspaceDoesNotExistError, WorkspaceNameAlreadyInUseError) as e:
                 raise e
             except Exception as e:
                 raise WorkspaceCrudError(f"Error updating workspace {old_workspace_name}: {str(e)}")
@@ -331,9 +331,9 @@ class WorkspaceCrud:
         # Add the new muxes
         priority = 0
 
-        muxes_with_routes: List[
-            Tuple[mux_models.MuxRuleWithProviderId, rulematcher.ModelRoute]
-        ] = []
+        muxes_with_routes: List[Tuple[mux_models.MuxRuleWithProviderId, rulematcher.ModelRoute]] = (
+            []
+        )
 
         # Verify all models are valid
         for mux in muxes:

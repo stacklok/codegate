@@ -13,7 +13,6 @@ from codegate.db.connection import DbReader, DbRecorder
 from codegate.providers.base import BaseProvider
 from codegate.providers.registry import ProviderRegistry, get_provider_registry
 from codegate.workspaces import crud as workspace_crud
-from src.codegate.db.models import ProviderType
 
 logger = structlog.get_logger("codegate")
 
@@ -291,7 +290,6 @@ class ProviderCrud:
             ename = dbmodel.provider_endpoint_name if dbmodel.provider_endpoint_name else ""
             outmodels.append(
                 apimodelsv1.ModelByProvider(
-                    provider_id=dbmodel.provider_endpoint_id,
                     name=dbmodel.name,
                     provider_name=ename,
                     provider_type=dbmodel.provider_endpoint_type,

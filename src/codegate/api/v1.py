@@ -109,6 +109,7 @@ async def list_models_by_provider(
     except provendcrud.ProviderNotFoundError:
         raise HTTPException(status_code=404, detail="Provider not found")
     except Exception as e:
+        logger.debug(f"Error listing models by provider, {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -334,7 +335,7 @@ async def create_workspace(
     "/workspaces/{workspace_name}",
     tags=["Workspaces"],
     generate_unique_id_function=uniq_name,
-    status_code=201,
+    status_code=200,
 )
 async def update_workspace(
     workspace_name: str,
@@ -368,6 +369,7 @@ async def update_workspace(
             ),
         )
     except crud.WorkspaceCrudError as e:
+        logger.debug(f"Could not update workspace: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")

@@ -314,7 +314,6 @@ class ModelByProvider(pydantic.BaseModel):
     Note that these are auto-discovered by the provider.
     """
 
-    provider_id: str
     name: str
     provider_type: db_models.ProviderType
     provider_name: str
