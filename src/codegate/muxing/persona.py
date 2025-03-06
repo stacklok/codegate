@@ -43,6 +43,7 @@ class PersonaManager:
         self._n_gpu = conf.chat_model_n_gpu_layers
         self._persona_threshold = conf.persona_threshold
         self._persona_diff_desc_threshold = conf.persona_diff_desc_threshold
+        self._distances_weight_factor = conf.distances_weight_factor
         self._db_recorder = DbRecorder()
         self._db_reader = DbReader()
 
@@ -99,18 +100,17 @@ class PersonaManager:
 
         return text
 
-    async def _embed_text(self, text: str) -> np.ndarray:
+    async def _embed_texts(self, texts: List[str]) -> np.ndarray:
         """
         Helper function to embed text using the inference engine.
         """
-        cleaned_text = self._clean_text_for_embedding(text)
+        cleaned_texts = [self._clean_text_for_embedding(text) for text in texts]
         # .embed returns a list of embeddings
         embed_list = await self._inference_engine.embed(
-            self._embeddings_model, [cleaned_text], n_gpu_layers=self._n_gpu
+            self._embeddings_model, cleaned_texts, n_gpu_layers=self._n_gpu
         )
-        # Use only the first entry in the list and make sure we have the appropriate type
-        logger.debug("Text embedded in semantic routing", text=cleaned_text[:50])
-        return np.array(embed_list[0], dtype=np.float32)
+        logger.debug("Text embedded in semantic routing", num_texts=len(texts))
+        return np.array(embed_list, dtype=np.float32)
 
     async def _is_persona_description_diff(
         self, emb_persona_desc: np.ndarray, exclude_id: Optional[str]
@@ -142,7 +142,8 @@ class PersonaManager:
         Validate the persona description by embedding the text and checking if it is
         different enough from existing personas.
         """
-        emb_persona_desc = await self._embed_text(persona_desc)
+        emb_persona_desc_list = await self._embed_texts([persona_desc])
+        emb_persona_desc = emb_persona_desc_list[0]
         if not await self._is_persona_description_diff(emb_persona_desc, exclude_id):
             raise PersonaSimilarDescriptionError(
                 "The persona description is too similar to existing personas."
@@ -217,21 +218,87 @@ class PersonaManager:
         await self._db_recorder.delete_persona(persona.id)
         logger.info(f"Deleted persona {persona_name} from the database.")
 
-    async def check_persona_match(self, persona_name: str, query: str) -> bool:
+    async def _get_cosine_distance(self, emb_queries: np.ndarray, emb_persona: np.ndarray) -> float:
         """
-        Check if the query matches the persona description. A vector similarity
-        search is performed between the query and the persona description.
+        Calculate the cosine distance between the queries embeddings and persona embedding.
+        Persona embedding is a single vector of length M
+        Queries embeddings is a matrix of shape (N, M)
+        N is the number of queries. User messages in this case.
+        M is the number of dimensions in the embedding
+
+        Defintion of cosine distance: 1 - cosine similarity
+        [Cosine similarity](https://en.wikipedia.org/wiki/Cosine_similarity)
+
+        NOTE: Experimented by individually querying SQLite for each query, but as the number
+        of queries increases, the performance is better with NumPy. If the number of queries
+        is small the performance is onpar. Hence the decision to use NumPy.
+        """
+        # Handle the case where we have a single query (single user message)
+        if emb_queries.ndim == 1:
+            emb_queries = emb_queries.reshape(1, -1)
+
+        emb_queries_norm = np.linalg.norm(emb_queries, axis=1)
+        persona_embed_norm = np.linalg.norm(emb_persona)
+        cosine_similarities = np.dot(emb_queries, emb_persona.T) / (
+            emb_queries_norm * persona_embed_norm
+        )
+        # We could also use directly cosine_similarities but we get the distance to match
+        # the behavior of SQLite function vec_distance_cosine
+        cosine_distances = 1 - cosine_similarities
+        return cosine_distances
+
+    async def _weight_distances(self, distances: np.ndarray) -> np.ndarray:
+        """
+        Weights the received distances, with later positions being more important and the
+        last position unchanged. The reasoning is that the distances correspond to user
+        messages, with the last message being the most recent and therefore the most
+        important.
+
+        Args:
+            distances: NumPy array of float values between 0 and 2
+            weight_factor: Factor that determines how quickly weights increase (0-1)
+                        Lower values create a steeper importance curve. 1 makes
+                        all weights equal.
+
+        Returns:
+            Weighted distances as a NumPy array
+        """
+        # Get array length
+        n = len(distances)
+
+        # Create positions array in reverse order (n-1, n-2, ..., 1, 0)
+        # This makes the last element have position 0
+        positions = np.arange(n - 1, -1, -1)
+
+        # Create weights - now the last element (position 0) gets weight 1
+        weights = self._distances_weight_factor**positions
+
+        # Apply weights by dividing distances
+        # Smaller weight -> larger effective distance
+        weighted_distances = distances / weights
+        return weighted_distances
+
+    async def check_persona_match(self, persona_name: str, queries: List[str]) -> bool:
+        """
+        Check if the queries match the persona description. A vector similarity
+        search is performed between the queries and the persona description.
         0 means the vectors are identical, 2 means they are orthogonal.
-        See
-        [sqlite docs](https://alexgarcia.xyz/sqlite-vec/api-reference.html#vec_distance_cosine)
+
+        The vectors are compared using cosine similarity implemented in _get_cosine_distance.
         """
-        persona = await self._db_reader.get_persona_by_name(persona_name)
-        if not persona:
+        persona_embed = await self._db_reader.get_persona_embed_by_name(persona_name)
+        if not persona_embed:
             raise PersonaDoesNotExistError(f"Persona {persona_name} does not exist.")
 
-        emb_query = await self._embed_text(query)
-        persona_distance = await self._db_reader.get_distance_to_persona(persona.id, emb_query)
-        logger.info(f"Persona distance to {persona_name}", distance=persona_distance.distance)
-        if persona_distance.distance < self._persona_threshold:
+        emb_queries = await self._embed_texts(queries)
+        cosine_distances = await self._get_cosine_distance(
+            emb_queries, persona_embed.description_embedding
+        )
+        logger.debug("Cosine distances calculated", cosine_distances=cosine_distances)
+
+        weighted_distances = await self._weight_distances(cosine_distances)
+        logger.info("Weighted distances to persona", weighted_distances=weighted_distances)
+
+        if np.any(weighted_distances < self._persona_threshold):
             return True
         return False

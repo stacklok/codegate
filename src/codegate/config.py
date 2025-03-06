@@ -65,6 +65,9 @@ class Config:
     # The value 0.3 was found through experimentation. See /tests/muxing/test_semantic_router.py
     # It's the threshold value to determine if a persona description is similar to existing personas
     persona_diff_desc_threshold = 0.3
+    # Weight factor for distances in the persona description similarity calculation. Check
+    # the function _weight_distances for more details. Range is [0, 1].
+    distances_weight_factor = 0.8
 
     # Provider URLs with defaults
     provider_urls: Dict[str, str] = field(default_factory=lambda: DEFAULT_PROVIDER_URLS.copy())

@@ -11,6 +11,7 @@ from codegate.db import models as db_models
 from codegate.extract_snippets.body_extractor import BodyCodeSnippetExtractorError
 from codegate.extract_snippets.factory import BodyCodeExtractorFactory
 from codegate.muxing import models as mux_models
+from codegate.muxing.persona import PersonaManager
 
 logger = structlog.get_logger("codegate")
 
@@ -82,6 +83,7 @@ class MuxingMatcherFactory:
             mux_models.MuxMatcherType.filename_match: FileMuxingRuleMatcher,
             mux_models.MuxMatcherType.fim_filename: RequestTypeAndFileMuxingRuleMatcher,
             mux_models.MuxMatcherType.chat_filename: RequestTypeAndFileMuxingRuleMatcher,
+            mux_models.MuxMatcherType.persona_description: PersonaDescriptionMuxingRuleMatcher,
         }
 
         try:
@@ -169,6 +171,48 @@ class RequestTypeAndFileMuxingRuleMatcher(FileMuxingRuleMatcher):
                 is_fim_request=thing_to_match.is_fim_request,
             )
         return is_rule_matched
+
+
+class PersonaDescriptionMuxingRuleMatcher(MuxingRuleMatcher):
+    """Muxing rule to match the request content to a persona description."""
+
+    def _get_user_messages_from_body(self, body: Dict) -> List[str]:
+        """
+        Get the user messages from the body to use as queries.
+        """
+        user_messages = []
+        for msg in body.get("messages", []):
+            if msg.get("role", "") == "user":
+                msgs_content = msg.get("content")
+                if not msgs_content:
+                    continue
+                if isinstance(msgs_content, list):
+                    for msg_content in msgs_content:
+                        if msg_content.get("type", "") == "text":
+                            user_messages.append(msg_content.get("text", ""))
+                elif isinstance(msgs_content, str):
+                    user_messages.append(msgs_content)
+        return user_messages
+
+    def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
+        """
+        Return True if the matcher is the persona description matched with the
+        user messages.
+        """
+        user_messages = self._get_user_messages_from_body(thing_to_match.body)
+        if not user_messages:
+            return False
+
+        persona_manager = PersonaManager()
+        is_persona_matched = persona_manager.check_persona_match(
+            persona_name=self._mux_rule.matcher, queries=user_messages
+        )
+        logger.info(
+            "Persona rule matched",
+            matcher=self._mux_rule.matcher,
+            is_persona_matched=is_persona_matched,
+        )
+        return is_persona_matched
 
 
 class MuxingRulesinWorkspaces:

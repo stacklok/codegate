@@ -90,7 +90,7 @@ async def test_persona_not_exist_match(semantic_router_mocked_db: PersonaManager
     persona_name = "test_persona"
     query = "test_query"
     with pytest.raises(PersonaDoesNotExistError):
-        await semantic_router_mocked_db.check_persona_match(persona_name, query)
+        await semantic_router_mocked_db.check_persona_match(persona_name, [query])
 
 
 class PersonaMatchTest(BaseModel):
@@ -333,9 +333,37 @@ async def test_check_persona_pass_match(
     # Check for the queries that should pass
     for query in persona_match_test.pass_queries:
         match = await semantic_router_mocked_db.check_persona_match(
-            persona_match_test.persona_name, query
+            persona_match_test.persona_name, [query]
         )
         assert match is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "persona_match_test",
+    [
+        simple_persona,
+        architect,
+        coder,
+        devops_sre,
+    ],
+)
+async def test_check_persona_pass_match_vector(
+    semantic_router_mocked_db: PersonaManager, persona_match_test: PersonaMatchTest
+):
+    """Test checking persona match."""
+    await semantic_router_mocked_db.add_persona(
+        persona_match_test.persona_name, persona_match_test.persona_desc
+    )
+
+    # We disable the weighting between distances since these are no user messages that
+    # need to be weighted differently, they all are weighted the same.
+    semantic_router_mocked_db._distances_weight_factor = 1.0
+    # Check for match passing the entire list
+    match = await semantic_router_mocked_db.check_persona_match(
+        persona_match_test.persona_name, persona_match_test.pass_queries
+    )
+    assert match is True
 
 
 @pytest.mark.asyncio
@@ -359,9 +387,37 @@ async def test_check_persona_fail_match(
     # Check for the queries that should fail
     for query in persona_match_test.fail_queries:
         match = await semantic_router_mocked_db.check_persona_match(
-            persona_match_test.persona_name, query
+            persona_match_test.persona_name, [query]
         )
         assert match is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "persona_match_test",
+    [
+        simple_persona,
+        architect,
+        coder,
+        devops_sre,
+    ],
+)
+async def test_check_persona_fail_match_vector(
+    semantic_router_mocked_db: PersonaManager, persona_match_test: PersonaMatchTest
+):
+    """Test checking persona match."""
+    await semantic_router_mocked_db.add_persona(
+        persona_match_test.persona_name, persona_match_test.persona_desc
+    )
+
+    # We disable the weighting between distances since these are no user messages that
+    # need to be weighted differently, they all are weighted the same.
+    semantic_router_mocked_db._distances_weight_factor = 1.0
+    # Check for match passing the entire list
+    match = await semantic_router_mocked_db.check_persona_match(
+        persona_match_test.persona_name, persona_match_test.fail_queries
+    )
+    assert match is False
 
 
 @pytest.mark.asyncio
