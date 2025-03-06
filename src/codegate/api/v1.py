@@ -677,7 +677,7 @@ async def get_workspace_token_usage(workspace_name: str) -> v1_models.TokenUsage
 async def list_personas() -> List[Persona]:
     """List all personas."""
     try:
-        personas = await dbreader.get_all_personas()
+        personas = await persona_manager.get_all_personas()
         return personas
     except Exception:
         logger.exception("Error while getting personas")
@@ -688,15 +688,11 @@ async def list_personas() -> List[Persona]:
 async def get_persona(persona_name: str) -> Persona:
     """Get a persona by name."""
     try:
-        persona = await dbreader.get_persona_by_name(persona_name)
-        if not persona:
-            raise HTTPException(status_code=404, detail=f"Persona {persona_name} not found")
+        persona = await persona_manager.get_persona(persona_name)
         return persona
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        logger.exception(f"Error while getting persona {persona_name}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+    except PersonaDoesNotExistError:
+        logger.exception("Error while getting persona")
+        raise HTTPException(status_code=404, detail="Persona does not exist")
 
 
 @v1.post("/personas", tags=["Personas"], generate_unique_id_function=uniq_name, status_code=201)
@@ -712,6 +708,15 @@ async def create_persona(request: v1_models.PersonaRequest) -> Persona:
     except AlreadyExistsError:
         logger.exception("Error while creating persona")
         raise HTTPException(status_code=409, detail="Persona already exists")
+    except ValidationError:
+        logger.exception("Error while creating persona")
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Persona has invalid name, check is alphanumeric "
+                "and only contains dashes and underscores"
+            ),
+        )
     except Exception:
         logger.exception("Error while creating persona")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -735,6 +740,15 @@ async def update_persona(persona_name: str, request: v1_models.PersonaUpdateRequ
     except AlreadyExistsError:
         logger.exception("Error while updating persona")
         raise HTTPException(status_code=409, detail="Persona already exists")
+    except ValidationError:
+        logger.exception("Error while creating persona")
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Persona has invalid name, check is alphanumeric "
+                "and only contains dashes and underscores"
+            ),
+        )
     except Exception:
         logger.exception("Error while updating persona")
         raise HTTPException(status_code=500, detail="Internal server error")

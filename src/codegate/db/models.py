@@ -3,7 +3,15 @@ from enum import Enum
 from typing import Annotated, Any, Dict, List, Optional
 
 import numpy as np
-from pydantic import BaseModel, BeforeValidator, ConfigDict, PlainSerializer, StringConstraints
+import regex as re
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    PlainSerializer,
+    StringConstraints,
+    field_validator,
+)
 
 
 class AlertSeverity(str, Enum):
@@ -266,6 +274,8 @@ NdArray = Annotated[
     PlainSerializer(nd_array_custom_serializer, return_type=str),
 ]
 
+VALID_PERSONA_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_ -]+$")
+
 
 class Persona(BaseModel):
     """
@@ -275,6 +285,15 @@ class Persona(BaseModel):
     id: str
     name: str
     description: str
+
+    @field_validator("name", mode="after")
+    @classmethod
+    def validate_persona_name(cls, value: str) -> str:
+        if VALID_PERSONA_NAME_PATTERN.match(value):
+            return value
+        raise ValueError(
+            "Invalid persona name. It should be alphanumeric with underscores and dashes."
+        )
 
 
 class PersonaEmbedding(Persona):
