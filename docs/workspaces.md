@@ -62,10 +62,9 @@ types of requests. Rules are evaluated in priority order (first rule in the list
 CodeGate tracks token usage per workspace, allowing you to monitor and analyze resource consumption
 across different contexts or projects.
 
-### Alerts and Monitoring
+### Prompts, Alerts and Monitoring
 
-Workspaces maintain their own alert history, making it easier to monitor and respond to issues
-within specific contexts.
+Workspaces maintain their own prompt and alert history, making it easier to monitor and respond to issues within specific contexts.
 
 ## Developing
 
