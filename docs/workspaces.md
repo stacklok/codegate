@@ -89,16 +89,23 @@ Resources should be global when:
 
 ### Exporting resources
 
-Currently, CodeGate doesn't provide a built-in mechanism to export workspace configurations.
-However, you can use the API to retrieve workspace configurations and save them externally:
+Exporting resources in CodeGate is designed to facilitate sharing workspaces between different instances.
+This is particularly useful for:
 
-```bash
-# Get workspace configuration
-curl -X GET http://localhost:8989/api/v1/workspaces/{workspace_name} -H "Content-Type: application/json"
+- **Standardizing configurations**: When you want to ensure consistent behavior across multiple CodeGate instances
+- **Sharing best practices**: When you've developed effective muxing rules or custom instructions that others could benefit from
+- **Backup and recovery**: To preserve important workspace configurations before making significant changes
 
-# Get workspace muxing rules
-curl -X GET http://localhost:8989/api/v1/workspaces/{workspace_name}/muxes -H "Content-Type: application/json"
+When deciding whether to export resources, consider:
 
-# Get workspace custom instructions
-curl -X GET http://localhost:8989/api/v1/workspaces/{workspace_name}/custom-instructions -H "Content-Type: application/json"
-```
+- **Export workspace configurations** when they represent reusable patterns that could be valuable in other contexts
+- **Export muxing rules** when they represent well-tested routing strategies that could be applied in other instances
+- **Export custom instructions** when they contain general-purpose prompting strategies not specific to your instance
+
+Avoid exporting:
+- Workspaces with instance-specific configurations that wouldn't be applicable elsewhere
+- Workspaces containing sensitive or organization-specific custom instructions
+- Resources that are tightly coupled to your specific provider endpoints or authentication setup
+
+Note that conversation history, alerts, and token usage statistics are not included in exports as they
+represent instance-specific usage data rather than reusable configurations.
