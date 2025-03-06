@@ -560,14 +560,40 @@ class DbRecorder(DbCodeGate):
         )
 
         try:
-            # For Pydantic we convert the numpy array to string when serializing with .model_dumpy()
-            # We need to convert it back to a numpy array before inserting it into the DB.
-            persona_dict = persona.model_dump()
-            persona_dict["description_embedding"] = persona.description_embedding
-            await self._execute_with_no_return(sql, persona_dict)
+            await self._execute_with_no_return(sql, persona.model_dump())
         except IntegrityError as e:
             logger.debug(f"Exception type: {type(e)}")
             raise AlreadyExistsError(f"Persona '{persona.name}' already exists.")
+
+    async def update_persona(self, persona: PersonaEmbedding) -> None:
+        """
+        Update an existing Persona in the DB.
+
+        This handles validation and update of an existing persona.
+        """
+        sql = text(
+            """
+            UPDATE personas
+            SET name = :name,
+                description = :description,
+                description_embedding = :description_embedding
+            WHERE id = :id
+            """
+        )
+
+        try:
+            await self._execute_with_no_return(sql, persona.model_dump())
+        except IntegrityError as e:
+            logger.debug(f"Exception type: {type(e)}")
+            raise AlreadyExistsError(f"Persona '{persona.name}' already exists.")
+
+    async def delete_persona(self, persona_id: str) -> None:
+        """
+        Delete an existing Persona from the DB.
+        """
+        sql = text("DELETE FROM personas WHERE id = :id")
+        conditions = {"id": persona_id}
+        await self._execute_with_no_return(sql, conditions)
 
 
 class DbReader(DbCodeGate):
@@ -587,7 +613,10 @@ class DbReader(DbCodeGate):
             return None
 
     async def _execute_select_pydantic_model(
-        self, model_type: Type[BaseModel], sql_command: TextClause
+        self,
+        model_type: Type[BaseModel],
+        sql_command: TextClause,
+        should_raise: bool = False,
     ) -> Optional[List[BaseModel]]:
         async with self._async_db_engine.begin() as conn:
             try:
@@ -595,6 +624,9 @@ class DbReader(DbCodeGate):
                 return await self._dump_result_to_pydantic_model(model_type, result)
             except Exception as e:
                 logger.error(f"Failed to select model: {model_type}.", error=str(e))
+                # Exposes errors to the caller
+                if should_raise:
+                    raise e
                 return None
 
     async def _exec_select_conditions_to_pydantic(
@@ -1006,7 +1038,7 @@ class DbReader(DbCodeGate):
         return personas[0] if personas else None
 
     async def get_distance_to_existing_personas(
-        self, query_embedding: np.ndarray
+        self, query_embedding: np.ndarray, exclude_id: Optional[str]
     ) -> List[PersonaDistance]:
         """
         Get the distance between a persona and a query embedding.
@@ -1020,6 +1052,13 @@ class DbReader(DbCodeGate):
             FROM personas
         """
         conditions = {"query_embedding": query_embedding}
+
+        # Exclude this persona from the SQL query. Used when checking the descriptions
+        # for updating the persona. Exclude the persona to update itself from the query.
+        if exclude_id:
+            sql += " WHERE id != :exclude_id"
+            conditions["exclude_id"] = exclude_id
+
         persona_distances = await self._exec_vec_db_query_to_pydantic(
             sql, conditions, PersonaDistance
         )
@@ -1045,6 +1084,20 @@ class DbReader(DbCodeGate):
             sql, conditions, PersonaDistance
         )
         return persona_distance[0]
+
+    async def get_all_personas(self) -> List[Persona]:
+        """
+        Get all the personas.
+        """
+        sql = text(
+            """
+            SELECT
+                id, name, description
+            FROM personas
+            """
+        )
+        personas = await self._execute_select_pydantic_model(Persona, sql, should_raise=True)
+        return personas
 
 
 class DbTransaction:

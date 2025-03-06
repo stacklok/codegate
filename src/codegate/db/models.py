@@ -252,7 +252,7 @@ def nd_array_custom_before_validator(x):
 
 def nd_array_custom_serializer(x):
     # custome serialization logic
-    return str(x)
+    return x
 
 
 # Pydantic doesn't support numpy arrays out of the box hence we need to construct a custom type.

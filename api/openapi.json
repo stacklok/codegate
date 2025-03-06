@@ -1219,6 +1219,205 @@
           }
         }
       }
+    },
+    "/api/v1/personas": {
+      "get": {
+        "tags": [
+          "CodeGate API",
+          "Personas"
+        ],
+        "summary": "List Personas",
+        "description": "List all personas.",
+        "operationId": "v1_list_personas",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Persona"
+                  },
+                  "type": "array",
+                  "title": "Response V1 List Personas"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "CodeGate API",
+          "Personas"
+        ],
+        "summary": "Create Persona",
+        "description": "Create a new persona.",
+        "operationId": "v1_create_persona",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Persona"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/personas/{persona_name}": {
+      "get": {
+        "tags": [
+          "CodeGate API",
+          "Personas"
+        ],
+        "summary": "Get Persona",
+        "description": "Get a persona by name.",
+        "operationId": "v1_get_persona",
+        "parameters": [
+          {
+            "name": "persona_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Persona Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Persona"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "CodeGate API",
+          "Personas"
+        ],
+        "summary": "Update Persona",
+        "description": "Update an existing persona.",
+        "operationId": "v1_update_persona",
+        "parameters": [
+          {
+            "name": "persona_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Persona Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonaUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Persona"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "CodeGate API",
+          "Personas"
+        ],
+        "summary": "Delete Persona",
+        "description": "Delete a persona.",
+        "operationId": "v1_delete_persona",
+        "parameters": [
+          {
+            "name": "persona_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Persona Name"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1824,6 +2023,68 @@
         ],
         "title": "MuxRule",
         "description": "Represents a mux rule for a provider."
+      },
+      "Persona": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description"
+        ],
+        "title": "Persona",
+        "description": "Represents a persona object."
+      },
+      "PersonaRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "description"
+        ],
+        "title": "PersonaRequest",
+        "description": "Model for creating a new Persona."
+      },
+      "PersonaUpdateRequest": {
+        "properties": {
+          "new_name": {
+            "type": "string",
+            "title": "New Name"
+          },
+          "new_description": {
+            "type": "string",
+            "title": "New Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "new_name",
+          "new_description"
+        ],
+        "title": "PersonaUpdateRequest",
+        "description": "Model for updating a Persona."
       },
       "ProviderAuthType": {
         "type": "string",
