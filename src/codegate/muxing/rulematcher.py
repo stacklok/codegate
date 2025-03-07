@@ -61,7 +61,7 @@ class MuxingRuleMatcher(ABC):
         self._mux_rule = mux_rule
 
     @abstractmethod
-    def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
+    async def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
         """Return True if the rule matches the thing_to_match."""
         pass
 
@@ -97,7 +97,7 @@ class MuxingMatcherFactory:
 class CatchAllMuxingRuleMatcher(MuxingRuleMatcher):
     """A catch all muxing rule matcher."""
 
-    def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
+    async def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
         logger.info("Catch all rule matched")
         return True
 
@@ -132,7 +132,7 @@ class FileMuxingRuleMatcher(MuxingRuleMatcher):
         )
         return is_filename_match
 
-    def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
+    async def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
         """
         Return True if the matcher is in one of the request filenames.
         """
@@ -156,7 +156,7 @@ class RequestTypeAndFileMuxingRuleMatcher(FileMuxingRuleMatcher):
             return True
         return False
 
-    def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
+    async def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
         """
         Return True if the matcher is in one of the request filenames and
         if the request type matches the MuxMatcherType.
@@ -194,7 +194,7 @@ class PersonaDescriptionMuxingRuleMatcher(MuxingRuleMatcher):
                     user_messages.append(msgs_content)
         return user_messages
 
-    def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
+    async def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
         """
         Return True if the matcher is the persona description matched with the
         user messages.
@@ -204,14 +204,11 @@ class PersonaDescriptionMuxingRuleMatcher(MuxingRuleMatcher):
             return False
 
         persona_manager = PersonaManager()
-        is_persona_matched = persona_manager.check_persona_match(
+        is_persona_matched = await persona_manager.check_persona_match(
             persona_name=self._mux_rule.matcher, queries=user_messages
         )
-        logger.info(
-            "Persona rule matched",
-            matcher=self._mux_rule.matcher,
-            is_persona_matched=is_persona_matched,
-        )
+        if is_persona_matched:
+            logger.info("Persona rule matched", persona=self._mux_rule.matcher)
         return is_persona_matched
 
 
@@ -258,7 +255,7 @@ class MuxingRulesinWorkspaces:
         try:
             rules = await self.get_ws_rules(self._active_workspace)
             for rule in rules:
-                if rule.match(thing_to_match):
+                if await rule.match(thing_to_match):
                     return rule.destination()
             return None
         except KeyError:

@@ -24,6 +24,7 @@ mocked_route_openai = rulematcher.ModelRoute(
 )
 
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "matcher_blob, thing_to_match",
     [
@@ -40,12 +41,13 @@ mocked_route_openai = rulematcher.ModelRoute(
         ),
     ],
 )
-def test_catch_all(matcher_blob, thing_to_match):
+async def test_catch_all(matcher_blob, thing_to_match):
     muxing_rule_matcher = rulematcher.CatchAllMuxingRuleMatcher(mocked_route_openai, matcher_blob)
     # It should always match
-    assert muxing_rule_matcher.match(thing_to_match) is True
+    assert await muxing_rule_matcher.match(thing_to_match) is True
 
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "matcher, filenames_to_match, expected_bool",
     [
@@ -60,7 +62,7 @@ def test_catch_all(matcher_blob, thing_to_match):
         ("*.ts", ["main.tsx", "test.tsx"], False),  # Extension no match
     ],
 )
-def test_file_matcher(
+async def test_file_matcher(
     matcher,
     filenames_to_match,
     expected_bool,
@@ -81,9 +83,10 @@ def test_file_matcher(
         is_fim_request=False,
         client_type="generic",
     )
-    assert muxing_rule_matcher.match(mocked_thing_to_match) is expected_bool
+    assert await muxing_rule_matcher.match(mocked_thing_to_match) is expected_bool
 
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "matcher, filenames_to_match, expected_bool_filenames",
     [
@@ -107,7 +110,7 @@ def test_file_matcher(
         (True, "chat_filename", False),  # No match
     ],
 )
-def test_request_file_matcher(
+async def test_request_file_matcher(
     matcher,
     filenames_to_match,
     expected_bool_filenames,
@@ -143,7 +146,7 @@ def test_request_file_matcher(
         )
         is expected_bool_filenames
     )
-    assert muxing_rule_matcher.match(mocked_thing_to_match) is (
+    assert await muxing_rule_matcher.match(mocked_thing_to_match) is (
         expected_bool_request and expected_bool_filenames
     )
 
@@ -155,6 +158,10 @@ def test_request_file_matcher(
         (mux_models.MuxMatcherType.filename_match, rulematcher.FileMuxingRuleMatcher),
         (mux_models.MuxMatcherType.fim_filename, rulematcher.RequestTypeAndFileMuxingRuleMatcher),
         (mux_models.MuxMatcherType.chat_filename, rulematcher.RequestTypeAndFileMuxingRuleMatcher),
+        (
+            mux_models.MuxMatcherType.persona_description,
+            rulematcher.PersonaDescriptionMuxingRuleMatcher,
+        ),
         ("invalid_matcher", None),
     ],
 )
