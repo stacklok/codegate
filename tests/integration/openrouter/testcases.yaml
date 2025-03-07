@@ -24,6 +24,8 @@ muxing:
       Content-Type: application/json
     rules:
       - model: anthropic/claude-3.5-haiku
+        provider_name: openrouter_muxing
+        provider_type: openrouter
         matcher_type: catch_all
         matcher: ""
 

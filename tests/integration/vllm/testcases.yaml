@@ -23,6 +23,8 @@ muxing:
       Content-Type: application/json
     rules:
       - model: Qwen/Qwen2.5-Coder-0.5B-Instruct
+        provider_name: vllm_muxing
+        provider_type: vllm
         matcher_type: catch_all
         matcher: ""
 

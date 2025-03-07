@@ -24,6 +24,8 @@ muxing:
       Content-Type: application/json
     rules:
       - model: claude-3-5-haiku-20241022
+        provider_name: anthropic_muxing
+        provider_type: anthropic
         matcher_type: catch_all
         matcher: ""
 
