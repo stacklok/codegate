@@ -218,6 +218,20 @@ class Conversation(pydantic.BaseModel):
     alerts: List[Alert] = []
 
 
+class ConversationSummary(pydantic.BaseModel):
+    """
+    Represents a conversation summary.
+    """
+
+    chat_id: str
+    prompt: ChatMessage
+    total_alerts: int
+    token_usage_agg: Optional[TokenUsageAggregate]
+    provider: Optional[str]
+    type: QuestionType
+    conversation_timestamp: datetime.datetime
+
+
 class AlertConversation(pydantic.BaseModel):
     """
     Represents an alert with it's respective conversation.
@@ -333,3 +347,10 @@ class PersonaUpdateRequest(pydantic.BaseModel):
 
     new_name: str
     new_description: str
+
+
+class PaginatedMessagesResponse(pydantic.BaseModel):
+    data: List[ConversationSummary]
+    limit: int
+    offset: int
+    total: int
