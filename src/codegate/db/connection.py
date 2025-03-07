@@ -4,7 +4,7 @@ import json
 import sqlite3
 import uuid
 from pathlib import Path
-from typing import Dict, List, Optional, Type
+from typing import List, Optional, Type
 
 import numpy as np
 import sqlite_vec_sl_tmp
@@ -28,7 +28,6 @@ from codegate.db.models import (
     GetMessagesRow,
     GetWorkspaceByNameConditions,
     Instance,
-    IntermediatePromptWithOutputUsageAlerts,
     MuxRule,
     Output,
     Persona,
@@ -794,6 +793,36 @@ class DbReader(DbCodeGate):
             Prompt, sql, conditions, should_raise=True
         )
         return rows
+
+    async def get_total_messages_count_by_workspace_id(
+        self, workspace_id: str, trigger_category: Optional[str] = None
+    ) -> int:
+        """
+        Get total count of unique messages for a given workspace_id,
+        considering trigger_category.
+        """
+        sql = text(
+            """
+            SELECT COUNT(DISTINCT p.id)
+            FROM prompts p
+            LEFT JOIN alerts a ON p.id = a.prompt_id
+            WHERE p.workspace_id = :workspace_id
+            """
+        )
+        conditions = {"workspace_id": workspace_id}
+
+        if trigger_category:
+            sql = text(sql.text + " AND a.trigger_category = :trigger_category")
+            conditions["trigger_category"] = trigger_category
+
+        async with self._async_db_engine.begin() as conn:
+            try:
+                result = await conn.execute(sql, conditions)
+                count = result.scalar()  # Fetches the integer result directly
+                return count or 0  # Ensure it returns an integer
+            except Exception as e:
+                logger.error(f"Failed to fetch message count. Error: {e}")
+                return 0  # Return 0 in case of failure
 
     async def get_alerts_by_workspace(
         self, workspace_id: str, trigger_category: Optional[str] = None

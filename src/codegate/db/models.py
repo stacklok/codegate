@@ -337,3 +337,19 @@ class PersonaDistance(Persona):
     """
 
     distance: float
+
+
+class GetMessagesRow(BaseModel):
+    id: Any
+    timestamp: Any
+    provider: Optional[Any]
+    request: Any
+    type: Any
+    output_id: Optional[Any]
+    output: Optional[Any]
+    output_timestamp: Optional[Any]
+    input_tokens: Optional[int]
+    output_tokens: Optional[int]
+    input_cost: Optional[float]
+    output_cost: Optional[float]
+    alerts: List[Alert] = []
