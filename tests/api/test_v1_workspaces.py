@@ -230,7 +230,10 @@ async def test_create_workspace_with_mux_different_provider_name(
             return_value=["gpt-4", "gpt-3.5-turbo"],
         ),
     ):
-        """Test creating a workspace with mux rules, then recreating it after renaming the provider."""
+        """
+        Test creating a workspace with mux rules, then recreating it after
+        renaming the provider.
+        """
         app = init_app(mock_pipeline_factory)
 
         async with AsyncClient(
