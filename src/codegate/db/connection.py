@@ -617,7 +617,7 @@ class DbRecorder(DbCodeGate):
             await self._execute_with_no_return(sql, instance.model_dump())
         except IntegrityError as e:
             logger.debug(f"Exception type: {type(e)}")
-            raise AlreadyExistsError(f"Instance already initialized.")
+            raise AlreadyExistsError("Instance already initialized.")
 
 
 class DbReader(DbCodeGate):

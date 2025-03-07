@@ -25,7 +25,7 @@ class MuxMatchingError(Exception):
     pass
 
 
-async def get_muxing_rules_registry():
+async def get_muxing_rules_registry() -> "MuxingRulesinWorkspaces":
     """Returns a singleton instance of the muxing rules registry."""
 
     global _muxrules_sgtn
@@ -199,23 +199,27 @@ class MuxingRulesinWorkspaces:
         """Set the active workspace."""
         self._active_workspace = workspace_name
 
+    def get_active_workspace(self) -> str:
+        """Get the active workspace."""
+        return self._active_workspace
+
     async def get_registries(self) -> List[str]:
         """Get the list of workspaces."""
         async with self._lock:
             return list(self._ws_rules.keys())
 
-    async def get_match_for_active_workspace(
-        self, thing_to_match: mux_models.ThingToMatchMux
+    async def get_match_for_workspace(
+        self, workspace_name: str, thing_to_match: mux_models.ThingToMatchMux
     ) -> Optional[ModelRoute]:
-        """Get the first match for the given thing_to_match."""
+        """Get the first match for the given thing_to_match in the specified workspace."""
 
         # We iterate over all the rules and return the first match
         # Since we already do a deepcopy in __getitem__, we don't need to lock here
         try:
-            rules = await self.get_ws_rules(self._active_workspace)
+            rules = await self.get_ws_rules(workspace_name)
             for rule in rules:
                 if rule.match(thing_to_match):
                     return rule.destination()
             return None
         except KeyError:
-            raise RuntimeError("No rules found for the active workspace")
+            raise RuntimeError(f"No rules found for workspace {workspace_name}")

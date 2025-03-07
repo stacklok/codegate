@@ -16,8 +16,8 @@ from codegate.codegate_logging import LogFormat, LogLevel, setup_logging
 from codegate.config import Config, ConfigurationError
 from codegate.db.connection import (
     init_db_sync,
-    init_session_if_not_exists,
     init_instance,
+    init_session_if_not_exists,
 )
 from codegate.pipeline.factory import PipelineFactory
 from codegate.pipeline.sensitive_data.manager import SensitiveDataManager
