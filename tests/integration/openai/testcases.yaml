@@ -24,6 +24,8 @@ muxing:
       Content-Type: application/json
     rules:
       - model: gpt-4o-mini
+        provider_name: openai_muxing
+        provider_type: openai
         matcher_type: catch_all
         matcher: ""
 
