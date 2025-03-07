@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import List
 
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from codegate.db import connection
 from codegate.muxing.persona import (
@@ -54,7 +54,7 @@ async def test_add_persona(semantic_router_mocked_db: PersonaManager):
     persona_name = "test_persona"
     persona_desc = "test_persona_desc"
     await semantic_router_mocked_db.add_persona(persona_name, persona_desc)
-    retrieved_persona = await semantic_router_mocked_db._db_reader.get_persona_by_name(persona_name)
+    retrieved_persona = await semantic_router_mocked_db.get_persona(persona_name)
     assert retrieved_persona.name == persona_name
     assert retrieved_persona.description == persona_desc
 
@@ -70,6 +70,18 @@ async def test_add_duplicate_persona(semantic_router_mocked_db: PersonaManager):
     updated_description = "foo and bar description"
     with pytest.raises(connection.AlreadyExistsError):
         await semantic_router_mocked_db.add_persona(persona_name, updated_description)
+
+
+@pytest.mark.asyncio
+async def test_add_persona_invalid_name(semantic_router_mocked_db: PersonaManager):
+    """Test adding a persona to the database."""
+    persona_name = "test_persona&"
+    persona_desc = "test_persona_desc"
+    with pytest.raises(ValidationError):
+        await semantic_router_mocked_db.add_persona(persona_name, persona_desc)
+
+    with pytest.raises(PersonaDoesNotExistError):
+        await semantic_router_mocked_db.delete_persona(persona_name)
 
 
 @pytest.mark.asyncio
@@ -235,7 +247,7 @@ coder = PersonaMatchTest(
 
 # DevOps/SRE Engineer Persona
 devops_sre = PersonaMatchTest(
-    persona_name="devops/sre engineer",
+    persona_name="devops sre engineer",
     persona_desc="""
         Expert in infrastructure automation, deployment pipelines, and operational reliability.
         Specializes in building and maintaining scalable, resilient, and secure infrastructure.
@@ -441,8 +453,8 @@ async def test_delete_persona(semantic_router_mocked_db: PersonaManager):
 
     await semantic_router_mocked_db.delete_persona(persona_name)
 
-    persona_found = await semantic_router_mocked_db._db_reader.get_persona_by_name(persona_name)
-    assert persona_found is None
+    with pytest.raises(PersonaDoesNotExistError):
+        await semantic_router_mocked_db.get_persona(persona_name)
 
 
 @pytest.mark.asyncio
@@ -451,3 +463,28 @@ async def test_delete_persona_not_exists(semantic_router_mocked_db: PersonaManag
 
     with pytest.raises(PersonaDoesNotExistError):
         await semantic_router_mocked_db.delete_persona(persona_name)
+
+
+@pytest.mark.asyncio
+async def test_get_personas(semantic_router_mocked_db: PersonaManager):
+    """Test getting personas from the database."""
+    persona_name = "test_persona"
+    persona_desc = "test_persona_desc"
+    await semantic_router_mocked_db.add_persona(persona_name, persona_desc)
+
+    persona_name_2 = "test_persona_2"
+    persona_desc_2 = "foo and bar"
+    await semantic_router_mocked_db.add_persona(persona_name_2, persona_desc_2)
+
+    all_personas = await semantic_router_mocked_db.get_all_personas()
+    assert len(all_personas) == 2
+    assert all_personas[0].name == persona_name
+    assert all_personas[1].name == persona_name_2
+
+
+@pytest.mark.asyncio
+async def test_get_personas_empty(semantic_router_mocked_db: PersonaManager):
+    """Test adding a persona to the database."""
+
+    all_personas = await semantic_router_mocked_db.get_all_personas()
+    assert len(all_personas) == 0

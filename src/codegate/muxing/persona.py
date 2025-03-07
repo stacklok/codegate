@@ -1,6 +1,6 @@
 import unicodedata
 import uuid
-from typing import Optional
+from typing import List, Optional
 
 import numpy as np
 import regex as re
@@ -164,6 +164,21 @@ class PersonaManager:
         )
         await self._db_recorder.add_persona(new_persona)
         logger.info(f"Added persona {persona_name} to the database.")
+
+    async def get_persona(self, persona_name: str) -> db_models.Persona:
+        """
+        Get a persona from the database by name.
+        """
+        persona = await self._db_reader.get_persona_by_name(persona_name)
+        if not persona:
+            raise PersonaDoesNotExistError(f"Persona {persona_name} does not exist.")
+        return persona
+
+    async def get_all_personas(self) -> List[db_models.Persona]:
+        """
+        Get all personas from the database.
+        """
+        return await self._db_reader.get_all_personas()
 
     async def update_persona(
         self, persona_name: str, new_persona_name: str, new_persona_desc: str

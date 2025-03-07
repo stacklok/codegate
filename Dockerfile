@@ -72,6 +72,7 @@ FROM python:3.12-slim AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
     nginx \
+    gettext-base \  
     && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user
@@ -81,6 +82,7 @@ RUN useradd -m -u 1000 -r codegate
 # Set permissions for user codegate to run nginx
 RUN chown -R codegate /var/lib/nginx && \
     chown -R codegate /var/log/nginx && \
+    chown -R codegate /etc/nginx && \
     chown -R codegate /run
 
 COPY nginx.conf /etc/nginx/nginx.conf
