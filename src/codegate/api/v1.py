@@ -118,7 +118,7 @@ async def list_models_by_provider(
     except provendcrud.ProviderNotFoundError:
         raise HTTPException(status_code=404, detail="Provider not found")
     except Exception as e:
-        logger.debug(f"Error listing models by provider, {e}")
+        logger.exception("Error while listing models by provider")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -342,7 +342,7 @@ async def create_workspace(
     except crud.WorkspaceCrudError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.debug(f"Error creating workspace: {e}")
+        logger.exception("Error while creating workspace")
         raise HTTPException(status_code=500, detail="Internal server error")
 
     return v1_models.FullWorkspace(
@@ -392,7 +392,7 @@ async def update_workspace(
             ),
         )
     except crud.WorkspaceCrudError as e:
-        logger.debug(f"Could not update workspace: {e}")
+        logger.exception("Error while updating workspace")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -421,8 +421,8 @@ async def delete_workspace(workspace_name: str):
         raise HTTPException(status_code=500, detail="Internal server error")
     except crud.WorkspaceCrudError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except crud.DeleteMuxesFromRegistryError as e:
-        logger.debug(f"Error deleting workspace {e}")
+    except crud.DeleteMuxesFromRegistryError:
+        logger.exception("Error deleting muxes while deleting workspace")
         raise HTTPException(status_code=500, detail="Internal server error")
 
     return Response(status_code=204)
