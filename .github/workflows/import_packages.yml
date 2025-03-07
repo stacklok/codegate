@@ -47,6 +47,7 @@ jobs:
         MALICIOUS_KEY=$(jq -r '.latest.malicious_packages' manifest.json)
         DEPRECATED_KEY=$(jq -r '.latest.deprecated_packages' manifest.json)
         ARCHIVED_KEY=$(jq -r '.latest.archived_packages' manifest.json)
+        VULNERABLE_KEY=$(jq -r '.latest.vulnerable_packages' manifest.json)
         
         echo "Malicious key: $MALICIOUS_KEY"
         echo "Deprecated key: $DEPRECATED_KEY"
@@ -58,6 +59,7 @@ jobs:
         aws s3 cp s3://codegate-data-prod/$MALICIOUS_KEY /tmp/jsonl-files/malicious.jsonl --region $AWS_REGION
         aws s3 cp s3://codegate-data-prod/$DEPRECATED_KEY /tmp/jsonl-files/deprecated.jsonl --region $AWS_REGION
         aws s3 cp s3://codegate-data-prod/$ARCHIVED_KEY /tmp/jsonl-files/archived.jsonl --region $AWS_REGION
+        aws s3 cp s3://codegate-data-prod/$VULNERABLE_KEY /tmp/jsonl-files/vulnerable.jsonl --region $AWS_REGION
 
     - name: Install Poetry
       run: |
