@@ -10,6 +10,7 @@ from codegate.api import v1_models as apimodelsv1
 from codegate.config import Config
 from codegate.db import models as dbmodels
 from codegate.db.connection import DbReader, DbRecorder
+from codegate.muxing import models as mux_models
 from codegate.providers.base import BaseProvider
 from codegate.providers.registry import ProviderRegistry, get_provider_registry
 from codegate.workspaces import crud as workspace_crud
@@ -70,6 +71,43 @@ class ProviderCrud:
             raise ProviderNotFoundError(f'Provider "{name}" not found')
 
         return apimodelsv1.ProviderEndpoint.from_db_model(dbendpoint)
+
+    async def _try_get_endpoint_by_name_and_type(
+        self, name: str, type: Optional[str]
+    ) -> Optional[apimodelsv1.ProviderEndpoint]:
+        """
+        Try to get an endpoint by name & type,
+        falling back to a "best effort" match by type.
+        """
+
+        dbendpoint = await self._db_reader.try_get_provider_endpoint_by_name_and_type(name, type)
+        if dbendpoint is None:
+            raise ProviderNotFoundError(f'Provider "{name}" not found')
+
+        return apimodelsv1.ProviderEndpoint.from_db_model(dbendpoint)
+
+    async def add_provider_id_to_mux_rule(
+        self, rule: mux_models.MuxRule
+    ) -> mux_models.MuxRuleWithProviderId:
+        endpoint = await self._try_get_endpoint_by_name_and_type(
+            rule.provider_name, rule.provider_type
+        )
+        return mux_models.MuxRuleWithProviderId(
+            model=rule.model,
+            matcher=rule.matcher,
+            matcher_type=rule.matcher_type,
+            provider_name=endpoint.name,
+            provider_type=endpoint.provider_type,
+            provider_id=endpoint.id,
+        )
+
+    async def add_provider_ids_to_mux_rule_list(
+        self, rules: List[mux_models.MuxRule]
+    ) -> List[mux_models.MuxRuleWithProviderId]:
+        rules_with_ids = []
+        for rule in rules:
+            rules_with_ids.append(await self.add_provider_id_to_mux_rule(rule))
+        return rules_with_ids
 
     async def add_endpoint(
         self, endpoint: apimodelsv1.AddProviderEndpointRequest

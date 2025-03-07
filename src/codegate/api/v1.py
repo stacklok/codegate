@@ -35,32 +35,6 @@ def uniq_name(route: APIRoute):
     return f"v1_{route.name}"
 
 
-async def _add_provider_id_to_mux_rule(
-    mux_rule: mux_models.MuxRule,
-) -> mux_models.MuxRuleWithProviderId:
-    """
-    Convert a `MuxRule` to `MuxRuleWithProviderId` by looking up the provider ID.
-    Extracts provider name and type from the MuxRule and queries the database to get the ID.
-    """
-    provider = await dbreader.try_get_provider_endpoint_by_name_and_type(
-        mux_rule.provider_name,
-        mux_rule.provider_type,
-    )
-    if provider is None:
-        raise crud.WorkspaceCrudError(
-            f'Provider "{mux_rule.provider_name}" of type "{mux_rule.provider_type}" not found'  # noqa: E501
-        )
-
-    return mux_models.MuxRuleWithProviderId(
-        matcher=mux_rule.matcher,
-        matcher_type=mux_rule.matcher_type,
-        model=mux_rule.model,
-        provider_type=provider.provider_type,
-        provider_id=provider.id,
-        provider_name=provider.name,
-    )
-
-
 class FilterByNameParams(BaseModel):
     name: Optional[str] = None
 
@@ -79,7 +53,7 @@ async def list_provider_endpoints(
     try:
         provend = await pcrud.get_endpoint_by_name(filter_query.name)
         return [provend]
-    except pcrud.ProviderNotFoundError:
+    except provendcrud.ProviderNotFoundError:
         raise HTTPException(status_code=404, detail="Provider endpoint not found")
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -128,7 +102,7 @@ async def get_provider_endpoint(
     """Get a provider endpoint by name."""
     try:
         provend = await pcrud.get_endpoint_by_name(provider_name)
-    except pcrud.ProviderNotFoundError:
+    except provendcrud.ProviderNotFoundError:
         raise HTTPException(status_code=404, detail="Provider endpoint not found")
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -220,6 +194,7 @@ async def update_provider_endpoint(
             detail=str(e),
         )
     except Exception as e:
+        logger.exception("Error while updating provider endpoint")
         raise HTTPException(status_code=500, detail=str(e))
 
     return provend
@@ -308,14 +283,12 @@ async def create_workspace(
     """Create a new workspace."""
     try:
         custom_instructions = request.config.custom_instructions if request.config else None
-        muxing_rules: List[mux_models.MuxRuleWithProviderId] = []
+        mux_rules = []
         if request.config and request.config.muxing_rules:
-            for rule in request.config.muxing_rules:
-                mux_rule_with_provider = await _add_provider_id_to_mux_rule(rule)
-                muxing_rules.append(mux_rule_with_provider)
+            mux_rules = await pcrud.add_provider_ids_to_mux_rule_list(request.config.muxing_rules)
 
         workspace_row, mux_rules = await wscrud.add_workspace(
-            request.name, custom_instructions, muxing_rules
+            request.name, custom_instructions, mux_rules
         )
     except crud.WorkspaceNameAlreadyInUseError:
         raise HTTPException(status_code=409, detail="Workspace name already in use")
@@ -327,9 +300,13 @@ async def create_workspace(
                 "Please use only alphanumeric characters, hyphens, or underscores."
             ),
         )
-    except crud.WorkspaceCrudError as e:
+    except provendcrud.ProviderNotFoundError as e:
+        logger.exception("Error matching a provider for a mux rule while creating a workspace")
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
+    except crud.WorkspaceCrudError as e:
+        logger.exception("Error while create a workspace")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
         logger.exception("Error while creating workspace")
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -355,18 +332,18 @@ async def update_workspace(
     """Update a workspace."""
     try:
         custom_instructions = request.config.custom_instructions if request.config else None
-        muxing_rules: List[mux_models.MuxRuleWithProviderId] = []
+        mux_rules = []
         if request.config and request.config.muxing_rules:
-            for rule in request.config.muxing_rules:
-                mux_rule_with_provider = await _add_provider_id_to_mux_rule(rule)
-                muxing_rules.append(mux_rule_with_provider)
+            mux_rules = await pcrud.add_provider_ids_to_mux_rule_list(request.config.muxing_rules)
 
         workspace_row, mux_rules = await wscrud.update_workspace(
             workspace_name,
             request.name,
             custom_instructions,
-            muxing_rules,
+            mux_rules,
         )
+    except provendcrud.ProviderNotFoundError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except crud.WorkspaceDoesNotExistError:
         raise HTTPException(status_code=404, detail="Workspace does not exist")
     except crud.WorkspaceNameAlreadyInUseError:
@@ -640,11 +617,12 @@ async def set_workspace_muxes(
     """Set the mux rules of a workspace."""
     try:
         mux_rules = []
-        for rule in request:
-            mux_rule_with_provider = await _add_provider_id_to_mux_rule(rule)
-            mux_rules.append(mux_rule_with_provider)
+        if request.config and request.config.muxing_rules:
+            mux_rules = await pcrud.add_provider_ids_to_mux_rule_list(request.config.muxing_rules)
 
         await wscrud.set_muxes(workspace_name, mux_rules)
+    except provendcrud.ProviderNotFoundError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except crud.WorkspaceDoesNotExistError:
         raise HTTPException(status_code=404, detail="Workspace does not exist")
     except crud.WorkspaceCrudError as e:
