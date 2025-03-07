@@ -10,7 +10,7 @@ from codegate.muxing import rulematcher
 from codegate.muxing.adapter import BodyAdapter, ResponseAdapter
 from codegate.providers.fim_analyzer import FIMAnalyzer
 from codegate.providers.registry import ProviderRegistry
-from codegate.workspaces.crud import WorkspaceCrud
+from codegate.workspaces.crud import WorkspaceCrud, WorkspaceDoesNotExistError
 
 logger = structlog.get_logger("codegate")
 
@@ -40,22 +40,46 @@ class MuxRouter:
         return path if path.startswith("/") else f"/{path}"
 
     async def _get_model_route(
-        self, thing_to_match: mux_models.ThingToMatchMux
+        self, thing_to_match: mux_models.ThingToMatchMux, workspace_name: Optional[str] = None
     ) -> Optional[rulematcher.ModelRoute]:
         """
         Get the model route for the given things_to_match.
+
+        If workspace_name is provided and exists, use that workspace.
+        Otherwise, use the active workspace.
         """
-        mux_registry = await rulematcher.get_muxing_rules_registry()
         try:
-            # Try to get a model route for the active workspace
-            model_route = await mux_registry.get_match_for_active_workspace(thing_to_match)
-            return model_route
+            mux_registry = await rulematcher.get_muxing_rules_registry()
+            relevant_workspace = await self._get_relevant_workspace_name(
+                mux_registry, workspace_name
+            )
+            return await mux_registry.get_match_for_workspace(relevant_workspace, thing_to_match)
         except rulematcher.MuxMatchingError as e:
             logger.exception(f"Error matching rule and getting model route: {e}")
             raise HTTPException(detail=str(e), status_code=404)
         except Exception as e:
-            logger.exception(f"Error getting active workspace muxes: {e}")
+            logger.exception(f"Error getting workspace muxes: {e}")
             raise HTTPException(detail=str(e), status_code=404)
+
+    async def _get_relevant_workspace_name(
+        self, mreg: rulematcher.MuxingRulesinWorkspaces, workspace_name: Optional[str]
+    ) -> str:
+        if not workspace_name:
+            # No workspace specified, use active workspace
+            return mreg.get_active_workspace()
+
+        try:
+            # Verify the requested workspace exists
+            # TODO: We should have an in-memory cache of the workspaces
+            await self._ws_crud.get_workspace_by_name(workspace_name)
+            logger.debug(f"Using workspace from X-CodeGate-Workspace header: {workspace_name}")
+            return workspace_name
+        except WorkspaceDoesNotExistError:
+            # Workspace doesn't exist, fall back to active workspace
+            logger.warning(
+                f"Workspace {workspace_name} does not exist, falling back to active workspace"
+            )
+            return mreg.get_active_workspace()
 
     def _setup_routes(self):
 
@@ -68,7 +92,7 @@ class MuxRouter:
             """
             Route the request to the correct destination provider.
 
-            1. Get destination provider from DB and active workspace.
+            1. Get destination provider from DB and workspace (from header or active).
             2. Map the request body to the destination provider format.
             3. Run pipeline. Selecting the correct destination provider.
             4. Transmit the response back to the client in OpenAI format.
@@ -78,14 +102,17 @@ class MuxRouter:
             data = json.loads(body)
             is_fim_request = FIMAnalyzer.is_fim_request(rest_of_path, data)
 
-            # 1. Get destination provider from DB and active workspace.
+            # Check if X-CodeGate-Workspace header is present
+            workspace_header = request.headers.get("X-CodeGate-Workspace")
+
+            # 1. Get destination provider from DB and workspace (from header or active).
             thing_to_match = mux_models.ThingToMatchMux(
                 body=data,
                 url_request_path=rest_of_path,
                 is_fim_request=is_fim_request,
                 client_type=request.state.detected_client,
             )
-            model_route = await self._get_model_route(thing_to_match)
+            model_route = await self._get_model_route(thing_to_match, workspace_header)
             if not model_route:
                 raise HTTPException(
                     detail="No matching rule found for the active workspace", status_code=404
