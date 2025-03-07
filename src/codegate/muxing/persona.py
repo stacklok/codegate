@@ -268,7 +268,7 @@ class PersonaManager:
 
         # Create positions array in reverse order (n-1, n-2, ..., 1, 0)
         # This makes the last element have position 0
-        positions = np.arange(n - 1, -1, -1)
+        positions = np.arange(start=n - 1, stop=-1, step=-1, dtype=np.float32)
 
         # Create weights - now the last element (position 0) gets weight 1
         weights = self._distances_weight_factor**positions
