@@ -32,6 +32,10 @@ class MuxMatcherType(str, Enum):
     fim_filename = "fim_filename"
     # Match based on chat request type. It will match if the request type is chat
     chat_filename = "chat_filename"
+    # Match the user messages to the persona description
+    persona_description = "persona_description"
+    # Match the system prompt to the persona description
+    sys_prompt_persona_desc = "sys_prompt_persona_desc"
 
 
 class MuxRule(pydantic.BaseModel):
