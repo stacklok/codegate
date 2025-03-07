@@ -1,4 +1,5 @@
-from unittest.mock import MagicMock
+from typing import Dict, List
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -151,6 +152,100 @@ async def test_request_file_matcher(
     )
 
 
+# We mock PersonaManager because it's tested in /tests/persona/test_manager.py
+MOCK_PERSONA_MANAGER = AsyncMock()
+MOCK_PERSONA_MANAGER.check_persona_match.return_value = True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "body, expected_queries",
+    [
+        ({"messages": [{"role": "system", "content": "Youre helpful"}]}, []),
+        ({"messages": [{"role": "user", "content": "hello"}]}, ["hello"]),
+        (
+            {"messages": [{"role": "user", "content": [{"type": "text", "text": "hello_dict"}]}]},
+            ["hello_dict"],
+        ),
+    ],
+)
+async def test_user_msgs_persona_desc_matcher(body: Dict, expected_queries: List[str]):
+    mux_rule = mux_models.MuxRule(
+        provider_id="1",
+        model="fake-gpt",
+        matcher_type="persona_description",
+        matcher="foo_persona",
+    )
+    muxing_rule_matcher = rulematcher.UserMsgsPersonaDescMuxMatcher(mocked_route_openai, mux_rule)
+
+    mocked_thing_to_match = mux_models.ThingToMatchMux(
+        body=body,
+        url_request_path="/chat/completions",
+        is_fim_request=False,
+        client_type="generic",
+    )
+
+    resulting_queries = muxing_rule_matcher._get_queries_for_persona_match(body)
+    assert set(resulting_queries) == set(expected_queries)
+
+    with patch("codegate.muxing.rulematcher.PersonaManager", return_value=MOCK_PERSONA_MANAGER):
+        result = await muxing_rule_matcher.match(mocked_thing_to_match)
+
+    if expected_queries:
+        assert result is True
+    else:
+        assert result is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "body, expected_queries",
+    [
+        ({"messages": [{"role": "system", "content": "Youre helpful"}]}, ["Youre helpful"]),
+        ({"messages": [{"role": "user", "content": "hello"}]}, []),
+        (
+            {
+                "messages": [
+                    {"role": "system", "content": "Youre helpful"},
+                    {"role": "user", "content": "hello"},
+                ]
+            },
+            ["Youre helpful"],
+        ),
+        (
+            {"messages": [{"role": "user", "content": "hello"}], "system": "Anthropic system"},
+            ["Anthropic system"],
+        ),
+    ],
+)
+async def test_sys_prompt_persona_desc_matcher(body: Dict, expected_queries: List[str]):
+    mux_rule = mux_models.MuxRule(
+        provider_id="1",
+        model="fake-gpt",
+        matcher_type="sys_prompt_persona_desc",
+        matcher="foo_persona",
+    )
+    muxing_rule_matcher = rulematcher.SysPromptPersonaDescMuxMatcher(mocked_route_openai, mux_rule)
+
+    mocked_thing_to_match = mux_models.ThingToMatchMux(
+        body=body,
+        url_request_path="/chat/completions",
+        is_fim_request=False,
+        client_type="generic",
+    )
+
+    resulting_queries = muxing_rule_matcher._get_queries_for_persona_match(body)
+    assert set(resulting_queries) == set(expected_queries)
+
+    with patch("codegate.muxing.rulematcher.PersonaManager", return_value=MOCK_PERSONA_MANAGER):
+        result = await muxing_rule_matcher.match(mocked_thing_to_match)
+
+    if expected_queries:
+        assert result is True
+    else:
+        assert result is False
+
+
 @pytest.mark.parametrize(
     "matcher_type, expected_class",
     [
@@ -160,7 +255,11 @@ async def test_request_file_matcher(
         (mux_models.MuxMatcherType.chat_filename, rulematcher.RequestTypeAndFileMuxingRuleMatcher),
         (
             mux_models.MuxMatcherType.persona_description,
-            rulematcher.PersonaDescriptionMuxingRuleMatcher,
+            rulematcher.UserMsgsPersonaDescMuxMatcher,
+        ),
+        (
+            mux_models.MuxMatcherType.sys_prompt_persona_desc,
+            rulematcher.SysPromptPersonaDescMuxMatcher,
         ),
         ("invalid_matcher", None),
     ],
