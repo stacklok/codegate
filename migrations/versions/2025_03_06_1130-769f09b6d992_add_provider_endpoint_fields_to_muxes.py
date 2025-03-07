@@ -1,8 +1,8 @@
-"""add provider_endpoint_name to muxes
+"""add provider endpoint fields to muxes
 
-Revision ID: 4b81c45b5da6
-Revises: 769f09b6d992
-Create Date: 2025-03-06 13:24:41.123857+00:00
+Revision ID: 769f09b6d992
+Revises: e4c05d7591a8
+Create Date: 2025-03-06 11:30:11.647216+00:00
 
 """
 
@@ -11,8 +11,8 @@ from typing import Sequence, Union
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "4b81c45b5da6"
-down_revision: Union[str, None] = "769f09b6d992"
+revision: str = "769f09b6d992"
+down_revision: Union[str, None] = "e4c05d7591a8"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -21,7 +21,13 @@ def upgrade() -> None:
     # Begin transaction
     op.execute("BEGIN TRANSACTION;")
 
-    # Add the new column
+    # Add the new columns
+    op.execute(
+        """
+        ALTER TABLE muxes
+        ADD COLUMN provider_endpoint_type TEXT;
+        """
+    )
     op.execute(
         """
         ALTER TABLE muxes
@@ -29,21 +35,26 @@ def upgrade() -> None:
         """
     )
 
-    # Update the new column with data from provider_endpoints
+    # Update both new columns with data from provider_endpoints
     op.execute(
         """
         UPDATE muxes
-        SET provider_endpoint_name = (
-            SELECT name
-            FROM provider_endpoints
-            WHERE provider_endpoints.id = muxes.provider_endpoint_id
-        );
+        SET
+            provider_endpoint_type = (
+                SELECT provider_type
+                FROM provider_endpoints
+                WHERE provider_endpoints.id = muxes.provider_endpoint_id
+            ),
+            provider_endpoint_name = (
+                SELECT name
+                FROM provider_endpoints
+                WHERE provider_endpoints.id = muxes.provider_endpoint_id
+            );
         """
     )
 
-    # Make the column NOT NULL after populating it
-    # SQLite is funny about altering columns, so we actually need to clone &
-    # swap the table
+    # Make the columns NOT NULL after populating them
+    # SQLite requires table recreation for this
     op.execute("CREATE TABLE muxes_new AS SELECT * FROM muxes;")
     op.execute("DROP TABLE muxes;")
     op.execute(
@@ -75,16 +86,22 @@ def downgrade() -> None:
     op.execute("BEGIN TRANSACTION;")
 
     try:
-        # Check if the column exists
+        # Check if the columns exist
         op.execute(
             """
-            SELECT provider_endpoint_name
+            SELECT provider_endpoint_type, provider_endpoint_name
             FROM muxes
             LIMIT 1;
             """
         )
 
-        # Drop the column only if it exists
+        # Drop both columns if they exist
+        op.execute(
+            """
+            ALTER TABLE muxes
+            DROP COLUMN provider_endpoint_type;
+            """
+        )
         op.execute(
             """
             ALTER TABLE muxes
@@ -92,7 +109,7 @@ def downgrade() -> None:
             """
         )
     except Exception:
-        # If there's an error (column doesn't exist), rollback and continue
+        # If there's an error (columns don't exist), rollback and continue
         op.execute("ROLLBACK;")
         return
 
