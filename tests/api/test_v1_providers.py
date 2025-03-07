@@ -217,6 +217,81 @@ async def test_providers_crud(
 
 
 @pytest.mark.asyncio
+async def test_update_provider_endpoint(
+    mock_pipeline_factory, mock_workspace_crud, mock_provider_crud
+) -> None:
+    with (
+        patch("codegate.api.v1.wscrud", mock_workspace_crud),
+        patch("codegate.api.v1.pcrud", mock_provider_crud),
+        patch(
+            "codegate.providers.openai.provider.OpenAIProvider.models",
+            return_value=["gpt-4", "gpt-3.5-turbo"],
+        ),
+    ):
+        """Test updating a provider endpoint."""
+        app = init_app(mock_pipeline_factory)
+
+        async with AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            # Create initial provider
+            provider_payload = {
+                "name": "test-provider",
+                "description": "Initial description",
+                "auth_type": "none",
+                "provider_type": "openai",
+                "endpoint": "https://api.initial.com",
+                "api_key": "initial-key",
+            }
+
+            response = await ac.post("/api/v1/provider-endpoints", json=provider_payload)
+            assert response.status_code == 201
+            initial_provider = response.json()
+
+            # Update the provider
+            updated_payload = {
+                "name": "test-provider-updated",
+                "description": "Updated description",
+                "auth_type": "api_key",
+                "provider_type": "openai",
+                "endpoint": "https://api.updated.com",
+                "api_key": "updated-key",
+            }
+
+            response = await ac.put(
+                "/api/v1/provider-endpoints/test-provider", json=updated_payload
+            )
+            assert response.status_code == 200
+            updated_provider = response.json()
+
+            # Verify fields were updated
+            assert updated_provider["name"] == updated_payload["name"]
+            assert updated_provider["description"] == updated_payload["description"]
+            assert updated_provider["auth_type"] == updated_payload["auth_type"]
+            assert updated_provider["provider_type"] == updated_payload["provider_type"]
+            assert updated_provider["endpoint"] == updated_payload["endpoint"]
+            assert updated_provider["id"] == initial_provider["id"]
+
+            # Get OpenRouter provider by name
+            response = await ac.get("/api/v1/provider-endpoints/test-provider-updated")
+            assert response.status_code == 200
+            provider = response.json()
+            assert provider["name"] == updated_payload["name"]
+            assert provider["description"] == updated_payload["description"]
+            assert provider["auth_type"] == updated_payload["auth_type"]
+            assert provider["provider_type"] == updated_payload["provider_type"]
+            assert provider["endpoint"] == updated_payload["endpoint"]
+            assert isinstance(provider["id"], str) and provider["id"]
+
+            # Test updating non-existent provider
+            response = await ac.put(
+                "/api/v1/provider-endpoints/fake-provider", json=updated_payload
+            )
+            assert response.status_code == 404
+            assert response.json()["detail"] == "Provider endpoint not found"
+
+
+@pytest.mark.asyncio
 async def test_list_providers_by_name(
     mock_pipeline_factory, mock_workspace_crud, mock_provider_crud
 ) -> None:
@@ -389,10 +464,10 @@ async def test_list_models_by_provider(
             response = await ac.post("/api/v1/provider-endpoints", json=provider_payload)
             assert response.status_code == 201
             provider = response.json()
-            provider_id = provider["id"]
+            provider_name = provider["name"]
 
             # Get models for the provider
-            response = await ac.get(f"/api/v1/provider-endpoints/{provider_id}/models")
+            response = await ac.get(f"/api/v1/provider-endpoints/{provider_name}/models")
             assert response.status_code == 200
             models = response.json()
 
@@ -407,7 +482,54 @@ async def test_list_models_by_provider(
             assert all(model["provider_name"] == "openai-provider" for model in models)
 
             # Test with non-existent provider ID
-            fake_uuid = str(uuid())
-            response = await ac.get(f"/api/v1/provider-endpoints/{fake_uuid}/models")
+            fake_name = "foo-bar"
+            response = await ac.get(f"/api/v1/provider-endpoints/{fake_name}/models")
             assert response.status_code == 404
             assert response.json()["detail"] == "Provider not found"
+
+
+@pytest.mark.asyncio
+async def test_configure_auth_material(
+    mock_pipeline_factory, mock_workspace_crud, mock_provider_crud
+) -> None:
+    with (
+        patch("codegate.api.v1.wscrud", mock_workspace_crud),
+        patch("codegate.api.v1.pcrud", mock_provider_crud),
+        patch(
+            "codegate.providers.openai.provider.OpenAIProvider.models",
+            return_value=["gpt-4", "gpt-3.5-turbo"],
+        ),
+    ):
+        """Test configuring auth material for a provider."""
+        app = init_app(mock_pipeline_factory)
+
+        async with AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            # Create provider
+            provider_payload = {
+                "name": "test-provider",
+                "description": "Test provider",
+                "auth_type": "none",
+                "provider_type": "openai",
+                "endpoint": "https://api.test.com",
+                "api_key": "test-key",
+            }
+
+            response = await ac.post("/api/v1/provider-endpoints", json=provider_payload)
+            assert response.status_code == 201
+
+            # Configure auth material
+            auth_material = {"api_key": "sk-proj-foo-bar-123-xyz", "auth_type": "api_key"}
+
+            response = await ac.put(
+                "/api/v1/provider-endpoints/test-provider/auth-material", json=auth_material
+            )
+            assert response.status_code == 204
+
+            # Test with non-existent provider
+            response = await ac.put(
+                "/api/v1/provider-endpoints/fake-provider/auth-material", json=auth_material
+            )
+            assert response.status_code == 404
+            assert response.json()["detail"] == "Provider endpoint not found"

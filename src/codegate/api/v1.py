@@ -1,5 +1,4 @@
 from typing import List, Optional
-from uuid import UUID
 
 import requests
 import structlog
@@ -80,7 +79,7 @@ async def list_provider_endpoints(
     return [provend]
 
 
-# This needs to be above /provider-endpoints/{provider_id} to avoid conflict
+# This needs to be above /provider-endpoints/{provider_name} to avoid conflict
 @v1.get(
     "/provider-endpoints/models",
     tags=["Providers"],
@@ -95,17 +94,20 @@ async def list_all_models_for_all_providers() -> List[v1_models.ModelByProvider]
 
 
 @v1.get(
-    "/provider-endpoints/{provider_id}/models",
+    "/provider-endpoints/{provider_name}/models",
     tags=["Providers"],
     generate_unique_id_function=uniq_name,
 )
 async def list_models_by_provider(
-    provider_id: UUID,
+    provider_name: str,
 ) -> List[v1_models.ModelByProvider]:
     """List models by provider."""
 
     try:
-        return await pcrud.models_by_provider(provider_id)
+        provider = await pcrud.get_endpoint_by_name(provider_name)
+        if provider is None:
+            raise provendcrud.ProviderNotFoundError
+        return await pcrud.models_by_provider(provider.id)
     except provendcrud.ProviderNotFoundError:
         raise HTTPException(status_code=404, detail="Provider not found")
     except Exception as e:
@@ -167,18 +169,21 @@ async def add_provider_endpoint(
 
 
 @v1.put(
-    "/provider-endpoints/{provider_id}/auth-material",
+    "/provider-endpoints/{provider_name}/auth-material",
     tags=["Providers"],
     generate_unique_id_function=uniq_name,
     status_code=204,
 )
 async def configure_auth_material(
-    provider_id: UUID,
+    provider_name: str,
     request: v1_models.ConfigureAuthMaterial,
 ):
     """Configure auth material for a provider."""
     try:
-        await pcrud.configure_auth_material(provider_id, request)
+        provider = await pcrud.get_endpoint_by_name(provider_name)
+        if provider is None:
+            raise provendcrud.ProviderNotFoundError
+        await pcrud.configure_auth_material(provider.id, request)
     except provendcrud.ProviderNotFoundError:
         raise HTTPException(status_code=404, detail="Provider endpoint not found")
     except provendcrud.ProviderModelsNotFoundError:
@@ -192,15 +197,18 @@ async def configure_auth_material(
 
 
 @v1.put(
-    "/provider-endpoints/{provider_id}", tags=["Providers"], generate_unique_id_function=uniq_name
+    "/provider-endpoints/{provider_name}", tags=["Providers"], generate_unique_id_function=uniq_name
 )
 async def update_provider_endpoint(
-    provider_id: UUID,
+    provider_name: str,
     request: v1_models.ProviderEndpoint,
 ) -> v1_models.ProviderEndpoint:
-    """Update a provider endpoint by ID."""
+    """Update a provider endpoint by name."""
     try:
-        request.id = str(provider_id)
+        provider = await pcrud.get_endpoint_by_name(provider_name)
+        if provider is None:
+            raise provendcrud.ProviderNotFoundError
+        request.id = str(provider.id)
         provend = await pcrud.update_endpoint(request)
     except provendcrud.ProviderNotFoundError:
         raise HTTPException(status_code=404, detail="Provider endpoint not found")
@@ -245,10 +253,9 @@ async def list_workspaces(
     List all workspaces.
 
     Args:
-        provider_id (Optional[UUID]): Filter workspaces by provider ID. If provided,
+        provider_name (Optional[str]): Filter workspaces by provider name. If provided,
         will return workspaces where models from the specified provider (e.g., OpenAI,
-        Anthropic) have been used in workspace muxing rules. Note that you must
-        refer to a provider by ID, not by name.
+        Anthropic) have been used in workspace muxing rules.
 
     Returns:
         ListWorkspacesResponse: A response object containing the list of workspaces.
@@ -256,6 +263,8 @@ async def list_workspaces(
     try:
         if provider_name:
             provider = await pcrud.get_endpoint_by_name(provider_name)
+            if provider is None:
+                raise provendcrud.ProviderNotFoundError
             wslist = await wscrud.workspaces_by_provider(provider.id)
             resp = v1_models.ListWorkspacesResponse.from_db_workspaces(wslist)
             return resp
