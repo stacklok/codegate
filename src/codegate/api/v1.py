@@ -78,12 +78,11 @@ async def list_provider_endpoints(
 
     try:
         provend = await pcrud.get_endpoint_by_name(filter_query.name)
+        return [provend]
+    except pcrud.ProviderNotFoundError:
+        raise HTTPException(status_code=404, detail="Provider endpoint not found")
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
-
-    if provend is None:
-        raise HTTPException(status_code=404, detail="Provider endpoint not found")
-    return [provend]
 
 
 # This needs to be above /provider-endpoints/{provider_name} to avoid conflict
@@ -112,8 +111,6 @@ async def list_models_by_provider(
 
     try:
         provider = await pcrud.get_endpoint_by_name(provider_name)
-        if provider is None:
-            raise provendcrud.ProviderNotFoundError
         return await pcrud.models_by_provider(provider.id)
     except provendcrud.ProviderNotFoundError:
         raise HTTPException(status_code=404, detail="Provider not found")
@@ -131,11 +128,10 @@ async def get_provider_endpoint(
     """Get a provider endpoint by name."""
     try:
         provend = await pcrud.get_endpoint_by_name(provider_name)
+    except pcrud.ProviderNotFoundError:
+        raise HTTPException(status_code=404, detail="Provider endpoint not found")
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
-
-    if provend is None:
-        raise HTTPException(status_code=404, detail="Provider endpoint not found")
     return provend
 
 
@@ -188,8 +184,6 @@ async def configure_auth_material(
     """Configure auth material for a provider."""
     try:
         provider = await pcrud.get_endpoint_by_name(provider_name)
-        if provider is None:
-            raise provendcrud.ProviderNotFoundError
         await pcrud.configure_auth_material(provider.id, request)
     except provendcrud.ProviderNotFoundError:
         raise HTTPException(status_code=404, detail="Provider endpoint not found")
@@ -213,8 +207,6 @@ async def update_provider_endpoint(
     """Update a provider endpoint by name."""
     try:
         provider = await pcrud.get_endpoint_by_name(provider_name)
-        if provider is None:
-            raise provendcrud.ProviderNotFoundError
         request.id = str(provider.id)
         provend = await pcrud.update_endpoint(request)
     except provendcrud.ProviderNotFoundError:
@@ -242,8 +234,6 @@ async def delete_provider_endpoint(
     """Delete a provider endpoint by name."""
     try:
         provider = await pcrud.get_endpoint_by_name(provider_name)
-        if provider is None:
-            raise provendcrud.ProviderNotFoundError
         await pcrud.delete_endpoint(provider.id)
     except provendcrud.ProviderNotFoundError:
         raise HTTPException(status_code=404, detail="Provider endpoint not found")
@@ -270,8 +260,6 @@ async def list_workspaces(
     try:
         if provider_name:
             provider = await pcrud.get_endpoint_by_name(provider_name)
-            if provider is None:
-                raise provendcrud.ProviderNotFoundError
             wslist = await wscrud.workspaces_by_provider(provider.id)
             resp = v1_models.ListWorkspacesResponse.from_db_workspaces(wslist)
             return resp

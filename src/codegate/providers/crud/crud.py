@@ -67,7 +67,7 @@ class ProviderCrud:
 
         dbendpoint = await self._db_reader.get_provider_endpoint_by_name(name)
         if dbendpoint is None:
-            return None
+            raise ProviderNotFoundError(f'Provider "{name}" not found')
 
         return apimodelsv1.ProviderEndpoint.from_db_model(dbendpoint)
 
