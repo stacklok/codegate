@@ -32,6 +32,10 @@ class WorkspaceMuxRuleDoesNotExistError(WorkspaceCrudError):
     pass
 
 
+class DeleteMuxesFromRegistryError(WorkspaceCrudError):
+    pass
+
+
 DEFAULT_WORKSPACE_NAME = "default"
 
 # These are reserved keywords that cannot be used for workspaces
@@ -237,6 +241,7 @@ class WorkspaceCrud:
         """
         Soft delete a workspace
         """
+
         if workspace_name == "":
             raise WorkspaceCrudError("Workspace name cannot be empty.")
         if workspace_name == DEFAULT_WORKSPACE_NAME:
@@ -257,8 +262,13 @@ class WorkspaceCrud:
             raise WorkspaceCrudError(f"Error deleting workspace {workspace_name}")
 
         # Remove the muxes from the registry
-        mux_registry = await rulematcher.get_muxing_rules_registry()
-        await mux_registry.delete_ws_rules(workspace_name)
+        try:
+            mux_registry = await rulematcher.get_muxing_rules_registry()
+            await mux_registry.delete_ws_rules(workspace_name)
+        except Exception:
+            raise DeleteMuxesFromRegistryError(
+                f"Error deleting mux rules for workspace {workspace_name}"
+            )
         return
 
     async def hard_delete_workspace(self, workspace_name: str):
@@ -331,9 +341,9 @@ class WorkspaceCrud:
         # Add the new muxes
         priority = 0
 
-        muxes_with_routes: List[Tuple[mux_models.MuxRuleWithProviderId, rulematcher.ModelRoute]] = (
-            []
-        )
+        muxes_with_routes: List[
+            Tuple[mux_models.MuxRuleWithProviderId, rulematcher.ModelRoute]
+        ] = []
 
         # Verify all models are valid
         for mux in muxes:

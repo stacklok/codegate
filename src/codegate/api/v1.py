@@ -219,14 +219,17 @@ async def update_provider_endpoint(
 
 
 @v1.delete(
-    "/provider-endpoints/{provider_id}", tags=["Providers"], generate_unique_id_function=uniq_name
+    "/provider-endpoints/{provider_name}", tags=["Providers"], generate_unique_id_function=uniq_name
 )
 async def delete_provider_endpoint(
-    provider_id: UUID,
+    provider_name: str,
 ):
-    """Delete a provider endpoint by id."""
+    """Delete a provider endpoint by name."""
     try:
-        await pcrud.delete_endpoint(provider_id)
+        provider = await pcrud.get_endpoint_by_name(provider_name)
+        if provider is None:
+            raise provendcrud.ProviderNotFoundError
+        await pcrud.delete_endpoint(provider.id)
     except provendcrud.ProviderNotFoundError:
         raise HTTPException(status_code=404, detail="Provider endpoint not found")
     except Exception:
@@ -236,7 +239,7 @@ async def delete_provider_endpoint(
 
 @v1.get("/workspaces", tags=["Workspaces"], generate_unique_id_function=uniq_name)
 async def list_workspaces(
-    provider_id: Optional[UUID] = Query(None),
+    provider_name: Optional[str] = Query(None),
 ) -> v1_models.ListWorkspacesResponse:
     """
     List all workspaces.
@@ -251,8 +254,9 @@ async def list_workspaces(
         ListWorkspacesResponse: A response object containing the list of workspaces.
     """
     try:
-        if provider_id:
-            wslist = await wscrud.workspaces_by_provider(provider_id)
+        if provider_name:
+            provider = await pcrud.get_endpoint_by_name(provider_name)
+            wslist = await wscrud.workspaces_by_provider(provider.id)
             resp = v1_models.ListWorkspacesResponse.from_db_workspaces(wslist)
             return resp
         else:
@@ -394,9 +398,12 @@ async def delete_workspace(workspace_name: str):
         _ = await wscrud.soft_delete_workspace(workspace_name)
     except crud.WorkspaceDoesNotExistError:
         raise HTTPException(status_code=404, detail="Workspace does not exist")
+    except crud.DeleteMuxesFromRegistryError:
+        raise HTTPException(status_code=500, detail="Internal server error")
     except crud.WorkspaceCrudError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
+    except crud.DeleteMuxesFromRegistryError as e:
+        logger.debug(f"Error deleting workspace {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
     return Response(status_code=204)

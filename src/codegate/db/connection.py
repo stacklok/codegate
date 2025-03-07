@@ -714,10 +714,10 @@ class DbReader(DbCodeGate):
         # If trigger category is None we want to get all alerts
         trigger_category = trigger_category if trigger_category else "%"
         conditions = {"workspace_id": workspace_id, "trigger_category": trigger_category}
-        rows: List[IntermediatePromptWithOutputUsageAlerts] = (
-            await self._exec_select_conditions_to_pydantic(
-                IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
-            )
+        rows: List[
+            IntermediatePromptWithOutputUsageAlerts
+        ] = await self._exec_select_conditions_to_pydantic(
+            IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
         )
         prompts_dict: Dict[str, GetPromptWithOutputsRow] = {}
         for row in rows:
@@ -859,7 +859,7 @@ class DbReader(DbCodeGate):
     async def get_workspaces_by_provider(self, provider_id: str) -> List[WorkspaceRow]:
         sql = text(
             """
-            SELECT
+            SELECT DISTINCT
                 w.id,
                 w.name,
                 w.custom_instructions
@@ -928,7 +928,7 @@ class DbReader(DbCodeGate):
         return provider[0] if provider else None
 
     async def try_get_provider_endpoint_by_name_and_type(
-        self, provider_name: str, provider_type: str
+        self, provider_name: str, provider_type: Optional[str]
     ) -> Optional[ProviderEndpoint]:
         """
         Best effort attempt to find a provider endpoint matching name and type.

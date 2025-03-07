@@ -186,6 +186,35 @@ async def test_providers_crud(
             assert response.status_code == 404
             assert response.json()["detail"] == "Provider endpoint not found"
 
+            # Test deleting providers
+            response = await ac.delete("/api/v1/provider-endpoints/openai-provider")
+            assert response.status_code == 204
+
+            # Verify provider was deleted by trying to get it
+            response = await ac.get("/api/v1/provider-endpoints/openai-provider")
+            assert response.status_code == 404
+            assert response.json()["detail"] == "Provider endpoint not found"
+
+            # Delete second provider
+            response = await ac.delete("/api/v1/provider-endpoints/openrouter-provider")
+            assert response.status_code == 204
+
+            # Verify second provider was deleted
+            response = await ac.get("/api/v1/provider-endpoints/openrouter-provider")
+            assert response.status_code == 404
+            assert response.json()["detail"] == "Provider endpoint not found"
+
+            # Test deleting non-existent provider
+            response = await ac.delete("/api/v1/provider-endpoints/non-existent")
+            assert response.status_code == 404
+            assert response.json()["detail"] == "Provider endpoint not found"
+
+            # Verify providers list is empty
+            response = await ac.get("/api/v1/provider-endpoints")
+            assert response.status_code == 200
+            providers = response.json()
+            assert len(providers) == 0
+
 
 @pytest.mark.asyncio
 async def test_list_providers_by_name(
