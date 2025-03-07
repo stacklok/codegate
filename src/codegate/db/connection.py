@@ -741,12 +741,13 @@ class DbReader(DbCodeGate):
         """
         # Build base query
         base_query = """
-            SELECT DISTINCT p.id, p.timestamp, p.provider, p.request, p.type, p.workspace_id FROM prompts p
+            SELECT DISTINCT p.id, p.timestamp, p.provider, p.request, p.type,
+            p.workspace_id FROM prompts p
             LEFT JOIN alerts a ON p.id = a.prompt_id
             WHERE p.workspace_id = :workspace_id
             {filter_conditions}
             ORDER BY p.timestamp DESC
-            LIMIT :page_size OFFSET :offset        
+            LIMIT :page_size OFFSET :offset
         """
         # Build conditions and filters
         conditions = {
