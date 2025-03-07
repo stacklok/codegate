@@ -476,6 +476,26 @@ class DbRecorder(DbCodeGate):
         updated_provider = await self._execute_update_pydantic_model(
             provider, sql, should_raise=True
         )
+
+        # Update dependent tables
+        update_muxes_sql = text(
+            """
+            UPDATE muxes
+            SET provider_endpoint_name = :name, provider_endpoint_type = :provider_type
+            WHERE provider_endpoint_id = :id
+            """
+        )
+        await self._execute_with_no_return(update_muxes_sql, provider.model_dump())
+
+        update_provider_models_sql = text(
+            """
+            UPDATE provider_models
+            SET provider_endpoint_name = :name, provider_endpoint_type = :provider_type
+            WHERE provider_endpoint_id = :id
+            """
+        )
+        await self._execute_with_no_return(update_provider_models_sql, provider.model_dump())
+
         return updated_provider
 
     async def delete_provider_endpoint(
@@ -766,10 +786,10 @@ class DbReader(DbCodeGate):
         # If trigger category is None we want to get all alerts
         trigger_category = trigger_category if trigger_category else "%"
         conditions = {"workspace_id": workspace_id, "trigger_category": trigger_category}
-        rows: List[IntermediatePromptWithOutputUsageAlerts] = (
-            await self._exec_select_conditions_to_pydantic(
-                IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
-            )
+        rows: List[
+            IntermediatePromptWithOutputUsageAlerts
+        ] = await self._exec_select_conditions_to_pydantic(
+            IntermediatePromptWithOutputUsageAlerts, sql, conditions, should_raise=True
         )
         prompts_dict: Dict[str, GetPromptWithOutputsRow] = {}
         for row in rows:
