@@ -414,6 +414,16 @@ class DbRecorder(DbCodeGate):
         return deleted_workspace
 
     async def hard_delete_workspace(self, workspace: WorkspaceRow) -> Optional[WorkspaceRow]:
+        # First delete associated muxes
+        sql_delete_muxes = text(
+            """
+            DELETE FROM muxes
+            WHERE workspace_id = :id
+            """
+        )
+        await self._execute_with_no_return(sql_delete_muxes, {"id": workspace.id})
+
+        # Then delete the workspace
         sql = text(
             """
             DELETE FROM workspaces
@@ -472,7 +482,26 @@ class DbRecorder(DbCodeGate):
         self,
         provider: ProviderEndpoint,
     ) -> Optional[ProviderEndpoint]:
-        sql = text(
+        # Delete from provider_models
+        sql_delete_provider_models = text(
+            """
+            DELETE FROM provider_models
+            WHERE provider_endpoint_id = :id
+            """
+        )
+        await self._execute_with_no_return(sql_delete_provider_models, {"id": provider.id})
+
+        # Delete from muxes
+        sql_delete_muxes = text(
+            """
+            DELETE FROM muxes
+            WHERE provider_endpoint_id = :id
+            """
+        )
+        await self._execute_with_no_return(sql_delete_muxes, {"id": provider.id})
+
+        # Delete from provider_endpoints
+        sql_delete_provider_endpoints = text(
             """
             DELETE FROM provider_endpoints
             WHERE id = :id
@@ -480,7 +509,7 @@ class DbRecorder(DbCodeGate):
             """
         )
         deleted_provider = await self._execute_update_pydantic_model(
-            provider, sql, should_raise=True
+            provider, sql_delete_provider_endpoints, should_raise=True
         )
         return deleted_provider
 
@@ -621,7 +650,7 @@ class DbRecorder(DbCodeGate):
             await self._execute_with_no_return(sql, instance.model_dump())
         except IntegrityError as e:
             logger.debug(f"Exception type: {type(e)}")
-            raise AlreadyExistsError(f"Instance already initialized.")
+            raise AlreadyExistsError("Instance already initialized.")
 
 
 class DbReader(DbCodeGate):

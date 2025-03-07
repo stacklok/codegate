@@ -51,7 +51,14 @@ async def _add_provider_id_to_mux_rule(
             f'Provider "{mux_rule.provider_name}" of type "{mux_rule.provider_type}" not found'  # noqa: E501
         )
 
-    return mux_models.MuxRuleWithProviderId(**mux_rule.model_dump(), provider_id=provider.id)
+    return mux_models.MuxRuleWithProviderId(
+        matcher=mux_rule.matcher,
+        matcher_type=mux_rule.matcher_type,
+        model=mux_rule.model,
+        provider_type=provider.provider_type,
+        provider_id=provider.id,
+        provider_name=provider.name,
+    )
 
 
 class FilterByNameParams(BaseModel):
@@ -272,6 +279,8 @@ async def list_workspaces(
             wslist = await wscrud.get_workspaces()
             resp = v1_models.ListWorkspacesResponse.from_db_workspaces_with_sessioninfo(wslist)
             return resp
+    except provendcrud.ProviderNotFoundError:
+        return v1_models.ListWorkspacesResponse(workspaces=[])
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -332,7 +341,8 @@ async def create_workspace(
         )
     except crud.WorkspaceCrudError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
+    except Exception as e:
+        logger.debug(f"Error creating workspace: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
     return v1_models.FullWorkspace(

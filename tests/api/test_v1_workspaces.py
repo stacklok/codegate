@@ -218,6 +218,143 @@ async def test_workspace_crud(
 
 
 @pytest.mark.asyncio
+async def test_create_workspace_with_mux_different_provider_name(
+    mock_pipeline_factory, mock_workspace_crud, mock_provider_crud, db_reader
+) -> None:
+    with (
+        patch("codegate.api.v1.dbreader", db_reader),
+        patch("codegate.api.v1.wscrud", mock_workspace_crud),
+        patch("codegate.api.v1.pcrud", mock_provider_crud),
+        patch(
+            "codegate.providers.openai.provider.OpenAIProvider.models",
+            return_value=["gpt-4", "gpt-3.5-turbo"],
+        ),
+    ):
+        """Test creating a workspace with mux rules, then recreating it after renaming the provider."""
+        app = init_app(mock_pipeline_factory)
+
+        async with AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            # Create initial provider
+            provider_payload = {
+                "name": "test-provider-1",
+                "description": "Test provider",
+                "auth_type": "none",
+                "provider_type": "openai",
+                "endpoint": "https://api.test.com",
+                "api_key": "test-key",
+            }
+
+            response = await ac.post("/api/v1/provider-endpoints", json=provider_payload)
+            assert response.status_code == 201
+
+            # Create workspace with mux rules
+            workspace_name = str(uuid())
+            muxing_rules = [
+                {
+                    "provider_name": "test-provider-1",
+                    "provider_type": "openai",
+                    "model": "gpt-4",
+                    "matcher": "*.ts",
+                    "matcher_type": "filename_match",
+                },
+                {
+                    "provider_name": "test-provider-1",
+                    "provider_type": "openai",
+                    "model": "gpt-3.5-turbo",
+                    "matcher_type": "catch_all",
+                    "matcher": "",
+                },
+            ]
+
+            workspace_payload = {
+                "name": workspace_name,
+                "config": {
+                    "custom_instructions": "Test instructions",
+                    "muxing_rules": muxing_rules,
+                },
+            }
+
+            response = await ac.post("/api/v1/workspaces", json=workspace_payload)
+            assert response.status_code == 201
+
+            # Get workspace config as JSON blob
+            response = await ac.get(f"/api/v1/workspaces/{workspace_name}")
+            assert response.status_code == 200
+            workspace_blob = response.json()
+
+            # Delete workspace
+            response = await ac.delete(f"/api/v1/workspaces/{workspace_name}")
+            assert response.status_code == 204
+            response = await ac.delete(f"/api/v1/workspaces/archive/{workspace_name}")
+            assert response.status_code == 204
+
+            # Verify workspace is deleted
+            response = await ac.get(f"/api/v1/workspaces/{workspace_name}")
+            assert response.status_code == 404
+
+            # Update provider name
+            rename_provider_payload = {
+                "name": "test-provider-2",
+                "description": "Test provider",
+                "auth_type": "none",
+                "provider_type": "openai",
+                "endpoint": "https://api.test.com",
+                "api_key": "test-key",
+            }
+
+            response = await ac.put(
+                "/api/v1/provider-endpoints/test-provider-1", json=rename_provider_payload
+            )
+            assert response.status_code == 200
+
+            # Verify old provider name no longer exists
+            response = await ac.get("/api/v1/provider-endpoints/test-provider-1")
+            assert response.status_code == 404
+
+            # Verify provider exists under new name
+            response = await ac.get("/api/v1/provider-endpoints/test-provider-2")
+            assert response.status_code == 200
+            provider = response.json()
+            assert provider["name"] == "test-provider-2"
+            assert provider["description"] == "Test provider"
+            assert provider["auth_type"] == "none"
+            assert provider["provider_type"] == "openai"
+            assert provider["endpoint"] == "https://api.test.com"
+
+            # re-upload the workspace that we have previously downloaded
+
+            response = await ac.post("/api/v1/workspaces", json=workspace_blob)
+            assert response.status_code == 201
+
+            # Verify new workspace config
+            response = await ac.get(f"/api/v1/workspaces/{workspace_name}")
+            assert response.status_code == 200
+            new_workspace = response.json()
+
+            assert new_workspace["name"] == workspace_name
+            assert (
+                new_workspace["config"]["custom_instructions"]
+                == workspace_blob["config"]["custom_instructions"]
+            )
+
+            # Verify muxing rules are correct with updated provider name
+            for i, rule in enumerate(new_workspace["config"]["muxing_rules"]):
+                assert rule["provider_name"] == "test-provider-2"
+                assert (
+                    rule["provider_type"]
+                    == workspace_blob["config"]["muxing_rules"][i]["provider_type"]
+                )
+                assert rule["model"] == workspace_blob["config"]["muxing_rules"][i]["model"]
+                assert rule["matcher"] == workspace_blob["config"]["muxing_rules"][i]["matcher"]
+                assert (
+                    rule["matcher_type"]
+                    == workspace_blob["config"]["muxing_rules"][i]["matcher_type"]
+                )
+
+
+@pytest.mark.asyncio
 async def test_rename_workspace(
     mock_pipeline_factory, mock_workspace_crud, mock_provider_crud, db_reader
 ) -> None:
@@ -607,6 +744,12 @@ async def test_list_workspaces_by_provider_name(
             response_body = response.json()
             assert len(response_body["workspaces"]) == 1
             assert response_body["workspaces"][0]["name"] == name_2
+
+            # List workspaces filtered by non-existent provider
+            response = await ac.get("/api/v1/workspaces?provider_name=foo-bar-123")
+            assert response.status_code == 200
+            response_body = response.json()
+            assert len(response_body["workspaces"]) == 0
 
             # List workspaces unfiltered
             response = await ac.get("/api/v1/workspaces")

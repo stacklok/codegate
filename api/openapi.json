@@ -148,7 +148,7 @@
         }
       }
     },
-    "/api/v1/provider-endpoints/{provider_id}/models": {
+    "/api/v1/provider-endpoints/{provider_name}/models": {
       "get": {
         "tags": [
           "CodeGate API",
@@ -159,13 +159,12 @@
         "operationId": "v1_list_models_by_provider",
         "parameters": [
           {
-            "name": "provider_id",
+            "name": "provider_name",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid",
-              "title": "Provider Id"
+              "title": "Provider Name"
             }
           }
         ],
@@ -240,14 +239,14 @@
           }
         }
       },
-      "delete": {
+      "put": {
         "tags": [
           "CodeGate API",
           "Providers"
         ],
-        "summary": "Delete Provider Endpoint",
-        "description": "Delete a provider endpoint by id.",
-        "operationId": "v1_delete_provider_endpoint",
+        "summary": "Update Provider Endpoint",
+        "description": "Update a provider endpoint by name.",
+        "operationId": "v1_update_provider_endpoint",
         "parameters": [
           {
             "name": "provider_name",
@@ -256,97 +255,6 @@
             "schema": {
               "type": "string",
               "title": "Provider Name"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/provider-endpoints/{provider_id}/auth-material": {
-      "put": {
-        "tags": [
-          "CodeGate API",
-          "Providers"
-        ],
-        "summary": "Configure Auth Material",
-        "description": "Configure auth material for a provider.",
-        "operationId": "v1_configure_auth_material",
-        "parameters": [
-          {
-            "name": "provider_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Provider Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ConfigureAuthMaterial"
-              }
-            }
-          }
-        },
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/provider-endpoints/{provider_id}": {
-      "put": {
-        "tags": [
-          "CodeGate API",
-          "Providers"
-        ],
-        "summary": "Update Provider Endpoint",
-        "description": "Update a provider endpoint by ID.",
-        "operationId": "v1_update_provider_endpoint",
-        "parameters": [
-          {
-            "name": "provider_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Provider Id"
             }
           }
         ],
@@ -382,6 +290,93 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "CodeGate API",
+          "Providers"
+        ],
+        "summary": "Delete Provider Endpoint",
+        "description": "Delete a provider endpoint by name.",
+        "operationId": "v1_delete_provider_endpoint",
+        "parameters": [
+          {
+            "name": "provider_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Provider Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/provider-endpoints/{provider_name}/auth-material": {
+      "put": {
+        "tags": [
+          "CodeGate API",
+          "Providers"
+        ],
+        "summary": "Configure Auth Material",
+        "description": "Configure auth material for a provider.",
+        "operationId": "v1_configure_auth_material",
+        "parameters": [
+          {
+            "name": "provider_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Provider Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigureAuthMaterial"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/workspaces": {
@@ -391,24 +386,23 @@
           "Workspaces"
         ],
         "summary": "List Workspaces",
-        "description": "List all workspaces.\n\nArgs:\n    provider_id (Optional[UUID]): Filter workspaces by provider ID. If provided,\n    will return workspaces where models from the specified provider (e.g., OpenAI,\n    Anthropic) have been used in workspace muxing rules. Note that you must\n    refer to a provider by ID, not by name.\n\nReturns:\n    ListWorkspacesResponse: A response object containing the list of workspaces.",
+        "description": "List all workspaces.\n\nArgs:\n    provider_name (Optional[str]): Filter workspaces by provider name. If provided,\n    will return workspaces where models from the specified provider (e.g., OpenAI,\n    Anthropic) have been used in workspace muxing rules.\n\nReturns:\n    ListWorkspacesResponse: A response object containing the list of workspaces.",
         "operationId": "v1_list_workspaces",
         "parameters": [
           {
-            "name": "provider_id",
+            "name": "provider_name",
             "in": "query",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "type": "string",
-                  "format": "uuid"
+                  "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "title": "Provider Id"
+              "title": "Provider Name"
             }
           }
         ],

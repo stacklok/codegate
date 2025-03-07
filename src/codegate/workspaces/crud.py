@@ -341,9 +341,9 @@ class WorkspaceCrud:
         # Add the new muxes
         priority = 0
 
-        muxes_with_routes: List[
-            Tuple[mux_models.MuxRuleWithProviderId, rulematcher.ModelRoute]
-        ] = []
+        muxes_with_routes: List[Tuple[mux_models.MuxRuleWithProviderId, rulematcher.ModelRoute]] = (
+            []
+        )
 
         # Verify all models are valid
         for mux in muxes:
