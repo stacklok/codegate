@@ -1,0 +1,126 @@
+{
+    "max_tokens": 4096,
+    "model": "claude-3-5-sonnet-20241022",
+    "stream": true,
+    "tools": [
+        {
+            "name": "builtin_read_file",
+            "description": "Use this tool whenever you need to view the contents of a file.",
+            "input_schema": {
+                "type": "object",
+                "required": ["filepath"],
+                "properties": {
+                    "filepath": {
+                        "type": "string",
+                        "description": "The path of the file to read, relative to the root of the workspace."
+                    }
+                }
+            }
+        },
+        {
+            "name": "builtin_create_new_file",
+            "description": "Create a new file",
+            "input_schema": {
+                "type": "object",
+                "required": ["filepath", "contents"],
+                "properties": {
+                    "filepath": {
+                        "type": "string",
+                        "description": "The path where the new file should be created"
+                    },
+                    "contents": {
+                        "type": "string",
+                        "description": "The contents to write to the new file"
+                    }
+                }
+            }
+        },
+        {
+            "name": "builtin_run_terminal_command",
+            "description": "Run a terminal command in the current directory. The shell is not stateful and will not remember any previous commands.",
+            "input_schema": {
+                "type": "object",
+                "required": ["command"],
+                "properties": {
+                    "command": {
+                        "type": "string",
+                        "description": "The command to run. This will be passed directly into the shell."
+                    }
+                }
+            }
+        },
+        {
+            "name": "builtin_view_subdirectory",
+            "description": "View the contents of a subdirectory",
+            "input_schema": {
+                "type": "object",
+                "required": ["directory_path"],
+                "properties": {
+                    "directory_path": {
+                        "type": "string",
+                        "description": "The path of the subdirectory to view, relative to the root of the workspace"
+                    }
+                }
+            }
+        },
+        {
+            "name": "builtin_view_repo_map",
+            "description": "View the repository map",
+            "input_schema": {
+                "type": "object",
+                "properties": {}
+            }
+        },
+        {
+            "name": "builtin_exact_search",
+            "description": "Perform an exact search over the repository using ripgrep.",
+            "input_schema": {
+                "type": "object",
+                "required": ["query"],
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The search query to use. Must be a valid ripgrep regex expression, escaped where needed"
+                    }
+                }
+            }
+        },
+        {
+            "name": "builtin_search_web",
+            "description": "Performs a web search, returning top results. This tool should only be called for questions that require external knowledge. Common programming questions do not require web search.",
+            "input_schema": {
+                "type": "object",
+                "required": ["query"],
+                "properties": {
+                    "repo_url": {
+                        "type": "string",
+                        "description": "The natural language search query"
+                    }
+                }
+            }
+        },
+        {
+            "name": "builtin_view_diff",
+            "description": "View the current diff of working changes",
+            "input_schema": {
+                "type": "object",
+                "properties": {}
+            }
+        },
+        {
+            "name": "builtin_read_currently_open_file",
+            "description": "Read the currently open file in the IDE. If the user seems to be referring to a file that you can't see, this is probably it.",
+            "input_schema": {
+                "type": "object",
+                "properties": {}
+            }
+        }
+    ],
+    "messages": [
+        {
+            "role": "user",
+            "content": "Please, read the content of file FUBAR.txt."
+        }
+    ],
+    "system": "When generating new code:\n\n1. Always produce a single code block.\n2. Never separate the code into multiple code blocks.\n3. Only include the code that is being added.\n4. Replace existing code with a \"lazy\" comment like this: \"// ... existing code ...\"\n5. The \"lazy\" comment must always be a valid comment in the current context (e.g. \"<!-- ... existing code ... -->\" for HTML, \"// ... existing code ...\" for JavaScript, \"{/* ... existing code */}\" for TSX, etc.)\n6. You must always provide 1-2 lines of context above and below a \"lazy\" comment\n7. If the user submits a code block that contains a filename in the language specifier, always include the filename in any code block you generate based on that file. The filename should be on the same line as the language specifier in your code block.\n\nExample 1:\nInput:\n```test.js\nimport addition from \"addition\"\n\nclass Calculator {\n  constructor() {\n    this.result = 0;\n  }\n    \n  add(number) {\n    this.result += number;\n    return this;\n  }\n}\n```\nUser request: Add a subtract method\n\nOutput:\n```javascript test.js\n// ... existing code ...\nimport subtraction from \"subtraction\"\n\nclass Calculator {\n  // ... existing code ...\n  \n  subtract(number) {\n    this.result -= number;\n    return this;\n  }\n}\n```\n\nExample 2:\nInput:\n```javascript test.js (6-9)\nfunction helloWorld() {}\n```\n\nOutput:\n```javascript test.js\nfunction helloWorld() {\n  // New code here\n}\n```\n\nAlways follow these guidelines when generating code responses.\n\nWhen using tools, follow the following guidelines:\n- Avoid calling tools unless they are absolutely necessary. For example, if you are asked a simple programming question you do not need web search. As another example, if the user asks you to explain something about code, do not create a new file."
+}

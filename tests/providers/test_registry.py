@@ -12,11 +12,11 @@ from typing import (
 import pytest
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
-from litellm import ChatCompletionRequest, ModelResponse
 
 from codegate.providers.base import BaseCompletionHandler, BaseProvider
 from codegate.providers.normalizer import ModelInputNormalizer, ModelOutputNormalizer
 from codegate.providers.registry import ProviderRegistry
+from codegate.types.common import ChatCompletionRequest, ModelResponse
 
 
 class MockCompletionHandler(BaseCompletionHandler):
@@ -93,7 +93,7 @@ class MockProvider(BaseProvider):
     def provider_route_name(self) -> str:
         return "mock_provider"
 
-    async def process_request(self, data: dict, api_key: str, request_url_path: str):
+    async def process_request(self, data: dict, api_key: str, base_url: str, request_url_path: str):
         return {"message": "test"}
 
     def models(self):

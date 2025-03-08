@@ -1,13 +1,18 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from litellm import ChatCompletionRequest, ModelResponse
-from litellm.types.utils import Delta, StreamingChoices
 
 from codegate.pipeline.base import PipelineContext, PipelineSensitiveData
 from codegate.pipeline.output import OutputPipelineContext
 from codegate.pipeline.pii.pii import CodegatePii, PiiRedactionNotifier, PiiUnRedactionStep
 from codegate.pipeline.sensitive_data.manager import SensitiveDataManager
+from codegate.types.openai import (
+    ChatCompletionRequest,
+    ChoiceDelta,
+    MessageDelta,
+    StreamingChatCompletion,
+    UserMessage,
+)
 
 
 class TestCodegatePii:
@@ -45,14 +50,14 @@ class TestCodegatePii:
 
     @pytest.mark.asyncio
     async def test_process_no_messages(self, pii_step):
-        request = ChatCompletionRequest(model="test-model")
+        request = ChatCompletionRequest(model="test-model", messages=[])
         context = PipelineContext()
+        context.sensitive = PipelineSensitiveData(manager=MagicMock(), session_id="session-id")
 
         result = await pii_step.process(request, context)
 
         assert result.request == request
         assert result.context == context
-
 
 class TestPiiUnRedactionStep:
     @pytest.fixture
@@ -72,11 +77,11 @@ class TestPiiUnRedactionStep:
 
     @pytest.mark.asyncio
     async def test_process_chunk_no_content(self, unredaction_step):
-        chunk = ModelResponse(
+        chunk = StreamingChatCompletion(
             id="test",
             choices=[
-                StreamingChoices(
-                    finish_reason=None, index=0, delta=Delta(content=None), logprobs=None
+                ChoiceDelta(
+                    finish_reason=None, index=0, delta=MessageDelta(content=None), logprobs=None
                 )
             ],
             created=1234567890,
@@ -85,6 +90,7 @@ class TestPiiUnRedactionStep:
         )
         context = OutputPipelineContext()
         input_context = PipelineContext()
+        input_context.sensitive = PipelineSensitiveData(manager=MagicMock(), session_id="session-id")
 
         result = await unredaction_step.process_chunk(chunk, context, input_context)
 
@@ -93,13 +99,13 @@ class TestPiiUnRedactionStep:
     @pytest.mark.asyncio
     async def test_process_chunk_with_uuid(self, unredaction_step):
         uuid = "12345678-1234-1234-1234-123456789012"
-        chunk = ModelResponse(
+        chunk = StreamingChatCompletion(
             id="test",
             choices=[
-                StreamingChoices(
+                ChoiceDelta(
                     finish_reason=None,
                     index=0,
-                    delta=Delta(content=f"Text with #{uuid}#"),
+                    delta=MessageDelta(content=f"Text with #{uuid}#"),
                     logprobs=None,
                 )
             ],
@@ -118,6 +124,8 @@ class TestPiiUnRedactionStep:
         input_context.metadata["sensitive_data_manager"] = mock_sensitive_data_manager
 
         result = await unredaction_step.process_chunk(chunk, context, input_context)
+
+        # TODO this should use the abstract interface
         assert result[0].choices[0].delta.content == "Text with test@example.com"
 
 
@@ -149,11 +157,11 @@ class TestPiiRedactionNotifier:
 
     @pytest.mark.asyncio
     async def test_process_chunk_no_pii(self, notifier):
-        chunk = ModelResponse(
+        chunk = StreamingChatCompletion(
             id="test",
             choices=[
-                StreamingChoices(
-                    finish_reason=None, index=0, delta=Delta(content="Hello"), logprobs=None
+                ChoiceDelta(
+                    finish_reason=None, index=0, delta=MessageDelta(content="Hello"), logprobs=None
                 )
             ],
             created=1234567890,
@@ -169,13 +177,13 @@ class TestPiiRedactionNotifier:
 
     @pytest.mark.asyncio
     async def test_process_chunk_with_pii(self, notifier):
-        chunk = ModelResponse(
+        chunk = StreamingChatCompletion(
             id="test",
             choices=[
-                StreamingChoices(
+                ChoiceDelta(
                     finish_reason=None,
                     index=0,
-                    delta=Delta(content="Hello", role="assistant"),
+                    delta=MessageDelta(content="Hello", role="assistant"),
                     logprobs=None,
                 )
             ],
@@ -194,6 +202,7 @@ class TestPiiRedactionNotifier:
         result = await notifier.process_chunk(chunk, context, input_context)
 
         assert len(result) == 2  # Notification chunk + original chunk
+        # TODO this should use the abstract interface
         notification_content = result[0].choices[0].delta.content
         assert "CodeGate protected" in notification_content
         assert "1 email address" in notification_content

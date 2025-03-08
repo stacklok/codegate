@@ -6,13 +6,13 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 import structlog
-from litellm import ChatCompletionRequest, ModelResponse
 from pydantic import BaseModel
 
 from codegate.clients.clients import ClientType
 from codegate.db.models import Alert, AlertSeverity, Output, Prompt
 from codegate.extract_snippets.message_extractor import CodeSnippet
 from codegate.pipeline.sensitive_data.manager import SensitiveDataManager
+
 
 logger = structlog.get_logger("codegate")
 
@@ -41,8 +41,12 @@ class PipelineContext:
     input_request: Optional[Prompt] = field(default_factory=lambda: None)
     output_responses: List[Output] = field(default_factory=list)
     shortcut_response: bool = False
+    # TODO(jakub): Remove these flags, they couple the steps to the context too much
+    # instead we should be using the metadata field scoped to the step to store anything
+    # the step wants
     bad_packages_found: bool = False
     secrets_found: bool = False
+    pii_found: bool = False
     client: ClientType = ClientType.GENERIC
 
     def add_alert(
@@ -79,20 +83,18 @@ class PipelineContext:
         # logger.debug(f"Added alert to context: {self.alerts_raised[-1]}")
 
     def add_input_request(
-        self, normalized_request: ChatCompletionRequest, is_fim_request: bool, provider: str
+        self, normalized_request: Any, is_fim_request: bool, provider: str
     ) -> None:
         try:
             if self.prompt_id is None:
                 self.prompt_id = str(uuid.uuid4())
-
-            request_str = json.dumps(normalized_request)
 
             self.input_request = Prompt(
                 id=self.prompt_id,
                 timestamp=datetime.datetime.now(datetime.timezone.utc),
                 provider=provider,
                 type="fim" if is_fim_request else "chat",
-                request=request_str,
+                request=normalized_request,
                 workspace_id=None,
             )
             # Uncomment the below to debug the input
@@ -100,7 +102,7 @@ class PipelineContext:
         except Exception as e:
             logger.warning(f"Failed to serialize input request: {normalized_request}", error=str(e))
 
-    def add_output(self, model_response: ModelResponse) -> None:
+    def add_output(self, model_response: Any) -> None:
         try:
             if self.prompt_id is None:
                 logger.warning(f"Tried to record output without response: {model_response}")
@@ -143,7 +145,7 @@ class PipelineResult:
     or a response to return to the client.
     """
 
-    request: Optional[ChatCompletionRequest] = None
+    request: Optional[Any] = None
     response: Optional[PipelineResponse] = None
     context: Optional[PipelineContext] = None
     error_message: Optional[str] = None
@@ -174,38 +176,37 @@ class PipelineStep(ABC):
 
     @staticmethod
     def get_last_user_message(
-        request: ChatCompletionRequest,
+        request: Any,
     ) -> Optional[tuple[str, int]]:
         """
         Get the last user message and its index from the request.
 
         Args:
-            request (ChatCompletionRequest): The chat completion request to process
+            request (Any): The chat completion request to process
 
         Returns:
             Optional[tuple[str, int]]: A tuple containing the message content and
                                        its index, or None if no user message is found
         """
-        if request.get("messages") is None:
-            return None
-        for i in reversed(range(len(request["messages"]))):
-            if request["messages"][i]["role"] == "user":
-                content = request["messages"][i]["content"]  # type: ignore
-                return str(content), i
+        msg = request.last_user_message()
 
-        return None
+        if msg is None:
+            return None
+
+        # unpack the tuple
+        msg, idx = msg
+        return "".join([content.get_text() for content in msg.get_content()]), idx
+
 
     @staticmethod
     def get_last_user_message_block(
-        request: ChatCompletionRequest,
-        client: ClientType = ClientType.GENERIC,
+        request: Any,
     ) -> Optional[tuple[str, int]]:
         """
         Get the last block of consecutive 'user' messages from the request.
 
         Args:
-            request (ChatCompletionRequest): The chat completion request to process
-            client (ClientType): The client type to consider when processing the request
+            request (Any): The chat completion request to process
 
         Returns:
             Optional[str, int]: A string containing all consecutive user messages in the
@@ -213,47 +214,23 @@ class PipelineStep(ABC):
                         no user message block is found.
                         Index of the first message detected in the block.
         """
-        if request.get("messages") is None:
-            return None
-
         user_messages = []
-        messages = request["messages"]
-        block_start_index = None
-
-        accepted_roles = ["user", "assistant"]
-        if client == ClientType.OPEN_INTERPRETER:
-            # open interpreter also uses the role "tool"
-            accepted_roles.append("tool")
-
-        # Iterate in reverse to find the last block of consecutive 'user' messages
-        for i in reversed(range(len(messages))):
-            if messages[i]["role"] in accepted_roles:
-                content_str = messages[i].get("content")
-                if content_str is None:
+        last_idx = -1
+        for msg, idx in request.last_user_block():
+            for content in msg.get_content():
+                txt = content.get_text()
+                if not txt:
                     continue
+                user_messages.append(txt)
+                last_idx = idx
 
-                if messages[i]["role"] in ["user", "tool"]:
-                    user_messages.append(content_str)
-                    block_start_index = i
-
-                # Specifically for Aider, when "Ok." block is found, stop
-                if content_str == "Ok." and messages[i]["role"] == "assistant":
-                    break
-            else:
-                # Stop when a message with a different role is encountered
-                if user_messages:
-                    break
-
-        # Reverse the collected user messages to preserve the original order
-        if user_messages and block_start_index is not None:
-            content = "\n".join(reversed(user_messages))
-            return content, block_start_index
-
-        return None
+        if not user_messages:
+            return None
+        return "\n".join(reversed(user_messages)), last_idx
 
     @abstractmethod
     async def process(
-        self, request: ChatCompletionRequest, context: PipelineContext
+        self, request: Any, context: PipelineContext
     ) -> PipelineResult:
         """Process a request and return either modified request or response stream"""
         pass
@@ -282,7 +259,7 @@ class InputPipelineInstance:
 
     async def process_request(
         self,
-        request: ChatCompletionRequest,
+        request: Any,
         provider: str,
         model: str,
         api_key: Optional[str] = None,
@@ -352,7 +329,7 @@ class SequentialPipelineProcessor:
 
     async def process_request(
         self,
-        request: ChatCompletionRequest,
+        request: Any,
         provider: str,
         model: str,
         api_key: Optional[str] = None,

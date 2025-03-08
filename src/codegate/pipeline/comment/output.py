@@ -1,9 +1,7 @@
-from typing import Optional
+from typing import Any, Optional
 from urllib.parse import quote
 
 import structlog
-from litellm import ModelResponse
-from litellm.types.utils import Delta, StreamingChoices
 
 from codegate.db.models import AlertSeverity
 from codegate.extract_snippets.message_extractor import (
@@ -14,6 +12,7 @@ from codegate.pipeline.base import PipelineContext
 from codegate.pipeline.output import OutputPipelineContext, OutputPipelineStep
 from codegate.storage import StorageEngine
 from codegate.utils.package_extractor import PackageExtractor
+
 
 logger = structlog.get_logger("codegate")
 
@@ -28,24 +27,14 @@ class CodeCommentStep(OutputPipelineStep):
     def name(self) -> str:
         return "code-comment"
 
-    def _create_chunk(self, original_chunk: ModelResponse, content: str) -> ModelResponse:
+    def _create_chunk(self, original_chunk: Any, content: str) -> Any:
         """
         Creates a new chunk with the given content, preserving the original chunk's metadata
         """
-        return ModelResponse(
-            id=original_chunk.id,
-            choices=[
-                StreamingChoices(
-                    finish_reason=None,
-                    index=0,
-                    delta=Delta(content=content, role="assistant"),
-                    logprobs=None,
-                )
-            ],
-            created=original_chunk.created,
-            model=original_chunk.model,
-            object="chat.completion.chunk",
-        )
+        # TODO verify if deep-copy is necessary
+        copy = original_chunk.model_copy(deep=True)
+        copy.set_text(content)
+        return copy
 
     async def _snippet_comment(self, snippet: CodeSnippet, context: PipelineContext) -> str:
         """Create a comment for a snippet"""
@@ -124,54 +113,49 @@ archived packages: {libobjects_text}\n"
 
     async def process_chunk(
         self,
-        chunk: ModelResponse,
+        chunk: Any,
         context: OutputPipelineContext,
         input_context: Optional[PipelineContext] = None,
-    ) -> list[ModelResponse]:
+    ) -> list[Any]:
         """Process a single chunk of the stream"""
-        if len(chunk.choices) == 0 or not chunk.choices[0].delta.content:
-            return [chunk]
+        for content in chunk.get_content():
+            # Get current content plus this new chunk
+            text = content.get_text()
+            current_content = "".join(context.processed_content + [text if text else ""])
 
-        # Get current content plus this new chunk
-        current_content = "".join(context.processed_content + [chunk.choices[0].delta.content])
+            # Extract snippets from current content
+            snippets = self.extractor.extract_snippets(current_content)
 
-        # Extract snippets from current content
-        snippets = self.extractor.extract_snippets(current_content)
+            # Check if a new snippet has been completed
+            if len(snippets) > len(context.snippets):
+                # Get the last completed snippet
+                last_snippet = snippets[-1]
+                context.snippets = snippets  # Update context with new snippets
 
-        # Check if a new snippet has been completed
-        if len(snippets) > len(context.snippets):
-            # Get the last completed snippet
-            last_snippet = snippets[-1]
-            context.snippets = snippets  # Update context with new snippets
+                # Split the chunk content if needed
+                text = content.get_text()
+                before, after = self._split_chunk_at_code_end(text if text else "")
 
-            # Keep track of all the commented code
-            complete_comment = ""
+                chunks = []
 
-            # Split the chunk content if needed
-            before, after = self._split_chunk_at_code_end(chunk.choices[0].delta.content)
+                # Add the chunk with content up to the end of code block
+                if before:
+                    chunks.append(self._create_chunk(chunk, before))
+                    # complete_comment += before
 
-            chunks = []
-
-            # Add the chunk with content up to the end of code block
-            if before:
-                chunks.append(self._create_chunk(chunk, before))
-                complete_comment += before
-
-            comment = await self._snippet_comment(last_snippet, input_context)
-            complete_comment += comment
-            chunks.append(
-                self._create_chunk(
-                    chunk,
-                    comment,
+                comment = await self._snippet_comment(last_snippet, input_context)
+                chunks.append(
+                    self._create_chunk(
+                        chunk,
+                        comment,
+                    )
                 )
-            )
 
-            # Add the remaining content if any
-            if after:
-                chunks.append(self._create_chunk(chunk, after))
-                complete_comment += after
+                # Add the remaining content if any
+                if after:
+                    chunks.append(self._create_chunk(chunk, after))
 
-            return chunks
+                return chunks
 
         # Pass through all other content that does not create a new snippet
         return [chunk]

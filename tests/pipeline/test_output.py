@@ -2,14 +2,19 @@ from typing import List
 from unittest.mock import AsyncMock
 
 import pytest
-from litellm import ModelResponse
-from litellm.types.utils import Delta, StreamingChoices
 
 from codegate.pipeline.base import PipelineContext
 from codegate.pipeline.output import (
     OutputPipelineContext,
     OutputPipelineInstance,
     OutputPipelineStep,
+)
+from codegate.types.common import Delta, ModelResponse, StreamingChoices
+from codegate.types.openai import (
+    ChatCompletionRequest,
+    ChoiceDelta,
+    MessageDelta,
+    StreamingChatCompletion,
 )
 
 
@@ -27,30 +32,37 @@ class MockOutputPipelineStep(OutputPipelineStep):
 
     async def process_chunk(
         self,
-        chunk: ModelResponse,
+        chunk: StreamingChatCompletion,
         context: OutputPipelineContext,
         input_context: PipelineContext = None,
-    ) -> list[ModelResponse]:
+    ) -> list[StreamingChatCompletion]:
         if self._should_pause:
             return []
 
-        if self._modify_content and chunk.choices[0].delta.content:
+        if next(chunk.get_content(), None) is None:
+            return [chunk] # short-circuit
+
+        content = next(chunk.get_content())
+        if content.get_text() is None or content.get_text() == "":
+            return [chunk] # short-circuit
+
+        if self._modify_content:
             # Append step name to content to track modifications
-            modified_content = f"{chunk.choices[0].delta.content}_{self.name}"
-            chunk.choices[0].delta.content = modified_content
+            modified_content = f"{content.get_text()}_{self.name}"
+            content.set_text(modified_content)
 
         return [chunk]
 
 
-def create_model_response(content: str, id: str = "test") -> ModelResponse:
-    """Helper to create test ModelResponse objects"""
-    return ModelResponse(
+def create_model_response(content: str, id: str = "test") -> StreamingChatCompletion:
+    """Helper to create test StreamingChatCompletion objects"""
+    return StreamingChatCompletion(
         id=id,
         choices=[
-            StreamingChoices(
+            ChoiceDelta(
                 finish_reason=None,
                 index=0,
-                delta=Delta(content=content, role="assistant"),
+                delta=MessageDelta(content=content, role="assistant"),
                 logprobs=None,
             )
         ],
@@ -65,7 +77,7 @@ class MockContext:
     def __init__(self):
         self.sensitive = False
 
-    def add_output(self, chunk: ModelResponse):
+    def add_output(self, chunk: StreamingChatCompletion):
         pass
 
 
@@ -158,10 +170,23 @@ class TestOutputPipelineInstance:
         async for chunk in instance.process_stream(mock_stream()):
             chunks.append(chunk)
 
+        # NOTE: this test ensured that buffered chunks were flushed at
+        # the end of the pipeline. This was possible as long as the
+        # current implementation assumed that all messages were
+        # equivalent and position was not relevant.
+        #
+        # This is not the case for Anthropic, whose protocol is much
+        # more structured than that of the others.
+        #
+        # We're not there yet to ensure that such a protocol is not
+        # broken in face of messages being arbitrarily retained at
+        # each pipeline step, so we decided to treat a clogged
+        # pipelines as a bug.
+
         # Should get one chunk at the end with all buffered content
-        assert len(chunks) == 1
+        assert len(chunks) == 0
         # Content should be buffered and combined
-        assert chunks[0].choices[0].delta.content == "hello world"
+        # assert chunks[0].choices[0].delta.content == "hello world"
         # Buffer should be cleared after flush
         assert len(instance._context.buffer) == 0
 
@@ -181,19 +206,19 @@ class TestOutputPipelineInstance:
 
             async def process_chunk(
                 self,
-                chunk: ModelResponse,
+                chunk: StreamingChatCompletion,
                 context: OutputPipelineContext,
                 input_context: PipelineContext = None,
-            ) -> List[ModelResponse]:
+            ) -> List[StreamingChatCompletion]:
                 # Replace 'world' with 'moon' in buffered content
                 content = "".join(context.buffer)
                 if "world" in content:
                     content = content.replace("world", "moon")
                     chunk.choices = [
-                        StreamingChoices(
+                        ChoiceDelta(
                             finish_reason=None,
                             index=0,
-                            delta=Delta(content=content, role="assistant"),
+                            delta=MessageDelta(content=content, role="assistant"),
                             logprobs=None,
                         )
                     ]
@@ -275,10 +300,10 @@ class TestOutputPipelineInstance:
 
             async def process_chunk(
                 self,
-                chunk: ModelResponse,
+                chunk: StreamingChatCompletion,
                 context: OutputPipelineContext,
                 input_context: PipelineContext = None,
-            ) -> List[ModelResponse]:
+            ) -> List[StreamingChatCompletion]:
                 assert input_context.metadata["test"] == "value"
                 return [chunk]
 
@@ -309,8 +334,6 @@ class TestOutputPipelineInstance:
         async for chunk in instance.process_stream(mock_stream()):
             chunks.append(chunk)
 
-        # Should get one chunk with combined buffer content
-        assert len(chunks) == 1
-        assert chunks[0].choices[0].delta.content == "HelloWorld"
-        # Buffer should be cleared after flush
-        assert len(instance._context.buffer) == 0
+        # We do not flush messages anymore, this should be treated as
+        # a bug of the pipeline rather than and edge case.
+        assert len(chunks) == 0

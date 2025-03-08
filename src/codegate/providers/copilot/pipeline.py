@@ -1,17 +1,21 @@
 import json
 import time
 from abc import ABC, abstractmethod
-from typing import Dict, Tuple
+from typing import Any, Dict, Tuple
 
 import structlog
-from litellm import ModelResponse
-from litellm.types.llms.openai import ChatCompletionRequest
-from litellm.types.utils import Delta, StreamingChoices
 
 from codegate.clients.clients import ClientType
 from codegate.pipeline.base import PipelineContext, PipelineResult, SequentialPipelineProcessor
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.normalizer.completion import CompletionNormalizer
+from codegate.types.openai import (
+    ChatCompletionRequest,
+    ChoiceDelta,
+    CopilotCompletionRequest,
+    MessageDelta,
+    StreamingChatCompletion,
+)
 
 logger = structlog.get_logger("codegate")
 
@@ -70,18 +74,21 @@ class CopilotPipeline(ABC):
         return copilot_headers
 
     @staticmethod
-    def _create_shortcut_response(result: PipelineResult, model: str) -> bytes:
-        response = ModelResponse(
+    def _create_shortcut_response(result: PipelineResult) -> bytes:
+        response = StreamingChatCompletion(
+            id="",
             choices=[
-                StreamingChoices(
+                ChoiceDelta(
                     finish_reason="stop",
                     index=0,
-                    delta=Delta(content=result.response.content, role="assistant"),
-                )
+                    delta=MessageDelta(
+                        content=result.response.content,
+                        role="assistant"),
+                ),
             ],
-            created=int(time.time()),
-            model=model,
-            stream=True,
+            created = int(time.time()),
+            model=result.response.model,
+            object="chat.completion.chunk",
         )
         body = response.model_dump_json(exclude_none=True, exclude_unset=True).encode()
         return body
@@ -110,7 +117,7 @@ class CopilotPipeline(ABC):
             result = await self.instance.process_request(
                 request=normalized_body,
                 provider=self.provider_name,
-                model=normalized_body.get("model", "gpt-4o-mini"),
+                model=normalized_body.model, # TODO: There was a default value here of gpt-4o-mini. Retain?
                 api_key=headers_dict.get("authorization", "").replace("Bearer ", ""),
                 api_base="https://" + headers_dict.get("host", ""),
                 extra_headers=CopilotPipeline._get_copilot_headers(headers_dict),
@@ -123,7 +130,7 @@ class CopilotPipeline(ABC):
             try:
                 # Return shortcut response to the user
                 body = CopilotPipeline._create_shortcut_response(
-                    result, normalized_body.get("model", "gpt-4o-mini")
+                    result,
                 )
                 logger.info(f"Pipeline created shortcut response: {body}")
                 return body, result.context
@@ -155,13 +162,28 @@ class CopilotFimNormalizer:
     def __init__(self):
         self._completion_normalizer = CompletionNormalizer()
 
-    def normalize(self, body: bytes) -> ChatCompletionRequest:
-        json_body = json.loads(body)
-        return self._completion_normalizer.normalize(json_body)
+    def normalize(self, body: bytes) -> CopilotCompletionRequest:
+        # Copilot FIM sometimes doesn't set the model field
+        # to set a sensible default value, we first try to load the JSON
+        # and then set the model field if it's missing, then we call model_validate
+        # on the already loaded dict
+        try:
+            data: Dict[str, Any] = json.loads(body)
+        except json.JSONDecodeError:
+            # If JSON is invalid, let Pydantic handle the error with a nice message
+            return CopilotCompletionRequest.model_validate_json(body)
+
+        # Add model field if missing
+        if 'model' not in data:
+            data['model'] = 'gpt-4o-mini'
+
+        return CopilotCompletionRequest.model_validate(data)
 
     def denormalize(self, request_from_pipeline: ChatCompletionRequest) -> bytes:
-        normalized_json_body = self._completion_normalizer.denormalize(request_from_pipeline)
-        return json.dumps(normalized_json_body).encode()
+        return request_from_pipeline.model_dump_json(
+            exclude_none=True,
+            exclude_unset=True,
+        ).encode('utf-8')
 
 
 class CopilotChatNormalizer:
@@ -172,8 +194,7 @@ class CopilotChatNormalizer:
     """
 
     def normalize(self, body: bytes) -> ChatCompletionRequest:
-        json_body = json.loads(body)
-        normalized_data = ChatCompletionRequest(**json_body)
+        return ChatCompletionRequest.model_validate_json(body)
 
         # This would normally be the required to get the token usage with OpenAI models.
         # However the response comes back empty with Copilot. Commenting for the moment.
@@ -181,10 +202,11 @@ class CopilotChatNormalizer:
         # if normalized_data.get("stream", False):
         #     normalized_data["stream_options"] = {"include_usage": True}
 
-        return normalized_data
-
     def denormalize(self, request_from_pipeline: ChatCompletionRequest) -> bytes:
-        return json.dumps(request_from_pipeline).encode()
+        return request_from_pipeline.model_dump_json(
+            exclude_none=True,
+            exclude_unset=True,
+        ).encode('utf-8')
 
 
 class CopilotFimPipeline(CopilotPipeline):

@@ -30,7 +30,7 @@ async def custom_error_handler(request, exc: Exception):
     # Capture the stack trace
     extracted_traceback = traceback.extract_tb(exc.__traceback__)
     # Log only the last 3 items of the stack trace. 3 is an arbitrary number.
-    logger.error(traceback.print_list(extracted_traceback[-3:]))
+    logger.error(traceback.print_list(extracted_traceback[-3:]), exc_info=exc)
     return JSONResponse({"error": str(exc)}, status_code=500)
 
 

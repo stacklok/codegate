@@ -9,9 +9,17 @@ from codegate.clients.clients import ClientType
 from codegate.clients.detector import DetectClient
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.base import BaseProvider, ModelFetchError
+from codegate.providers.completion import BaseCompletionHandler
 from codegate.providers.fim_analyzer import FIMAnalyzer
-from codegate.providers.litellmshim import LiteLLmShim, sse_stream_generator
-from codegate.providers.openai.adapter import OpenAIInputNormalizer, OpenAIOutputNormalizer
+from codegate.providers.litellmshim import LiteLLmShim
+from codegate.types.openai import (
+    completions_streaming,
+    stream_generator,
+    ChatCompletionRequest,
+)
+
+
+logger = structlog.get_logger("codegate")
 
 
 class OpenAIProvider(BaseProvider):
@@ -19,11 +27,22 @@ class OpenAIProvider(BaseProvider):
         self,
         pipeline_factory: PipelineFactory,
         # Enable receiving other completion handlers from childs, i.e. OpenRouter and LM Studio
-        completion_handler: LiteLLmShim = LiteLLmShim(stream_generator=sse_stream_generator),
+        completion_handler: BaseCompletionHandler = None,
     ):
+        if self._get_base_url() != "":
+            self.base_url = self._get_base_url()
+        else:
+            self.base_url = "https://api.openai.com/api/v1"
+
+        if not completion_handler:
+            completion_handler = LiteLLmShim(
+                completion_func=completions_streaming,
+                stream_generator=stream_generator,
+            )
+
         super().__init__(
-            OpenAIInputNormalizer(),
-            OpenAIOutputNormalizer(),
+            None,
+            None,
             completion_handler,
             pipeline_factory,
         )
@@ -50,6 +69,7 @@ class OpenAIProvider(BaseProvider):
         self,
         data: dict,
         api_key: str,
+        base_url: str,
         is_fim_request: bool,
         client_type: ClientType,
     ):
@@ -57,13 +77,13 @@ class OpenAIProvider(BaseProvider):
             stream = await self.complete(
                 data,
                 api_key,
+                base_url,
                 is_fim_request=is_fim_request,
                 client_type=client_type,
             )
         except Exception as e:
-            #  check if we have an status code there
+            # Check if we have an status code there
             if hasattr(e, "status_code"):
-                logger = structlog.get_logger("codegate")
                 logger.error("Error in OpenAIProvider completion", error=str(e))
 
                 raise HTTPException(status_code=e.status_code, detail=str(e))  # type: ignore
@@ -92,12 +112,17 @@ class OpenAIProvider(BaseProvider):
 
             api_key = authorization.split(" ")[1]
             body = await request.body()
-            data = json.loads(body)
-            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, data)
+            req = ChatCompletionRequest.model_validate_json(body)
+            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, req)
+
+            if not req.stream:
+                logger.warn("We got a non-streaming request, forcing to a streaming one")
+                req.stream = True
 
             return await self.process_request(
-                data,
+                req,
                 api_key,
+                self.base_url,
                 is_fim_request,
                 request.state.detected_client,
             )
