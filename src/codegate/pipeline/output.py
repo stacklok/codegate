@@ -153,6 +153,8 @@ class OutputPipelineInstance:
                         step_result = await step.process_chunk(
                             c, self._context, self._input_context
                         )
+                        if not step_result:
+                            break
                         processed_chunks.extend(step_result)
 
                     current_chunks = processed_chunks
