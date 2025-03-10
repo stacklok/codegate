@@ -7,7 +7,6 @@ from typing import (
 
 import pydantic
 
-
 Role = Union[
     Literal["user"],
     Literal["assistant"],

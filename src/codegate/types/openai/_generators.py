@@ -95,11 +95,11 @@ async def streaming(request, api_key, url, cls=StreamingChatCompletion):
                 try:
                     item = MessageError.model_validate_json(text)
                     yield item
-                except Exception as e:
+                except Exception:
                     try:
                         item = VllmMessageError.model_validate_json(text)
                         yield item
-                    except:
+                    except Exception as e:
                         raise e
             case 500 | 529:
                 text = await resp.aread()

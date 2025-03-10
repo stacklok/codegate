@@ -13,7 +13,6 @@ from codegate.pipeline.secrets.secrets import (
 from codegate.pipeline.secrets.signatures import CodegateSignatures, Match
 from codegate.pipeline.sensitive_data.manager import SensitiveData, SensitiveDataManager
 from codegate.types.openai import (
-    ChatCompletionRequest,
     ChoiceDelta,
     MessageDelta,
     StreamingChatCompletion,

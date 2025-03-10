@@ -3,7 +3,6 @@ from typing import (
     Union,
 )
 
-
 ServiceTier = Union[
     Literal["auto"],
     Literal["default"],

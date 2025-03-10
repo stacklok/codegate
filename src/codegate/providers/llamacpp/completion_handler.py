@@ -1,22 +1,18 @@
-import asyncio
-import json
-from typing import Any, AsyncIterator, Iterator, Optional, Union, Callable
+from typing import Any, AsyncIterator, Callable, Iterator, Optional, Union
 
 from fastapi.responses import JSONResponse, StreamingResponse
-from llama_cpp.llama_types import (
-    CreateChatCompletionStreamResponse,
-)
 
 from codegate.clients.clients import ClientType
 from codegate.config import Config
 from codegate.inference.inference_engine import LlamaCppInferenceEngine
 from codegate.providers.base import BaseCompletionHandler
 from codegate.types.openai import (
-    stream_generator as openai_stream_generator,
     LegacyCompletion,
     StreamingChatCompletion,
 )
-
+from codegate.types.openai import (
+    stream_generator as openai_stream_generator,
+)
 
 # async def llamacpp_stream_generator(
 #     stream: AsyncIterator[CreateChatCompletionStreamResponse],

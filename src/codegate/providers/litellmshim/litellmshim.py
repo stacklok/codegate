@@ -7,7 +7,6 @@ from codegate.clients.clients import ClientType
 from codegate.providers.base import BaseCompletionHandler, StreamGenerator
 from codegate.types.anthropic import acompletion
 
-
 logger = structlog.get_logger("codegate")
 
 

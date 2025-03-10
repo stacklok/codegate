@@ -1,4 +1,3 @@
-import json
 from typing import Callable, List
 from urllib.parse import urljoin
 
@@ -13,12 +12,11 @@ from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.fim_analyzer import FIMAnalyzer
 from codegate.providers.litellmshim import LiteLLmShim
 from codegate.types.vllm import (
-    completions_streaming,
-    stream_generator,
     ChatCompletionRequest,
     LegacyCompletionRequest,
+    completions_streaming,
+    stream_generator,
 )
-
 
 logger = structlog.get_logger("codegate")
 
@@ -142,7 +140,7 @@ class VLLMProvider(BaseProvider):
 
         @self.router.post(f"/{self.provider_route_name}/completions")
         @DetectClient()
-        async def create_completion(
+        async def completions(
             request: Request,
             authorization: str | None = Header(None, description="Optional Bearer token"),
         ):
@@ -172,7 +170,7 @@ class VLLMProvider(BaseProvider):
 
         @self.router.post(f"/{self.provider_route_name}/chat/completions")
         @DetectClient()
-        async def create_completion(
+        async def chat_completion(
             request: Request,
             authorization: str | None = Header(None, description="Optional Bearer token"),
         ):

@@ -1,4 +1,3 @@
-import asyncio
 import json
 import os
 import pathlib
@@ -6,14 +5,11 @@ import pathlib
 import pytest
 
 from codegate.types.anthropic import (
-    # generators
-    message_wrapper,
-    stream_generator,
-    # request objects
-    ChatCompletionRequest,
     # response objects
     ApiError,
     AuthenticationError,
+    # request objects
+    ChatCompletionRequest,
     ContentBlockDelta,
     ContentBlockStart,
     ContentBlockStop,
@@ -28,8 +24,10 @@ from codegate.types.anthropic import (
     PermissionError,
     RateLimitError,
     RequestTooLargeError,
+    # generators
+    message_wrapper,
+    stream_generator,
 )
-
 
 pytest_plugins = ("pytest_asyncio",)
 
@@ -143,7 +141,7 @@ async def test_message_wrapper_error(streaming_messages_error):
 
 
 @pytest.mark.asyncio
-async def test_message_wrapper(streaming_messages_simple):
+async def test_message_wrapper_strict(streaming_messages_simple):
     async def _line_iterator(data):
         for line in data.splitlines():
             yield line
@@ -236,7 +234,7 @@ async def test_message_wrapper_broken_protocol():
 
     gen = message_wrapper(_iterator())
     with pytest.raises(ValueError):
-        event = await anext(gen)
+        _ = await anext(gen)
 
 
 @pytest.mark.asyncio
@@ -260,7 +258,7 @@ async def test_message_wrapper_error_short_circuits():
 async def test_message_wrapper_message_stop_short_circuits():
     async def _iterator():
         yield "event: message_start"
-        yield 'data: {"type":"message_start","message":{"id":"msg_014p7gG3wDgGV9EUtLvnow3U","type":"message","role":"assistant","model":"claude-3-haiku-20240307","stop_sequence":null,"usage":{"input_tokens":472,"output_tokens":2},"content":[],"stop_reason":null}}'
+        yield 'data: {"type":"message_start","message":{"id":"msg_014p7gG3wDgGV9EUtLvnow3U","type":"message","role":"assistant","model":"claude-3-haiku-20240307","stop_sequence":null,"usage":{"input_tokens":472,"output_tokens":2},"content":[],"stop_reason":null}}'  # noqa: E501
         yield ""
         yield "event: message_stop"
         yield 'data: {"type":"message_stop"}'
@@ -281,7 +279,7 @@ async def test_message_wrapper_message_stop_short_circuits():
 async def test_message_wrapper_unknown_type():
     async def _iterator():
         yield "event: message_start"
-        yield 'data: {"type":"message_start","message":{"id":"msg_014p7gG3wDgGV9EUtLvnow3U","type":"message","role":"assistant","model":"claude-3-haiku-20240307","stop_sequence":null,"usage":{"input_tokens":472,"output_tokens":2},"content":[],"stop_reason":null}}'
+        yield 'data: {"type":"message_start","message":{"id":"msg_014p7gG3wDgGV9EUtLvnow3U","type":"message","role":"assistant","model":"claude-3-haiku-20240307","stop_sequence":null,"usage":{"input_tokens":472,"output_tokens":2},"content":[],"stop_reason":null}}'  # noqa: E501
         yield ""
         yield "event: unknown_type"
         yield 'data: {"type":"unknown_type"}'

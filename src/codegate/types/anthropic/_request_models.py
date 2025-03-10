@@ -4,21 +4,11 @@ from typing import (
     Iterable,
     List,
     Literal,
-    TypedDict,
     Union,
-)
-
-from litellm.types.llms.anthropic import (
-    ContentBlockDelta,
-    ContentBlockStart,
-    ContentTextBlockDelta,
-    MessageChunk,
-    MessageStartBlock,
 )
 
 import pydantic
 
-from codegate.clients.clients import ClientType
 from codegate.types.common import MessageTypeFilter
 
 

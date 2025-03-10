@@ -92,7 +92,7 @@ class LlamaCppProvider(BaseProvider):
 
         @self.router.post(f"/{self.provider_route_name}/completions")
         @DetectClient()
-        async def create_completion(
+        async def completions(
             request: Request,
         ):
             body = await request.body()
@@ -108,11 +108,10 @@ class LlamaCppProvider(BaseProvider):
 
         @self.router.post(f"/{self.provider_route_name}/chat/completions")
         @DetectClient()
-        async def create_completion(
+        async def chat_completion(
             request: Request,
         ):
             body = await request.body()
-            print(body)
             req = ChatCompletionRequest.model_validate_json(body)
             is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, req)
             return await self.process_request(

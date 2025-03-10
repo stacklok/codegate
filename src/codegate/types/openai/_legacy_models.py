@@ -8,6 +8,7 @@ from typing import (
 import pydantic
 
 from codegate.types.common import MessageTypeFilter
+
 from ._request_models import (
     Message,
     StreamOption,

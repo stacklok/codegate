@@ -3,7 +3,6 @@ from typing import Any, Dict, List, Optional, Tuple
 import regex as re
 import structlog
 
-from codegate.config import Config
 from codegate.db.models import AlertSeverity
 from codegate.pipeline.base import (
     PipelineContext,
@@ -16,7 +15,6 @@ from codegate.pipeline.sensitive_data.manager import SensitiveData, SensitiveDat
 from codegate.types.anthropic import UserMessage as AnthropicUserMessage
 from codegate.types.ollama import UserMessage as OllamaUserMessage
 from codegate.types.openai import UserMessage as OpenaiUserMessage
-
 
 logger = structlog.get_logger("codegate")
 

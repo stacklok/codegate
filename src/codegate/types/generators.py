@@ -4,13 +4,8 @@ from typing import (
     AsyncIterator,
 )
 
-from litellm import (
-    acompletion as legacy_acompletion,
-    atext_completion as legacy_atext_completion,
-)
 import pydantic
 import structlog
-
 
 logger = structlog.get_logger("codegate")
 

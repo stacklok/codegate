@@ -9,6 +9,7 @@ from typing import (
 import pydantic
 
 from codegate.types.common import MessageTypeFilter
+
 from ._shared_models import ServiceTier
 
 

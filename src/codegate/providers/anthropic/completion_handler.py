@@ -1,7 +1,6 @@
-from typing import AsyncIterator, Optional, Union
+from typing import Any, AsyncIterator, Optional, Union
 
 from codegate.providers.litellmshim import LiteLLmShim
-from codegate.types.common import ChatCompletionRequest, ModelResponse
 
 
 class AnthropicCompletion(LiteLLmShim):
@@ -11,12 +10,12 @@ class AnthropicCompletion(LiteLLmShim):
 
     async def execute_completion(
         self,
-        request: ChatCompletionRequest,
+        request: Any,
         base_url: Optional[str],
         api_key: Optional[str],
         stream: bool = False,
         is_fim_request: bool = False,
-    ) -> Union[ModelResponse, AsyncIterator[ModelResponse]]:
+    ) -> Union[Any, AsyncIterator[Any]]:
         """
         Ensures the model name is prefixed with 'anthropic/' to explicitly route to Anthropic's API.
 

@@ -13,7 +13,6 @@ from ._response_models import (
     StreamingGenerateCompletion,
 )
 
-
 logger = structlog.get_logger("codegate")
 
 
@@ -110,10 +109,7 @@ async def message_wrapper(cls, lines):
         except Exception as e:
             logger.warn("HTTP error while consuming SSE stream", payload=payload, exc_info=e)
             err = MessageError(
-                error=ErrorDetails(
-                    message=str(e),
-                    code=500,
-                ),
+                error=str(e),
             )
-            item = MessageError.model_validate_json(payload)
+            item = MessageError.model_validate_json(err)
             yield item

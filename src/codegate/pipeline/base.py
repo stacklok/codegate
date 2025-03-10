@@ -13,7 +13,6 @@ from codegate.db.models import Alert, AlertSeverity, Output, Prompt
 from codegate.extract_snippets.message_extractor import CodeSnippet
 from codegate.pipeline.sensitive_data.manager import SensitiveDataManager
 
-
 logger = structlog.get_logger("codegate")
 
 

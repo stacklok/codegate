@@ -19,10 +19,7 @@ from codegate.pipeline.base import (
 from codegate.pipeline.factory import PipelineFactory
 from codegate.pipeline.output import OutputPipelineInstance
 from codegate.providers.completion.base import BaseCompletionHandler
-from codegate.providers.formatting.input_pipeline import PipelineResponseFormatter
 from codegate.providers.normalizer.base import ModelInputNormalizer, ModelOutputNormalizer
-from codegate.providers.normalizer.completion import CompletionNormalizer
-
 
 setup_logging()
 logger = structlog.get_logger("codegate")
@@ -76,9 +73,6 @@ class BaseProvider(ABC):
         )
         self._pipeline_factory = pipeline_factory
         self._db_recorder = DbRecorder()
-        self._pipeline_response_formatter = PipelineResponseFormatter(
-            output_normalizer, self._db_recorder
-        )
         self._fim_normalizer = PassThroughNormalizer()  # CompletionNormalizer()
 
         self._setup_routes()
@@ -293,11 +287,6 @@ class BaseProvider(ABC):
             is_fim_request,
         )
 
-        if input_pipeline_result.response and input_pipeline_result.context:
-            return await self._pipeline_response_formatter.handle_pipeline_response(
-                input_pipeline_result.response, streaming, context=input_pipeline_result.context
-            )
-
         if input_pipeline_result.request:
             provider_request = self._input_normalizer.denormalize(input_pipeline_result.request)
         if is_fim_request:
@@ -313,7 +302,7 @@ class BaseProvider(ABC):
         # upstream LLM", e.g. sending the HTTP request to OpenAI or
         # Anthropic.
         model_response = None
-        if completion_handler != None:
+        if completion_handler is not None:
             model_response = await completion_handler(
                 provider_request,
                 base_url,

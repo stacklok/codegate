@@ -115,7 +115,9 @@ class CopilotPipeline(ABC):
             result = await self.instance.process_request(
                 request=normalized_body,
                 provider=self.provider_name,
-                model=normalized_body.model,  # TODO: There was a default value here of gpt-4o-mini. Retain?
+                # TODO: There was a default value here of
+                # gpt-4o-mini. Retain?
+                model=normalized_body.model,
                 api_key=headers_dict.get("authorization", "").replace("Bearer ", ""),
                 api_base="https://" + headers_dict.get("host", ""),
                 extra_headers=CopilotPipeline._get_copilot_headers(headers_dict),

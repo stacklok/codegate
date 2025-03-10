@@ -16,7 +16,6 @@ from fastapi.responses import StreamingResponse
 from codegate.providers.base import BaseCompletionHandler, BaseProvider
 from codegate.providers.normalizer import ModelInputNormalizer, ModelOutputNormalizer
 from codegate.providers.registry import ProviderRegistry
-from codegate.types.common import ChatCompletionRequest, ModelResponse
 
 
 class MockCompletionHandler(BaseCompletionHandler):
@@ -37,7 +36,7 @@ class MockCompletionHandler(BaseCompletionHandler):
 
     def execute_completion(
         self,
-        request: ChatCompletionRequest,
+        request: Any,
         api_key: Optional[str],
         stream: bool = False,
     ) -> Any:
@@ -65,18 +64,18 @@ class MockOutputNormalizer(ModelOutputNormalizer):
     def normalize_streaming(
         self,
         model_reply: Union[AsyncIterable[Any], Iterable[Any]],
-    ) -> Union[AsyncIterator[ModelResponse], Iterator[ModelResponse]]:
+    ) -> Union[AsyncIterator[Any], Iterator[Any]]:
         pass
 
-    def normalize(self, model_reply: Any) -> ModelResponse:
+    def normalize(self, model_reply: Any) -> Any:
         pass
 
-    def denormalize(self, normalized_reply: ModelResponse) -> Any:
+    def denormalize(self, normalized_reply: Any) -> Any:
         pass
 
     def denormalize_streaming(
         self,
-        normalized_reply: Union[AsyncIterable[ModelResponse], Iterable[ModelResponse]],
+        normalized_reply: Union[AsyncIterable[Any], Iterable[Any]],
     ) -> Union[AsyncIterator[Any], Iterator[Any]]:
         pass
 

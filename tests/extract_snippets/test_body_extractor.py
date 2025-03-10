@@ -281,7 +281,7 @@ def substract(a, b):
                                 <kodu_action><tool_name><parameter1_name>value1</parameter1_name><parameter2_name>value2
                                 </parameter2_name>... additional parameters as needed in the same format
                                 ...</tool_name></kodu_action>
-                                """,
+                                """,  # noqa: E501
                             ),
                         ],
                     ),
