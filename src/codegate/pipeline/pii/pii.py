@@ -20,6 +20,38 @@ from codegate.pipeline.systemmsg import add_or_update_system_message
 logger = structlog.get_logger("codegate")
 
 
+def can_be_uuid(buffer):
+    """
+    This is a way to check if a buffer can be a UUID. It aims to return as soon as possible
+    meaning that we buffer as little as possible. This is important for performance reasons
+    but also to make sure other steps don't wait too long as we don't buffer more than we need to.
+    """
+    # UUID structure: 8-4-4-4-12 hex digits
+    # Expected positions of hyphens
+    hyphen_positions = {8, 13, 18, 23}
+
+    # Maximum length of a UUID
+    max_uuid_length = 36
+
+    if buffer == "":
+        return True
+
+    # If buffer is longer than a UUID, it can't be a UUID
+    if len(buffer) > max_uuid_length:
+        return False
+
+    for i, char in enumerate(buffer):
+        # Check if hyphens are in the right positions
+        if i in hyphen_positions:
+            if char != "-":
+                return False
+        # Check if non-hyphen positions contain hex digits
+        elif not (char.isdigit() or char.lower() in "abcdef"):
+            return False
+
+    return True
+
+
 class CodegatePii(PipelineStep):
     """
     CodegatePii is a pipeline step that handles the detection and redaction of PII
@@ -278,8 +310,13 @@ class PiiUnRedactionStep(OutputPipelineStep):
 
             end_idx = content.find(self.marker_end, start_idx + 1)
             if end_idx == -1:
-                # Incomplete marker, buffer the rest
-                context.prefix_buffer = content[current_pos:]
+                # Incomplete marker, buffer the rest only if it can be a UUID
+                if start_idx + 1 < len(content) and not can_be_uuid(content[start_idx + 1 :]):
+                    # the buffer can't be a UUID, so we can't process it, just return
+                    result.append(content[current_pos:])
+                else:
+                    # this can still be a UUID
+                    context.prefix_buffer = content[current_pos:]
                 break
 
             # Add text before marker

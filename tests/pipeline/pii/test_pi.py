@@ -120,6 +120,52 @@ class TestPiiUnRedactionStep:
         result = await unredaction_step.process_chunk(chunk, context, input_context)
         assert result[0].choices[0].delta.content == "Text with test@example.com"
 
+    @pytest.mark.asyncio
+    async def test_detect_not_an_uuid(self, unredaction_step):
+        chunk1 = ModelResponse(
+            id="test",
+            choices=[
+                StreamingChoices(
+                    finish_reason=None,
+                    index=0,
+                    delta=Delta(content="#"),
+                    logprobs=None,
+                )
+            ],
+            created=1234567890,
+            model="test-model",
+            object="chat.completion.chunk",
+        )
+        chunk2 = ModelResponse(
+            id="test",
+            choices=[
+                StreamingChoices(
+                    finish_reason=None,
+                    index=0,
+                    delta=Delta(content=" filepath"),
+                    logprobs=None,
+                )
+            ],
+            created=1234567890,
+            model="test-model",
+            object="chat.completion.chunk",
+        )
+
+        context = OutputPipelineContext()
+        manager = SensitiveDataManager()
+        sensitive = PipelineSensitiveData(manager=manager, session_id="session-id")
+        input_context = PipelineContext(sensitive=sensitive)
+
+        # Mock PII manager in input context
+        mock_sensitive_data_manager = MagicMock()
+        mock_sensitive_data_manager.get_original_value = MagicMock(return_value="test@example.com")
+        input_context.metadata["sensitive_data_manager"] = mock_sensitive_data_manager
+
+        result = await unredaction_step.process_chunk(chunk1, context, input_context)
+        assert not result
+        result = await unredaction_step.process_chunk(chunk2, context, input_context)
+        assert result[0].choices[0].delta.content == "# filepath"
+
 
 class TestPiiRedactionNotifier:
     @pytest.fixture
