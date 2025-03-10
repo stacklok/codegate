@@ -149,11 +149,17 @@ class OutputPipelineInstance:
 
                     processed_chunks = []
                     for c in current_chunks:
-                        step_result = await step.process_chunk(
-                            c, self._context, self._input_context
-                        )
-                        if not step_result:
-                            break
+                        try:
+                            step_result = await step.process_chunk(
+                                c, self._context, self._input_context
+                            )
+                            if not step_result:
+                                break
+                        except Exception as e:
+                            logger.error(f"Error processing step '{step.name}'", exc_info=e)
+                            # Re-raise to maintain the current behaviour.
+                            raise e
+
                         processed_chunks.extend(step_result)
 
                     current_chunks = processed_chunks

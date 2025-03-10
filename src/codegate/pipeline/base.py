@@ -278,9 +278,14 @@ class InputPipelineInstance:
             provider_db = "copilot"
 
         for step in self.pipeline_steps:
-            result = await step.process(current_request, self.context)
-            if result is None:
-                continue
+            try:
+                result = await step.process(current_request, self.context)
+                if result is None:
+                    continue
+            except Exception as e:
+                logger.error(f"Error processing step '{step.name}'", exc_info=e)
+                # Re-raise to maintain the current behaviour.
+                raise e
 
             if result.shortcuts_processing():
                 # Also record the input when shortchutting
