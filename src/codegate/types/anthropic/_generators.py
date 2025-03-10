@@ -79,10 +79,11 @@ async def acompletion(request, api_key, base_url):
 
     client = httpx.AsyncClient()
     async with client.stream(
-            "POST", f"{base_url}/v1/messages",
-            headers=headers,
-            content=payload,
-            timeout=30, # TODO this should not be hardcoded
+        "POST",
+        f"{base_url}/v1/messages",
+        headers=headers,
+        content=payload,
+        timeout=30,  # TODO this should not be hardcoded
     ) as resp:
         # TODO figure out how to best return failures
         match resp.status_code:

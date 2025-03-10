@@ -59,7 +59,7 @@ class TestSystemPrompt:
             "messages": [
                 {"role": "system", "content": request_system_message},
                 {"role": "user", "content": user_message},
-            ]
+            ],
         }
         mock_context = Mock(spec=PipelineContext)
         mock_context.secrets_found = False
@@ -79,7 +79,10 @@ class TestSystemPrompt:
         # Check that system message was inserted
         assert len(result.request.messages) == 2
         assert result.request.messages[0].role == "system"
-        assert result.request.messages[0].content == f"{system_prompt}\n\nHere are additional instructions:\n\n{request_system_message}"
+        assert (
+            result.request.messages[0].content
+            == f"{system_prompt}\n\nHere are additional instructions:\n\n{request_system_message}"
+        )
         assert result.request.messages[1].role == "user"
         assert result.request.messages[1].content == user_message
 

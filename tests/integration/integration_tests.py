@@ -90,10 +90,10 @@ class CodegateTestRunner:
                     elif "delta" in json_line:
                         message_content = json_line["delta"].get("text", "")
                     elif "message" in json_line and isinstance(json_line["message"], str):
-                         # "messages" is a raw string
+                        # "messages" is a raw string
                         message_content = json_line["message"]
                     elif "message" in json_line:
-                         # "messages" is a structured object
+                        # "messages" is a structured object
                         message_content = json_line["message"].get("content", "")
                     elif "response" in json_line:
                         message_content = json_line.get("response", "")

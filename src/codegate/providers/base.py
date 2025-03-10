@@ -71,13 +71,15 @@ class BaseProvider(ABC):
         self.router = APIRouter()
         self._completion_handler = completion_handler
         self._input_normalizer = input_normalizer if input_normalizer else PassThroughNormalizer()
-        self._output_normalizer = output_normalizer if output_normalizer else PassThroughNormalizer()
+        self._output_normalizer = (
+            output_normalizer if output_normalizer else PassThroughNormalizer()
+        )
         self._pipeline_factory = pipeline_factory
         self._db_recorder = DbRecorder()
         self._pipeline_response_formatter = PipelineResponseFormatter(
             output_normalizer, self._db_recorder
         )
-        self._fim_normalizer = PassThroughNormalizer() # CompletionNormalizer()
+        self._fim_normalizer = PassThroughNormalizer()  # CompletionNormalizer()
 
         self._setup_routes()
 

@@ -16,7 +16,10 @@ from codegate.muxing import rulematcher
 from codegate.providers.ollama.adapter import OLlamaToModel
 from codegate.types.ollama import StreamingChatCompletion as OllamaStreamingChatCompletion
 from codegate.types.ollama import StreamingGenerateCompletion as OllamaStreamingGenerateCompletion
-from codegate.muxing.ollama_mappers import openai_chunk_from_ollama_chat, openai_chunk_from_ollama_generate
+from codegate.muxing.ollama_mappers import (
+    openai_chunk_from_ollama_chat,
+    openai_chunk_from_ollama_generate,
+)
 from codegate.types.openai import StreamingChatCompletion as OpenAIStreamingChatCompletion
 
 logger = structlog.get_logger("codegate")

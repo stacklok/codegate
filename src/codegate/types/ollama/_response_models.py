@@ -15,6 +15,7 @@ Role = Union[
     Literal["tool"],
 ]
 
+
 class ToolCallFunction(pydantic.BaseModel):
     name: str
     index: int | None = None
@@ -43,7 +44,7 @@ class StreamingChatCompletion(pydantic.BaseModel):
     created_at: int | str
     message: Message
     done: bool
-    done_reason: str | None = None # either `load`, `unload`, `length`, or `stop`
+    done_reason: str | None = None  # either `load`, `unload`, `length`, or `stop`
     total_duration: int | None = None
     load_duration: int | None = None
     prompt_eval_count: int | None = None
@@ -64,7 +65,7 @@ class StreamingGenerateCompletion(pydantic.BaseModel):
     created_at: int | str
     response: str
     done: bool
-    done_reason: str | None = None # either `load`, `unload`, `length`, or `stop`
+    done_reason: str | None = None  # either `load`, `unload`, `length`, or `stop`
     total_duration: int | None = None
     load_duration: int | None = None
     prompt_eval_count: int | None = None
@@ -86,4 +87,4 @@ class MessageError(pydantic.BaseModel):
     error: str
 
     def get_content(self) -> Iterable[Any]:
-        return iter(()) # empty generator
+        return iter(())  # empty generator

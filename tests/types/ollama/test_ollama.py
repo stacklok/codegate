@@ -17,7 +17,7 @@ from codegate.types.ollama import (
 )
 
 
-pytest_plugins = ('pytest_asyncio',)
+pytest_plugins = ("pytest_asyncio",)
 
 
 def read_file(fname):

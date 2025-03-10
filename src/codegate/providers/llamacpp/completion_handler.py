@@ -47,7 +47,7 @@ async def completion_to_async_iterator(
 
 
 async def chat_to_async_iterator(
-        sync_iterator: Iterator[dict],
+    sync_iterator: Iterator[dict],
 ) -> AsyncIterator[StreamingChatCompletion]:
     for item in sync_iterator:
         yield StreamingChatCompletion(**item)
@@ -74,13 +74,15 @@ class LlamaCppCompletionHandler(BaseCompletionHandler):
         # Reason - Request error as JSON:
         # {'error': "Llama.create_completion() got an unexpected keyword argument 'stream_options'"}
         if is_fim_request:
-            request_dict = request.dict(exclude={
-                "best_of",
-                "frequency_penalty",
-                "n",
-                "stream_options",
-                "user",
-            })
+            request_dict = request.dict(
+                exclude={
+                    "best_of",
+                    "frequency_penalty",
+                    "n",
+                    "stream_options",
+                    "user",
+                }
+            )
 
             response = await self.inference_engine.complete(
                 model_path,
@@ -93,23 +95,25 @@ class LlamaCppCompletionHandler(BaseCompletionHandler):
                 return completion_to_async_iterator(response)
             return LegacyCompletion(**response)
         else:
-            request_dict = request.dict(exclude={
-                "audio",
-                "frequency_penalty",
-                "include_reasoning",
-                "metadata",
-                "max_completion_tokens",
-                "modalities",
-                "n",
-                "parallel_tool_calls",
-                "prediction",
-                "prompt",
-                "reasoning_effort",
-                "service_tier",
-                "store",
-                "stream_options",
-                "user",
-            })
+            request_dict = request.dict(
+                exclude={
+                    "audio",
+                    "frequency_penalty",
+                    "include_reasoning",
+                    "metadata",
+                    "max_completion_tokens",
+                    "modalities",
+                    "n",
+                    "parallel_tool_calls",
+                    "prediction",
+                    "prompt",
+                    "reasoning_effort",
+                    "service_tier",
+                    "store",
+                    "stream_options",
+                    "user",
+                }
+            )
 
             response = await self.inference_engine.chat(
                 model_path,
@@ -134,9 +138,7 @@ class LlamaCppCompletionHandler(BaseCompletionHandler):
         is the format that FastAPI expects for streaming responses.
         """
         return StreamingResponse(
-            stream_generator(stream)
-            if stream_generator
-            else openai_stream_generator(stream),
+            stream_generator(stream) if stream_generator else openai_stream_generator(stream),
             headers={
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",

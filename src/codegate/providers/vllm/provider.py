@@ -102,7 +102,9 @@ class VLLMProvider(BaseProvider):
                 logger.error("Error in VLLMProvider completion", error=str(e))
                 raise HTTPException(status_code=e.status_code, detail=str(e))
             raise e
-        return self._completion_handler.create_response(stream, client_type, stream_generator=stream_generator)
+        return self._completion_handler.create_response(
+            stream, client_type, stream_generator=stream_generator
+        )
 
     def _setup_routes(self):
         """

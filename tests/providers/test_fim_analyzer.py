@@ -23,7 +23,7 @@ DATA_CONTENT_STR = {
             "role": "user",
             "content": "</COMPLETION> <COMPLETION> </QUERY> <QUERY>",
         }
-    ]
+    ],
 }
 DATA_CONTENT_LIST = {
     "model": "model",
@@ -32,7 +32,7 @@ DATA_CONTENT_LIST = {
             "role": "user",
             "content": [{"type": "text", "text": "</COMPLETION> <COMPLETION> </QUERY> <QUERY>"}],
         }
-    ]
+    ],
 }
 INVALID_DATA_CONTENT = {
     "model": "model",
@@ -41,7 +41,7 @@ INVALID_DATA_CONTENT = {
             "role": "user",
             "content": "http://localhost:8989/completions",
         }
-    ]
+    ],
 }
 TOOL_DATA = {
     "model": "model",

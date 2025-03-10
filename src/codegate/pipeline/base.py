@@ -197,7 +197,6 @@ class PipelineStep(ABC):
         msg, idx = msg
         return "".join([content.get_text() for content in msg.get_content()]), idx
 
-
     @staticmethod
     def get_last_user_message_block(
         request: Any,
@@ -229,9 +228,7 @@ class PipelineStep(ABC):
         return "\n".join(reversed(user_messages)), last_idx
 
     @abstractmethod
-    async def process(
-        self, request: Any, context: PipelineContext
-    ) -> PipelineResult:
+    async def process(self, request: Any, context: PipelineContext) -> PipelineResult:
         """Process a request and return either modified request or response stream"""
         pass
 

@@ -67,6 +67,4 @@ from ._legacy_models import (
     LegacyCompletion,
 )
 
-from ._copilot import (
-    CopilotCompletionRequest
-)
+from ._copilot import CopilotCompletionRequest

@@ -40,11 +40,11 @@ class MockOutputPipelineStep(OutputPipelineStep):
             return []
 
         if next(chunk.get_content(), None) is None:
-            return [chunk] # short-circuit
+            return [chunk]  # short-circuit
 
         content = next(chunk.get_content())
         if content.get_text() is None or content.get_text() == "":
-            return [chunk] # short-circuit
+            return [chunk]  # short-circuit
 
         if self._modify_content:
             # Append step name to content to track modifications

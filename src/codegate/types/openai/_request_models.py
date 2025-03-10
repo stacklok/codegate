@@ -190,7 +190,7 @@ class DeveloperMessage(pydantic.BaseModel):
     def get_content(self):
         if isinstance(self.content, str):
             yield self
-        else: # list
+        else:  # list
             for content in self.content:
                 yield content
 
@@ -212,7 +212,7 @@ class SystemMessage(pydantic.BaseModel):
     def get_content(self):
         if isinstance(self.content, str):
             yield self
-        else: # list
+        else:  # list
             for content in self.content:
                 yield content
 
@@ -234,7 +234,7 @@ class UserMessage(pydantic.BaseModel):
     def get_content(self):
         if isinstance(self.content, str):
             yield self
-        else: # list
+        else:  # list
             for content in self.content:
                 yield content
 
@@ -259,7 +259,7 @@ class AssistantMessage(pydantic.BaseModel):
         if self.content:
             if isinstance(self.content, str):
                 yield self
-            elif self.content: # list
+            elif self.content:  # list
                 for content in self.content:
                     yield content
         # According to OpenAI documentation, an assistant message can
@@ -284,7 +284,7 @@ class ToolMessage(pydantic.BaseModel):
     def get_content(self):
         if isinstance(self.content, str):
             yield self
-        else: # list
+        else:  # list
             for content in self.content:
                 yield content
 
@@ -313,7 +313,7 @@ Message = Union[
 
 class ChatCompletionRequest(pydantic.BaseModel):
     messages: List[Message]
-    prompt: str | None = None # deprecated
+    prompt: str | None = None  # deprecated
     model: str
     store: bool | None = False
     reasoning_effort: Literal["low"] | Literal["medium"] | Literal["high"] | None = None
@@ -340,9 +340,9 @@ class ChatCompletionRequest(pydantic.BaseModel):
     tool_choice: str | ToolChoice | None = "auto"
     parallel_tool_calls: bool | None = True
     user: str | None = None
-    function_call: str | FunctionChoice | None = "auto" # deprecated
-    functions: List[LegacyFunctionDef] | None = None # deprecated
-    include_reasoning: bool | None = None # openrouter extension
+    function_call: str | FunctionChoice | None = "auto"  # deprecated
+    functions: List[LegacyFunctionDef] | None = None  # deprecated
+    include_reasoning: bool | None = None  # openrouter extension
 
     def get_stream(self) -> bool:
         return self.stream
@@ -360,10 +360,10 @@ class ChatCompletionRequest(pydantic.BaseModel):
                 types.Add(SystemMessage)
             if MessageTypeFilter.TOOL in filters:
                 types.add(ToolMessage)
-                types.add(FunctionMessage) # unsure about this
+                types.add(FunctionMessage)  # unsure about this
             if MessageTypeFilter.USER in filters:
                 types.add(UserMessage)
-                types.add(DeveloperMessage) # unsure about this
+                types.add(DeveloperMessage)  # unsure about this
             messages = filter(lambda m: isinstance(m, tuple(types)), self.messages)
         for msg in messages:
             yield msg
@@ -391,7 +391,7 @@ class ChatCompletionRequest(pydantic.BaseModel):
         for msg in self.messages:
             if isinstance(msg, SystemMessage):
                 yield msg.get_text()
-                break # TODO this must be changed
+                break  # TODO this must be changed
 
     def set_system_prompt(self, text) -> None:
         for msg in self.messages:

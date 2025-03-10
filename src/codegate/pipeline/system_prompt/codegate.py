@@ -75,7 +75,8 @@ class SystemPrompt(PipelineStep):
 
         if pii_found:
             system_prompt = _start_or_append(
-                system_prompt, Config.get_config().prompts.pii_redacted,
+                system_prompt,
+                Config.get_config().prompts.pii_redacted,
             )
 
         return system_prompt
@@ -83,9 +84,7 @@ class SystemPrompt(PipelineStep):
     async def _should_add_codegate_system_prompt(self, context: PipelineContext) -> bool:
         return context.secrets_found or context.pii_found or context.bad_packages_found
 
-    async def process(
-        self, request: Any, context: PipelineContext
-    ) -> PipelineResult:
+    async def process(self, request: Any, context: PipelineContext) -> PipelineResult:
         """
         Add system prompt if not present, otherwise prepend codegate system prompt
         to the existing system prompt

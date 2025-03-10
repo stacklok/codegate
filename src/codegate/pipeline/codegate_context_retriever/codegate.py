@@ -33,10 +33,10 @@ class CodegateContextRetriever(PipelineStep):
     """
 
     def __init__(
-            self,
-            storage_engine: StorageEngine | None = None,
-            package_extractor: PackageExtractor | None = None,
-        ):
+        self,
+        storage_engine: StorageEngine | None = None,
+        package_extractor: PackageExtractor | None = None,
+    ):
         """
         Initialize the CodegateContextRetriever with optional dependencies.
 
@@ -83,9 +83,7 @@ class CodegateContextRetriever(PipelineStep):
             )
         return context_str
 
-    async def process(  # noqa: C901
-        self, request: Any, context: PipelineContext
-    ) -> PipelineResult:
+    async def process(self, request: Any, context: PipelineContext) -> PipelineResult:  # noqa: C901
         """
         Use RAG DB to add context to the user request
         """
@@ -172,9 +170,7 @@ class CodegateContextRetriever(PipelineStep):
                     match = re.search(r"<task>\s*(.*?)\s*</task>(.*)", message_str, re.DOTALL)
                     if match:
                         task_content = match.group(1)  # Content within <task>...</task>
-                        rest_of_message = match.group(
-                            2
-                        ).strip()  # Content after </task>, if any
+                        rest_of_message = match.group(2).strip()  # Content after </task>, if any
 
                         # Embed the context into the task block
                         updated_task_content = (

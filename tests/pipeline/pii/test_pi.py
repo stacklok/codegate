@@ -59,6 +59,7 @@ class TestCodegatePii:
         assert result.request == request
         assert result.context == context
 
+
 class TestPiiUnRedactionStep:
     @pytest.fixture
     def unredaction_step(self):
@@ -90,7 +91,9 @@ class TestPiiUnRedactionStep:
         )
         context = OutputPipelineContext()
         input_context = PipelineContext()
-        input_context.sensitive = PipelineSensitiveData(manager=MagicMock(), session_id="session-id")
+        input_context.sensitive = PipelineSensitiveData(
+            manager=MagicMock(), session_id="session-id"
+        )
 
         result = await unredaction_step.process_chunk(chunk, context, input_context)
 

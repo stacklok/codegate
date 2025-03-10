@@ -81,12 +81,10 @@ class CopilotPipeline(ABC):
                 ChoiceDelta(
                     finish_reason="stop",
                     index=0,
-                    delta=MessageDelta(
-                        content=result.response.content,
-                        role="assistant"),
+                    delta=MessageDelta(content=result.response.content, role="assistant"),
                 ),
             ],
-            created = int(time.time()),
+            created=int(time.time()),
             model=result.response.model,
             object="chat.completion.chunk",
         )
@@ -117,7 +115,7 @@ class CopilotPipeline(ABC):
             result = await self.instance.process_request(
                 request=normalized_body,
                 provider=self.provider_name,
-                model=normalized_body.model, # TODO: There was a default value here of gpt-4o-mini. Retain?
+                model=normalized_body.model,  # TODO: There was a default value here of gpt-4o-mini. Retain?
                 api_key=headers_dict.get("authorization", "").replace("Bearer ", ""),
                 api_base="https://" + headers_dict.get("host", ""),
                 extra_headers=CopilotPipeline._get_copilot_headers(headers_dict),
@@ -174,8 +172,8 @@ class CopilotFimNormalizer:
             return CopilotCompletionRequest.model_validate_json(body)
 
         # Add model field if missing
-        if 'model' not in data:
-            data['model'] = 'gpt-4o-mini'
+        if "model" not in data:
+            data["model"] = "gpt-4o-mini"
 
         return CopilotCompletionRequest.model_validate(data)
 
@@ -183,7 +181,7 @@ class CopilotFimNormalizer:
         return request_from_pipeline.model_dump_json(
             exclude_none=True,
             exclude_unset=True,
-        ).encode('utf-8')
+        ).encode("utf-8")
 
 
 class CopilotChatNormalizer:
@@ -206,7 +204,7 @@ class CopilotChatNormalizer:
         return request_from_pipeline.model_dump_json(
             exclude_none=True,
             exclude_unset=True,
-        ).encode('utf-8')
+        ).encode("utf-8")
 
 
 class CopilotFimPipeline(CopilotPipeline):

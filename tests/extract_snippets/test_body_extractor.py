@@ -59,7 +59,7 @@ def _evaluate_actual_filenames(filenames: set[str], test_case: BodyCodeSnippetTe
                         ),
                         tool_call_id="toolu_4",
                     ),
-                ]
+                ],
             ),
             expected_count=1,
             expected=["v1.py"],
@@ -80,7 +80,9 @@ def test_body_extract_openinterpreter_snippets(test_case: BodyCodeSnippetTest):
             input_body_dict=openai.ChatCompletionRequest(
                 model="model",
                 messages=[
-                    openai.SystemMessage(role="system", content="You are Cline, a highly skilled software"),
+                    openai.SystemMessage(
+                        role="system", content="You are Cline, a highly skilled software"
+                    ),
                     openai.UserMessage(
                         role="user",
                         content=[
@@ -227,7 +229,9 @@ def test_body_extract_continue_snippets(test_case: BodyCodeSnippetTest):
             input_body_dict=openai.ChatCompletionRequest(
                 model="model",
                 messages=[
-                    openai.SystemMessage(role="system", content="You are Kodu, an autonomous coding agent."),
+                    openai.SystemMessage(
+                        role="system", content="You are Kodu, an autonomous coding agent."
+                    ),
                     openai.UserMessage(
                         role="user",
                         content=[
@@ -286,7 +290,7 @@ def substract(a, b):
             expected_count=1,
             expected=["testing_file.py"],
         ),
-    ]
+    ],
 )
 def test_body_extract_kodu_snippets(test_case: BodyCodeSnippetTest):
     extractor = KoduBodySnippetExtractor()

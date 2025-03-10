@@ -63,9 +63,9 @@ def anthropic_from_legacy_openai(request: openai.LegacyCompletionRequest):
 
 def map_stop_sequences(stop_sequences):
     if not stop_sequences:
-       return None
+        return None
     if isinstance(stop_sequences, list):
-       return stop_sequences
+        return stop_sequences
     return [stop_sequences]
 
 
@@ -83,7 +83,7 @@ def map_model(openai_model):
     model_mapping = {
         "gpt-4": "claude-3-opus-20240229",
         "gpt-4-turbo": "claude-3-7-sonnet-20250219",
-        "gpt-3.5-turbo": "claude-3-haiku-20240307"
+        "gpt-3.5-turbo": "claude-3-haiku-20240307",
         # Add more mappings as needed
     }
     return model_mapping.get(openai_model, "claude-3-7-sonnet-20250219")  # Default fallback
@@ -178,9 +178,8 @@ def map_messages(openai_messages):
             # assistant messages
             case openai.AssistantMessage(content=content) if content is not None:
                 anthropic_content = map_content(content)
-                anthropic_messages.append(anthropic.AssistantMessage(
-                    role="assistant",
-                    content=anthropic_content),
+                anthropic_messages.append(
+                    anthropic.AssistantMessage(role="assistant", content=anthropic_content),
                 )
             case openai.AssistantMessage(content="", tool_calls=[calls], function_call=funcall):
                 anthropic_content = [
@@ -227,9 +226,9 @@ def map_messages(openai_messages):
 
             # system messages
             case openai.DeveloperMessage(content=content):
-                pass # this is the new system message
+                pass  # this is the new system message
             case openai.SystemMessage(content=content):
-                pass # this is the legacy system message
+                pass  # this is the legacy system message
 
             # other, not covered cases
             case _:
@@ -275,7 +274,7 @@ def map_system_messages(openai_messages):
         if isinstance(msg, openai.SystemMessage) or isinstance(msg, openai.DeveloperMessage):
             if isinstance(msg.content, list):
                 system_prompts.extend([c.text for c in msg.content])
-            else: # str
+            else:  # str
                 system_prompts.append(msg.content)
     return "\n".join(system_prompts)
 

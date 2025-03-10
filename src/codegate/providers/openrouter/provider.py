@@ -29,6 +29,7 @@ async def generate_streaming(request, api_key, base_url):
     async for item in streaming(request, api_key, url, cls):
         yield item
 
+
 class OpenRouterProvider(OpenAIProvider):
     def __init__(self, pipeline_factory: PipelineFactory):
         completion_handler = LiteLLmShim(
@@ -60,8 +61,8 @@ class OpenRouterProvider(OpenAIProvider):
         @self.router.post(f"/{self.provider_route_name}/completions")
         @DetectClient()
         async def create_completion(
-                request: Request,
-                authorization: str = Header(..., description="Bearer token"),
+            request: Request,
+            authorization: str = Header(..., description="Bearer token"),
         ):
             if not authorization.startswith("Bearer "):
                 raise HTTPException(status_code=401, detail="Invalid authorization header")

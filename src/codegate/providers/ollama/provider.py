@@ -92,7 +92,9 @@ class OllamaProvider(BaseProvider):
                 # just continue raising the exception
                 raise e
         return self._completion_handler.create_response(
-            stream, client_type, stream_generator=stream_generator,
+            stream,
+            client_type,
+            stream_generator=stream_generator,
         )
 
     def _setup_routes(self):

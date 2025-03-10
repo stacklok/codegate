@@ -93,7 +93,9 @@ class AnthropicProvider(BaseProvider):
                 # just continue raising the exception
                 raise e
         return self._completion_handler.create_response(
-            stream, client_type, stream_generator=stream_generator,
+            stream,
+            client_type,
+            stream_generator=stream_generator,
         )
 
     def _setup_routes(self):
@@ -137,7 +139,9 @@ class AnthropicProvider(BaseProvider):
 async def dumper(stream):
     print("==========")
     async for event in stream:
-        res = f"event: {event.type}\ndata: {event.json(exclude_defaults=True, exclude_unset=True)}\n"
+        res = (
+            f"event: {event.type}\ndata: {event.json(exclude_defaults=True, exclude_unset=True)}\n"
+        )
         print(res)
         yield res
     print("==========")

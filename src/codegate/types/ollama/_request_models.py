@@ -118,8 +118,10 @@ Message = Union[
 class ChatRequest(pydantic.BaseModel):
     model: str
     messages: List[Message]
-    stream: bool | None = True # see here https://github.com/ollama/ollama/blob/main/server/routes.go#L1529
-    format: dict | Literal['json'] | None = None
+    stream: bool | None = (
+        True  # see here https://github.com/ollama/ollama/blob/main/server/routes.go#L1529
+    )
+    format: dict | Literal["json"] | None = None
     keep_alive: int | str | None = None
     tools: List[ToolDef] | None = None
     options: dict | None = None
@@ -157,7 +159,7 @@ class ChatRequest(pydantic.BaseModel):
     def last_user_block(self) -> Iterable[tuple[Message, int]]:
         for idx, msg in enumerate(reversed(self.messages)):
             if isinstance(msg, (UserMessage, ToolMessage)):
-                    yield msg, len(self.messages) - 1 - idx
+                yield msg, len(self.messages) - 1 - idx
             elif isinstance(msg, SystemMessage):
                 # these can occur in the middle of a user block
                 continue
@@ -169,13 +171,13 @@ class ChatRequest(pydantic.BaseModel):
         for msg in self.messages:
             if isinstance(msg, SystemMessage):
                 yield msg.get_text()
-                break # TODO this must be changed
+                break  # TODO this must be changed
 
     def set_system_prompt(self, text) -> None:
         for msg in self.messages:
             if isinstance(msg, SystemMessage):
                 msg.set_text(text)
-                break # TODO this does not make sense on multiple messages
+                break  # TODO this does not make sense on multiple messages
 
     def add_system_prompt(self, text, sep="\n") -> None:
         self.messages.append(
@@ -201,7 +203,9 @@ class GenerateRequest(pydantic.BaseModel):
     system: str | None = None
     template: str | None = None
     context: List[int] | None = None
-    stream: bool | None = True # see here https://github.com/ollama/ollama/blob/main/server/routes.go#L339
+    stream: bool | None = (
+        True  # see here https://github.com/ollama/ollama/blob/main/server/routes.go#L339
+    )
     raw: bool | None = None
     format: dict | None = None
     keep_alive: int | str | None = None

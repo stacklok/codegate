@@ -92,7 +92,7 @@ class UserMessage(pydantic.BaseModel):
     def get_content(self) -> Iterable[MessageContent]:
         if isinstance(self.content, str):
             yield self
-        else: # list
+        else:  # list
             for content in self.content:
                 yield content
 
@@ -116,7 +116,7 @@ class AssistantMessage(pydantic.BaseModel):
     def get_content(self) -> Iterable[MessageContent]:
         if isinstance(self.content, str):
             yield self
-        else: # list
+        else:  # list
             for content in self.content:
                 yield content
 
@@ -236,7 +236,7 @@ class ChatCompletionRequest(pydantic.BaseModel):
     def last_user_block(self) -> Iterable[tuple[Message, int]]:
         for idx, msg in enumerate(reversed(self.messages)):
             if isinstance(msg, UserMessage):
-                yield  msg, len(self.messages) - 1 - idx
+                yield msg, len(self.messages) - 1 - idx
 
     def get_system_prompt(self) -> Iterable[str]:
         if isinstance(self.system, str):
@@ -244,7 +244,7 @@ class ChatCompletionRequest(pydantic.BaseModel):
         if isinstance(self.system, list):
             for sp in self.system:
                 yield sp.text
-                break # TODO this must be changed
+                break  # TODO this must be changed
 
     def set_system_prompt(self, text) -> None:
         if isinstance(self.system, (str, type(None))):
