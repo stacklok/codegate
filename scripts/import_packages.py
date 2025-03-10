@@ -20,6 +20,7 @@ class PackageImporter:
             os.path.join(jsonl_dir, "archived.jsonl"),
             os.path.join(jsonl_dir, "deprecated.jsonl"),
             os.path.join(jsonl_dir, "malicious.jsonl"),
+            os.path.join(jsonl_dir, "vulnerable.jsonl"),
         ]
         self.conn = self._get_connection()
         Config.load()  # Load the configuration
@@ -48,11 +49,39 @@ class PackageImporter:
         """
         )
 
+        # table for packages that has at least one vulnerability high or critical
+        cursor.execute(
+            """
+            CREATE TABLE cve_packages (
+                name TEXT NOT NULL,
+                version TEXT NOT NULL,
+                type TEXT NOT NULL
+            )
+        """
+        )
+
         # Create indexes for faster querying
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_name ON packages(name)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_type ON packages(type)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_status ON packages(status)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_pkg_cve_name ON cve_packages(name)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_pkg_cve_type ON cve_packages(type)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_pkg_cve_version ON cve_packages(version)")
 
+        self.conn.commit()
+
+    async def process_cve_packages(self, package):
+        cursor = self.conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO cve_packages (name, version, type) VALUES (?, ?, ?)
+        """,
+            (
+                package["name"],
+                package["version"],
+                package["type"],
+            ),
+        )
         self.conn.commit()
 
     async def process_package(self, package):
@@ -101,14 +130,19 @@ class PackageImporter:
                     package["status"] = json_file.split("/")[-1].split(".")[0]
                     key = f"{package['name']}/{package['type']}"
 
-                    if key in existing_packages and existing_packages[key] == {
-                        "status": package["status"],
-                        "description": package["description"],
-                    }:
-                        print("Package already exists", key)
-                        continue
+                    if package["status"] == "vulnerable":
+                        # Process vulnerable packages using the cve flow
+                        await self.process_cve_packages(package)
+                    else:
+                        # For non-vulnerable packages, check for duplicates and process normally
+                        if key in existing_packages and existing_packages[key] == {
+                            "status": package["status"],
+                            "description": package["description"],
+                        }:
+                            print("Package already exists", key)
+                            continue
 
-                    await self.process_package(package)
+                        await self.process_package(package)
 
     async def run_import(self):
         self.setup_schema()
