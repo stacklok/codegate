@@ -796,25 +796,54 @@ class DbReader(DbCodeGate):
         return rows
 
     async def get_total_messages_count_by_workspace_id(
-        self, workspace_id: str, trigger_category: Optional[str] = None
+        self,
+        workspace_id: str,
+        filter_by_ids: Optional[List[str]] = None,
+        filter_by_alert_trigger_categories: Optional[List[str]] = None,
+        filter_by_alert_trigger_types: Optional[List[str]] = None,
     ) -> int:
         """
         Get total count of unique messages for a given workspace_id,
         considering trigger_category.
         """
-        sql = text(
-            """
+        base_query = """
             SELECT COUNT(DISTINCT p.id)
             FROM prompts p
             LEFT JOIN alerts a ON p.id = a.prompt_id
             WHERE p.workspace_id = :workspace_id
+            {filter_conditions}
             """
-        )
         conditions = {"workspace_id": workspace_id}
+        filter_conditions = []
 
-        if trigger_category:
-            sql = text(sql.text + " AND a.trigger_category = :trigger_category")
-            conditions["trigger_category"] = trigger_category
+        if filter_by_alert_trigger_categories:
+            filter_conditions.append(
+                "AND a.trigger_category IN :filter_by_alert_trigger_categories"
+            )
+            conditions["filter_by_alert_trigger_categories"] = filter_by_alert_trigger_categories
+
+        if filter_by_alert_trigger_types:
+            filter_conditions.append(
+                "AND EXISTS (SELECT 1 FROM alerts a2 WHERE "
+                "a2.prompt_id = p.id AND a2.trigger_type IN :filter_by_alert_trigger_types)"
+            )
+            conditions["filter_by_alert_trigger_types"] = filter_by_alert_trigger_types
+
+        if filter_by_ids:
+            filter_conditions.append("AND p.id IN :filter_by_ids")
+            conditions["filter_by_ids"] = filter_by_ids
+
+        filter_clause = " ".join(filter_conditions)
+        query = base_query.format(filter_conditions=filter_clause)
+        sql = text(query)
+
+        # Bind optional params
+        if filter_by_alert_trigger_categories:
+            sql = sql.bindparams(bindparam("filter_by_alert_trigger_categories", expanding=True))
+        if filter_by_alert_trigger_types:
+            sql = sql.bindparams(bindparam("filter_by_alert_trigger_types", expanding=True))
+        if filter_by_ids:
+            sql = sql.bindparams(bindparam("filter_by_ids", expanding=True))
 
         async with self._async_db_engine.begin() as conn:
             try:

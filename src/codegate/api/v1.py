@@ -489,7 +489,7 @@ async def get_workspace_messages(
             offset + fetched_prompts,
             batch_size,
             filter_by_ids,
-            list([AlertSeverity.CRITICAL.value]),  # TODO: Configurable severity
+            list([AlertSeverity.CRITICAL.value]),
             filter_by_alert_trigger_types,
         )
 
@@ -542,7 +542,10 @@ async def get_workspace_messages(
 
     # Fetch total message count
     total_count = await dbreader.get_total_messages_count_by_workspace_id(
-        ws.id, AlertSeverity.CRITICAL.value
+        ws.id,
+        filter_by_ids,
+        list([AlertSeverity.CRITICAL.value]),
+        filter_by_alert_trigger_types,
     )
 
     return v1_models.PaginatedMessagesResponse(
