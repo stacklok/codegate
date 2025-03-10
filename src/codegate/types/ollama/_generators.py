@@ -18,7 +18,7 @@ logger = structlog.get_logger("codegate")
 
 
 async def stream_generator(
-        stream: AsyncIterator[StreamingChatCompletion | StreamingGenerateCompletion],
+    stream: AsyncIterator[StreamingChatCompletion | StreamingGenerateCompletion],
 ) -> AsyncIterator[str]:
     """Ollama-style SSE format"""
     try:
@@ -50,7 +50,9 @@ async def chat_streaming(request, api_key, base_url):
 async def generate_streaming(request, api_key, base_url):
     if base_url is None:
         base_url = "http://localhost:11434"
-    async for item in streaming(request, api_key, f"{base_url}/api/generate", StreamingGenerateCompletion):
+    async for item in streaming(
+        request, api_key, f"{base_url}/api/generate", StreamingGenerateCompletion
+    ):
         yield item
 
 
@@ -65,10 +67,11 @@ async def streaming(request, api_key, url, cls):
 
     client = httpx.AsyncClient()
     async with client.stream(
-            "POST", url,
-            headers=headers,
-            content=payload,
-            timeout=300, # TODO this should not be hardcoded
+        "POST",
+        url,
+        headers=headers,
+        content=payload,
+        timeout=300,  # TODO this should not be hardcoded
     ) as resp:
         # TODO figure out how to best return failures
         match resp.status_code:

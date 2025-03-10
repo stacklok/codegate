@@ -143,7 +143,7 @@ class ContentBlockStop(pydantic.BaseModel):
     index: int
 
     def get_content(self):
-        return iter(()) # empty generator
+        return iter(())  # empty generator
 
 
 ContentBlock = Union[
@@ -175,14 +175,14 @@ class MessageDelta(pydantic.BaseModel):
     usage: Usage
 
     def get_content(self) -> Iterable[Any]:
-        return iter(()) # empty generator
+        return iter(())  # empty generator
 
 
 class MessageStop(pydantic.BaseModel):
     type: Literal["message_stop"]
 
     def get_content(self) -> Iterable[Any]:
-        return iter(()) # empty generator
+        return iter(())  # empty generator
 
 
 ##### Streaming Messages: others #####
@@ -192,7 +192,7 @@ class MessagePing(pydantic.BaseModel):
     type: Literal["ping"]
 
     def get_content(self) -> Iterable[Any]:
-        return iter(()) # empty generator
+        return iter(())  # empty generator
 
 
 # Anthropic’s API is temporarily overloaded. (HTTP 529)
@@ -264,4 +264,4 @@ class MessageError(pydantic.BaseModel):
     error: Error
 
     def get_content(self) -> Iterable[Any]:
-        return iter(()) # empty generator
+        return iter(())  # empty generator

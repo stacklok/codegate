@@ -126,9 +126,7 @@ class CodegateCli(PipelineStep):
         """
         return "codegate-cli"
 
-    async def process(
-        self, request: Any, context: PipelineContext
-    ) -> PipelineResult:
+    async def process(self, request: Any, context: PipelineContext) -> PipelineResult:
         """
         Checks if the last user message contains "codegate" and process the command.
         This short-circuits the pipeline if the message is found.
@@ -176,9 +174,7 @@ class CodegateCli(PipelineStep):
 
                     return PipelineResult(
                         response=PipelineResponse(
-                            step_name=self.name,
-                            content=cmd_out,
-                            model=request.get_model()
+                            step_name=self.name, content=cmd_out, model=request.get_model()
                         ),
                         context=context,
                     )

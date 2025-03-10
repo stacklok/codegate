@@ -57,8 +57,7 @@ class TestCodegateContextRetriever:
     def test_init_with_dependencies(self, mock_storage_engine, mock_package_extractor):
         """Test initialization with custom dependencies"""
         retriever = CodegateContextRetriever(
-            storage_engine=mock_storage_engine,
-            package_extractor=mock_package_extractor
+            storage_engine=mock_storage_engine, package_extractor=mock_package_extractor
         )
         assert retriever.storage_engine == mock_storage_engine
         assert retriever.package_extractor == mock_package_extractor
@@ -75,8 +74,7 @@ class TestCodegateContextRetriever:
         mock_storage_engine.search = AsyncMock(return_value=[])
 
         request = OpenaiChatCompletionRequest(
-            model="test-model",
-            messages=[{"role": "user", "content": "Test message"}]
+            model="test-model", messages=[{"role": "user", "content": "Test message"}]
         )
 
         result = await retriever.process(request, mock_context)
@@ -85,15 +83,14 @@ class TestCodegateContextRetriever:
 
     @pytest.mark.asyncio
     async def test_process_with_code_snippets(
-            self,
-            mock_storage_engine,
-            mock_package_extractor,
-            mock_context,
+        self,
+        mock_storage_engine,
+        mock_package_extractor,
+        mock_context,
     ):
         """Test processing with bad packages found in code snippets"""
         retriever = CodegateContextRetriever(
-            storage_engine=mock_storage_engine,
-            package_extractor=mock_package_extractor
+            storage_engine=mock_storage_engine, package_extractor=mock_package_extractor
         )
 
         mock_package_extractor.extract_packages = Mock(return_value=["malicious-package"])
@@ -113,23 +110,29 @@ class TestCodegateContextRetriever:
         mock_search.side_effect = [[bad_package], []]
         mock_storage_engine.search = mock_search
 
-        with patch("codegate.extract_snippets.factory.MessageCodeExtractorFactory.create_snippet_extractor") as mock_factory: # noqa
+        with patch(
+            "codegate.extract_snippets.factory.MessageCodeExtractorFactory.create_snippet_extractor"
+        ) as mock_factory:  # noqa
             mock_extractor = Mock()
-            mock_extractor.extract_snippets = Mock(return_value=[
-                CodeSnippet(
-                    code="const pkg = require('malicious-package')",
-                    language="javascript",
-                    filepath="test.js"
-                )
-            ])
+            mock_extractor.extract_snippets = Mock(
+                return_value=[
+                    CodeSnippet(
+                        code="const pkg = require('malicious-package')",
+                        language="javascript",
+                        filepath="test.js",
+                    )
+                ]
+            )
             mock_factory.return_value = mock_extractor
 
             request = OpenaiChatCompletionRequest(
                 model="test-model",
-                messages=[{
-                    "role": "user",
-                    "content": "<task>Install package</task>\n```javascript\nconst pkg = require('malicious-package')\n```" # noqa
-                }]
+                messages=[
+                    {
+                        "role": "user",
+                        "content": "<task>Install package</task>\n```javascript\nconst pkg = require('malicious-package')\n```",  # noqa
+                    }
+                ],
             )
 
             result = await retriever.process(request, mock_context)
@@ -157,10 +160,9 @@ class TestCodegateContextRetriever:
 
         request = OpenaiChatCompletionRequest(
             model="test-model",
-            messages=[{
-                "role": "user",
-                "content": "<task>Should I use the evil-package package?</task>"
-            }]
+            messages=[
+                {"role": "user", "content": "<task>Should I use the evil-package package?</task>"}
+            ],
         )
 
         result = await retriever.process(request, mock_cline_context)
@@ -195,13 +197,13 @@ class TestCodegateContextRetriever:
                 OpenaiAssistantMessage(
                     role="assistant",
                     tool_calls=[
-                        {"id": "tool-1",
-                         "type": "function",
-                         "function": {
-                             "name": "read_file",
-                             "arguments": "requirements.txt"},
-                         },
-                    ]),
+                        {
+                            "id": "tool-1",
+                            "type": "function",
+                            "function": {"name": "read_file", "arguments": "requirements.txt"},
+                        },
+                    ],
+                ),
                 OpenaiToolMessage(
                     role="tool",
                     content="mal-package-1",
@@ -213,7 +215,9 @@ class TestCodegateContextRetriever:
         result = await retriever.process(request, mock_context)
 
         # Verify storage engine was called with the correct package name
-        mock_storage_engine.search.assert_called_with(query="mal-package-1", distance=0.5, limit=100)
+        mock_storage_engine.search.assert_called_with(
+            query="mal-package-1", distance=0.5, limit=100
+        )
         # verify the tool message was augmented with the package description
         assert "This package is mal-1" in result.request.messages[2].content
         assert mock_context.add_alert.call_count == 1
@@ -276,10 +280,11 @@ class TestCodegateContextRetriever:
         result = await retriever.process(request, mock_context)
 
         # Verify storage engine was called with the correct package name
-        mock_storage_engine.search.assert_called_with(query="archived-package-1", distance=0.5, limit=100)
+        mock_storage_engine.search.assert_called_with(
+            query="archived-package-1", distance=0.5, limit=100
+        )
         # verify the tool message was augmented with the package description
         assert "archived-1" in result.request.messages[2].content[0].content
-
 
     def test_generate_context_str(self, mock_storage_engine, mock_context):
         """Test context string generation"""
@@ -301,7 +306,7 @@ class TestCodegateContextRetriever:
                     "status": "archived",
                     "description": "This package is bad-2",
                 },
-            }
+            },
         ]
 
         context_str = retriever.generate_context_str(bad_packages, mock_context, dict())

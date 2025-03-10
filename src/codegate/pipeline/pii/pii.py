@@ -163,9 +163,7 @@ class CodegatePii(PipelineStep):
         # Return the anonymized text, PII details, and session store
         return found_pii, anonymized_text
 
-    async def process(
-        self, request: Any, context: PipelineContext
-    ) -> PipelineResult:
+    async def process(self, request: Any, context: PipelineContext) -> PipelineResult:
         total_pii_found = 0
         all_pii_details: List[Dict[str, Any]] = []
         last_redacted_text = ""
@@ -190,11 +188,11 @@ class CodegatePii(PipelineStep):
 
                         # If this is a user message, grab the redacted snippet!
                         if (
-                                # This is suboptimal and should be an
-                                # interface.
-                                isinstance(message, AnthropicUserMessage) or
-                                isinstance(message, OllamaUserMessage) or
-                                isinstance(message, OpenaiUserMessage)
+                            # This is suboptimal and should be an
+                            # interface.
+                            isinstance(message, AnthropicUserMessage)
+                            or isinstance(message, OllamaUserMessage)
+                            or isinstance(message, OpenaiUserMessage)
                         ):
                             last_redacted_text = self._get_redacted_snippet(
                                 anonymized_text, pii_details
@@ -321,7 +319,7 @@ class PiiUnRedactionStep(OutputPipelineStep):
                     result.append(text[current_pos:])
                     break
 
-                end_idx = text.find(self.marker_end, start_idx+1)
+                end_idx = text.find(self.marker_end, start_idx + 1)
                 if end_idx == -1:
                     # Incomplete marker, buffer the rest only if it can be a UUID
                     if start_idx + 1 < len(content) and not can_be_uuid(content[start_idx + 1 :]):
@@ -344,12 +342,16 @@ class PiiUnRedactionStep(OutputPipelineStep):
                     # Get the PII manager from context metadata
                     logger.debug(f"Valid UUID found: {uuid_value}")
                     sensitive_data_manager = (
-                        input_context.metadata.get("sensitive_data_manager") if input_context else None
+                        input_context.metadata.get("sensitive_data_manager")
+                        if input_context
+                        else None
                     )
                     if sensitive_data_manager and sensitive_data_manager.session_store:
                         # Restore original value from PII manager
                         logger.debug("Attempting to restore PII from UUID marker")
-                        original = sensitive_data_manager.get_original_value(session_id, uuid_marker)
+                        original = sensitive_data_manager.get_original_value(
+                            session_id, uuid_marker
+                        )
                         logger.debug(f"Restored PII: {original}")
                         result.append(original)
                     else:

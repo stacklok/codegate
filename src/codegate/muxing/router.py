@@ -212,11 +212,11 @@ def inout_transformer(
     model: str,
 ):
     async def _inner(
-            request,
-            base_url,
-            api_key,
-            stream=None,
-            is_fim_request=None,
+        request,
+        base_url,
+        api_key,
+        stream=None,
+        is_fim_request=None,
     ):
         # Map request from OpenAI
         new_request = from_openai(request)

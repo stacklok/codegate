@@ -275,9 +275,7 @@ class CodegateSecrets(PipelineStep):
         text_encryptor = SecretsEncryptor(sensitive_data_manager, context, session_id)
         return text_encryptor.obfuscate(text, snippet)
 
-    async def process(
-        self, request: Any, context: PipelineContext
-    ) -> PipelineResult:
+    async def process(self, request: Any, context: PipelineContext) -> PipelineResult:
         """
         Process the request to find and protect secrets in all messages.
 
@@ -310,7 +308,10 @@ class CodegateSecrets(PipelineStep):
                 txt = content.get_text()
                 if txt is not None:
                     redacted_content, secrets_matched = self._redact_message_content(
-                        "".join(txt for txt in content.get_text()), sensitive_data_manager, session_id, context
+                        "".join(txt for txt in content.get_text()),
+                        sensitive_data_manager,
+                        session_id,
+                        context,
                     )
                     content.set_text(redacted_content)
                     if i > last_assistant_idx:

@@ -37,7 +37,7 @@ FinishReason = Union[
     Literal["length"],
     Literal["content_filter"],
     Literal["tool_calls"],
-    Literal["function_call"], # deprecated
+    Literal["function_call"],  # deprecated
 ]
 
 
@@ -91,7 +91,7 @@ class Message(pydantic.BaseModel):
     refusal: str | None
     tool_calls: List[ToolCall] | None = None
     role: str
-    function_call: FunctionCall | None = None # deprecated
+    function_call: FunctionCall | None = None  # deprecated
     audio: AudioMessage | None
 
 
@@ -114,8 +114,8 @@ class MessageDelta(pydantic.BaseModel):
     refusal: str | None = None
     tool_calls: List[ToolCall] | None = None
     role: Role | None = None
-    function_call: FunctionCall | None = None # deprecated
-    reasoning: str | None = None # openrouter extension
+    function_call: FunctionCall | None = None  # deprecated
+    reasoning: str | None = None  # openrouter extension
 
 
 class ChoiceDelta(pydantic.BaseModel):
@@ -152,6 +152,7 @@ class CopilotFIMChoiceDelta(pydantic.BaseModel):
         ]
     }:
     """
+
     finish_reason: FinishReason | None = None
     index: int
     text: str | None = None
@@ -187,7 +188,7 @@ class StreamingChatCompletion(pydantic.BaseModel):
     id: str
     choices: List[StreamingChatCompletionChoice]
     created: int
-    model: str | None = None # copilot extension (optional)
+    model: str | None = None  # copilot extension (optional)
     service_tier: ServiceTier | None = None
     system_fingerprint: str | None = None
     object: Literal["chat.completion.chunk"] = "chat.completion.chunk"

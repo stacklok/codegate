@@ -34,7 +34,9 @@ async def test_model_prefix_added(mocked_parent_process_request):
 
     # Mock request
     mock_request = MagicMock(spec=Request)
-    mock_request.body = AsyncMock(return_value=json.dumps({"model": "gpt-4", "messages": []}).encode())
+    mock_request.body = AsyncMock(
+        return_value=json.dumps({"model": "gpt-4", "messages": []}).encode()
+    )
     mock_request.url.path = "/openrouter/chat/completions"
     mock_request.state.detected_client = "test-client"
 
@@ -61,7 +63,9 @@ async def test_model_prefix_preserved():
 
     # Mock request
     mock_request = MagicMock(spec=Request)
-    mock_request.body = AsyncMock(return_value=json.dumps({"model": "gpt-4", "messages": []}).encode())
+    mock_request.body = AsyncMock(
+        return_value=json.dumps({"model": "gpt-4", "messages": []}).encode()
+    )
     mock_request.url.path = "/openrouter/chat/completions"
     mock_request.state.detected_client = "test-client"
 

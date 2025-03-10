@@ -31,7 +31,7 @@ from codegate.types.anthropic import (
 )
 
 
-pytest_plugins = ('pytest_asyncio',)
+pytest_plugins = ("pytest_asyncio",)
 
 
 def read_file(fname):
@@ -39,7 +39,7 @@ def read_file(fname):
         return fd.read().decode("utf-8")
 
 
-@pytest.fixture(scope="session")  
+@pytest.fixture(scope="session")
 def tools_request():
     fname = os.path.join(pathlib.Path(__file__).parent, "tools_request.json")
     return read_file(fname)
@@ -69,7 +69,7 @@ def test_chat_completion_request_serde_anthropic(tools_request):
     assert req.model == "claude-3-5-sonnet-20241022"
     assert req.metadata is None
     assert req.stop_sequences is None
-    assert req.stream # is True
+    assert req.stream  # is True
     assert req.system.startswith("When generating new code:")
     assert req.temperature is None
     assert req.tool_choice is None
@@ -82,7 +82,10 @@ def test_chat_completion_request_serde_anthropic(tools_request):
 
     assert len(req.tools) == 9
     assert req.tools[0].name == "builtin_read_file"
-    assert req.tools[0].description == "Use this tool whenever you need to view the contents of a file."
+    assert (
+        req.tools[0].description
+        == "Use this tool whenever you need to view the contents of a file."
+    )
 
 
 @pytest.mark.asyncio
@@ -234,6 +237,7 @@ async def test_message_wrapper_broken_protocol():
     gen = message_wrapper(_iterator())
     with pytest.raises(ValueError):
         event = await anext(gen)
+
 
 @pytest.mark.asyncio
 async def test_message_wrapper_error_short_circuits():

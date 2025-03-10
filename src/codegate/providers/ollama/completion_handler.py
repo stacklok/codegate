@@ -5,7 +5,8 @@ from typing import (
     AsyncIterator,
     Callable,
     Optional,
-    Union, Callable,
+    Union,
+    Callable,
 )
 
 import httpx
@@ -41,8 +42,8 @@ T = Union[
 
 
 async def prepend(
-        first: T,
-        stream: AsyncIterator[T],
+    first: T,
+    stream: AsyncIterator[T],
 ) -> AsyncIterator[T]:
     yield first
     async for item in stream:
@@ -50,7 +51,7 @@ async def prepend(
 
 
 async def _ollama_dispatcher(  # noqa: C901
-        stream: AsyncIterator[T],
+    stream: AsyncIterator[T],
 ) -> AsyncIterator[str]:
     """OpenAI-style SSE format"""
     first = await anext(stream)
@@ -79,7 +80,7 @@ class OllamaShim(BaseCompletionHandler):
         is_fim_request: bool = False,
     ) -> Union[ChatResponse, GenerateResponse]:
         """Stream response directly from Ollama API."""
-        if isinstance(request, ChatCompletionRequest): # case for OpenAI-style requests
+        if isinstance(request, ChatCompletionRequest):  # case for OpenAI-style requests
             return completions_streaming(request, api_key, base_url)
         if is_fim_request:
             return generate_streaming(request, api_key, base_url)
@@ -96,9 +97,7 @@ class OllamaShim(BaseCompletionHandler):
         is the format that FastAPI expects for streaming responses.
         """
         return StreamingResponse(
-            stream_generator(stream)
-            if stream_generator
-            else _ollama_dispatcher(stream),
+            stream_generator(stream) if stream_generator else _ollama_dispatcher(stream),
             media_type="application/x-ndjson; charset=utf-8",
             headers={
                 "Cache-Control": "no-cache",

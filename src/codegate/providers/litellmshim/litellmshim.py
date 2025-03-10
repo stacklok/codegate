@@ -58,9 +58,7 @@ class LiteLLmShim(BaseCompletionHandler):
         is the format that FastAPI expects for streaming responses.
         """
         return StreamingResponse(
-            stream_generator(stream)
-            if stream_generator
-            else self._stream_generator(stream),
+            stream_generator(stream) if stream_generator else self._stream_generator(stream),
             headers={
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",

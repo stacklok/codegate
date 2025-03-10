@@ -5,6 +5,7 @@ from typing import (
 
 import pydantic
 
+
 class VllmMessageError(pydantic.BaseModel):
     object: str
     message: str

@@ -54,7 +54,7 @@ async def completions_streaming(request, api_key, base_url):
     # we calculate base urls.
     if "/v1" not in base_url:
         f"{base_url}/v1"
-    async for item in  streaming(request, api_key, f"{base_url}/chat/completions"):
+    async for item in streaming(request, api_key, f"{base_url}/chat/completions"):
         yield item
 
 
@@ -72,10 +72,11 @@ async def streaming(request, api_key, url, cls=StreamingChatCompletion):
 
     client = httpx.AsyncClient()
     async with client.stream(
-            "POST", url,
-            headers=headers,
-            content=payload,
-            timeout=30, # TODO this should not be hardcoded
+        "POST",
+        url,
+        headers=headers,
+        content=payload,
+        timeout=30,  # TODO this should not be hardcoded
     ) as resp:
         # TODO figure out how to best return failures
         match resp.status_code:
@@ -130,7 +131,7 @@ async def get_data_lines(lines):
     logger.debug(f"Consumed {count} messages", provider="openai", count=count)
 
 
-async def message_wrapper(lines, cls = StreamingChatCompletion):
+async def message_wrapper(lines, cls=StreamingChatCompletion):
     messages = get_data_lines(lines)
     async for payload in messages:
         try:

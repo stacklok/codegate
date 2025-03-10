@@ -221,9 +221,7 @@ class OutputPipelineProcessor:
         """Create a new pipeline instance for processing a stream"""
         return OutputPipelineInstance(self.pipeline_steps)
 
-    async def process_stream(
-        self, stream: AsyncIterator[Any]
-    ) -> AsyncIterator[Any]:
+    async def process_stream(self, stream: AsyncIterator[Any]) -> AsyncIterator[Any]:
         """Create a new pipeline instance and process the stream"""
         instance = self._create_instance()
         async for chunk in instance.process_stream(stream):
