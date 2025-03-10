@@ -493,6 +493,9 @@ async def get_workspace_messages(
             filter_by_alert_trigger_types,
         )
 
+        if not prompts or len(prompts) == 0:
+            break
+
         # iterate for all prompts to compose the conversation summary
         for prompt in prompts:
             fetched_prompts += 1
@@ -757,7 +760,7 @@ async def get_workspace_token_usage(workspace_name: str) -> v1_models.TokenUsage
         raise HTTPException(status_code=500, detail="Internal server error")
 
     try:
-        prompts_outputs = await dbreader.get_prompts_with_output(worskpace_id=ws.id)
+        prompts_outputs = await dbreader.get_prompts_with_output(workspace_id=ws.id)
         ws_token_usage = await v1_processing.parse_workspace_token_usage(prompts_outputs)
         return ws_token_usage
     except Exception:
