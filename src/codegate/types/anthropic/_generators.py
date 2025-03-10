@@ -6,11 +6,6 @@ from typing import (
 
 import httpx
 import structlog
-from pydantic import BaseModel
-
-from ._request_models import (
-    ChatCompletionRequest,
-)
 
 from ._response_models import (
     ApiError,
@@ -23,7 +18,6 @@ from ._response_models import (
     MessageStart,
     MessageStop,
 )
-
 
 logger = structlog.get_logger("codegate")
 

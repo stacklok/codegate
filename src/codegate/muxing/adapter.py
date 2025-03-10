@@ -1,4 +1,3 @@
-import copy
 import json
 import uuid
 from abc import ABC, abstractmethod
@@ -9,18 +8,15 @@ import structlog
 from fastapi.responses import JSONResponse, StreamingResponse
 from litellm import ModelResponse
 from litellm.types.utils import Delta, StreamingChoices
-from ollama import ChatResponse, GenerateResponse
 
 from codegate.db import models as db_models
 from codegate.muxing import rulematcher
-from codegate.providers.ollama.adapter import OLlamaToModel
-from codegate.types.ollama import StreamingChatCompletion as OllamaStreamingChatCompletion
-from codegate.types.ollama import StreamingGenerateCompletion as OllamaStreamingGenerateCompletion
 from codegate.muxing.ollama_mappers import (
     openai_chunk_from_ollama_chat,
     openai_chunk_from_ollama_generate,
 )
-from codegate.types.openai import StreamingChatCompletion as OpenAIStreamingChatCompletion
+from codegate.types.ollama import StreamingChatCompletion as OllamaStreamingChatCompletion
+from codegate.types.ollama import StreamingGenerateCompletion as OllamaStreamingGenerateCompletion
 
 logger = structlog.get_logger("codegate")
 

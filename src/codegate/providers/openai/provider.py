@@ -1,4 +1,3 @@
-import json
 from typing import List
 
 import httpx
@@ -13,11 +12,10 @@ from codegate.providers.completion import BaseCompletionHandler
 from codegate.providers.fim_analyzer import FIMAnalyzer
 from codegate.providers.litellmshim import LiteLLmShim
 from codegate.types.openai import (
+    ChatCompletionRequest,
     completions_streaming,
     stream_generator,
-    ChatCompletionRequest,
 )
-
 
 logger = structlog.get_logger("codegate")
 

@@ -60,7 +60,7 @@ class OpenRouterProvider(OpenAIProvider):
     def _setup_routes(self):
         @self.router.post(f"/{self.provider_route_name}/completions")
         @DetectClient()
-        async def create_completion(
+        async def completions(
             request: Request,
             authorization: str = Header(..., description="Bearer token"),
         ):
@@ -84,7 +84,7 @@ class OpenRouterProvider(OpenAIProvider):
         @self.router.post(f"/{self.provider_route_name}/api/v1/chat/completions")
         @self.router.post(f"/{self.provider_route_name}/chat/completions")
         @DetectClient()
-        async def create_completion(
+        async def chat_completion(
             request: Request,
             authorization: str = Header(..., description="Bearer token"),
         ):

@@ -13,7 +13,6 @@ from codegate.pipeline.output import OutputPipelineContext, OutputPipelineStep
 from codegate.storage import StorageEngine
 from codegate.utils.package_extractor import PackageExtractor
 
-
 logger = structlog.get_logger("codegate")
 
 

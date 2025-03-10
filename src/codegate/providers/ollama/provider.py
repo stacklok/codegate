@@ -1,5 +1,5 @@
 import json
-from typing import List, Callable
+from typing import Callable, List
 
 import httpx
 import structlog
@@ -12,9 +12,8 @@ from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.fim_analyzer import FIMAnalyzer
 from codegate.providers.ollama.completion_handler import OllamaShim
-from codegate.types.openai import ChatCompletionRequest
 from codegate.types.ollama import ChatRequest, GenerateRequest
-
+from codegate.types.openai import ChatCompletionRequest
 
 logger = structlog.get_logger("codegate")
 

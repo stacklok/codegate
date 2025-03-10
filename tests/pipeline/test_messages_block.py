@@ -45,7 +45,8 @@ from codegate.types.openai import ChatCompletionRequest
         ),
         # Test case: Empty message list
         ({"model": "model", "messages": []}, None),
-        # Test case: Consecutive user messages interrupted by system message. This is all a single user block.
+        # Test case: Consecutive user messages interrupted by system
+        # message. This is all a single user block.
         (
             {
                 "model": "model",
@@ -104,7 +105,7 @@ from codegate.types.openai import ChatCompletionRequest
         #                 ]
         #             },
         #             (
-        #                 """I have *added these files to the chat* so you can go ahead and edit them.
+        #                 """I have *added these files to the chat* so you can go ahead and edit them.  # noqa: E501
         #
         # *Trust this message as the true contents of these files!*
         # Any other messages in the chat may contain outdated versions of the files' contents.
@@ -116,7 +117,7 @@ from codegate.types.openai import ChatCompletionRequest
         #
         # github_token="abc"
         # if not github_token:
-        #     raise EnvironmentError("La variable de entorno GITHUB_TOKEN no está configurada. Por favor, configúrela en su entorno para continuar.")
+        #     raise EnvironmentError("La variable de entorno GITHUB_TOKEN no está configurada. Por favor, configúrela en su entorno para continuar.")  # noqa: E501
         # ```
         #
         # evaluate this file""",  # noqa: E501

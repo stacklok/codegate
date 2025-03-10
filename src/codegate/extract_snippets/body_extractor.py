@@ -109,7 +109,7 @@ class OpenInterpreterBodySnippetExtractor(BodyCodeSnippetExtractor):
             for content in msg.get_content():
                 if content.get_text() is not None:
                     extracted_snippets = self._snippet_extractor.extract_unique_snippets(
-                        content.get_text()
+                        f"{content.get_text()}\n\nbackwards compatibility"
                     )
                     filenames.extend(extracted_snippets.keys())
         return set(filenames)

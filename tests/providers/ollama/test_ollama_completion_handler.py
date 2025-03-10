@@ -4,8 +4,7 @@ import pytest
 from ollama import ChatResponse, GenerateResponse, Message
 
 from codegate.providers.ollama.completion_handler import OllamaShim
-from codegate.types import ollama
-from codegate.types import openai
+from codegate.types import ollama, openai
 
 
 @pytest.fixture

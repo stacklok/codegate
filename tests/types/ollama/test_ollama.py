@@ -1,21 +1,17 @@
-import asyncio
-import json
 import os
 import pathlib
 
 import pytest
 
 from codegate.types.ollama import (
+    # request objects
+    # response objects
+    StreamingChatCompletion,
+    StreamingGenerateCompletion,
     # generators
     message_wrapper,
     stream_generator,
-    # request objects
-    # response objects
-    MessageError,
-    StreamingChatCompletion,
-    StreamingGenerateCompletion,
 )
-
 
 pytest_plugins = ("pytest_asyncio",)
 
@@ -67,7 +63,7 @@ async def test_message_wrapper_chat(streaming_messages):
 
 
 @pytest.mark.asyncio
-async def test_stream_generator(streaming_messages):
+async def test_stream_generator_messages(streaming_messages):
     async def _line_iterator(data):
         for line in data.splitlines():
             yield line
@@ -81,7 +77,7 @@ async def test_stream_generator(streaming_messages):
 
 
 @pytest.mark.asyncio
-async def test_stream_generator(streaming_generate):
+async def test_stream_generator_generate(streaming_generate):
     async def _line_iterator(data):
         for line in data.splitlines():
             yield line

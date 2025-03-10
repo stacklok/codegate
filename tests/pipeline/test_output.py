@@ -9,9 +9,7 @@ from codegate.pipeline.output import (
     OutputPipelineInstance,
     OutputPipelineStep,
 )
-from codegate.types.common import Delta, ModelResponse, StreamingChoices
 from codegate.types.openai import (
-    ChatCompletionRequest,
     ChoiceDelta,
     MessageDelta,
     StreamingChatCompletion,

@@ -11,7 +11,6 @@ from codegate.types.openai import (
     ChoiceDelta,
     MessageDelta,
     StreamingChatCompletion,
-    UserMessage,
 )
 
 

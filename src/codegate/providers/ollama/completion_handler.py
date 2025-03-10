@@ -1,35 +1,35 @@
-import json
-import os
 from typing import (
-    Any,
     AsyncIterator,
     Callable,
     Optional,
     Union,
-    Callable,
 )
 
-import httpx
 import structlog
 from fastapi.responses import JSONResponse, StreamingResponse
-from ollama import AsyncClient, ChatResponse, GenerateResponse
+from ollama import ChatResponse, GenerateResponse
 
 from codegate.clients.clients import ClientType
 from codegate.providers.base import BaseCompletionHandler
-from codegate.types.openai import (
-    stream_generator as openai_stream_generator,
-    StreamingChatCompletion as OpenAIStreamingChatCompletion,
-    ChatCompletionRequest,
-    completions_streaming,
+from codegate.types.ollama import (
+    StreamingChatCompletion,
+    StreamingGenerateCompletion,
+    chat_streaming,
+    generate_streaming,
 )
 from codegate.types.ollama import (
     stream_generator as ollama_stream_generator,
-    chat_streaming,
-    generate_streaming,
-    StreamingChatCompletion,
-    StreamingGenerateCompletion,
 )
-
+from codegate.types.openai import (
+    ChatCompletionRequest,
+    completions_streaming,
+)
+from codegate.types.openai import (
+    StreamingChatCompletion as OpenAIStreamingChatCompletion,
+)
+from codegate.types.openai import (
+    stream_generator as openai_stream_generator,
+)
 
 logger = structlog.get_logger("codegate")
 

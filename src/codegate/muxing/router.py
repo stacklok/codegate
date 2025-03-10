@@ -1,6 +1,5 @@
 from typing import Callable, Optional
 
-import pydantic
 import structlog
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -16,18 +15,16 @@ from codegate.types import anthropic, ollama, openai
 from codegate.workspaces.crud import WorkspaceCrud
 
 from .anthropic_mappers import (
-    anthropic_from_openai,
     anthropic_from_legacy_openai,
-    anthropic_to_openai,
+    anthropic_from_openai,
     anthropic_to_legacy_openai,
+    anthropic_to_openai,
 )
 from .ollama_mappers import (
     ollama_chat_from_openai,
-    ollama_generate_from_openai,
     ollama_chat_stream_to_openai_stream,
+    ollama_generate_from_openai,
     ollama_generate_stream_to_openai_stream,
-    openai_chunk_from_ollama_chat,
-    openai_chunk_from_ollama_generate,
 )
 
 logger = structlog.get_logger("codegate")
@@ -157,16 +154,16 @@ class MuxRouter:
                         to_openai = ollama_chat_stream_to_openai_stream
                 case ProviderType.openai:
                     completion_function = openai.completions_streaming
-                    from_openai = lambda x: x
-                    to_openai = lambda x: x
+                    from_openai = identity
+                    to_openai = identity
                 case ProviderType.openrouter:
                     completion_function = openai.completions_streaming
-                    from_openai = lambda x: x
-                    to_openai = lambda x: x
+                    from_openai = identity
+                    to_openai = identity
                 case ProviderType.vllm:
                     completion_function = openai.completions_streaming
-                    from_openai = lambda x: x
-                    to_openai = lambda x: x
+                    from_openai = identity
+                    to_openai = identity
 
             response = await provider.process_request(
                 parsed,
@@ -203,6 +200,10 @@ def default_from_openai(*args, **kwargs):
 
 def default_to_openai(*args, **kwargs):
     raise NotImplementedError
+
+
+def identity(x):
+    return x
 
 
 def inout_transformer(

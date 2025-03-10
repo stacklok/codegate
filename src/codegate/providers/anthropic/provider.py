@@ -1,11 +1,9 @@
-import json
 import os
 from typing import Callable, List
 
 import httpx
 import structlog
 from fastapi import Header, HTTPException, Request
-from fastapi.responses import JSONResponse, StreamingResponse
 
 from codegate.clients.clients import ClientType
 from codegate.clients.detector import DetectClient
@@ -13,9 +11,7 @@ from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.anthropic.completion_handler import AnthropicCompletion
 from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.fim_analyzer import FIMAnalyzer
-from codegate.types.anthropic import stream_generator
-from codegate.types.anthropic import ChatCompletionRequest
-
+from codegate.types.anthropic import ChatCompletionRequest, stream_generator
 
 logger = structlog.get_logger("codegate")
 

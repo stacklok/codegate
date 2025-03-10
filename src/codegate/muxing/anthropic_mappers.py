@@ -433,23 +433,7 @@ async def anthropic_to_openai(stream):
                 raise ValueError(f"case not covered: {item}")
 
 
-# {
-#   "id": "cmpl-7iA7iJjj8V2zOkCGvWF2hAkDWBQZe",
-#   "object": "text_completion",
-#   "created": 1690759702,
-#   "choices": [
-#     {
-#       "text": "This",
-#       "index": 0,
-#       "logprobs": null,
-#       "finish_reason": null
-#     }
-#   ],
-#   "model": "gpt-3.5-turbo-instruct"
-#   "system_fingerprint": "fp_44709d6fcb",
-# }
 async def anthropic_to_legacy_openai(stream):
-    last_index = -1
     id = None
     model = None
     usage_input = None
@@ -495,7 +479,6 @@ async def anthropic_to_legacy_openai(stream):
                 )
 
             case anthropic.ContentBlockStart():
-                last_index = item.index
                 yield openai.LegacyCompletion(
                     id=id,
                     object="text_completion",

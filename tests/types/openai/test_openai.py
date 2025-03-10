@@ -1,5 +1,3 @@
-import asyncio
-import json
 import os
 import pathlib
 
@@ -9,12 +7,7 @@ from codegate.types.openai import (
     # generators
     message_wrapper,
     stream_generator,
-    # request objects
-    # response objects
-    MessageError,
-    StreamingChatCompletion,
 )
-
 
 pytest_plugins = ("pytest_asyncio",)
 

@@ -1,9 +1,8 @@
-from datetime import datetime, timezone
-from typing import Any, AsyncIterator, Dict, Optional, Tuple, Union
+from datetime import datetime
+from typing import AsyncIterator, Dict, Optional, Tuple
 
-from ollama import ChatResponse, Message
+from ollama import ChatResponse
 
-from codegate.providers.normalizer.base import ModelInputNormalizer, ModelOutputNormalizer
 from codegate.types.common import (
     Delta,
     ModelResponse,
