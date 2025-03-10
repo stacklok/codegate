@@ -352,4 +352,3 @@ class GetMessagesRow(BaseModel):
     output_tokens: Optional[int]
     input_cost: Optional[float]
     output_cost: Optional[float]
-    alerts: List[Alert] = []

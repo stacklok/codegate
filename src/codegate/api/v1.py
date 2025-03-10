@@ -420,7 +420,9 @@ async def get_workspace_alerts(workspace_name: str) -> List[Optional[v1_models.A
         raise HTTPException(status_code=500, detail="Internal server error")
 
     try:
-        alerts = await dbreader.get_alerts_by_workspace(ws.id, AlertSeverity.CRITICAL.value)
+        alerts = await dbreader.get_alerts_by_workspace_or_prompt_id(
+            workspace_id=ws.id, trigger_category=AlertSeverity.CRITICAL.value
+        )
         prompts_outputs = await dbreader.get_prompts_with_output(ws.id)
         return await v1_processing.parse_get_alert_conversation(alerts, prompts_outputs)
     except Exception:
@@ -576,10 +578,19 @@ async def get_messages_by_prompt_id(
     prompts_outputs = await dbreader.get_prompts_with_output(
         workspace_id=ws.id, prompt_id=prompt_id
     )
+
+    # get all alerts for the prompt
+    alerts = await dbreader.get_alerts_by_workspace_or_prompt_id(
+        workspace_id=ws.id, prompt_id=prompt_id, trigger_category=AlertSeverity.CRITICAL.value
+    )
+    deduped_alerts = await v1_processing.remove_duplicate_alerts(alerts)
     conversations, _ = await v1_processing.parse_messages_in_conversations(prompts_outputs)
     if not conversations:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    return conversations[0]
+
+    conversation = conversations[0]
+    conversation.alerts = deduped_alerts
+    return conversation
 
 
 @v1.get(

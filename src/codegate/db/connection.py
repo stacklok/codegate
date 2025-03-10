@@ -854,8 +854,11 @@ class DbReader(DbCodeGate):
                 logger.error(f"Failed to fetch message count. Error: {e}")
                 return 0  # Return 0 in case of failure
 
-    async def get_alerts_by_workspace(
-        self, workspace_id: str, trigger_category: Optional[str] = None
+    async def get_alerts_by_workspace_or_prompt_id(
+        self,
+        workspace_id: str,
+        prompt_id: Optional[str] = None,
+        trigger_category: Optional[str] = None,
     ) -> List[Alert]:
         sql = text(
             """
@@ -873,6 +876,10 @@ class DbReader(DbCodeGate):
         """
         )
         conditions = {"workspace_id": workspace_id}
+
+        if prompt_id:
+            sql = text(sql.text + " AND a.prompt_id = :prompt_id")
+            conditions["prompt_id"] = prompt_id
 
         if trigger_category:
             sql = text(sql.text + " AND a.trigger_category = :trigger_category")

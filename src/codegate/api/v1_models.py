@@ -202,7 +202,6 @@ class PartialQuestionAnswer(pydantic.BaseModel):
     partial_questions: PartialQuestions
     answer: Optional[ChatMessage]
     model_token_usage: TokenUsageByModel
-    alerts: List[Alert] = []
 
 
 class Conversation(pydantic.BaseModel):
@@ -216,7 +215,7 @@ class Conversation(pydantic.BaseModel):
     chat_id: str
     conversation_timestamp: datetime.datetime
     token_usage_agg: Optional[TokenUsageAggregate]
-    alerts: List[Alert] = []
+    alerts: Optional[List[Alert]] = []
 
 
 class ConversationSummary(pydantic.BaseModel):
