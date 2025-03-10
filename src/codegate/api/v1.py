@@ -382,12 +382,13 @@ async def delete_workspace(workspace_name: str):
         _ = await wscrud.soft_delete_workspace(workspace_name)
     except crud.WorkspaceDoesNotExistError:
         raise HTTPException(status_code=404, detail="Workspace does not exist")
-    except crud.DeleteMuxesFromRegistryError:
-        raise HTTPException(status_code=500, detail="Internal server error")
     except crud.WorkspaceCrudError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except crud.DeleteMuxesFromRegistryError:
         logger.exception("Error deleting muxes while deleting workspace")
+        raise HTTPException(status_code=500, detail="Internal server error")
+    except Exception:
+        logger.exception("Error while deleting workspace")
         raise HTTPException(status_code=500, detail="Internal server error")
 
     return Response(status_code=204)
@@ -616,10 +617,7 @@ async def set_workspace_muxes(
 ):
     """Set the mux rules of a workspace."""
     try:
-        mux_rules = []
-        if request.config and request.config.muxing_rules:
-            mux_rules = await pcrud.add_provider_ids_to_mux_rule_list(request.config.muxing_rules)
-
+        mux_rules = await pcrud.add_provider_ids_to_mux_rule_list(request)
         await wscrud.set_muxes(workspace_name, mux_rules)
     except provendcrud.ProviderNotFoundError as e:
         raise HTTPException(status_code=400, detail=str(e))

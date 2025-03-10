@@ -264,7 +264,9 @@ class WorkspaceCrud:
         # Remove the muxes from the registry
         try:
             mux_registry = await rulematcher.get_muxing_rules_registry()
-            await mux_registry.delete_ws_rules(workspace_name)
+            rules = await mux_registry.get_ws_rules(workspace_name)
+            if rules:
+                await mux_registry.delete_ws_rules(workspace_name)
         except Exception:
             raise DeleteMuxesFromRegistryError(
                 f"Error deleting mux rules for workspace {workspace_name}"

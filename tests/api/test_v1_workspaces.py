@@ -79,7 +79,180 @@ def mock_muxing_rules_registry():
 
 
 @pytest.mark.asyncio
-async def test_workspace_crud(
+async def test_workspace_crud_name_only(
+    mock_pipeline_factory, mock_workspace_crud, mock_provider_crud
+) -> None:
+    with (
+        patch("codegate.api.v1.wscrud", mock_workspace_crud),
+        patch("codegate.api.v1.pcrud", mock_provider_crud),
+    ):
+        """Test creating and deleting a workspace by name only."""
+
+        app = init_app(mock_pipeline_factory)
+
+        async with AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            name: str = str(uuid())
+
+            # Create workspace
+            payload_create = {"name": name}
+            response = await ac.post("/api/v1/workspaces", json=payload_create)
+            assert response.status_code == 201
+
+            # Verify workspace exists
+            response = await ac.get(f"/api/v1/workspaces/{name}")
+            assert response.status_code == 200
+            assert response.json()["name"] == name
+
+            # Delete workspace
+            response = await ac.delete(f"/api/v1/workspaces/{name}")
+            assert response.status_code == 204
+
+            # Verify workspace no longer exists
+            response = await ac.get(f"/api/v1/workspaces/{name}")
+            assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_muxes_crud(
+    mock_pipeline_factory, mock_workspace_crud, mock_provider_crud, db_reader
+) -> None:
+    with (
+        patch("codegate.api.v1.dbreader", db_reader),
+        patch("codegate.api.v1.wscrud", mock_workspace_crud),
+        patch("codegate.api.v1.pcrud", mock_provider_crud),
+        patch(
+            "codegate.providers.openai.provider.OpenAIProvider.models",
+            return_value=["gpt-4", "gpt-3.5-turbo"],
+        ),
+        patch(
+            "codegate.providers.openrouter.provider.OpenRouterProvider.models",
+            return_value=["anthropic/claude-2", "deepseek/deepseek-r1"],
+        ),
+    ):
+        """Test creating and validating mux rules on a workspace."""
+
+        app = init_app(mock_pipeline_factory)
+
+        provider_payload_1 = {
+            "name": "openai-provider",
+            "description": "OpenAI provider description",
+            "auth_type": "none",
+            "provider_type": "openai",
+            "endpoint": "https://api.openai.com",
+            "api_key": "sk-proj-foo-bar-123-xyz",
+        }
+
+        provider_payload_2 = {
+            "name": "openrouter-provider",
+            "description": "OpenRouter provider description",
+            "auth_type": "none",
+            "provider_type": "openrouter",
+            "endpoint": "https://openrouter.ai/api",
+            "api_key": "sk-or-foo-bar-456-xyz",
+        }
+
+        async with AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            response = await ac.post("/api/v1/provider-endpoints", json=provider_payload_1)
+            assert response.status_code == 201
+
+            response = await ac.post("/api/v1/provider-endpoints", json=provider_payload_2)
+            assert response.status_code == 201
+
+            # Create workspace
+            workspace_name: str = str(uuid())
+            custom_instructions: str = "Respond to every request in iambic pentameter"
+            payload_create = {
+                "name": workspace_name,
+                "config": {
+                    "custom_instructions": custom_instructions,
+                    "muxing_rules": [],
+                },
+            }
+
+            response = await ac.post("/api/v1/workspaces", json=payload_create)
+            assert response.status_code == 201
+
+            # Set mux rules
+            muxing_rules = [
+                {
+                    "provider_name": "openai-provider",
+                    "provider_type": "openai",
+                    "model": "gpt-4",
+                    "matcher": "*.ts",
+                    "matcher_type": "filename_match",
+                },
+                {
+                    "provider_name": "openrouter-provider",
+                    "provider_type": "openrouter",
+                    "model": "anthropic/claude-2",
+                    "matcher_type": "catch_all",
+                    "matcher": "",
+                },
+            ]
+
+            response = await ac.put(f"/api/v1/workspaces/{workspace_name}/muxes", json=muxing_rules)
+            assert response.status_code == 204
+
+            # Verify mux rules
+            response = await ac.get(f"/api/v1/workspaces/{workspace_name}")
+            assert response.status_code == 200
+            response_body = response.json()
+            for i, rule in enumerate(response_body["config"]["muxing_rules"]):
+                assert rule["provider_name"] == muxing_rules[i]["provider_name"]
+                assert rule["provider_type"] == muxing_rules[i]["provider_type"]
+                assert rule["model"] == muxing_rules[i]["model"]
+                assert rule["matcher"] == muxing_rules[i]["matcher"]
+                assert rule["matcher_type"] == muxing_rules[i]["matcher_type"]
+
+
+@pytest.mark.asyncio
+async def test_create_workspace_and_add_custom_instructions(
+    mock_pipeline_factory, mock_workspace_crud, mock_provider_crud
+) -> None:
+    with (
+        patch("codegate.api.v1.wscrud", mock_workspace_crud),
+        patch("codegate.api.v1.pcrud", mock_provider_crud),
+    ):
+        """Test creating a workspace, adding custom
+        instructions, and validating them."""
+
+        app = init_app(mock_pipeline_factory)
+
+        async with AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            name: str = str(uuid())
+
+            # Create workspace
+            payload_create = {"name": name}
+            response = await ac.post("/api/v1/workspaces", json=payload_create)
+            assert response.status_code == 201
+
+            # Add custom instructions
+            custom_instructions = "Respond to every request in iambic pentameter"
+            payload_instructions = {"prompt": custom_instructions}
+            response = await ac.put(
+                f"/api/v1/workspaces/{name}/custom-instructions", json=payload_instructions
+            )
+            assert response.status_code == 204
+
+            # Validate custom instructions by getting the workspace
+            response = await ac.get(f"/api/v1/workspaces/{name}")
+            assert response.status_code == 200
+            assert response.json()["config"]["custom_instructions"] == custom_instructions
+
+            # Validate custom instructions by getting the custom instructions endpoint
+            response = await ac.get(f"/api/v1/workspaces/{name}/custom-instructions")
+            assert response.status_code == 200
+            assert response.json()["prompt"] == custom_instructions
+
+
+@pytest.mark.asyncio
+async def test_workspace_crud_full_workspace(
     mock_pipeline_factory, mock_workspace_crud, mock_provider_crud, db_reader
 ) -> None:
     with (
