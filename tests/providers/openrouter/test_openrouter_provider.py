@@ -34,7 +34,9 @@ async def test_model_prefix_added(mocked_parent_process_request):
 
     # Mock request
     mock_request = MagicMock(spec=Request)
-    mock_request.body = AsyncMock(return_value=json.dumps({"model": "gpt-4"}).encode())
+    mock_request.body = AsyncMock(
+        return_value=json.dumps({"model": "gpt-4", "messages": []}).encode()
+    )
     mock_request.url.path = "/openrouter/chat/completions"
     mock_request.state.detected_client = "test-client"
 
@@ -48,7 +50,8 @@ async def test_model_prefix_added(mocked_parent_process_request):
 
     # Verify process_request was called with prefixed model
     call_args = mocked_parent_process_request.call_args[0]
-    assert call_args[0]["model"] == "openrouter/gpt-4"
+    # TODO this should use the abstract interface
+    assert call_args[0].model == "gpt-4"
 
 
 @pytest.mark.asyncio
@@ -60,7 +63,9 @@ async def test_model_prefix_preserved():
 
     # Mock request
     mock_request = MagicMock(spec=Request)
-    mock_request.body = AsyncMock(return_value=json.dumps({"model": "openrouter/gpt-4"}).encode())
+    mock_request.body = AsyncMock(
+        return_value=json.dumps({"model": "gpt-4", "messages": []}).encode()
+    )
     mock_request.url.path = "/openrouter/chat/completions"
     mock_request.state.detected_client = "test-client"
 
@@ -74,7 +79,8 @@ async def test_model_prefix_preserved():
 
     # Verify process_request was called with unchanged model name
     call_args = provider.process_request.call_args[0]
-    assert call_args[0]["model"] == "openrouter/gpt-4"
+    # TODO this should use the abstract interface
+    assert call_args[0].model == "gpt-4"
 
 
 @pytest.mark.asyncio

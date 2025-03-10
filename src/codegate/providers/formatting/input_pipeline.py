@@ -1,12 +1,14 @@
 import time
 from typing import AsyncIterator, Union
 
-from litellm import ModelResponse
-from litellm.types.utils import Choices, Delta, Message, StreamingChoices
-
 from codegate.db.connection import DbRecorder
 from codegate.pipeline.base import PipelineContext, PipelineResponse
 from codegate.providers.normalizer.base import ModelOutputNormalizer
+from codegate.types.common import (
+    Delta,
+    ModelResponse,
+    StreamingChoices,
+)
 
 
 def _create_stream_end_response(original_response: ModelResponse) -> ModelResponse:

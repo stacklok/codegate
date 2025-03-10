@@ -2,8 +2,6 @@ import os
 import tempfile
 
 import pytest
-from litellm import ModelResponse
-from litellm.types.utils import Delta, StreamingChoices
 
 from codegate.pipeline.base import PipelineContext, PipelineSensitiveData
 from codegate.pipeline.output import OutputPipelineContext
@@ -14,6 +12,12 @@ from codegate.pipeline.secrets.secrets import (
 )
 from codegate.pipeline.secrets.signatures import CodegateSignatures, Match
 from codegate.pipeline.sensitive_data.manager import SensitiveData, SensitiveDataManager
+from codegate.types.openai import (
+    ChatCompletionRequest,
+    ChoiceDelta,
+    MessageDelta,
+    StreamingChatCompletion,
+)
 
 
 class TestSecretsModifier:
@@ -150,15 +154,15 @@ class TestSecretsObfuscator:
         assert protected == text
 
 
-def create_model_response(content: str) -> ModelResponse:
-    """Helper to create test ModelResponse objects"""
-    return ModelResponse(
+def create_model_response(content: str) -> StreamingChatCompletion:
+    """Helper to create test StreamingChatCompletion objects"""
+    return StreamingChatCompletion(
         id="test",
         choices=[
-            StreamingChoices(
+            ChoiceDelta(
                 finish_reason=None,
                 index=0,
-                delta=Delta(content=content, role="assistant"),
+                delta=MessageDelta(content=content, role="assistant"),
                 logprobs=None,
             )
         ],
@@ -199,6 +203,7 @@ class TestSecretUnredactionStep:
 
         # Verify unredaction
         assert len(result) == 1
+        # TODO this should use the abstract interface
         assert result[0].choices[0].delta.content == "Here is the secret_value in text"
 
     @pytest.mark.asyncio
@@ -253,6 +258,7 @@ class TestSecretUnredactionStep:
 
         # Should pass through empty chunks
         assert len(result) == 1
+        # TODO this should use the abstract interface
         assert result[0].choices[0].delta.content == ""
 
     @pytest.mark.asyncio
@@ -266,6 +272,7 @@ class TestSecretUnredactionStep:
 
         # Should pass through unchanged
         assert len(result) == 1
+        # TODO this should use the abstract interface
         assert result[0].choices[0].delta.content == "Regular text without any markers"
 
     @pytest.mark.asyncio
@@ -284,4 +291,5 @@ class TestSecretUnredactionStep:
 
         # Should keep REDACTED marker when session doesn't match
         assert len(result) == 1
+        # TODO this should use the abstract interface
         assert result[0].choices[0].delta.content == f"Here is the REDACTED<{encrypted}> in text"

@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 from typing import List
 
@@ -12,7 +11,10 @@ from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.fim_analyzer import FIMAnalyzer
 from codegate.providers.llamacpp.completion_handler import LlamaCppCompletionHandler
-from codegate.providers.llamacpp.normalizer import LLamaCppInputNormalizer, LLamaCppOutputNormalizer
+from codegate.types.openai import (
+    ChatCompletionRequest,
+    LegacyCompletionRequest,
+)
 
 logger = structlog.get_logger("codegate")
 
@@ -22,10 +24,14 @@ class LlamaCppProvider(BaseProvider):
         self,
         pipeline_factory: PipelineFactory,
     ):
+        if self._get_base_url() != "":
+            self.base_url = self._get_base_url()
+        else:
+            self.base_url = "./codegate_volume/models"
         completion_handler = LlamaCppCompletionHandler()
         super().__init__(
-            LLamaCppInputNormalizer(),
-            LLamaCppOutputNormalizer(),
+            None,
+            None,
             completion_handler,
             pipeline_factory,
         )
@@ -54,12 +60,13 @@ class LlamaCppProvider(BaseProvider):
         self,
         data: dict,
         api_key: str,
+        base_url: str,
         is_fim_request: bool,
         client_type: ClientType,
     ):
         try:
             stream = await self.complete(
-                data, None, is_fim_request=is_fim_request, client_type=client_type
+                data, None, base_url, is_fim_request=is_fim_request, client_type=client_type
             )
         except RuntimeError as e:
             # propagate as error 500
@@ -84,18 +91,34 @@ class LlamaCppProvider(BaseProvider):
         """
 
         @self.router.post(f"/{self.provider_route_name}/completions")
+        @DetectClient()
+        async def create_completion(
+            request: Request,
+        ):
+            body = await request.body()
+            req = LegacyCompletionRequest.model_validate_json(body)
+            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, req)
+            return await self.process_request(
+                req,
+                None,
+                self.base_url,
+                is_fim_request,
+                request.state.detected_client,
+            )
+
         @self.router.post(f"/{self.provider_route_name}/chat/completions")
         @DetectClient()
         async def create_completion(
             request: Request,
         ):
             body = await request.body()
-            data = json.loads(body)
-            data["base_url"] = Config.get_config().model_base_path
-            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, data)
+            print(body)
+            req = ChatCompletionRequest.model_validate_json(body)
+            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, req)
             return await self.process_request(
-                data,
+                req,
                 None,
+                self.base_url,
                 is_fim_request,
                 request.state.detected_client,
             )

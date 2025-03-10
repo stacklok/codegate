@@ -1,8 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Any, AsyncIterable, AsyncIterator, Dict, Iterable, Iterator, Union
 
-from litellm import ChatCompletionRequest, ModelResponse
-
 
 class ModelInputNormalizer(ABC):
     """
@@ -37,12 +35,12 @@ class ModelInputNormalizer(ABC):
         return normalized_data
 
     @abstractmethod
-    def normalize(self, data: Dict) -> ChatCompletionRequest:
+    def normalize(self, data: Dict) -> Any:
         """Normalize the input data"""
         pass
 
     @abstractmethod
-    def denormalize(self, data: ChatCompletionRequest) -> Dict:
+    def denormalize(self, data: Any) -> Dict:
         """Denormalize the input data"""
         pass
 
@@ -60,24 +58,24 @@ class ModelOutputNormalizer(ABC):
     def normalize_streaming(
         self,
         model_reply: Union[AsyncIterable[Any], Iterable[Any]],
-    ) -> Union[AsyncIterator[ModelResponse], Iterator[ModelResponse]]:
+    ) -> Union[AsyncIterator[Any], Iterator[Any]]:
         """Normalize the output data"""
         pass
 
     @abstractmethod
-    def normalize(self, model_reply: Any) -> ModelResponse:
+    def normalize(self, model_reply: Any) -> Any:
         """Normalize the output data"""
         pass
 
     @abstractmethod
-    def denormalize(self, normalized_reply: ModelResponse) -> Any:
+    def denormalize(self, normalized_reply: Any) -> Any:
         """Denormalize the output data"""
         pass
 
     @abstractmethod
     def denormalize_streaming(
         self,
-        normalized_reply: Union[AsyncIterable[ModelResponse], Iterable[ModelResponse]],
+        normalized_reply: Union[AsyncIterable[Any], Iterable[Any]],
     ) -> Union[AsyncIterator[Any], Iterator[Any]]:
         """Denormalize the output data"""
         pass

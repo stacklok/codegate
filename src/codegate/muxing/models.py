@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional, Self
+from typing import Any, Optional, Self
 
 import pydantic
 
@@ -67,7 +67,7 @@ class ThingToMatchMux(pydantic.BaseModel):
     Represents the fields we can use to match a mux rule.
     """
 
-    body: dict
+    body: Any
     url_request_path: str
     is_fim_request: bool
     client_type: ClientType
