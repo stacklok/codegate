@@ -191,6 +191,7 @@ class AlertSummary(pydantic.BaseModel):
     malicious_packages: int
     pii: int
     secrets: int
+    total_alerts: int
 
 
 class PartialQuestionAnswer(pydantic.BaseModel):
@@ -225,7 +226,7 @@ class ConversationSummary(pydantic.BaseModel):
 
     chat_id: str
     prompt: ChatMessage
-    total_alerts: int
+    alerts_summary: AlertSummary
     token_usage_agg: Optional[TokenUsageAggregate]
     provider: Optional[str]
     type: QuestionType
