@@ -25,6 +25,9 @@ DEFAULT_PROVIDER_URLS = {
     "llamacpp": "./codegate_volume/models",  # Default LlamaCpp model path
 }
 
+API_DEFAULT_PAGE_SIZE = 50
+API_MAX_PAGE_SIZE = 100
+
 
 @dataclass
 class Config:
