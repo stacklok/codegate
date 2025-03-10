@@ -55,6 +55,10 @@ async def generate_streaming(request, api_key, base_url):
 
 
 async def streaming(request, api_key, url, cls):
+    headers = dict()
+
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
     payload = request.json(exclude_defaults=True)
     if os.getenv("CODEGATE_DEBUG_OLLAMA") is not None:
         print(payload)
@@ -62,6 +66,7 @@ async def streaming(request, api_key, url, cls):
     client = httpx.AsyncClient()
     async with client.stream(
             "POST", url,
+            headers=headers,
             content=payload,
             timeout=300, # TODO this should not be hardcoded
     ) as resp:
