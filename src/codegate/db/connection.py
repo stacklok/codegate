@@ -4,7 +4,7 @@ import json
 import sqlite3
 import uuid
 from pathlib import Path
-from typing import List, Optional, Type
+from typing import List, Optional, Tuple, Type
 
 import numpy as np
 import sqlite_vec_sl_tmp
@@ -716,6 +716,61 @@ class DbReader(DbCodeGate):
         )
         return prompts
 
+    def _build_prompt_query(
+        self,
+        base_query: str,
+        workspace_id: str,
+        filter_by_ids: Optional[List[str]] = None,
+        filter_by_alert_trigger_categories: Optional[List[str]] = None,
+        filter_by_alert_trigger_types: Optional[List[str]] = None,
+        offset: Optional[int] = None,
+        page_size: Optional[int] = None,
+    ) -> Tuple[str, dict]:
+        """
+        Helper method to construct SQL query and conditions for prompts based on filters.
+
+        Args:
+            base_query: The base SQL query string with a placeholder for filter conditions.
+            workspace_id: The ID of the workspace to fetch prompts from.
+            filter_by_ids: Optional list of prompt IDs to filter by.
+            filter_by_alert_trigger_categories: Optional list of alert categories to filter by.
+            filter_by_alert_trigger_types: Optional list of alert trigger types to filter by.
+            offset: Number of records to skip (for pagination).
+            page_size: Number of records per page.
+
+        Returns:
+            A tuple containing the formatted SQL query string and a dictionary of conditions.
+        """
+        conditions = {"workspace_id": workspace_id}
+        filter_conditions = []
+
+        if filter_by_alert_trigger_categories:
+            filter_conditions.append(
+                "AND (a.trigger_category IN :filter_by_alert_trigger_categories OR a.trigger_category IS NULL)"
+            )
+            conditions["filter_by_alert_trigger_categories"] = filter_by_alert_trigger_categories
+
+        if filter_by_alert_trigger_types:
+            filter_conditions.append(
+                "AND EXISTS (SELECT 1 FROM alerts a2 WHERE a2.prompt_id = p.id AND a2.trigger_type IN :filter_by_alert_trigger_types)"
+            )
+            conditions["filter_by_alert_trigger_types"] = filter_by_alert_trigger_types
+
+        if filter_by_ids:
+            filter_conditions.append("AND p.id IN :filter_by_ids")
+            conditions["filter_by_ids"] = filter_by_ids
+
+        if offset is not None:
+            conditions["offset"] = offset
+
+        if page_size is not None:
+            conditions["page_size"] = page_size
+
+        filter_clause = " ".join(filter_conditions)
+        query = base_query.format(filter_conditions=filter_clause)
+
+        return query, conditions
+
     async def get_prompts(
         self,
         workspace_id: str,
@@ -749,39 +804,19 @@ class DbReader(DbCodeGate):
             ORDER BY p.timestamp DESC
             LIMIT :page_size OFFSET :offset
         """
-        # Build conditions and filters
-        conditions = {
-            "workspace_id": workspace_id,
-            "page_size": page_size,
-            "offset": offset,
-        }
 
-        # Conditionally add filter clauses and conditions
-        filter_conditions = []
-
-        if filter_by_alert_trigger_categories:
-            filter_conditions.append(
-                "AND a.trigger_category IN :filter_by_alert_trigger_categories"
-            )
-            conditions["filter_by_alert_trigger_categories"] = filter_by_alert_trigger_categories
-
-        if filter_by_alert_trigger_types:
-            filter_conditions.append(
-                "AND EXISTS (SELECT 1 FROM alerts a2 WHERE a2.prompt_id = p.id AND a2.trigger_type IN :filter_by_alert_trigger_types)"  # noqa: E501
-            )
-            conditions["filter_by_alert_trigger_types"] = filter_by_alert_trigger_types
-
-        if filter_by_ids:
-            filter_conditions.append("AND p.id IN :filter_by_ids")
-            conditions["filter_by_ids"] = filter_by_ids
-
-        filter_clause = " ".join(filter_conditions)
-        query = base_query.format(filter_conditions=filter_clause)
-
+        query, conditions = self._build_prompt_query(
+            base_query,
+            workspace_id,
+            filter_by_ids,
+            filter_by_alert_trigger_categories,
+            filter_by_alert_trigger_types,
+            offset,
+            page_size,
+        )
         sql = text(query)
 
         # Bind optional params
-
         if filter_by_alert_trigger_categories:
             sql = sql.bindparams(bindparam("filter_by_alert_trigger_categories", expanding=True))
         if filter_by_alert_trigger_types:
@@ -813,28 +848,14 @@ class DbReader(DbCodeGate):
             WHERE p.workspace_id = :workspace_id
             {filter_conditions}
             """
-        conditions = {"workspace_id": workspace_id}
-        filter_conditions = []
 
-        if filter_by_alert_trigger_categories:
-            filter_conditions.append(
-                "AND a.trigger_category IN :filter_by_alert_trigger_categories"
-            )
-            conditions["filter_by_alert_trigger_categories"] = filter_by_alert_trigger_categories
-
-        if filter_by_alert_trigger_types:
-            filter_conditions.append(
-                "AND EXISTS (SELECT 1 FROM alerts a2 WHERE "
-                "a2.prompt_id = p.id AND a2.trigger_type IN :filter_by_alert_trigger_types)"
-            )
-            conditions["filter_by_alert_trigger_types"] = filter_by_alert_trigger_types
-
-        if filter_by_ids:
-            filter_conditions.append("AND p.id IN :filter_by_ids")
-            conditions["filter_by_ids"] = filter_by_ids
-
-        filter_clause = " ".join(filter_conditions)
-        query = base_query.format(filter_conditions=filter_clause)
+        query, conditions = self._build_prompt_query(
+            base_query,
+            workspace_id,
+            filter_by_ids,
+            filter_by_alert_trigger_categories,
+            filter_by_alert_trigger_types,
+        )
         sql = text(query)
 
         # Bind optional params
