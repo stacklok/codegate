@@ -191,6 +191,7 @@ class AlertSummary(pydantic.BaseModel):
     malicious_packages: int
     pii: int
     secrets: int
+    total_alerts: int
 
 
 class PartialQuestionAnswer(pydantic.BaseModel):
@@ -201,7 +202,6 @@ class PartialQuestionAnswer(pydantic.BaseModel):
     partial_questions: PartialQuestions
     answer: Optional[ChatMessage]
     model_token_usage: TokenUsageByModel
-    alerts: List[Alert] = []
 
 
 class Conversation(pydantic.BaseModel):
@@ -215,7 +215,21 @@ class Conversation(pydantic.BaseModel):
     chat_id: str
     conversation_timestamp: datetime.datetime
     token_usage_agg: Optional[TokenUsageAggregate]
-    alerts: List[Alert] = []
+    alerts: Optional[List[Alert]] = []
+
+
+class ConversationSummary(pydantic.BaseModel):
+    """
+    Represents a conversation summary.
+    """
+
+    chat_id: str
+    prompt: ChatMessage
+    alerts_summary: AlertSummary
+    token_usage_agg: Optional[TokenUsageAggregate]
+    provider: Optional[str]
+    type: QuestionType
+    conversation_timestamp: datetime.datetime
 
 
 class AlertConversation(pydantic.BaseModel):
@@ -338,3 +352,10 @@ class PersonaUpdateRequest(pydantic.BaseModel):
 
     new_name: str
     new_description: str
+
+
+class PaginatedMessagesResponse(pydantic.BaseModel):
+    data: List[ConversationSummary]
+    limit: int
+    offset: int
+    total: int

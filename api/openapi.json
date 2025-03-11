@@ -899,6 +899,67 @@
               "type": "string",
               "title": "Workspace Name"
             }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Page Size"
+            }
+          },
+          {
+            "name": "filter_by_ids",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Filter By Ids"
+            }
+          },
+          {
+            "name": "filter_by_alert_trigger_types",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AlertTriggerType"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Filter By Alert Trigger Types"
+            }
           }
         ],
         "responses": {
@@ -907,11 +968,60 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Conversation"
-                  },
-                  "title": "Response V1 Get Workspace Messages"
+                  "$ref": "#/components/schemas/PaginatedMessagesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspace_name}/messages/{prompt_id}": {
+      "get": {
+        "tags": [
+          "CodeGate API",
+          "Workspaces"
+        ],
+        "summary": "Get Messages By Prompt Id",
+        "description": "Get messages for a workspace.",
+        "operationId": "v1_get_messages_by_prompt_id",
+        "parameters": [
+          {
+            "name": "workspace_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Name"
+            }
+          },
+          {
+            "name": "prompt_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Prompt Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Conversation"
                 }
               }
             }
@@ -1676,16 +1786,30 @@
           "secrets": {
             "type": "integer",
             "title": "Secrets"
+          },
+          "total_alerts": {
+            "type": "integer",
+            "title": "Total Alerts"
           }
         },
         "type": "object",
         "required": [
           "malicious_packages",
           "pii",
-          "secrets"
+          "secrets",
+          "total_alerts"
         ],
         "title": "AlertSummary",
         "description": "Represents a set of summary alerts"
+      },
+      "AlertTriggerType": {
+        "type": "string",
+        "enum": [
+          "codegate-pii",
+          "codegate-context-retriever",
+          "codegate-secrets"
+        ],
+        "title": "AlertTriggerType"
       },
       "ChatMessage": {
         "properties": {
@@ -1836,10 +1960,17 @@
             ]
           },
           "alerts": {
-            "items": {
-              "$ref": "#/components/schemas/Alert"
-            },
-            "type": "array",
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Alert"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Alerts",
             "default": []
           }
@@ -1855,6 +1986,61 @@
         ],
         "title": "Conversation",
         "description": "Represents a conversation."
+      },
+      "ConversationSummary": {
+        "properties": {
+          "chat_id": {
+            "type": "string",
+            "title": "Chat Id"
+          },
+          "prompt": {
+            "$ref": "#/components/schemas/ChatMessage"
+          },
+          "alerts_summary": {
+            "$ref": "#/components/schemas/AlertSummary"
+          },
+          "token_usage_agg": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TokenUsageAggregate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          },
+          "type": {
+            "$ref": "#/components/schemas/QuestionType"
+          },
+          "conversation_timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Conversation Timestamp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chat_id",
+          "prompt",
+          "alerts_summary",
+          "token_usage_agg",
+          "provider",
+          "type",
+          "conversation_timestamp"
+        ],
+        "title": "ConversationSummary",
+        "description": "Represents a conversation summary."
       },
       "CustomInstructions": {
         "properties": {
@@ -2031,6 +2217,37 @@
         ],
         "title": "MuxRule",
         "description": "Represents a mux rule for a provider."
+      },
+      "PaginatedMessagesResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ConversationSummary"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "limit",
+          "offset",
+          "total"
+        ],
+        "title": "PaginatedMessagesResponse"
       },
       "Persona": {
         "properties": {

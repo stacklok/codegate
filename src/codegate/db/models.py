@@ -115,6 +115,21 @@ class WorkspaceRow(BaseModel):
     custom_instructions: Optional[str]
 
 
+class AlertSummaryRow(BaseModel):
+    """An alert summary row entry"""
+
+    total_alerts: int
+    total_secrets_count: int
+    total_packages_count: int
+    total_pii_count: int
+
+
+class AlertTriggerType(str, Enum):
+    CODEGATE_PII = "codegate-pii"
+    CODEGATE_CONTEXT_RETRIEVER = "codegate-context-retriever"
+    CODEGATE_SECRETS = "codegate-secrets"
+
+
 class GetWorkspaceByNameConditions(BaseModel):
     name: WorkspaceNameStr
 
@@ -330,3 +345,18 @@ class PersonaDistance(Persona):
     """
 
     distance: float
+
+
+class GetMessagesRow(BaseModel):
+    id: Any
+    timestamp: Any
+    provider: Optional[Any]
+    request: Any
+    type: Any
+    output_id: Optional[Any]
+    output: Optional[Any]
+    output_timestamp: Optional[Any]
+    input_tokens: Optional[int]
+    output_tokens: Optional[int]
+    input_cost: Optional[float]
+    output_cost: Optional[float]
