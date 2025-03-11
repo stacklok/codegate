@@ -38,7 +38,7 @@ class UpdateClient:
         }
 
         try:
-            response = requests.get(self.__update_url, headers=headers)
+            response = requests.get(self.__update_url, headers=headers, timeout=10)
             # Throw if the request was not successful.
             response.raise_for_status()
             return response.json()["version"]
