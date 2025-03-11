@@ -132,13 +132,13 @@ class TestPiiUnRedactionStep:
 
     @pytest.mark.asyncio
     async def test_detect_not_an_uuid(self, unredaction_step):
-        chunk1 = ModelResponse(
+        chunk1 = StreamingChatCompletion(
             id="test",
             choices=[
-                StreamingChoices(
+                ChoiceDelta(
                     finish_reason=None,
                     index=0,
-                    delta=Delta(content="#"),
+                    delta=MessageDelta(content="#"),
                     logprobs=None,
                 )
             ],
@@ -146,13 +146,13 @@ class TestPiiUnRedactionStep:
             model="test-model",
             object="chat.completion.chunk",
         )
-        chunk2 = ModelResponse(
+        chunk2 = StreamingChatCompletion(
             id="test",
             choices=[
-                StreamingChoices(
+                ChoiceDelta(
                     finish_reason=None,
                     index=0,
-                    delta=Delta(content=" filepath"),
+                    delta=MessageDelta(content=" filepath"),
                     logprobs=None,
                 )
             ],

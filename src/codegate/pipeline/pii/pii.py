@@ -320,12 +320,12 @@ class PiiUnRedactionStep(OutputPipelineStep):
                 end_idx = text.find(self.marker_end, start_idx + 1)
                 if end_idx == -1:
                     # Incomplete marker, buffer the rest only if it can be a UUID
-                    if start_idx + 1 < len(content) and not can_be_uuid(content[start_idx + 1 :]):
+                    if start_idx + 1 < len(text) and not can_be_uuid(text[start_idx + 1 :]):
                         # the buffer can't be a UUID, so we can't process it, just return
-                        result.append(content[current_pos:])
+                        result.append(text[current_pos:])
                     else:
                         # this can still be a UUID
-                        context.prefix_buffer = content[current_pos:]
+                        context.prefix_buffer = text[current_pos:]
                     break
 
                 # Add text before marker
