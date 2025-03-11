@@ -746,13 +746,15 @@ class DbReader(DbCodeGate):
 
         if filter_by_alert_trigger_categories:
             filter_conditions.append(
-                "AND (a.trigger_category IN :filter_by_alert_trigger_categories OR a.trigger_category IS NULL)"
+                """AND (a.trigger_category IN :filter_by_alert_trigger_categories
+                OR a.trigger_category IS NULL)"""
             )
             conditions["filter_by_alert_trigger_categories"] = filter_by_alert_trigger_categories
 
         if filter_by_alert_trigger_types:
             filter_conditions.append(
-                "AND EXISTS (SELECT 1 FROM alerts a2 WHERE a2.prompt_id = p.id AND a2.trigger_type IN :filter_by_alert_trigger_types)"
+                """AND EXISTS (SELECT 1 FROM alerts a2 WHERE
+            a2.prompt_id = p.id AND a2.trigger_type IN :filter_by_alert_trigger_types)"""
             )
             conditions["filter_by_alert_trigger_types"] = filter_by_alert_trigger_types
 

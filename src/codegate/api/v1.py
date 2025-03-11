@@ -510,9 +510,10 @@ async def get_workspace_messages(
                 logger.warning(f"Skipping prompt {prompt.id}. No messages found")
                 continue
 
-            # message is just the first entry in the request
+            # message is just the first entry in the request, cleaned properly
+            message = v1_processing.parse_question_answer(messages[0])
             message_obj = v1_models.ChatMessage(
-                message=messages[0], timestamp=prompt.timestamp, message_id=prompt.id
+                message=message, timestamp=prompt.timestamp, message_id=prompt.id
             )
 
             # count total alerts for the prompt
