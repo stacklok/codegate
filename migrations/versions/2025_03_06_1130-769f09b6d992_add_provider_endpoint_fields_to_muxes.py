@@ -37,13 +37,16 @@ def upgrade() -> None:
 
     # Delete mux rules where provider_endpoint_id doesn't match a provider in
     # the database
+    #
     # This may seem extreme, but if the provider doesn't exist, the mux rule is
-    # invalid and will error anyway if we try to use it, so we should prevent this invalid state from ever existing.
+    # invalid and will error anyway if we try to use it, so we should prevent
+    # this invalid state from ever existing.
+    #
     # There is work on this branch to ensure that when a provider is deleted,
     # the associated mux rules are also deleted.
     op.execute(
         """
-        DELETE FROM muxes 
+        DELETE FROM muxes
         WHERE provider_endpoint_id NOT IN (SELECT id FROM provider_endpoints);
         """
     )
