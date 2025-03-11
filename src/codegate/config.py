@@ -59,6 +59,10 @@ class Config:
     server_key: str = "server.key"
     force_certs: bool = False
 
+    # Update configuration.
+    use_update_service: bool = False
+    update_service_url: str = "https://updates.codegate.ai/api/v1/version"
+
     max_fim_hash_lifetime: int = 60 * 5  # Time in seconds. Default is 5 minutes.
 
     # Min value is 0 (max similarity), max value is 2 (orthogonal)
@@ -165,6 +169,8 @@ class Config:
                 force_certs=config_data.get("force_certs", cls.force_certs),
                 prompts=prompts_config,
                 provider_urls=provider_urls,
+                use_update_service=config_data.get("use_update_service", cls.use_update_service),
+                update_service_url=config_data.get("update_service_url", cls.update_service_url),
             )
         except yaml.YAMLError as e:
             raise ConfigurationError(f"Failed to parse config file: {e}")
@@ -209,11 +215,17 @@ class Config:
             if "CODEGATE_SERVER_KEY" in os.environ:
                 config.server_key = os.environ["CODEGATE_SERVER_KEY"]
             if "CODEGATE_FORCE_CERTS" in os.environ:
-                config.force_certs = os.environ["CODEGATE_FORCE_CERTS"]
+                config.force_certs = cls.__bool_from_string(os.environ["CODEGATE_FORCE_CERTS"])
             if "CODEGATE_DB_PATH" in os.environ:
                 config.db_path = os.environ["CODEGATE_DB_PATH"]
             if "CODEGATE_VEC_DB_PATH" in os.environ:
                 config.vec_db_path = os.environ["CODEGATE_VEC_DB_PATH"]
+            if "CODEGATE_USE_UPDATE_SERVICE" in os.environ:
+                config.use_update_service = cls.__bool_from_string(
+                    os.environ["CODEGATE_USE_UPDATE_SERVICE"]
+                )
+            if "CODEGATE_UPDATE_SERVICE_URL" in os.environ:
+                config.update_service_url = os.environ["CODEGATE_UPDATE_SERVICE_URL"]
 
             # Load provider URLs from environment variables
             for provider in DEFAULT_PROVIDER_URLS.keys():
@@ -246,6 +258,8 @@ class Config:
         force_certs: Optional[bool] = None,
         db_path: Optional[str] = None,
         vec_db_path: Optional[str] = None,
+        use_update_service: Optional[bool] = None,
+        update_service_url: Optional[str] = None,
     ) -> "Config":
         """Load configuration with priority resolution.
 
@@ -274,6 +288,8 @@ class Config:
             force_certs: Optional flag to force certificate generation
             db_path: Optional path to the main SQLite database file
             vec_db_path: Optional path to the vector SQLite database file
+            use_update_service: Optional flag to enable the update service
+            update_service_url: Optional URL for the update service
 
         Returns:
             Config: Resolved configuration
@@ -326,6 +342,10 @@ class Config:
             config.db_path = env_config.db_path
         if "CODEGATE_VEC_DB_PATH" in os.environ:
             config.vec_db_path = env_config.vec_db_path
+        if "CODEGATE_USE_UPDATE_SERVICE" in os.environ:
+            config.use_update_service = env_config.use_update_service
+        if "CODEGATE_UPDATE_SERVICE_URL" in os.environ:
+            config.update_service_url = env_config.update_service_url
 
         # Override provider URLs from environment
         for provider, url in env_config.provider_urls.items():
@@ -366,6 +386,10 @@ class Config:
             config.vec_db_path = vec_db_path
         if force_certs is not None:
             config.force_certs = force_certs
+        if use_update_service is not None:
+            config.use_update_service = use_update_service
+        if update_service_url is not None:
+            config.update_service_url = update_service_url
 
         # Set the __config class attribute
         Config.__config = config
@@ -375,3 +399,7 @@ class Config:
     @classmethod
     def get_config(cls) -> "Config":
         return cls.__config
+
+    @staticmethod
+    def __bool_from_string(raw_value) -> bool:
+        return raw_value.lower() == "true"

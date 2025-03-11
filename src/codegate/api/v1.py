@@ -10,7 +10,7 @@ from pydantic import BaseModel, ValidationError
 
 from codegate.config import API_DEFAULT_PAGE_SIZE, API_MAX_PAGE_SIZE
 import codegate.muxing.models as mux_models
-from codegate import __version__
+from codegate import Config, __version__
 from codegate.api import v1_models, v1_processing
 from codegate.db.connection import AlreadyExistsError, DbReader
 from codegate.db.models import AlertSeverity, AlertTriggerType, Persona, WorkspaceWithModel
@@ -20,6 +20,7 @@ from codegate.muxing.persona import (
     PersonaSimilarDescriptionError,
 )
 from codegate.providers import crud as provendcrud
+from codegate.updates.client import Origin, UpdateClient
 from codegate.workspaces import crud
 
 logger = structlog.get_logger("codegate")
@@ -31,6 +32,7 @@ persona_manager = PersonaManager()
 
 # This is a singleton object
 dbreader = DbReader()
+update_client = UpdateClient(Config.get_config().update_service_url, __version__, dbreader)
 
 
 def uniq_name(route: APIRoute):
@@ -724,10 +726,12 @@ async def stream_sse():
 
 
 @v1.get("/version", tags=["Dashboard"], generate_unique_id_function=uniq_name)
-def version_check():
+async def version_check():
     try:
-        latest_version = v1_processing.fetch_latest_version()
-
+        if Config.get_config().use_update_service:
+            latest_version = await update_client.get_latest_version(Origin.FrontEnd)
+        else:
+            latest_version = v1_processing.fetch_latest_version()
         # normalize the versions as github will return them with a 'v' prefix
         current_version = __version__.lstrip("v")
         latest_version_stripped = latest_version.lstrip("v")
