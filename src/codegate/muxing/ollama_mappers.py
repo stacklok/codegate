@@ -215,7 +215,7 @@ def ollama_generate_from_openai(
 
 def _gen_tool_call_id():
     letter_bytes = string.ascii_lowercase + string.digits
-    b = [letter_bytes[random.randint(0, len(letter_bytes) - 1)] for _ in range(8)]
+    b = [letter_bytes[random.randint(0, len(letter_bytes) - 1)] for _ in range(8)]  # nosec
     return "call_" + "".join(b).lower()
 
 

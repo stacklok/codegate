@@ -155,5 +155,5 @@ async def message_wrapper(lines):
                 raise ValueError(f"anthropic: unexpected event type '{event_type}'")
 
     # The following should always hold when we get here
-    assert event_type == "message_stop" or event_type == "error"
+    assert event_type == "message_stop" or event_type == "error"  # nosec
     return
