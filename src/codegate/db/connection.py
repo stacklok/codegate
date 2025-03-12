@@ -634,10 +634,11 @@ class DbRecorder(DbCodeGate):
         conditions = {"id": persona_id}
         await self._execute_with_no_return(sql, conditions)
 
-    async def init_instance(self) -> None:
+    async def init_instance(self) -> str:
         """
         Initializes instance details in the database.
         """
+        instance_id = str(uuid.uuid4())
         sql = text(
             """
             INSERT INTO instance (id, created_at)
@@ -647,13 +648,14 @@ class DbRecorder(DbCodeGate):
 
         try:
             instance = Instance(
-                id=str(uuid.uuid4()),
+                id=instance_id,
                 created_at=datetime.datetime.now(datetime.timezone.utc),
             )
             await self._execute_with_no_return(sql, instance.model_dump())
         except IntegrityError as e:
             logger.debug(f"Exception type: {type(e)}")
             raise AlreadyExistsError("Instance already initialized.")
+        return instance_id
 
 
 class DbReader(DbCodeGate):
@@ -1419,18 +1421,21 @@ def init_session_if_not_exists(db_path: Optional[str] = None):
         logger.info("Session in DB initialized successfully.")
 
 
-def init_instance(db_path: Optional[str] = None):
+def init_instance(db_path: Optional[str] = None) -> str:
     db_reader = DbReader(db_path)
     instance = asyncio.run(db_reader.get_instance())
     # Initialize instance if not already initialized.
     if not instance:
         db_recorder = DbRecorder(db_path)
         try:
-            asyncio.run(db_recorder.init_instance())
+            instance_id = asyncio.run(db_recorder.init_instance())
+            logger.info("Instance initialized successfully.")
+            return instance_id
         except Exception as e:
             logger.error(f"Failed to initialize instance in DB: {e}")
             raise
-        logger.info("Instance initialized successfully.")
+    else:
+        return instance[0].id
 
 
 if __name__ == "__main__":

@@ -3,9 +3,7 @@ import json
 from collections import defaultdict
 from typing import AsyncGenerator, Dict, List, Optional, Tuple
 
-import cachetools.func
 import regex as re
-import requests
 import structlog
 
 from codegate.api import v1_models
@@ -32,16 +30,6 @@ SYSTEM_PROMPTS = [
     "You should only respond with the summary, no additional text or explanation, "
     "you don't need ending punctuation.",
 ]
-
-
-@cachetools.func.ttl_cache(maxsize=128, ttl=20 * 60)
-def fetch_latest_version() -> str:
-    url = "https://api.github.com/repos/stacklok/codegate/releases/latest"
-    headers = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
-    response = requests.get(url, headers=headers, timeout=5)
-    response.raise_for_status()
-    data = response.json()
-    return data.get("tag_name", "unknown")
 
 
 async def generate_sse_events() -> AsyncGenerator[str, None]:

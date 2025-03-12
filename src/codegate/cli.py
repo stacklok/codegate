@@ -11,6 +11,7 @@ import structlog
 from uvicorn.config import Config as UvicornConfig
 from uvicorn.server import Server
 
+import codegate
 from codegate.ca.codegate_ca import CertificateAuthority
 from codegate.codegate_logging import LogFormat, LogLevel, setup_logging
 from codegate.config import Config, ConfigurationError
@@ -25,6 +26,8 @@ from codegate.providers import crud as provendcrud
 from codegate.providers.copilot.provider import CopilotProvider
 from codegate.server import init_app
 from codegate.storage.utils import restore_storage_backup
+from codegate.updates.client import init_update_client_singleton
+from codegate.updates.scheduled import ScheduledUpdateChecker
 from codegate.workspaces import crud as wscrud
 
 
@@ -322,8 +325,16 @@ def serve(  # noqa: C901
         logger = structlog.get_logger("codegate").bind(origin="cli")
 
         init_db_sync(cfg.db_path)
-        init_instance(cfg.db_path)
+        instance_id = init_instance(cfg.db_path)
         init_session_if_not_exists(cfg.db_path)
+
+        # Initialize the update checking logic.
+        update_client = init_update_client_singleton(
+            cfg.update_service_url, codegate.__version__, instance_id
+        )
+        update_checker = ScheduledUpdateChecker(update_client)
+        update_checker.daemon = True
+        update_checker.start()
 
         # Check certificates and create CA if necessary
         logger.info("Checking certificates and creating CA if needed")
