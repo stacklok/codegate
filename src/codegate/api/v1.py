@@ -728,7 +728,7 @@ async def stream_sse():
 @v1.get("/version", tags=["Dashboard"], generate_unique_id_function=uniq_name)
 async def version_check():
     try:
-        latest_version = __get_latest_version()
+        latest_version = _get_latest_version()
         # normalize the versions as github will return them with a 'v' prefix
         current_version = __version__.lstrip("v")
         latest_version_stripped = latest_version.lstrip("v")
@@ -885,6 +885,6 @@ async def delete_persona(persona_name: str):
 
 
 @cachetools.func.ttl_cache(maxsize=128, ttl=20 * 60)
-def __get_latest_version():
+def _get_latest_version():
     update_client = get_update_client_singleton()
     return update_client.get_latest_version(Origin.FrontEnd)
