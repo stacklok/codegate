@@ -291,7 +291,7 @@ def nd_array_custom_serializer(x):
 NdArray = Annotated[
     np.ndarray,
     BeforeValidator(nd_array_custom_before_validator),
-    PlainSerializer(nd_array_custom_serializer, return_type=str),
+    PlainSerializer(nd_array_custom_serializer, return_type=np.ndarray),
 ]
 
 VALID_PERSONA_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_ -]+$")

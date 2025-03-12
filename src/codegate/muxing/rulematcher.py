@@ -11,6 +11,7 @@ from codegate.db import models as db_models
 from codegate.extract_snippets.body_extractor import BodyCodeSnippetExtractorError
 from codegate.extract_snippets.factory import BodyCodeExtractorFactory
 from codegate.muxing import models as mux_models
+from codegate.muxing.persona import PersonaManager
 
 logger = structlog.get_logger("codegate")
 
@@ -60,7 +61,7 @@ class MuxingRuleMatcher(ABC):
         self._mux_rule = mux_rule
 
     @abstractmethod
-    def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
+    async def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
         """Return True if the rule matches the thing_to_match."""
         pass
 
@@ -82,6 +83,8 @@ class MuxingMatcherFactory:
             mux_models.MuxMatcherType.filename_match: FileMuxingRuleMatcher,
             mux_models.MuxMatcherType.fim_filename: RequestTypeAndFileMuxingRuleMatcher,
             mux_models.MuxMatcherType.chat_filename: RequestTypeAndFileMuxingRuleMatcher,
+            mux_models.MuxMatcherType.persona_description: UserMsgsPersonaDescMuxMatcher,
+            mux_models.MuxMatcherType.sys_prompt_persona_desc: SysPromptPersonaDescMuxMatcher,
         }
 
         try:
@@ -95,7 +98,7 @@ class MuxingMatcherFactory:
 class CatchAllMuxingRuleMatcher(MuxingRuleMatcher):
     """A catch all muxing rule matcher."""
 
-    def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
+    async def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
         logger.info("Catch all rule matched")
         return True
 
@@ -130,7 +133,7 @@ class FileMuxingRuleMatcher(MuxingRuleMatcher):
         )
         return is_filename_match
 
-    def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
+    async def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
         """
         Return True if the matcher is in one of the request filenames.
         """
@@ -154,7 +157,7 @@ class RequestTypeAndFileMuxingRuleMatcher(FileMuxingRuleMatcher):
             return True
         return False
 
-    def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
+    async def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
         """
         Return True if the matcher is in one of the request filenames and
         if the request type matches the MuxMatcherType.
@@ -169,6 +172,87 @@ class RequestTypeAndFileMuxingRuleMatcher(FileMuxingRuleMatcher):
                 is_fim_request=thing_to_match.is_fim_request,
             )
         return is_rule_matched
+
+
+class PersonaDescMuxMatcher(MuxingRuleMatcher):
+    """Muxing rule to match the request content to a persona description."""
+
+    @abstractmethod
+    def _get_queries_for_persona_match(self, body: Dict) -> List[str]:
+        """
+        Get the queries to use for persona matching.
+        """
+        pass
+
+    async def match(self, thing_to_match: mux_models.ThingToMatchMux) -> bool:
+        """
+        Return True if the matcher is the persona description matched with the queries.
+
+        The queries are extracted from the body and will depend on the type of matcher.
+        1. UserMessagesPersonaDescMuxMatcher: Extracts queries from the user messages in the body.
+        2. SysPromptPersonaDescMuxMatcher: Extracts queries from the system messages in the body.
+        """
+        queries = self._get_queries_for_persona_match(thing_to_match.body)
+        if not queries:
+            return False
+
+        persona_manager = PersonaManager()
+        is_persona_matched = await persona_manager.check_persona_match(
+            persona_name=self._mux_rule.matcher, queries=queries
+        )
+        if is_persona_matched:
+            logger.info("Persona rule matched", persona=self._mux_rule.matcher)
+        return is_persona_matched
+
+
+class UserMsgsPersonaDescMuxMatcher(PersonaDescMuxMatcher):
+
+    def _get_queries_for_persona_match(self, body: Dict) -> List[str]:
+        """
+        Get the queries from the user messages in the body.
+        """
+        user_messages = []
+        for msg in body.get("messages", []):
+            if msg.get("role", "") == "user":
+                msgs_content = msg.get("content")
+                if not msgs_content:
+                    continue
+                if isinstance(msgs_content, list):
+                    for msg_content in msgs_content:
+                        if msg_content.get("type", "") == "text":
+                            user_messages.append(msg_content.get("text", ""))
+                elif isinstance(msgs_content, str):
+                    user_messages.append(msgs_content)
+        return user_messages
+
+
+class SysPromptPersonaDescMuxMatcher(PersonaDescMuxMatcher):
+
+    def _get_queries_for_persona_match(self, body: Dict) -> List[str]:
+        """
+        Get the queries from the system messages in the body.
+        """
+        system_messages = []
+        for msg in body.get("messages", []):
+            if msg.get("role", "") in ["system", "developer"]:
+                msgs_content = msg.get("content")
+                if not msgs_content:
+                    continue
+                if isinstance(msgs_content, list):
+                    for msg_content in msgs_content:
+                        if msg_content.get("type", "") == "text":
+                            system_messages.append(msg_content.get("text", ""))
+                elif isinstance(msgs_content, str):
+                    system_messages.append(msgs_content)
+
+        # Handling the anthropic system prompt
+        anthropic_sys_prompt = body.get("system")
+        if anthropic_sys_prompt:
+            system_messages.append(anthropic_sys_prompt)
+
+        # In an ideal world, the length of system_messages should be 1. Returnin the list
+        # to handle any edge cases and to not break parent function's signature.
+        return system_messages
 
 
 class MuxingRulesinWorkspaces:
@@ -214,7 +298,7 @@ class MuxingRulesinWorkspaces:
         try:
             rules = await self.get_ws_rules(self._active_workspace)
             for rule in rules:
-                if rule.match(thing_to_match):
+                if await rule.match(thing_to_match):
                     return rule.destination()
             return None
         except KeyError:

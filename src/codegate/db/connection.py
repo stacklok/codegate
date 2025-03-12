@@ -1188,6 +1188,24 @@ class DbReader(DbCodeGate):
         )
         return personas[0] if personas else None
 
+    async def get_persona_embed_by_name(self, persona_name: str) -> Optional[PersonaEmbedding]:
+        """
+        Get a persona by name.
+        """
+        sql = text(
+            """
+            SELECT
+                id, name, description, description_embedding
+            FROM personas
+            WHERE name = :name
+            """
+        )
+        conditions = {"name": persona_name}
+        personas = await self._exec_select_conditions_to_pydantic(
+            PersonaEmbedding, sql, conditions, should_raise=True
+        )
+        return personas[0] if personas else None
+
     async def get_distance_to_existing_personas(
         self, query_embedding: np.ndarray, exclude_id: Optional[str]
     ) -> List[PersonaDistance]:
@@ -1214,27 +1232,6 @@ class DbReader(DbCodeGate):
             sql, conditions, PersonaDistance
         )
         return persona_distances
-
-    async def get_distance_to_persona(
-        self, persona_id: str, query_embedding: np.ndarray
-    ) -> PersonaDistance:
-        """
-        Get the distance between a persona and a query embedding.
-        """
-        sql = """
-            SELECT
-                id,
-                name,
-                description,
-                vec_distance_cosine(description_embedding, :query_embedding) as distance
-            FROM personas
-            WHERE id = :id
-        """
-        conditions = {"id": persona_id, "query_embedding": query_embedding}
-        persona_distance = await self._exec_vec_db_query_to_pydantic(
-            sql, conditions, PersonaDistance
-        )
-        return persona_distance[0]
 
     async def get_all_personas(self) -> List[Persona]:
         """
