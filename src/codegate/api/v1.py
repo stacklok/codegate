@@ -290,9 +290,16 @@ async def create_workspace(
         if request.config and request.config.muxing_rules:
             mux_rules = await pcrud.add_provider_ids_to_mux_rule_list(request.config.muxing_rules)
 
-        workspace_row, mux_rules = await wscrud.add_workspace(
+        workspace_row, created_mux_rules = await wscrud.add_workspace(
             request.name, custom_instructions, mux_rules
         )
+
+        created_muxes_with_name_type = [
+            mux_models.MuxRule.from_db_models(
+                mux_rule, await pcrud.get_endpoint_by_id(mux_rule.provider_endpoint_id)
+            )
+            for mux_rule in created_mux_rules
+        ]
     except crud.WorkspaceNameAlreadyInUseError:
         raise HTTPException(status_code=409, detail="Workspace name already in use")
     except ValidationError:
@@ -317,7 +324,7 @@ async def create_workspace(
         name=workspace_row.name,
         config=v1_models.WorkspaceConfig(
             custom_instructions=workspace_row.custom_instructions or "",
-            muxing_rules=[mux_models.MuxRule.from_db_mux_rule(mux_rule) for mux_rule in mux_rules],
+            muxing_rules=created_muxes_with_name_type,
         ),
     )
 
@@ -339,12 +346,20 @@ async def update_workspace(
         if request.config and request.config.muxing_rules:
             mux_rules = await pcrud.add_provider_ids_to_mux_rule_list(request.config.muxing_rules)
 
-        workspace_row, mux_rules = await wscrud.update_workspace(
+        workspace_row, updated_muxes = await wscrud.update_workspace(
             workspace_name,
             request.name,
             custom_instructions,
             mux_rules,
         )
+
+        updated_muxes_with_name_type = [
+            mux_models.MuxRule.from_db_models(
+                mux_rule, await pcrud.get_endpoint_by_id(mux_rule.provider_endpoint_id)
+            )
+            for mux_rule in updated_muxes
+        ]
+
     except provendcrud.ProviderNotFoundError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except crud.WorkspaceDoesNotExistError:
@@ -369,7 +384,7 @@ async def update_workspace(
         name=workspace_row.name,
         config=v1_models.WorkspaceConfig(
             custom_instructions=workspace_row.custom_instructions or "",
-            muxing_rules=[mux_models.MuxRule.from_db_mux_rule(mux_rule) for mux_rule in mux_rules],
+            muxing_rules=updated_muxes_with_name_type,
         ),
     )
 
@@ -707,7 +722,13 @@ async def get_workspace_muxes(
     The list is ordered in order of priority. That is, the first rule in the list
     has the highest priority."""
     try:
-        muxes = await wscrud.get_muxes(workspace_name)
+        db_muxes = await wscrud.get_muxes(workspace_name)
+
+        muxes = []
+        for db_mux in db_muxes:
+            db_endpoint = await pcrud.get_endpoint_by_id(db_mux.provider_endpoint_id)
+            mux_rule = mux_models.MuxRule.from_db_models(db_mux, db_endpoint)
+            muxes.append(mux_rule)
     except crud.WorkspaceDoesNotExistError:
         raise HTTPException(status_code=404, detail="Workspace does not exist")
     except Exception:
@@ -737,8 +758,8 @@ async def set_workspace_muxes(
         raise HTTPException(status_code=404, detail="Workspace does not exist")
     except crud.WorkspaceCrudError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
-        logger.exception("Error while setting muxes")
+    except Exception as e:
+        logger.exception(f"Error while setting muxes {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
     return Response(status_code=204)
@@ -755,10 +776,13 @@ async def get_workspace_by_name(
     """List workspaces by provider ID."""
     try:
         ws = await wscrud.get_workspace_by_name(workspace_name)
-        muxes = [
-            mux_models.MuxRule.from_mux_rule_with_provider_id(mux)
-            for mux in await wscrud.get_muxes(workspace_name)
-        ]
+        db_muxes = await wscrud.get_muxes(workspace_name)
+
+        muxes = []
+        for db_mux in db_muxes:
+            db_endpoint = await pcrud.get_endpoint_by_id(db_mux.provider_endpoint_id)
+            mux_rule = mux_models.MuxRule.from_db_models(db_mux, db_endpoint)
+            muxes.append(mux_rule)
 
         return v1_models.FullWorkspace(
             name=ws.name,
@@ -771,6 +795,7 @@ async def get_workspace_by_name(
     except crud.WorkspaceDoesNotExistError:
         raise HTTPException(status_code=404, detail="Workspace does not exist")
     except Exception as e:
+        logger.exception(f"Error while getting workspace {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

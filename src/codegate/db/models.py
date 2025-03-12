@@ -268,8 +268,6 @@ class ProviderModel(BaseModel):
 class MuxRule(BaseModel):
     id: str
     provider_endpoint_id: str
-    provider_endpoint_type: ProviderType
-    provider_endpoint_name: str
     provider_model_name: str
     workspace_id: str
     matcher_type: str

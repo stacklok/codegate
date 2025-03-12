@@ -5,6 +5,7 @@ import pydantic
 
 from codegate.clients.clients import ClientType
 from codegate.db.models import MuxRule as DBMuxRule
+from codegate.db.models import ProviderEndpoint as DBProviderEndpoint
 from codegate.db.models import ProviderType
 
 
@@ -50,13 +51,15 @@ class MuxRule(pydantic.BaseModel):
     matcher: Optional[str] = None
 
     @classmethod
-    def from_db_mux_rule(cls, db_mux_rule: DBMuxRule) -> Self:
+    def from_db_models(
+        cls, db_mux_rule: DBMuxRule, db_provider_endpoint: DBProviderEndpoint
+    ) -> Self:
         """
-        Convert a DBMuxRule to a MuxRule.
+        Convert a DBMuxRule and DBProviderEndpoint to a MuxRule.
         """
         return cls(
-            provider_name=db_mux_rule.provider_endpoint_name,
-            provider_type=db_mux_rule.provider_endpoint_type,
+            provider_name=db_provider_endpoint.name,
+            provider_type=db_provider_endpoint.provider_type,
             model=db_mux_rule.provider_model_name,
             matcher_type=MuxMatcherType(db_mux_rule.matcher_type),
             matcher=db_mux_rule.matcher_blob,
@@ -85,12 +88,14 @@ class MuxRuleWithProviderId(MuxRule):
     provider_id: str
 
     @classmethod
-    def from_db_mux_rule(cls, db_mux_rule: DBMuxRule) -> Self:
+    def from_db_models(
+        cls, db_mux_rule: DBMuxRule, db_provider_endpoint: DBProviderEndpoint
+    ) -> Self:
         """
-        Convert a DBMuxRule to a MuxRuleWithProviderId.
+        Convert a DBMuxRule and DBProviderEndpoint to a MuxRuleWithProviderId.
         """
         return cls(
-            **MuxRule.from_db_mux_rule(db_mux_rule).model_dump(),
+            **MuxRule.from_db_models(db_mux_rule, db_provider_endpoint).model_dump(),
             provider_id=db_mux_rule.provider_endpoint_id,
         )
 

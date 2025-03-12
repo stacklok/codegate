@@ -479,16 +479,6 @@ class DbRecorder(DbCodeGate):
             provider, sql, should_raise=True
         )
 
-        # Update dependent tables
-        update_muxes_sql = text(
-            """
-            UPDATE muxes
-            SET provider_endpoint_name = :name, provider_endpoint_type = :provider_type
-            WHERE provider_endpoint_id = :id
-            """
-        )
-        await self._execute_with_no_return(update_muxes_sql, provider.model_dump())
-
         return updated_provider
 
     async def delete_provider_endpoint(
@@ -579,14 +569,14 @@ class DbRecorder(DbCodeGate):
         sql = text(
             """
             INSERT INTO muxes (
-                id, provider_endpoint_id, provider_model_name, workspace_id, matcher_type,
-                matcher_blob, priority, created_at, updated_at,
-                provider_endpoint_type, provider_endpoint_name
+                id, provider_endpoint_id, provider_model_name,
+                workspace_id, matcher_type, matcher_blob,
+                priority, created_at, updated_at
             )
             VALUES (
-                :id, :provider_endpoint_id, :provider_model_name, :workspace_id,
-                :matcher_type, :matcher_blob, :priority, CURRENT_TIMESTAMP,
-                CURRENT_TIMESTAMP, :provider_endpoint_type, :provider_endpoint_name
+                :id, :provider_endpoint_id, :provider_model_name,
+                :workspace_id, :matcher_type, :matcher_blob,
+                :priority, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             )
             RETURNING *
             """
@@ -1139,7 +1129,6 @@ class DbReader(DbCodeGate):
             SELECT id, name, description, provider_type, endpoint, auth_type, created_at, updated_at
             FROM provider_endpoints
             WHERE name = :name AND provider_type = :provider_type
-            LIMIT 1
             """
         )
         conditions = {"name": provider_name, "provider_type": provider_type}
@@ -1259,9 +1248,10 @@ class DbReader(DbCodeGate):
     async def get_muxes_by_workspace(self, workspace_id: str) -> List[MuxRule]:
         sql = text(
             """
-            SELECT id, provider_endpoint_id, provider_model_name, workspace_id, matcher_type,
-            matcher_blob, priority, created_at, updated_at,
-            provider_endpoint_type, provider_endpoint_name
+            SELECT
+              id, provider_endpoint_id, provider_model_name,
+              workspace_id, matcher_type, matcher_blob,
+              priority, created_at, updated_at
             FROM muxes
             WHERE workspace_id = :workspace_id
             ORDER BY priority ASC

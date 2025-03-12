@@ -262,15 +262,8 @@ class WorkspaceCrud:
             raise WorkspaceCrudError(f"Error deleting workspace {workspace_name}")
 
         # Remove the muxes from the registry
-        try:
-            mux_registry = await rulematcher.get_muxing_rules_registry()
-            rules = await mux_registry.get_ws_rules(workspace_name)
-            if rules:
-                await mux_registry.delete_ws_rules(workspace_name)
-        except Exception:
-            raise DeleteMuxesFromRegistryError(
-                f"Error deleting mux rules for workspace {workspace_name}"
-            )
+        mux_registry = await rulematcher.get_muxing_rules_registry()
+        await mux_registry.delete_ws_rules(workspace_name)
         return
 
     async def hard_delete_workspace(self, workspace_name: str):
@@ -305,7 +298,7 @@ class WorkspaceCrud:
 
         return workspaces
 
-    async def get_muxes(self, workspace_name: str) -> List[mux_models.MuxRuleWithProviderId]:
+    async def get_muxes(self, workspace_name: str) -> List[db_models.MuxRule]:
         # Verify if workspace exists
         workspace = await self._db_reader.get_workspace_by_name(workspace_name)
         if not workspace:
@@ -313,21 +306,7 @@ class WorkspaceCrud:
 
         dbmuxes = await self._db_reader.get_muxes_by_workspace(workspace.id)
 
-        muxes = []
-        # These are already sorted by priority
-        for dbmux in dbmuxes:
-            muxes.append(
-                mux_models.MuxRuleWithProviderId(
-                    provider_name=dbmux.provider_endpoint_name,
-                    provider_type=dbmux.provider_endpoint_type,
-                    provider_id=dbmux.provider_endpoint_id,
-                    model=dbmux.provider_model_name,
-                    matcher_type=dbmux.matcher_type,
-                    matcher=dbmux.matcher_blob,
-                )
-            )
-
-        return muxes
+        return dbmuxes
 
     async def set_muxes(
         self, workspace_name: str, muxes: List[mux_models.MuxRuleWithProviderId]
@@ -359,8 +338,6 @@ class WorkspaceCrud:
             new_mux = db_models.MuxRule(
                 id=str(uuid()),
                 provider_endpoint_id=mux.provider_id,
-                provider_endpoint_type=mux.provider_type,
-                provider_endpoint_name=mux.provider_name,
                 provider_model_name=mux.model,
                 workspace_id=workspace.id,
                 matcher_type=mux.matcher_type,
@@ -370,7 +347,8 @@ class WorkspaceCrud:
             dbmux = await self._db_recorder.add_mux(new_mux)
             dbmuxes.append(dbmux)
 
-            matchers.append(rulematcher.MuxingMatcherFactory.create(dbmux, route))
+            provider = await self._db_reader.get_provider_endpoint_by_id(mux.provider_id)
+            matchers.append(rulematcher.MuxingMatcherFactory.create(dbmux, provider, route))
 
             priority += 1
 
@@ -475,7 +453,10 @@ class WorkspaceCrud:
             matchers: List[rulematcher.MuxingRuleMatcher] = []
 
             for mux in muxes:
+                provider = await self._db_reader.get_provider_endpoint_by_id(
+                    mux.provider_endpoint_id
+                )
                 route = await self.get_routing_for_db_mux(mux)
-                matchers.append(rulematcher.MuxingMatcherFactory.create(mux, route))
+                matchers.append(rulematcher.MuxingMatcherFactory.create(mux, provider, route))
 
             await mux_registry.set_ws_rules(ws.name, matchers)

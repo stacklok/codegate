@@ -174,13 +174,24 @@ def test_muxing_matcher_factory(matcher_type, expected_class):
         matcher_type=matcher_type,
         matcher_blob="fake-matcher",
         priority=1,
-        provider_endpoint_name="fake-openai",
-        provider_endpoint_type=db_models.ProviderType.openai,
+    )
+    provider_endpoint = db_models.ProviderEndpoint(
+        id="1",
+        auth_type="none",
+        description="",
+        endpoint="http://localhost:11434",
+        name="fake-openai",
+        provider_type="openai",
     )
     if expected_class:
         assert isinstance(
-            rulematcher.MuxingMatcherFactory.create(mux_rule, mocked_route_openai), expected_class
+            rulematcher.MuxingMatcherFactory.create(
+                mux_rule, provider_endpoint, mocked_route_openai
+            ),
+            expected_class,
         )
     else:
         with pytest.raises(ValueError):
-            rulematcher.MuxingMatcherFactory.create(mux_rule, mocked_route_openai)
+            rulematcher.MuxingMatcherFactory.create(
+                mux_rule, provider_endpoint, mocked_route_openai
+            )
