@@ -9,6 +9,7 @@ from codegate.extract_snippets.message_extractor import (
     KoduCodeSnippetExtractor,
     OpenInterpreterCodeSnippetExtractor,
 )
+from codegate.types.common import MessageTypeFilter
 
 
 class BodyCodeSnippetExtractorError(Exception):
@@ -32,25 +33,22 @@ class BodyCodeSnippetExtractor(ABC):
             raise BodyCodeSnippetExtractorError("Code Extractor not set.")
 
         filenames: List[str] = []
-        for msg in data.get("messages", []):
-            if msg.get("role", "") == "user":
+        for msg in data.get_messages(filters=[MessageTypeFilter.USER]):
+            for content in msg.get_content():
                 extracted_snippets = self._snippet_extractor.extract_unique_snippets(
-                    msg.get("content")
+                    content.get_text(),
                 )
                 filenames.extend(extracted_snippets.keys())
         return set(filenames)
 
     def _extract_from_list_user_messages(self, data: dict) -> set[str]:
         filenames: List[str] = []
-        for msg in data.get("messages", []):
-            if msg.get("role", "") == "user":
-                msgs_content = msg.get("content", [])
-                for msg_content in msgs_content:
-                    if msg_content.get("type", "") == "text":
-                        extracted_snippets = self._snippet_extractor.extract_unique_snippets(
-                            msg_content.get("text")
-                        )
-                        filenames.extend(extracted_snippets.keys())
+        for msg in data.get_messages(filters=[MessageTypeFilter.USER]):
+            for content in msg.get_content():
+                extracted_snippets = self._snippet_extractor.extract_unique_snippets(
+                    content.get_text(),
+                )
+                filenames.extend(extracted_snippets.keys())
         return set(filenames)
 
     @abstractmethod
@@ -93,43 +91,27 @@ class OpenInterpreterBodySnippetExtractor(BodyCodeSnippetExtractor):
     def __init__(self):
         self._snippet_extractor = OpenInterpreterCodeSnippetExtractor()
 
-    def _is_msg_tool_call(self, msg: dict) -> bool:
-        return msg.get("role", "") == "assistant" and msg.get("tool_calls", [])
-
-    def _is_msg_tool_result(self, msg: dict) -> bool:
-        return msg.get("role", "") == "tool" and msg.get("content", "")
-
-    def _extract_args_from_tool_call(self, msg: dict) -> str:
-        """
-        Extract the arguments from the tool call message.
-        """
-        tool_calls = msg.get("tool_calls", [])
-        if not tool_calls:
-            return ""
-        return tool_calls[0].get("function", {}).get("arguments", "")
-
-    def _extract_result_from_tool_result(self, msg: dict) -> str:
-        """
-        Extract the result from the tool result message.
-        """
-        return msg.get("content", "")
-
     def extract_unique_filenames(self, data: dict) -> set[str]:
-        messages = data.get("messages", [])
-        if not messages:
-            return set()
-
         filenames: List[str] = []
-        for i_msg in range(len(messages) - 1):
-            msg = messages[i_msg]
-            next_msg = messages[i_msg + 1]
-            if self._is_msg_tool_call(msg) and self._is_msg_tool_result(next_msg):
-                tool_args = self._extract_args_from_tool_call(msg)
-                tool_response = self._extract_result_from_tool_result(next_msg)
-                extracted_snippets = self._snippet_extractor.extract_unique_snippets(
-                    f"{tool_args}\n{tool_response}"
-                )
-                filenames.extend(extracted_snippets.keys())
+        # Note: the previous version of this code used to analyze
+        # tool-call and tool-results pairs to ensure that the regex
+        # matched.
+        #
+        # Given it was not a business or functional requirement, but
+        # rather an technical decision to avoid adding more regexes,
+        # we decided to analysis contents on a per-message basis, to
+        # avoid creating more dependency on the behaviour of the
+        # coding assistant.
+        #
+        # We still filter only tool-calls and tool-results.
+        filters = [MessageTypeFilter.ASSISTANT, MessageTypeFilter.TOOL]
+        for msg in data.get_messages(filters=filters):
+            for content in msg.get_content():
+                if content.get_text() is not None:
+                    extracted_snippets = self._snippet_extractor.extract_unique_snippets(
+                        f"{content.get_text()}\n\nbackwards compatibility"
+                    )
+                    filenames.extend(extracted_snippets.keys())
         return set(filenames)
 
 
