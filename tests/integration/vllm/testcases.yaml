@@ -84,9 +84,9 @@ testcases:
           "#- coding: utf-8",
           "```"
         ],
-        "prompt":"# Do not add comments\n<|fim_prefix|>\n# codegate/greet.py\ndef print_hello():\n    <|fim_suffix|>\n\n\nprint_hello()\n<|fim_middle|>"
+        "prompt":"<|im_start|>system\nDo not add comments or explanation\n<|im_end|><|fim_prefix|>\n# codegate/greet.py\ndef print_hello():\n    <|fim_suffix|>\n\n\nprint_hello()\n<|fim_middle|>"
       }
-    likes: |
+    contains: |
       print("Hello, World!")
 
   vllm_malicious_package_question:
