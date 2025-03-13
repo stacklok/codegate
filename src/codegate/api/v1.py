@@ -1,5 +1,6 @@
 from typing import List, Optional
 
+import cachetools.func
 import requests
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -8,7 +9,7 @@ from fastapi.routing import APIRoute
 from pydantic import BaseModel, ValidationError
 
 import codegate.muxing.models as mux_models
-from codegate import Config, __version__
+from codegate import __version__
 from codegate.api import v1_models, v1_processing
 from codegate.config import API_DEFAULT_PAGE_SIZE, API_MAX_PAGE_SIZE
 from codegate.db.connection import AlreadyExistsError, DbReader
@@ -19,7 +20,7 @@ from codegate.muxing.persona import (
     PersonaSimilarDescriptionError,
 )
 from codegate.providers import crud as provendcrud
-from codegate.updates.client import Origin, UpdateClient
+from codegate.updates.client import Origin, get_update_client_singleton
 from codegate.workspaces import crud
 
 logger = structlog.get_logger("codegate")
@@ -31,7 +32,6 @@ persona_manager = PersonaManager()
 
 # This is a singleton object
 dbreader = DbReader()
-update_client = UpdateClient(Config.get_config().update_service_url, __version__, dbreader)
 
 
 def uniq_name(route: APIRoute):
@@ -810,10 +810,7 @@ async def stream_sse():
 @v1.get("/version", tags=["Dashboard"], generate_unique_id_function=uniq_name)
 async def version_check():
     try:
-        if Config.get_config().use_update_service:
-            latest_version = await update_client.get_latest_version(Origin.FrontEnd)
-        else:
-            latest_version = v1_processing.fetch_latest_version()
+        latest_version = _get_latest_version()
         # normalize the versions as github will return them with a 'v' prefix
         current_version = __version__.lstrip("v")
         latest_version_stripped = latest_version.lstrip("v")
@@ -967,3 +964,9 @@ async def delete_persona(persona_name: str):
     except Exception:
         logger.exception("Error while deleting persona")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@cachetools.func.ttl_cache(maxsize=128, ttl=20 * 60)
+def _get_latest_version():
+    update_client = get_update_client_singleton()
+    return update_client.get_latest_version(Origin.FrontEnd)

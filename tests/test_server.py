@@ -75,18 +75,20 @@ def test_health_check(test_client: TestClient) -> None:
     assert response.json() == {"status": "healthy"}
 
 
-@patch("codegate.api.v1_processing.fetch_latest_version", return_value="foo")
-def test_version_endpoint(mock_fetch_latest_version, test_client: TestClient) -> None:
+@patch("codegate.api.v1._get_latest_version")
+def test_version_endpoint(mock_get_latest_version, test_client: TestClient) -> None:
     """Test the version endpoint."""
+    # Mock the __get_latest_version function to return a specific version
+    mock_get_latest_version.return_value = "v1.2.3"
+
     response = test_client.get("/api/v1/version")
     assert response.status_code == 200
 
     response_data = response.json()
-
-    assert response_data["current_version"] == __version__.lstrip("v")
-    assert response_data["latest_version"] == "foo"
-    assert isinstance(response_data["is_latest"], bool)
+    assert response_data["current_version"] == "0.1.7"
+    assert response_data["latest_version"] == "1.2.3"
     assert response_data["is_latest"] is False
+    assert response_data["error"] is None
 
 
 @patch("codegate.pipeline.sensitive_data.manager.SensitiveDataManager")

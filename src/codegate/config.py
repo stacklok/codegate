@@ -220,10 +220,6 @@ class Config:
                 config.db_path = os.environ["CODEGATE_DB_PATH"]
             if "CODEGATE_VEC_DB_PATH" in os.environ:
                 config.vec_db_path = os.environ["CODEGATE_VEC_DB_PATH"]
-            if "CODEGATE_USE_UPDATE_SERVICE" in os.environ:
-                config.use_update_service = cls.__bool_from_string(
-                    os.environ["CODEGATE_USE_UPDATE_SERVICE"]
-                )
             if "CODEGATE_UPDATE_SERVICE_URL" in os.environ:
                 config.update_service_url = os.environ["CODEGATE_UPDATE_SERVICE_URL"]
 
@@ -258,7 +254,6 @@ class Config:
         force_certs: Optional[bool] = None,
         db_path: Optional[str] = None,
         vec_db_path: Optional[str] = None,
-        use_update_service: Optional[bool] = None,
         update_service_url: Optional[str] = None,
     ) -> "Config":
         """Load configuration with priority resolution.
@@ -288,7 +283,6 @@ class Config:
             force_certs: Optional flag to force certificate generation
             db_path: Optional path to the main SQLite database file
             vec_db_path: Optional path to the vector SQLite database file
-            use_update_service: Optional flag to enable the update service
             update_service_url: Optional URL for the update service
 
         Returns:
@@ -342,8 +336,6 @@ class Config:
             config.db_path = env_config.db_path
         if "CODEGATE_VEC_DB_PATH" in os.environ:
             config.vec_db_path = env_config.vec_db_path
-        if "CODEGATE_USE_UPDATE_SERVICE" in os.environ:
-            config.use_update_service = env_config.use_update_service
         if "CODEGATE_UPDATE_SERVICE_URL" in os.environ:
             config.update_service_url = env_config.update_service_url
 
@@ -386,8 +378,6 @@ class Config:
             config.vec_db_path = vec_db_path
         if force_certs is not None:
             config.force_certs = force_certs
-        if use_update_service is not None:
-            config.use_update_service = use_update_service
         if update_service_url is not None:
             config.update_service_url = update_service_url
 
