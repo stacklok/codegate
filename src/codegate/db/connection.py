@@ -475,7 +475,7 @@ class DbRecorder(DbCodeGate):
         self,
         provider: ProviderEndpoint,
     ) -> Optional[ProviderEndpoint]:
-        sql_delete_provider_endpoints = text(
+        sql = text(
             """
             DELETE FROM provider_endpoints
             WHERE id = :id
@@ -483,7 +483,7 @@ class DbRecorder(DbCodeGate):
             """
         )
         deleted_provider = await self._execute_update_pydantic_model(
-            provider, sql_delete_provider_endpoints, should_raise=True
+            provider, sql, should_raise=True
         )
         return deleted_provider
 
@@ -540,14 +540,12 @@ class DbRecorder(DbCodeGate):
         sql = text(
             """
             INSERT INTO muxes (
-                id, provider_endpoint_id, provider_model_name,
-                workspace_id, matcher_type, matcher_blob,
-                priority, created_at, updated_at
+                id, provider_endpoint_id, provider_model_name, workspace_id, matcher_type,
+                matcher_blob, priority, created_at, updated_at
             )
             VALUES (
-                :id, :provider_endpoint_id, :provider_model_name,
-                :workspace_id, :matcher_type, :matcher_blob,
-                :priority, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                :id, :provider_endpoint_id, :provider_model_name, :workspace_id,
+                :matcher_type, :matcher_blob, :priority, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             )
             RETURNING *
             """
@@ -1221,10 +1219,8 @@ class DbReader(DbCodeGate):
     async def get_muxes_by_workspace(self, workspace_id: str) -> List[MuxRule]:
         sql = text(
             """
-            SELECT
-              id, provider_endpoint_id, provider_model_name,
-              workspace_id, matcher_type, matcher_blob,
-              priority, created_at, updated_at
+            SELECT id, provider_endpoint_id, provider_model_name, workspace_id, matcher_type,
+            matcher_blob, priority, created_at, updated_at
             FROM muxes
             WHERE workspace_id = :workspace_id
             ORDER BY priority ASC
