@@ -148,7 +148,7 @@
         }
       }
     },
-    "/api/v1/provider-endpoints/{provider_id}/models": {
+    "/api/v1/provider-endpoints/{provider_name}/models": {
       "get": {
         "tags": [
           "CodeGate API",
@@ -159,13 +159,12 @@
         "operationId": "v1_list_models_by_provider",
         "parameters": [
           {
-            "name": "provider_id",
+            "name": "provider_name",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid",
-              "title": "Provider Id"
+              "title": "Provider Name"
             }
           }
         ],
@@ -197,24 +196,23 @@
         }
       }
     },
-    "/api/v1/provider-endpoints/{provider_id}": {
+    "/api/v1/provider-endpoints/{provider_name}": {
       "get": {
         "tags": [
           "CodeGate API",
           "Providers"
         ],
         "summary": "Get Provider Endpoint",
-        "description": "Get a provider endpoint by ID.",
+        "description": "Get a provider endpoint by name.",
         "operationId": "v1_get_provider_endpoint",
         "parameters": [
           {
-            "name": "provider_id",
+            "name": "provider_name",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid",
-              "title": "Provider Id"
+              "title": "Provider Name"
             }
           }
         ],
@@ -247,17 +245,16 @@
           "Providers"
         ],
         "summary": "Update Provider Endpoint",
-        "description": "Update a provider endpoint by ID.",
+        "description": "Update a provider endpoint by name.",
         "operationId": "v1_update_provider_endpoint",
         "parameters": [
           {
-            "name": "provider_id",
+            "name": "provider_name",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid",
-              "title": "Provider Id"
+              "title": "Provider Name"
             }
           }
         ],
@@ -300,17 +297,16 @@
           "Providers"
         ],
         "summary": "Delete Provider Endpoint",
-        "description": "Delete a provider endpoint by id.",
+        "description": "Delete a provider endpoint by name.",
         "operationId": "v1_delete_provider_endpoint",
         "parameters": [
           {
-            "name": "provider_id",
+            "name": "provider_name",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid",
-              "title": "Provider Id"
+              "title": "Provider Name"
             }
           }
         ],
@@ -336,7 +332,7 @@
         }
       }
     },
-    "/api/v1/provider-endpoints/{provider_id}/auth-material": {
+    "/api/v1/provider-endpoints/{provider_name}/auth-material": {
       "put": {
         "tags": [
           "CodeGate API",
@@ -347,13 +343,12 @@
         "operationId": "v1_configure_auth_material",
         "parameters": [
           {
-            "name": "provider_id",
+            "name": "provider_name",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid",
-              "title": "Provider Id"
+              "title": "Provider Name"
             }
           }
         ],
@@ -391,8 +386,26 @@
           "Workspaces"
         ],
         "summary": "List Workspaces",
-        "description": "List all workspaces.",
+        "description": "List all workspaces.\n\nArgs:\n    provider_name (Optional[str]): Filter workspaces by provider name. If provided,\n    will return workspaces where models from the specified provider (e.g., OpenAI,\n    Anthropic) have been used in workspace muxing rules.\n\nReturns:\n    ListWorkspacesResponse: A response object containing the list of workspaces.",
         "operationId": "v1_list_workspaces",
+        "parameters": [
+          {
+            "name": "provider_name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider Name"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -400,6 +413,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListWorkspacesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -415,14 +438,14 @@
         "description": "Create a new workspace.",
         "operationId": "v1_create_workspace",
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/FullWorkspace-Input"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -552,7 +575,7 @@
           }
         },
         "responses": {
-          "201": {
+          "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
@@ -599,6 +622,48 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "CodeGate API",
+          "Workspaces"
+        ],
+        "summary": "Get Workspace By Name",
+        "description": "List workspaces by provider ID.",
+        "operationId": "v1_get_workspace_by_name",
+        "parameters": [
+          {
+            "name": "workspace_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FullWorkspace-Output"
+                }
               }
             }
           },
@@ -1181,55 +1246,6 @@
         "responses": {
           "204": {
             "description": "Successful Response"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/workspaces/{provider_id}": {
-      "get": {
-        "tags": [
-          "CodeGate API",
-          "Workspaces"
-        ],
-        "summary": "List Workspaces By Provider",
-        "description": "List workspaces by provider ID.",
-        "operationId": "v1_list_workspaces_by_provider",
-        "parameters": [
-          {
-            "name": "provider_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Provider Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/WorkspaceWithModel"
-                  },
-                  "title": "Response V1 List Workspaces By Provider"
-                }
-              }
-            }
           },
           "422": {
             "description": "Validation Error",
@@ -2136,9 +2152,8 @@
             "type": "string",
             "title": "Name"
           },
-          "provider_id": {
-            "type": "string",
-            "title": "Provider Id"
+          "provider_type": {
+            "$ref": "#/components/schemas/ProviderType"
           },
           "provider_name": {
             "type": "string",
@@ -2148,7 +2163,7 @@
         "type": "object",
         "required": [
           "name",
-          "provider_id",
+          "provider_type",
           "provider_name"
         ],
         "title": "ModelByProvider",
@@ -2168,19 +2183,11 @@
       "MuxRule": {
         "properties": {
           "provider_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Provider Name"
           },
-          "provider_id": {
-            "type": "string",
-            "title": "Provider Id"
+          "provider_type": {
+            "$ref": "#/components/schemas/ProviderType"
           },
           "model": {
             "type": "string",
@@ -2203,7 +2210,8 @@
         },
         "type": "object",
         "required": [
-          "provider_id",
+          "provider_name",
+          "provider_type",
           "model",
           "matcher_type"
         ],
@@ -2565,31 +2573,6 @@
           "muxing_rules"
         ],
         "title": "WorkspaceConfig"
-      },
-      "WorkspaceWithModel": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "name": {
-            "type": "string",
-            "pattern": "^[a-zA-Z0-9_-]+$",
-            "title": "Name"
-          },
-          "provider_model_name": {
-            "type": "string",
-            "title": "Provider Model Name"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "name",
-          "provider_model_name"
-        ],
-        "title": "WorkspaceWithModel",
-        "description": "Returns a workspace ID with model name"
       }
     }
   }

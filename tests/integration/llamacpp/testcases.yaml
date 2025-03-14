@@ -23,6 +23,8 @@ muxing:
       Content-Type: application/json
     rules:
       - model: qwen2.5-coder-0.5b-instruct-q5_k_m
+        provider_name: llamacpp_muxing
+        provider_type: llamacpp
         matcher_type: catch_all
         matcher: ""
 

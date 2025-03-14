@@ -8,7 +8,10 @@ from codegate.muxing import rulematcher
 
 mocked_route_openai = rulematcher.ModelRoute(
     db_models.ProviderModel(
-        provider_endpoint_id="1", provider_endpoint_name="fake-openai", name="fake-gpt"
+        provider_endpoint_id="1",
+        provider_endpoint_name="fake-openai",
+        provider_endpoint_type=db_models.ProviderType.openai,
+        name="fake-gpt",
     ),
     db_models.ProviderEndpoint(
         id="1",
@@ -70,6 +73,8 @@ def test_file_matcher(
         model="fake-gpt",
         matcher_type="filename_match",
         matcher=matcher,
+        provider_name="fake-openai",
+        provider_type=db_models.ProviderType.openai,
     )
     muxing_rule_matcher = rulematcher.FileMuxingRuleMatcher(mocked_route_openai, mux_rule)
     # We mock the _extract_request_filenames method to return a list of filenames
@@ -120,6 +125,8 @@ def test_request_file_matcher(
         model="fake-gpt",
         matcher_type=matcher_type,
         matcher=matcher,
+        provider_name="fake-openai",
+        provider_type=db_models.ProviderType.openai,
     )
     muxing_rule_matcher = rulematcher.RequestTypeAndFileMuxingRuleMatcher(
         mocked_route_openai, mux_rule
@@ -168,10 +175,23 @@ def test_muxing_matcher_factory(matcher_type, expected_class):
         matcher_blob="fake-matcher",
         priority=1,
     )
+    provider_endpoint = db_models.ProviderEndpoint(
+        id="1",
+        auth_type="none",
+        description="",
+        endpoint="http://localhost:11434",
+        name="fake-openai",
+        provider_type="openai",
+    )
     if expected_class:
         assert isinstance(
-            rulematcher.MuxingMatcherFactory.create(mux_rule, mocked_route_openai), expected_class
+            rulematcher.MuxingMatcherFactory.create(
+                mux_rule, provider_endpoint, mocked_route_openai
+            ),
+            expected_class,
         )
     else:
         with pytest.raises(ValueError):
-            rulematcher.MuxingMatcherFactory.create(mux_rule, mocked_route_openai)
+            rulematcher.MuxingMatcherFactory.create(
+                mux_rule, provider_endpoint, mocked_route_openai
+            )

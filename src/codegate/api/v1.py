@@ -1,5 +1,4 @@
 from typing import List, Optional
-from uuid import UUID
 
 import cachetools.func
 import requests
@@ -14,7 +13,7 @@ from codegate import __version__
 from codegate.api import v1_models, v1_processing
 from codegate.config import API_DEFAULT_PAGE_SIZE, API_MAX_PAGE_SIZE
 from codegate.db.connection import AlreadyExistsError, DbReader
-from codegate.db.models import AlertSeverity, AlertTriggerType, Persona, WorkspaceWithModel
+from codegate.db.models import AlertSeverity, AlertTriggerType, Persona
 from codegate.muxing.persona import (
     PersonaDoesNotExistError,
     PersonaManager,
@@ -56,15 +55,14 @@ async def list_provider_endpoints(
 
     try:
         provend = await pcrud.get_endpoint_by_name(filter_query.name)
+        return [provend]
+    except provendcrud.ProviderNotFoundError:
+        raise HTTPException(status_code=404, detail="Provider endpoint not found")
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
-    if provend is None:
-        raise HTTPException(status_code=404, detail="Provider endpoint not found")
-    return [provend]
 
-
-# This needs to be above /provider-endpoints/{provider_id} to avoid conflict
+# This needs to be above /provider-endpoints/{provider_name} to avoid conflict
 @v1.get(
     "/provider-endpoints/models",
     tags=["Providers"],
@@ -79,37 +77,38 @@ async def list_all_models_for_all_providers() -> List[v1_models.ModelByProvider]
 
 
 @v1.get(
-    "/provider-endpoints/{provider_id}/models",
+    "/provider-endpoints/{provider_name}/models",
     tags=["Providers"],
     generate_unique_id_function=uniq_name,
 )
 async def list_models_by_provider(
-    provider_id: UUID,
+    provider_name: str,
 ) -> List[v1_models.ModelByProvider]:
     """List models by provider."""
 
     try:
-        return await pcrud.models_by_provider(provider_id)
+        provider = await pcrud.get_endpoint_by_name(provider_name)
+        return await pcrud.models_by_provider(provider.id)
     except provendcrud.ProviderNotFoundError:
         raise HTTPException(status_code=404, detail="Provider not found")
     except Exception as e:
+        logger.exception("Error while listing models by provider")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @v1.get(
-    "/provider-endpoints/{provider_id}", tags=["Providers"], generate_unique_id_function=uniq_name
+    "/provider-endpoints/{provider_name}", tags=["Providers"], generate_unique_id_function=uniq_name
 )
 async def get_provider_endpoint(
-    provider_id: UUID,
+    provider_name: str,
 ) -> v1_models.ProviderEndpoint:
-    """Get a provider endpoint by ID."""
+    """Get a provider endpoint by name."""
     try:
-        provend = await pcrud.get_endpoint_by_id(provider_id)
+        provend = await pcrud.get_endpoint_by_name(provider_name)
+    except provendcrud.ProviderNotFoundError:
+        raise HTTPException(status_code=404, detail="Provider endpoint not found")
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
-
-    if provend is None:
-        raise HTTPException(status_code=404, detail="Provider endpoint not found")
     return provend
 
 
@@ -150,18 +149,19 @@ async def add_provider_endpoint(
 
 
 @v1.put(
-    "/provider-endpoints/{provider_id}/auth-material",
+    "/provider-endpoints/{provider_name}/auth-material",
     tags=["Providers"],
     generate_unique_id_function=uniq_name,
     status_code=204,
 )
 async def configure_auth_material(
-    provider_id: UUID,
+    provider_name: str,
     request: v1_models.ConfigureAuthMaterial,
 ):
     """Configure auth material for a provider."""
     try:
-        await pcrud.configure_auth_material(provider_id, request)
+        provider = await pcrud.get_endpoint_by_name(provider_name)
+        await pcrud.configure_auth_material(provider.id, request)
     except provendcrud.ProviderNotFoundError:
         raise HTTPException(status_code=404, detail="Provider endpoint not found")
     except provendcrud.ProviderModelsNotFoundError:
@@ -175,15 +175,16 @@ async def configure_auth_material(
 
 
 @v1.put(
-    "/provider-endpoints/{provider_id}", tags=["Providers"], generate_unique_id_function=uniq_name
+    "/provider-endpoints/{provider_name}", tags=["Providers"], generate_unique_id_function=uniq_name
 )
 async def update_provider_endpoint(
-    provider_id: UUID,
+    provider_name: str,
     request: v1_models.ProviderEndpoint,
 ) -> v1_models.ProviderEndpoint:
-    """Update a provider endpoint by ID."""
+    """Update a provider endpoint by name."""
     try:
-        request.id = str(provider_id)
+        provider = await pcrud.get_endpoint_by_name(provider_name)
+        request.id = str(provider.id)
         provend = await pcrud.update_endpoint(request)
     except provendcrud.ProviderNotFoundError:
         raise HTTPException(status_code=404, detail="Provider endpoint not found")
@@ -196,20 +197,22 @@ async def update_provider_endpoint(
             detail=str(e),
         )
     except Exception as e:
+        logger.exception("Error while updating provider endpoint")
         raise HTTPException(status_code=500, detail=str(e))
 
     return provend
 
 
 @v1.delete(
-    "/provider-endpoints/{provider_id}", tags=["Providers"], generate_unique_id_function=uniq_name
+    "/provider-endpoints/{provider_name}", tags=["Providers"], generate_unique_id_function=uniq_name
 )
 async def delete_provider_endpoint(
-    provider_id: UUID,
+    provider_name: str,
 ):
-    """Delete a provider endpoint by id."""
+    """Delete a provider endpoint by name."""
     try:
-        await pcrud.delete_endpoint(provider_id)
+        provider = await pcrud.get_endpoint_by_name(provider_name)
+        await pcrud.delete_endpoint(provider.id)
     except provendcrud.ProviderNotFoundError:
         raise HTTPException(status_code=404, detail="Provider endpoint not found")
     except Exception:
@@ -218,13 +221,34 @@ async def delete_provider_endpoint(
 
 
 @v1.get("/workspaces", tags=["Workspaces"], generate_unique_id_function=uniq_name)
-async def list_workspaces() -> v1_models.ListWorkspacesResponse:
-    """List all workspaces."""
-    wslist = await wscrud.get_workspaces()
+async def list_workspaces(
+    provider_name: Optional[str] = Query(None),
+) -> v1_models.ListWorkspacesResponse:
+    """
+    List all workspaces.
 
-    resp = v1_models.ListWorkspacesResponse.from_db_workspaces_with_sessioninfo(wslist)
+    Args:
+        provider_name (Optional[str]): Filter workspaces by provider name. If provided,
+        will return workspaces where models from the specified provider (e.g., OpenAI,
+        Anthropic) have been used in workspace muxing rules.
 
-    return resp
+    Returns:
+        ListWorkspacesResponse: A response object containing the list of workspaces.
+    """
+    try:
+        if provider_name:
+            provider = await pcrud.get_endpoint_by_name(provider_name)
+            wslist = await wscrud.workspaces_by_provider(provider.id)
+            resp = v1_models.ListWorkspacesResponse.from_db_workspaces(wslist)
+            return resp
+        else:
+            wslist = await wscrud.get_workspaces()
+            resp = v1_models.ListWorkspacesResponse.from_db_workspaces_with_sessioninfo(wslist)
+            return resp
+    except provendcrud.ProviderNotFoundError:
+        return v1_models.ListWorkspacesResponse(workspaces=[])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @v1.get("/workspaces/active", tags=["Workspaces"], generate_unique_id_function=uniq_name)
@@ -262,11 +286,20 @@ async def create_workspace(
     """Create a new workspace."""
     try:
         custom_instructions = request.config.custom_instructions if request.config else None
-        muxing_rules = request.config.muxing_rules if request.config else None
+        mux_rules = []
+        if request.config and request.config.muxing_rules:
+            mux_rules = await pcrud.add_provider_ids_to_mux_rule_list(request.config.muxing_rules)
 
-        workspace_row, mux_rules = await wscrud.add_workspace(
-            request.name, custom_instructions, muxing_rules
+        workspace_row, created_mux_rules = await wscrud.add_workspace(
+            request.name, custom_instructions, mux_rules
         )
+
+        created_muxes_with_name_type = [
+            mux_models.MuxRule.from_db_models(
+                mux_rule, await pcrud.get_endpoint_by_id(mux_rule.provider_endpoint_id)
+            )
+            for mux_rule in created_mux_rules
+        ]
     except crud.WorkspaceNameAlreadyInUseError:
         raise HTTPException(status_code=409, detail="Workspace name already in use")
     except ValidationError:
@@ -277,16 +310,21 @@ async def create_workspace(
                 "Please use only alphanumeric characters, hyphens, or underscores."
             ),
         )
+    except provendcrud.ProviderNotFoundError as e:
+        logger.exception("Error matching a provider for a mux rule while creating a workspace")
+        raise HTTPException(status_code=400, detail=str(e))
     except crud.WorkspaceCrudError as e:
+        logger.exception("Error while create a workspace")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception:
+        logger.exception("Error while creating workspace")
         raise HTTPException(status_code=500, detail="Internal server error")
 
     return v1_models.FullWorkspace(
         name=workspace_row.name,
         config=v1_models.WorkspaceConfig(
             custom_instructions=workspace_row.custom_instructions or "",
-            muxing_rules=[mux_models.MuxRule.from_db_mux_rule(mux_rule) for mux_rule in mux_rules],
+            muxing_rules=created_muxes_with_name_type,
         ),
     )
 
@@ -295,7 +333,7 @@ async def create_workspace(
     "/workspaces/{workspace_name}",
     tags=["Workspaces"],
     generate_unique_id_function=uniq_name,
-    status_code=201,
+    status_code=200,
 )
 async def update_workspace(
     workspace_name: str,
@@ -304,14 +342,26 @@ async def update_workspace(
     """Update a workspace."""
     try:
         custom_instructions = request.config.custom_instructions if request.config else None
-        muxing_rules = request.config.muxing_rules if request.config else None
+        mux_rules = []
+        if request.config and request.config.muxing_rules:
+            mux_rules = await pcrud.add_provider_ids_to_mux_rule_list(request.config.muxing_rules)
 
-        workspace_row, mux_rules = await wscrud.update_workspace(
+        workspace_row, updated_muxes = await wscrud.update_workspace(
             workspace_name,
             request.name,
             custom_instructions,
-            muxing_rules,
+            mux_rules,
         )
+
+        updated_muxes_with_name_type = [
+            mux_models.MuxRule.from_db_models(
+                mux_rule, await pcrud.get_endpoint_by_id(mux_rule.provider_endpoint_id)
+            )
+            for mux_rule in updated_muxes
+        ]
+
+    except provendcrud.ProviderNotFoundError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except crud.WorkspaceDoesNotExistError:
         raise HTTPException(status_code=404, detail="Workspace does not exist")
     except crud.WorkspaceNameAlreadyInUseError:
@@ -325,6 +375,7 @@ async def update_workspace(
             ),
         )
     except crud.WorkspaceCrudError as e:
+        logger.exception("Error while updating workspace")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -333,7 +384,7 @@ async def update_workspace(
         name=workspace_row.name,
         config=v1_models.WorkspaceConfig(
             custom_instructions=workspace_row.custom_instructions or "",
-            muxing_rules=[mux_models.MuxRule.from_db_mux_rule(mux_rule) for mux_rule in mux_rules],
+            muxing_rules=updated_muxes_with_name_type,
         ),
     )
 
@@ -351,7 +402,11 @@ async def delete_workspace(workspace_name: str):
         raise HTTPException(status_code=404, detail="Workspace does not exist")
     except crud.WorkspaceCrudError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except crud.DeleteMuxesFromRegistryError:
+        logger.exception("Error deleting muxes while deleting workspace")
+        raise HTTPException(status_code=500, detail="Internal server error")
     except Exception:
+        logger.exception("Error while deleting workspace")
         raise HTTPException(status_code=500, detail="Internal server error")
 
     return Response(status_code=204)
@@ -667,14 +722,20 @@ async def get_workspace_muxes(
     The list is ordered in order of priority. That is, the first rule in the list
     has the highest priority."""
     try:
-        muxes = await wscrud.get_muxes(workspace_name)
+        db_muxes = await wscrud.get_muxes(workspace_name)
+
+        muxes = []
+        for db_mux in db_muxes:
+            db_endpoint = await pcrud.get_endpoint_by_id(db_mux.provider_endpoint_id)
+            mux_rule = mux_models.MuxRule.from_db_models(db_mux, db_endpoint)
+            muxes.append(mux_rule)
     except crud.WorkspaceDoesNotExistError:
         raise HTTPException(status_code=404, detail="Workspace does not exist")
     except Exception:
         logger.exception("Error while getting workspace")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-    return muxes
+    return [mux_models.MuxRule.from_mux_rule_with_provider_id(mux) for mux in muxes]
 
 
 @v1.put(
@@ -689,31 +750,52 @@ async def set_workspace_muxes(
 ):
     """Set the mux rules of a workspace."""
     try:
-        await wscrud.set_muxes(workspace_name, request)
+        mux_rules = await pcrud.add_provider_ids_to_mux_rule_list(request)
+        await wscrud.set_muxes(workspace_name, mux_rules)
+    except provendcrud.ProviderNotFoundError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except crud.WorkspaceDoesNotExistError:
         raise HTTPException(status_code=404, detail="Workspace does not exist")
     except crud.WorkspaceCrudError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
-        logger.exception("Error while setting muxes")
+    except Exception as e:
+        logger.exception(f"Error while setting muxes {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
     return Response(status_code=204)
 
 
 @v1.get(
-    "/workspaces/{provider_id}",
+    "/workspaces/{workspace_name}",
     tags=["Workspaces"],
     generate_unique_id_function=uniq_name,
 )
-async def list_workspaces_by_provider(
-    provider_id: UUID,
-) -> List[WorkspaceWithModel]:
+async def get_workspace_by_name(
+    workspace_name: str,
+) -> v1_models.FullWorkspace:
     """List workspaces by provider ID."""
     try:
-        return await wscrud.workspaces_by_provider(provider_id)
+        ws = await wscrud.get_workspace_by_name(workspace_name)
+        db_muxes = await wscrud.get_muxes(workspace_name)
 
+        muxes = []
+        for db_mux in db_muxes:
+            db_endpoint = await pcrud.get_endpoint_by_id(db_mux.provider_endpoint_id)
+            mux_rule = mux_models.MuxRule.from_db_models(db_mux, db_endpoint)
+            muxes.append(mux_rule)
+
+        return v1_models.FullWorkspace(
+            name=ws.name,
+            config=v1_models.WorkspaceConfig(
+                custom_instructions=ws.custom_instructions or "",
+                muxing_rules=muxes,
+            ),
+        )
+
+    except crud.WorkspaceDoesNotExistError:
+        raise HTTPException(status_code=404, detail="Workspace does not exist")
     except Exception as e:
+        logger.exception(f"Error while getting workspace {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
