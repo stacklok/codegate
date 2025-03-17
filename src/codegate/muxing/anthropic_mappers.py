@@ -41,7 +41,10 @@ def anthropic_from_legacy_openai(request: openai.LegacyCompletionRequest):
                 content=[
                     anthropic.TextContent(
                         type="text",
-                        text=request.prompt,
+                        # We default to empty string when prompt is
+                        # null since `text` field is mandatory for
+                        # Anthropic.
+                        text=request.prompt if request.prompt else "",
                     ),
                 ],
             ),

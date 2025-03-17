@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List
+from typing import Callable, List
 
 import structlog
 from fastapi import HTTPException, Request
@@ -63,10 +63,17 @@ class LlamaCppProvider(BaseProvider):
         base_url: str,
         is_fim_request: bool,
         client_type: ClientType,
+        completion_handler: Callable | None = None,
+        stream_generator: Callable | None = None,
     ):
         try:
             stream = await self.complete(
-                data, None, base_url, is_fim_request=is_fim_request, client_type=client_type
+                data,
+                None,
+                base_url,
+                is_fim_request=is_fim_request,
+                client_type=client_type,
+                completion_handler=completion_handler,
             )
         except RuntimeError as e:
             # propagate as error 500
@@ -82,7 +89,11 @@ class LlamaCppProvider(BaseProvider):
             else:
                 # just continue raising the exception
                 raise e
-        return self._completion_handler.create_response(stream, client_type)
+        return self._completion_handler.create_response(
+            stream,
+            client_type,
+            stream_generator=stream_generator,
+        )
 
     def _setup_routes(self):
         """

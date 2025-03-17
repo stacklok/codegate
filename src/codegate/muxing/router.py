@@ -94,7 +94,11 @@ class MuxRouter:
             match rest_of_path:
                 case "chat/completions":
                     parsed = openai.ChatCompletionRequest.model_validate_json(body)
+                case "api/v1/chat/completions":
+                    parsed = openai.ChatCompletionRequest.model_validate_json(body)
                 case "completions":
+                    parsed = openai.LegacyCompletionRequest.model_validate_json(body)
+                case "api/v1/completions":
                     parsed = openai.LegacyCompletionRequest.model_validate_json(body)
                 case _:
                     raise ValueError(f"unknown rest of path: {rest_of_path}")

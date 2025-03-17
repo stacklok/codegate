@@ -191,7 +191,7 @@ class StreamingChatCompletion(pydantic.BaseModel):
     model: str | None = None  # copilot extension (optional)
     service_tier: ServiceTier | None = None
     system_fingerprint: str | None = None
-    object: Literal["chat.completion.chunk"] = "chat.completion.chunk"
+    object: Literal["chat.completion.chunk", "text_completion"] = "chat.completion.chunk"
     usage: Usage | None = None
 
     def get_content(self) -> Iterable[StreamingChatCompletionChoice]:

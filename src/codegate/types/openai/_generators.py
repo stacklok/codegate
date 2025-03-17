@@ -6,6 +6,9 @@ from typing import (
 import httpx
 import structlog
 
+from ._legacy_models import (
+    LegacyCompletionRequest,
+)
 from ._response_models import (
     ChatCompletion,
     ErrorDetails,
@@ -53,8 +56,15 @@ async def completions_streaming(request, api_key, base_url):
     # TODO refactor this. This is a ugly hack, we have to fix the way
     # we calculate base urls.
     if "/v1" not in base_url:
-        f"{base_url}/v1"
-    async for item in streaming(request, api_key, f"{base_url}/chat/completions"):
+        base_url = f"{base_url}/v1"
+
+    # TODO refactor. This is yet another Ugly hack caused by having a
+    # single code path for both legacy and current APIs.
+    url = f"{base_url}/chat/completions"
+    if isinstance(request, LegacyCompletionRequest):
+        url = f"{base_url}/completions"
+
+    async for item in streaming(request, api_key, url):
         yield item
 
 

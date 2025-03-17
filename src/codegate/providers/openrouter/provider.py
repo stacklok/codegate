@@ -1,3 +1,5 @@
+from typing import Callable
+
 from fastapi import Header, HTTPException, Request
 
 from codegate.clients.clients import ClientType
@@ -54,8 +56,18 @@ class OpenRouterProvider(OpenAIProvider):
         base_url: str,
         is_fim_request: bool,
         client_type: ClientType,
+        completion_handler: Callable | None = None,
+        stream_generator: Callable | None = None,
     ):
-        return await super().process_request(data, api_key, base_url, is_fim_request, client_type)
+        return await super().process_request(
+            data,
+            api_key,
+            base_url,
+            is_fim_request,
+            client_type,
+            completion_handler=completion_handler,
+            stream_generator=stream_generator,
+        )
 
     def _setup_routes(self):
         @self.router.post(f"/{self.provider_route_name}/completions")

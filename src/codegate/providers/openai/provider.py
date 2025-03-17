@@ -1,4 +1,4 @@
-from typing import List
+from typing import Callable, List
 
 import httpx
 import structlog
@@ -70,6 +70,8 @@ class OpenAIProvider(BaseProvider):
         base_url: str,
         is_fim_request: bool,
         client_type: ClientType,
+        completion_handler: Callable | None = None,
+        stream_generator: Callable | None = None,
     ):
         try:
             stream = await self.complete(
@@ -78,6 +80,7 @@ class OpenAIProvider(BaseProvider):
                 base_url,
                 is_fim_request=is_fim_request,
                 client_type=client_type,
+                completion_handler=completion_handler,
             )
         except Exception as e:
             # Check if we have an status code there
@@ -88,7 +91,11 @@ class OpenAIProvider(BaseProvider):
             else:
                 # just continue raising the exception
                 raise e
-        return self._completion_handler.create_response(stream, client_type)
+        return self._completion_handler.create_response(
+            stream,
+            client_type,
+            stream_generator=stream_generator,
+        )
 
     def _setup_routes(self):
         """

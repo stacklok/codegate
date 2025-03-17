@@ -3,7 +3,7 @@ from typing import List
 import structlog
 from pydantic import ValidationError
 
-from src.codegate.types.openai import StreamingChatCompletion
+from codegate.types.openai import StreamingChatCompletion
 
 logger = structlog.get_logger("codegate")
 
