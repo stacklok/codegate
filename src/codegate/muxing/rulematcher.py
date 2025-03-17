@@ -74,7 +74,11 @@ class MuxingMatcherFactory:
     """Factory for creating muxing matchers."""
 
     @staticmethod
-    def create(db_mux_rule: db_models.MuxRule, route: ModelRoute) -> MuxingRuleMatcher:
+    def create(
+        db_mux_rule: db_models.MuxRule,
+        db_provider_endpoint: db_models.ProviderEndpoint,
+        route: ModelRoute,
+    ) -> MuxingRuleMatcher:
         """Create a muxing matcher for the given endpoint and model."""
 
         factory: Dict[mux_models.MuxMatcherType, MuxingRuleMatcher] = {
@@ -86,7 +90,7 @@ class MuxingMatcherFactory:
 
         try:
             # Initialize the MuxingRuleMatcher
-            mux_rule = mux_models.MuxRule.from_db_mux_rule(db_mux_rule)
+            mux_rule = mux_models.MuxRule.from_db_models(db_mux_rule, db_provider_endpoint)
             return factory[mux_rule.matcher_type](route, mux_rule)
         except KeyError:
             raise ValueError(f"Unknown matcher type: {mux_rule.matcher_type}")
@@ -193,7 +197,8 @@ class MuxingRulesinWorkspaces:
     async def delete_ws_rules(self, workspace_name: str) -> None:
         """Delete the rules for the given workspace."""
         async with self._lock:
-            del self._ws_rules[workspace_name]
+            if workspace_name in self._ws_rules:
+                del self._ws_rules[workspace_name]
 
     async def set_active_workspace(self, workspace_name: str) -> None:
         """Set the active workspace."""

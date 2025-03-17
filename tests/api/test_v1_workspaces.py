@@ -1,5 +1,5 @@
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4 as uuid
 
 import httpx
@@ -8,6 +8,7 @@ import structlog
 from httpx import AsyncClient
 
 from codegate.db import connection
+from codegate.muxing.rulematcher import MuxingRulesinWorkspaces
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.crud.crud import ProviderCrud
 from codegate.server import init_app
@@ -70,67 +71,250 @@ def mock_pipeline_factory():
     return mock_factory
 
 
+@pytest.fixture
+def mock_muxing_rules_registry():
+    """Creates a mock for the muxing rules registry."""
+    mock_registry = AsyncMock(spec=MuxingRulesinWorkspaces)
+    return mock_registry
+
+
 @pytest.mark.asyncio
-async def test_create_update_workspace_happy_path(
+async def test_workspace_crud_name_only(
     mock_pipeline_factory, mock_workspace_crud, mock_provider_crud
 ) -> None:
     with (
         patch("codegate.api.v1.wscrud", mock_workspace_crud),
         patch("codegate.api.v1.pcrud", mock_provider_crud),
+    ):
+        """Test creating and deleting a workspace by name only."""
+
+        app = init_app(mock_pipeline_factory)
+
+        async with AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            name: str = str(uuid())
+
+            # Create workspace
+            payload_create = {"name": name}
+            response = await ac.post("/api/v1/workspaces", json=payload_create)
+            assert response.status_code == 201
+
+            # Verify workspace exists
+            response = await ac.get(f"/api/v1/workspaces/{name}")
+            assert response.status_code == 200
+            assert response.json()["name"] == name
+
+            # Delete workspace
+            response = await ac.delete(f"/api/v1/workspaces/{name}")
+            assert response.status_code == 204
+
+            # Verify workspace no longer exists
+            response = await ac.get(f"/api/v1/workspaces/{name}")
+            assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_muxes_crud(
+    mock_pipeline_factory, mock_workspace_crud, mock_provider_crud, db_reader
+) -> None:
+    with (
+        patch("codegate.api.v1.dbreader", db_reader),
+        patch("codegate.api.v1.wscrud", mock_workspace_crud),
+        patch("codegate.api.v1.pcrud", mock_provider_crud),
         patch(
             "codegate.providers.openai.provider.OpenAIProvider.models",
-            return_value=["foo-bar-001", "foo-bar-002"],
+            return_value=["gpt-4", "gpt-3.5-turbo"],
+        ),
+        patch(
+            "codegate.providers.openrouter.provider.OpenRouterProvider.models",
+            return_value=["anthropic/claude-2", "deepseek/deepseek-r1"],
         ),
     ):
-        """Test creating & updating a workspace (happy path)."""
+        """Test creating and validating mux rules on a workspace."""
 
         app = init_app(mock_pipeline_factory)
 
         provider_payload_1 = {
-            "name": "foo",
-            "description": "",
+            "name": "openai-provider",
+            "description": "OpenAI provider description",
             "auth_type": "none",
             "provider_type": "openai",
             "endpoint": "https://api.openai.com",
-            "api_key": "sk-proj-foo-bar-123-xzy",
+            "api_key": "sk-proj-foo-bar-123-xyz",
         }
 
         provider_payload_2 = {
-            "name": "bar",
-            "description": "",
+            "name": "openrouter-provider",
+            "description": "OpenRouter provider description",
             "auth_type": "none",
-            "provider_type": "openai",
-            "endpoint": "https://api.openai.com",
-            "api_key": "sk-proj-foo-bar-123-xzy",
+            "provider_type": "openrouter",
+            "endpoint": "https://openrouter.ai/api",
+            "api_key": "sk-or-foo-bar-456-xyz",
         }
 
         async with AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
         ) as ac:
-            # Create the first provider
             response = await ac.post("/api/v1/provider-endpoints", json=provider_payload_1)
             assert response.status_code == 201
-            provider_1 = response.json()
 
-            # Create the second provider
             response = await ac.post("/api/v1/provider-endpoints", json=provider_payload_2)
             assert response.status_code == 201
-            provider_2 = response.json()
+
+            # Create workspace
+            workspace_name: str = str(uuid())
+            custom_instructions: str = "Respond to every request in iambic pentameter"
+            payload_create = {
+                "name": workspace_name,
+                "config": {
+                    "custom_instructions": custom_instructions,
+                    "muxing_rules": [],
+                },
+            }
+
+            response = await ac.post("/api/v1/workspaces", json=payload_create)
+            assert response.status_code == 201
+
+            # Set mux rules
+            muxing_rules = [
+                {
+                    "provider_name": "openai-provider",
+                    "provider_type": "openai",
+                    "model": "gpt-4",
+                    "matcher": "*.ts",
+                    "matcher_type": "filename_match",
+                },
+                {
+                    "provider_name": "openrouter-provider",
+                    "provider_type": "openrouter",
+                    "model": "anthropic/claude-2",
+                    "matcher_type": "catch_all",
+                    "matcher": "",
+                },
+            ]
+
+            response = await ac.put(f"/api/v1/workspaces/{workspace_name}/muxes", json=muxing_rules)
+            assert response.status_code == 204
+
+            # Verify mux rules
+            response = await ac.get(f"/api/v1/workspaces/{workspace_name}")
+            assert response.status_code == 200
+            response_body = response.json()
+            for i, rule in enumerate(response_body["config"]["muxing_rules"]):
+                assert rule["provider_name"] == muxing_rules[i]["provider_name"]
+                assert rule["provider_type"] == muxing_rules[i]["provider_type"]
+                assert rule["model"] == muxing_rules[i]["model"]
+                assert rule["matcher"] == muxing_rules[i]["matcher"]
+                assert rule["matcher_type"] == muxing_rules[i]["matcher_type"]
+
+
+@pytest.mark.asyncio
+async def test_create_workspace_and_add_custom_instructions(
+    mock_pipeline_factory, mock_workspace_crud, mock_provider_crud
+) -> None:
+    with (
+        patch("codegate.api.v1.wscrud", mock_workspace_crud),
+        patch("codegate.api.v1.pcrud", mock_provider_crud),
+    ):
+        """Test creating a workspace, adding custom
+        instructions, and validating them."""
+
+        app = init_app(mock_pipeline_factory)
+
+        async with AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            name: str = str(uuid())
+
+            # Create workspace
+            payload_create = {"name": name}
+            response = await ac.post("/api/v1/workspaces", json=payload_create)
+            assert response.status_code == 201
+
+            # Add custom instructions
+            custom_instructions = "Respond to every request in iambic pentameter"
+            payload_instructions = {"prompt": custom_instructions}
+            response = await ac.put(
+                f"/api/v1/workspaces/{name}/custom-instructions", json=payload_instructions
+            )
+            assert response.status_code == 204
+
+            # Validate custom instructions by getting the workspace
+            response = await ac.get(f"/api/v1/workspaces/{name}")
+            assert response.status_code == 200
+            assert response.json()["config"]["custom_instructions"] == custom_instructions
+
+            # Validate custom instructions by getting the custom instructions endpoint
+            response = await ac.get(f"/api/v1/workspaces/{name}/custom-instructions")
+            assert response.status_code == 200
+            assert response.json()["prompt"] == custom_instructions
+
+
+@pytest.mark.asyncio
+async def test_workspace_crud_full_workspace(
+    mock_pipeline_factory, mock_workspace_crud, mock_provider_crud, db_reader
+) -> None:
+    with (
+        patch("codegate.api.v1.dbreader", db_reader),
+        patch("codegate.api.v1.wscrud", mock_workspace_crud),
+        patch("codegate.api.v1.pcrud", mock_provider_crud),
+        patch(
+            "codegate.providers.openai.provider.OpenAIProvider.models",
+            return_value=["gpt-4", "gpt-3.5-turbo"],
+        ),
+        patch(
+            "codegate.providers.openrouter.provider.OpenRouterProvider.models",
+            return_value=["anthropic/claude-2", "deepseek/deepseek-r1"],
+        ),
+    ):
+        """Test creating, updating and reading a workspace."""
+
+        app = init_app(mock_pipeline_factory)
+
+        provider_payload_1 = {
+            "name": "openai-provider",
+            "description": "OpenAI provider description",
+            "auth_type": "none",
+            "provider_type": "openai",
+            "endpoint": "https://api.openai.com",
+            "api_key": "sk-proj-foo-bar-123-xyz",
+        }
+
+        provider_payload_2 = {
+            "name": "openrouter-provider",
+            "description": "OpenRouter provider description",
+            "auth_type": "none",
+            "provider_type": "openrouter",
+            "endpoint": "https://openrouter.ai/api",
+            "api_key": "sk-or-foo-bar-456-xyz",
+        }
+
+        async with AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            response = await ac.post("/api/v1/provider-endpoints", json=provider_payload_1)
+            assert response.status_code == 201
+
+            response = await ac.post("/api/v1/provider-endpoints", json=provider_payload_2)
+            assert response.status_code == 201
+
+            # Create workspace
 
             name_1: str = str(uuid())
             custom_instructions_1: str = "Respond to every request in iambic pentameter"
             muxing_rules_1 = [
                 {
-                    "provider_name": None,  # optional & not implemented yet
-                    "provider_id": provider_1["id"],
-                    "model": "foo-bar-001",
+                    "provider_name": "openai-provider",
+                    "provider_type": "openai",
+                    "model": "gpt-4",
                     "matcher": "*.ts",
                     "matcher_type": "filename_match",
                 },
                 {
-                    "provider_name": None,  # optional & not implemented yet
-                    "provider_id": provider_2["id"],
-                    "model": "foo-bar-002",
+                    "provider_name": "openai-provider",
+                    "provider_type": "openai",
+                    "model": "gpt-3.5-turbo",
                     "matcher_type": "catch_all",
                     "matcher": "",
                 },
@@ -146,11 +330,17 @@ async def test_create_update_workspace_happy_path(
 
             response = await ac.post("/api/v1/workspaces", json=payload_create)
             assert response.status_code == 201
+
+            # Verify created workspace
+            response = await ac.get(f"/api/v1/workspaces/{name_1}")
+            assert response.status_code == 200
             response_body = response.json()
 
             assert response_body["name"] == name_1
             assert response_body["config"]["custom_instructions"] == custom_instructions_1
             for i, rule in enumerate(response_body["config"]["muxing_rules"]):
+                assert rule["provider_name"] == muxing_rules_1[i]["provider_name"]
+                assert rule["provider_type"] == muxing_rules_1[i]["provider_type"]
                 assert rule["model"] == muxing_rules_1[i]["model"]
                 assert rule["matcher"] == muxing_rules_1[i]["matcher"]
                 assert rule["matcher_type"] == muxing_rules_1[i]["matcher_type"]
@@ -159,16 +349,16 @@ async def test_create_update_workspace_happy_path(
             custom_instructions_2: str = "Respond to every request in cockney rhyming slang"
             muxing_rules_2 = [
                 {
-                    "provider_name": None,  # optional & not implemented yet
-                    "provider_id": provider_2["id"],
-                    "model": "foo-bar-002",
+                    "provider_name": "openrouter-provider",
+                    "provider_type": "openrouter",
+                    "model": "anthropic/claude-2",
                     "matcher": "*.ts",
                     "matcher_type": "filename_match",
                 },
                 {
-                    "provider_name": None,  # optional & not implemented yet
-                    "provider_id": provider_1["id"],
-                    "model": "foo-bar-001",
+                    "provider_name": "openrouter-provider",
+                    "provider_type": "openrouter",
+                    "model": "deepseek/deepseek-r1",
                     "matcher_type": "catch_all",
                     "matcher": "",
                 },
@@ -183,46 +373,249 @@ async def test_create_update_workspace_happy_path(
             }
 
             response = await ac.put(f"/api/v1/workspaces/{name_1}", json=payload_update)
-            assert response.status_code == 201
+            assert response.status_code == 200
+
+            # Verify updated workspace
+            response = await ac.get(f"/api/v1/workspaces/{name_2}")
+            assert response.status_code == 200
             response_body = response.json()
 
             assert response_body["name"] == name_2
             assert response_body["config"]["custom_instructions"] == custom_instructions_2
             for i, rule in enumerate(response_body["config"]["muxing_rules"]):
+                assert rule["provider_name"] == muxing_rules_2[i]["provider_name"]
+                assert rule["provider_type"] == muxing_rules_2[i]["provider_type"]
                 assert rule["model"] == muxing_rules_2[i]["model"]
                 assert rule["matcher"] == muxing_rules_2[i]["matcher"]
                 assert rule["matcher_type"] == muxing_rules_2[i]["matcher_type"]
 
 
 @pytest.mark.asyncio
-async def test_create_update_workspace_name_only(
-    mock_pipeline_factory, mock_workspace_crud, mock_provider_crud
+async def test_create_workspace_with_mux_different_provider_name(
+    mock_pipeline_factory, mock_workspace_crud, mock_provider_crud, db_reader
 ) -> None:
     with (
+        patch("codegate.api.v1.dbreader", db_reader),
         patch("codegate.api.v1.wscrud", mock_workspace_crud),
         patch("codegate.api.v1.pcrud", mock_provider_crud),
         patch(
             "codegate.providers.openai.provider.OpenAIProvider.models",
-            return_value=["foo-bar-001", "foo-bar-002"],
+            return_value=["gpt-4", "gpt-3.5-turbo"],
         ),
     ):
-        """Test creating & updating a workspace (happy path)."""
-
+        """
+        Test creating a workspace with mux rules, then recreating it after
+        renaming the provider.
+        """
         app = init_app(mock_pipeline_factory)
 
         async with AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
         ) as ac:
+            # Create initial provider
+            provider_payload = {
+                "name": "test-provider-1",
+                "description": "Test provider",
+                "auth_type": "none",
+                "provider_type": "openai",
+                "endpoint": "https://api.test.com",
+                "api_key": "test-key",
+            }
+
+            response = await ac.post("/api/v1/provider-endpoints", json=provider_payload)
+            assert response.status_code == 201
+
+            # Create workspace with mux rules
+            workspace_name = str(uuid())
+            muxing_rules = [
+                {
+                    "provider_name": "test-provider-1",
+                    "provider_type": "openai",
+                    "model": "gpt-4",
+                    "matcher": "*.ts",
+                    "matcher_type": "filename_match",
+                },
+                {
+                    "provider_name": "test-provider-1",
+                    "provider_type": "openai",
+                    "model": "gpt-3.5-turbo",
+                    "matcher_type": "catch_all",
+                    "matcher": "",
+                },
+            ]
+
+            workspace_payload = {
+                "name": workspace_name,
+                "config": {
+                    "custom_instructions": "Test instructions",
+                    "muxing_rules": muxing_rules,
+                },
+            }
+
+            response = await ac.post("/api/v1/workspaces", json=workspace_payload)
+            assert response.status_code == 201
+
+            # Get workspace config as JSON blob
+            response = await ac.get(f"/api/v1/workspaces/{workspace_name}")
+            assert response.status_code == 200
+            workspace_blob = response.json()
+
+            # Delete workspace
+            response = await ac.delete(f"/api/v1/workspaces/{workspace_name}")
+            assert response.status_code == 204
+            response = await ac.delete(f"/api/v1/workspaces/archive/{workspace_name}")
+            assert response.status_code == 204
+
+            # Verify workspace is deleted
+            response = await ac.get(f"/api/v1/workspaces/{workspace_name}")
+            assert response.status_code == 404
+
+            # Update provider name
+            rename_provider_payload = {
+                "name": "test-provider-2",
+                "description": "Test provider",
+                "auth_type": "none",
+                "provider_type": "openai",
+                "endpoint": "https://api.test.com",
+                "api_key": "test-key",
+            }
+
+            response = await ac.put(
+                "/api/v1/provider-endpoints/test-provider-1", json=rename_provider_payload
+            )
+            assert response.status_code == 200
+
+            # Verify old provider name no longer exists
+            response = await ac.get("/api/v1/provider-endpoints/test-provider-1")
+            assert response.status_code == 404
+
+            # Verify provider exists under new name
+            response = await ac.get("/api/v1/provider-endpoints/test-provider-2")
+            assert response.status_code == 200
+            provider = response.json()
+            assert provider["name"] == "test-provider-2"
+            assert provider["description"] == "Test provider"
+            assert provider["auth_type"] == "none"
+            assert provider["provider_type"] == "openai"
+            assert provider["endpoint"] == "https://api.test.com"
+
+            # re-upload the workspace that we have previously downloaded
+
+            response = await ac.post("/api/v1/workspaces", json=workspace_blob)
+            assert response.status_code == 201
+
+            # Verify new workspace config
+            response = await ac.get(f"/api/v1/workspaces/{workspace_name}")
+            assert response.status_code == 200
+            new_workspace = response.json()
+
+            assert new_workspace["name"] == workspace_name
+            assert (
+                new_workspace["config"]["custom_instructions"]
+                == workspace_blob["config"]["custom_instructions"]
+            )
+
+            # Verify muxing rules are correct with updated provider name
+            for i, rule in enumerate(new_workspace["config"]["muxing_rules"]):
+                assert rule["provider_name"] == "test-provider-2"
+                assert (
+                    rule["provider_type"]
+                    == workspace_blob["config"]["muxing_rules"][i]["provider_type"]
+                )
+                assert rule["model"] == workspace_blob["config"]["muxing_rules"][i]["model"]
+                assert rule["matcher"] == workspace_blob["config"]["muxing_rules"][i]["matcher"]
+                assert (
+                    rule["matcher_type"]
+                    == workspace_blob["config"]["muxing_rules"][i]["matcher_type"]
+                )
+
+
+@pytest.mark.asyncio
+async def test_rename_workspace(
+    mock_pipeline_factory, mock_workspace_crud, mock_provider_crud, db_reader
+) -> None:
+    with (
+        patch("codegate.api.v1.dbreader", db_reader),
+        patch("codegate.api.v1.wscrud", mock_workspace_crud),
+        patch("codegate.api.v1.pcrud", mock_provider_crud),
+        patch(
+            "codegate.providers.openai.provider.OpenAIProvider.models",
+            return_value=["gpt-4", "gpt-3.5-turbo"],
+        ),
+        patch(
+            "codegate.providers.openrouter.provider.OpenRouterProvider.models",
+            return_value=["anthropic/claude-2", "deepseek/deepseek-r1"],
+        ),
+    ):
+        """Test renaming a workspace."""
+
+        app = init_app(mock_pipeline_factory)
+
+        provider_payload_1 = {
+            "name": "openai-provider",
+            "description": "OpenAI provider description",
+            "auth_type": "none",
+            "provider_type": "openai",
+            "endpoint": "https://api.openai.com",
+            "api_key": "sk-proj-foo-bar-123-xyz",
+        }
+
+        provider_payload_2 = {
+            "name": "openrouter-provider",
+            "description": "OpenRouter provider description",
+            "auth_type": "none",
+            "provider_type": "openrouter",
+            "endpoint": "https://openrouter.ai/api",
+            "api_key": "sk-or-foo-bar-456-xyz",
+        }
+
+        async with AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            response = await ac.post("/api/v1/provider-endpoints", json=provider_payload_1)
+            assert response.status_code == 201
+
+            response = await ac.post("/api/v1/provider-endpoints", json=provider_payload_2)
+            assert response.status_code == 201
+
+            # Create workspace
+
             name_1: str = str(uuid())
+            custom_instructions: str = "Respond to every request in iambic pentameter"
+            muxing_rules = [
+                {
+                    "provider_name": "openai-provider",
+                    "provider_type": "openai",
+                    "model": "gpt-4",
+                    "matcher": "*.ts",
+                    "matcher_type": "filename_match",
+                },
+                {
+                    "provider_name": "openai-provider",
+                    "provider_type": "openai",
+                    "model": "gpt-3.5-turbo",
+                    "matcher_type": "catch_all",
+                    "matcher": "",
+                },
+            ]
 
             payload_create = {
                 "name": name_1,
+                "config": {
+                    "custom_instructions": custom_instructions,
+                    "muxing_rules": muxing_rules,
+                },
             }
 
             response = await ac.post("/api/v1/workspaces", json=payload_create)
             assert response.status_code == 201
             response_body = response.json()
+            assert response_body["name"] == name_1
 
+            # Verify created workspace
+            response = await ac.get(f"/api/v1/workspaces/{name_1}")
+            assert response.status_code == 200
+            response_body = response.json()
             assert response_body["name"] == name_1
 
             name_2: str = str(uuid())
@@ -232,9 +625,23 @@ async def test_create_update_workspace_name_only(
             }
 
             response = await ac.put(f"/api/v1/workspaces/{name_1}", json=payload_update)
-            assert response.status_code == 201
+            assert response.status_code == 200
             response_body = response.json()
+            assert response_body["name"] == name_2
 
+            # other fields shouldn't have been touched
+            assert response_body["config"]["custom_instructions"] == custom_instructions
+            for i, rule in enumerate(response_body["config"]["muxing_rules"]):
+                assert rule["provider_name"] == muxing_rules[i]["provider_name"]
+                assert rule["provider_type"] == muxing_rules[i]["provider_type"]
+                assert rule["model"] == muxing_rules[i]["model"]
+                assert rule["matcher"] == muxing_rules[i]["matcher"]
+                assert rule["matcher_type"] == muxing_rules[i]["matcher_type"]
+
+            # Verify updated workspace
+            response = await ac.get(f"/api/v1/workspaces/{name_2}")
+            assert response.status_code == 200
+            response_body = response.json()
             assert response_body["name"] == name_2
 
 
@@ -247,7 +654,11 @@ async def test_create_workspace_name_already_in_use(
         patch("codegate.api.v1.pcrud", mock_provider_crud),
         patch(
             "codegate.providers.openai.provider.OpenAIProvider.models",
-            return_value=["foo-bar-001", "foo-bar-002"],
+            return_value=["gpt-4", "gpt-3.5-turbo"],
+        ),
+        patch(
+            "codegate.providers.openrouter.provider.OpenRouterProvider.models",
+            return_value=["anthropic/claude-2", "deepseek/deepseek-r1"],
         ),
     ):
         """Test creating a workspace when the name is already in use."""
@@ -282,7 +693,11 @@ async def test_rename_workspace_name_already_in_use(
         patch("codegate.api.v1.pcrud", mock_provider_crud),
         patch(
             "codegate.providers.openai.provider.OpenAIProvider.models",
-            return_value=["foo-bar-001", "foo-bar-002"],
+            return_value=["gpt-4", "gpt-3.5-turbo"],
+        ),
+        patch(
+            "codegate.providers.openrouter.provider.OpenRouterProvider.models",
+            return_value=["anthropic/claude-2", "deepseek/deepseek-r1"],
         ),
     ):
         """Test renaming a workspace when the new name is already in use."""
@@ -322,14 +737,19 @@ async def test_rename_workspace_name_already_in_use(
 
 @pytest.mark.asyncio
 async def test_create_workspace_with_nonexistent_model_in_muxing_rule(
-    mock_pipeline_factory, mock_workspace_crud, mock_provider_crud
+    mock_pipeline_factory, mock_workspace_crud, mock_provider_crud, db_reader
 ) -> None:
     with (
+        patch("codegate.api.v1.dbreader", db_reader),
         patch("codegate.api.v1.wscrud", mock_workspace_crud),
         patch("codegate.api.v1.pcrud", mock_provider_crud),
         patch(
             "codegate.providers.openai.provider.OpenAIProvider.models",
-            return_value=["foo-bar-001", "foo-bar-002"],
+            return_value=["gpt-4", "gpt-3.5-turbo"],
+        ),
+        patch(
+            "codegate.providers.openrouter.provider.OpenRouterProvider.models",
+            return_value=["anthropic/claude-2", "deepseek/deepseek-r1"],
         ),
     ):
         """Test creating a workspace with a muxing rule that uses a nonexistent model."""
@@ -337,28 +757,26 @@ async def test_create_workspace_with_nonexistent_model_in_muxing_rule(
         app = init_app(mock_pipeline_factory)
 
         provider_payload = {
-            "name": "foo",
-            "description": "",
+            "name": "openai-provider",
+            "description": "OpenAI provider description",
             "auth_type": "none",
             "provider_type": "openai",
             "endpoint": "https://api.openai.com",
-            "api_key": "sk-proj-foo-bar-123-xzy",
+            "api_key": "sk-proj-foo-bar-123-xyz",
         }
 
         async with AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
         ) as ac:
-            # Create the first provider
             response = await ac.post("/api/v1/provider-endpoints", json=provider_payload)
             assert response.status_code == 201
-            provider = response.json()
 
             name: str = str(uuid())
             custom_instructions: str = "Respond to every request in iambic pentameter"
             muxing_rules = [
                 {
-                    "provider_name": None,
-                    "provider_id": provider["id"],
+                    "provider_name": "openai-provider",
+                    "provider_type": "openai",
                     "model": "nonexistent-model",
                     "matcher": "*.ts",
                     "matcher_type": "filename_match",
@@ -375,4 +793,189 @@ async def test_create_workspace_with_nonexistent_model_in_muxing_rule(
 
             response = await ac.post("/api/v1/workspaces", json=payload_create)
             assert response.status_code == 400
-            assert "Model nonexistent-model does not exist" in response.json()["detail"]
+            assert "does not exist" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_list_workspaces_by_provider_name(
+    mock_pipeline_factory, mock_workspace_crud, mock_provider_crud, db_reader
+) -> None:
+    with (
+        patch("codegate.api.v1.dbreader", db_reader),
+        patch("codegate.api.v1.wscrud", mock_workspace_crud),
+        patch("codegate.api.v1.pcrud", mock_provider_crud),
+        patch(
+            "codegate.providers.openai.provider.OpenAIProvider.models",
+            return_value=["gpt-4", "gpt-3.5-turbo"],
+        ),
+        patch(
+            "codegate.providers.openrouter.provider.OpenRouterProvider.models",
+            return_value=["anthropic/claude-2", "deepseek/deepseek-r1"],
+        ),
+    ):
+        """Test listing workspaces filtered by provider name."""
+
+        app = init_app(mock_pipeline_factory)
+
+        provider_payload_1 = {
+            "name": "openai-provider",
+            "description": "OpenAI provider description",
+            "auth_type": "none",
+            "provider_type": "openai",
+            "endpoint": "https://api.openai.com",
+            "api_key": "sk-proj-foo-bar-123-xyz",
+        }
+
+        provider_payload_2 = {
+            "name": "openrouter-provider",
+            "description": "OpenRouter provider description",
+            "auth_type": "none",
+            "provider_type": "openrouter",
+            "endpoint": "https://openrouter.ai/api",
+            "api_key": "sk-or-foo-bar-456-xyz",
+        }
+
+        async with AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            # Create providers
+            response = await ac.post("/api/v1/provider-endpoints", json=provider_payload_1)
+            assert response.status_code == 201
+
+            response = await ac.post("/api/v1/provider-endpoints", json=provider_payload_2)
+            assert response.status_code == 201
+
+            # Create workspace
+
+            name_1: str = str(uuid())
+            custom_instructions_1: str = "Respond to every request in iambic pentameter"
+            muxing_rules_1 = [
+                {
+                    "provider_name": "openai-provider",
+                    "provider_type": "openai",
+                    "model": "gpt-4",
+                    "matcher": "*.ts",
+                    "matcher_type": "filename_match",
+                },
+                {
+                    "provider_name": "openai-provider",
+                    "provider_type": "openai",
+                    "model": "gpt-3.5-turbo",
+                    "matcher_type": "catch_all",
+                    "matcher": "",
+                },
+            ]
+
+            payload_create_1 = {
+                "name": name_1,
+                "config": {
+                    "custom_instructions": custom_instructions_1,
+                    "muxing_rules": muxing_rules_1,
+                },
+            }
+
+            response = await ac.post("/api/v1/workspaces", json=payload_create_1)
+            assert response.status_code == 201
+
+            name_2: str = str(uuid())
+            custom_instructions_2: str = "Respond to every request in cockney rhyming slang"
+            muxing_rules_2 = [
+                {
+                    "provider_name": "openrouter-provider",
+                    "provider_type": "openrouter",
+                    "model": "anthropic/claude-2",
+                    "matcher": "*.ts",
+                    "matcher_type": "filename_match",
+                },
+                {
+                    "provider_name": "openrouter-provider",
+                    "provider_type": "openrouter",
+                    "model": "deepseek/deepseek-r1",
+                    "matcher_type": "catch_all",
+                    "matcher": "",
+                },
+            ]
+
+            payload_create_2 = {
+                "name": name_2,
+                "config": {
+                    "custom_instructions": custom_instructions_2,
+                    "muxing_rules": muxing_rules_2,
+                },
+            }
+
+            response = await ac.post("/api/v1/workspaces", json=payload_create_2)
+            assert response.status_code == 201
+
+            # List workspaces filtered by openai provider
+            response = await ac.get("/api/v1/workspaces?provider_name=openai-provider")
+            assert response.status_code == 200
+            response_body = response.json()
+            assert len(response_body["workspaces"]) == 1
+            assert response_body["workspaces"][0]["name"] == name_1
+
+            # List workspaces filtered by openrouter provider
+            response = await ac.get("/api/v1/workspaces?provider_name=openrouter-provider")
+            assert response.status_code == 200
+            response_body = response.json()
+            assert len(response_body["workspaces"]) == 1
+            assert response_body["workspaces"][0]["name"] == name_2
+
+            # List workspaces filtered by non-existent provider
+            response = await ac.get("/api/v1/workspaces?provider_name=foo-bar-123")
+            assert response.status_code == 200
+            response_body = response.json()
+            assert len(response_body["workspaces"]) == 0
+
+            # List workspaces unfiltered
+            response = await ac.get("/api/v1/workspaces")
+            assert response.status_code == 200
+            response_body = response.json()
+            assert len(response_body["workspaces"]) == 3  # 2 created in test + default
+
+
+@pytest.mark.asyncio
+async def test_delete_workspace(
+    mock_pipeline_factory, mock_workspace_crud, mock_provider_crud, mock_muxing_rules_registry
+) -> None:
+    with (
+        patch("codegate.api.v1.wscrud", mock_workspace_crud),
+        patch("codegate.api.v1.pcrud", mock_provider_crud),
+        patch(
+            "codegate.muxing.rulematcher.get_muxing_rules_registry",
+            return_value=mock_muxing_rules_registry,
+        ),
+    ):
+        """Test deleting a workspace."""
+
+        app = init_app(mock_pipeline_factory)
+
+        async with AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            name: str = str(uuid())
+            payload_create = {
+                "name": name,
+            }
+
+            # Create workspace
+            response = await ac.post("/api/v1/workspaces", json=payload_create)
+            assert response.status_code == 201
+
+            # Verify workspace exists
+            response = await ac.get(f"/api/v1/workspaces/{name}")
+            assert response.status_code == 200
+            assert response.json()["name"] == name
+
+            # Delete workspace
+            response = await ac.delete(f"/api/v1/workspaces/{name}")
+            assert response.status_code == 204
+
+            # Verify workspace no longer exists
+            response = await ac.get(f"/api/v1/workspaces/{name}")
+            assert response.status_code == 404
+
+            # Try to delete non-existent workspace
+            response = await ac.delete("/api/v1/workspaces/nonexistent")
+            assert response.status_code == 404
+            assert response.json()["detail"] == "Workspace does not exist"

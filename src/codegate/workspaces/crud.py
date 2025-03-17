@@ -2,10 +2,14 @@ import datetime
 from typing import List, Optional, Tuple
 from uuid import uuid4 as uuid
 
+import structlog
+
 from codegate.db import models as db_models
 from codegate.db.connection import AlreadyExistsError, DbReader, DbRecorder, DbTransaction
 from codegate.muxing import models as mux_models
 from codegate.muxing import rulematcher
+
+logger = structlog.get_logger("codegate")
 
 
 class WorkspaceCrudError(Exception):
@@ -28,6 +32,10 @@ class WorkspaceMuxRuleDoesNotExistError(WorkspaceCrudError):
     pass
 
 
+class DeleteMuxesFromRegistryError(WorkspaceCrudError):
+    pass
+
+
 DEFAULT_WORKSPACE_NAME = "default"
 
 # These are reserved keywords that cannot be used for workspaces
@@ -43,7 +51,7 @@ class WorkspaceCrud:
         self,
         new_workspace_name: str,
         custom_instructions: Optional[str] = None,
-        muxing_rules: Optional[List[mux_models.MuxRule]] = None,
+        muxing_rules: Optional[List[mux_models.MuxRuleWithProviderId]] = None,
     ) -> Tuple[db_models.WorkspaceRow, List[db_models.MuxRule]]:
         """
         Add a workspace
@@ -51,8 +59,8 @@ class WorkspaceCrud:
         Args:
             new_workspace_name (str): The name of the workspace
             system_prompt (Optional[str]): The system prompt for the workspace
-            muxing_rules (Optional[List[mux_models.MuxRule]]): The muxing rules for the workspace
-        """
+            muxing_rules (Optional[List[mux_models.MuxRuleWithProviderId]]): The muxing rules for the workspace
+        """  # noqa: E501
         if new_workspace_name == "":
             raise WorkspaceCrudError("Workspace name cannot be empty.")
         if new_workspace_name in RESERVED_WORKSPACE_KEYWORDS:
@@ -92,7 +100,7 @@ class WorkspaceCrud:
         old_workspace_name: str,
         new_workspace_name: str,
         custom_instructions: Optional[str] = None,
-        muxing_rules: Optional[List[mux_models.MuxRule]] = None,
+        muxing_rules: Optional[List[mux_models.MuxRuleWithProviderId]] = None,
     ) -> Tuple[db_models.WorkspaceRow, List[db_models.MuxRule]]:
         """
         Update a workspace
@@ -101,8 +109,8 @@ class WorkspaceCrud:
             old_workspace_name (str): The old name of the workspace
             new_workspace_name (str): The new name of the workspace
             system_prompt (Optional[str]): The system prompt for the workspace
-            muxing_rules (Optional[List[mux_models.MuxRule]]): The muxing rules for the workspace
-        """
+            muxing_rules (Optional[List[mux_models.MuxRuleWithProviderId]]): The muxing rules for the workspace
+        """  # noqa: E501
         if new_workspace_name == "":
             raise WorkspaceCrudError("Workspace name cannot be empty.")
         if old_workspace_name == "":
@@ -111,8 +119,6 @@ class WorkspaceCrud:
             raise WorkspaceCrudError("Cannot rename default workspace.")
         if new_workspace_name in RESERVED_WORKSPACE_KEYWORDS:
             raise WorkspaceCrudError(f"Workspace name {new_workspace_name} is reserved.")
-        if old_workspace_name == new_workspace_name:
-            raise WorkspaceCrudError("Old and new workspace names are the same.")
 
         async with DbTransaction() as transaction:
             try:
@@ -122,11 +128,12 @@ class WorkspaceCrud:
                         f"Workspace {old_workspace_name} does not exist."
                     )
 
-                existing_ws = await self._db_reader.get_workspace_by_name(new_workspace_name)
-                if existing_ws:
-                    raise WorkspaceNameAlreadyInUseError(
-                        f"Workspace name {new_workspace_name} is already in use."
-                    )
+                if old_workspace_name != new_workspace_name:
+                    existing_ws = await self._db_reader.get_workspace_by_name(new_workspace_name)
+                    if existing_ws:
+                        raise WorkspaceNameAlreadyInUseError(
+                            f"Workspace name {new_workspace_name} is already in use."
+                        )
 
                 new_ws = db_models.WorkspaceRow(
                     id=ws.id, name=new_workspace_name, custom_instructions=ws.custom_instructions
@@ -143,7 +150,7 @@ class WorkspaceCrud:
 
                 await transaction.commit()
                 return workspace_renamed, mux_rules
-            except (WorkspaceNameAlreadyInUseError, WorkspaceDoesNotExistError) as e:
+            except (WorkspaceDoesNotExistError, WorkspaceNameAlreadyInUseError) as e:
                 raise e
             except Exception as e:
                 raise WorkspaceCrudError(f"Error updating workspace {old_workspace_name}: {str(e)}")
@@ -234,6 +241,7 @@ class WorkspaceCrud:
         """
         Soft delete a workspace
         """
+
         if workspace_name == "":
             raise WorkspaceCrudError("Workspace name cannot be empty.")
         if workspace_name == DEFAULT_WORKSPACE_NAME:
@@ -281,14 +289,16 @@ class WorkspaceCrud:
             raise WorkspaceDoesNotExistError(f"Workspace {workspace_name} does not exist.")
         return workspace
 
-    async def workspaces_by_provider(self, provider_id: uuid) -> List[db_models.WorkspaceWithModel]:
+    async def workspaces_by_provider(
+        self, provider_id: uuid
+    ) -> List[db_models.WorkspaceWithSessionInfo]:
         """Get the workspaces by provider."""
 
         workspaces = await self._db_reader.get_workspaces_by_provider(str(provider_id))
 
         return workspaces
 
-    async def get_muxes(self, workspace_name: str) -> List[mux_models.MuxRule]:
+    async def get_muxes(self, workspace_name: str) -> List[db_models.MuxRule]:
         # Verify if workspace exists
         workspace = await self._db_reader.get_workspace_by_name(workspace_name)
         if not workspace:
@@ -296,22 +306,10 @@ class WorkspaceCrud:
 
         dbmuxes = await self._db_reader.get_muxes_by_workspace(workspace.id)
 
-        muxes = []
-        # These are already sorted by priority
-        for dbmux in dbmuxes:
-            muxes.append(
-                mux_models.MuxRule(
-                    provider_id=dbmux.provider_endpoint_id,
-                    model=dbmux.provider_model_name,
-                    matcher_type=dbmux.matcher_type,
-                    matcher=dbmux.matcher_blob,
-                )
-            )
-
-        return muxes
+        return dbmuxes
 
     async def set_muxes(
-        self, workspace_name: str, muxes: List[mux_models.MuxRule]
+        self, workspace_name: str, muxes: List[mux_models.MuxRuleWithProviderId]
     ) -> List[db_models.MuxRule]:
         # Verify if workspace exists
         workspace = await self._db_reader.get_workspace_by_name(workspace_name)
@@ -324,7 +322,9 @@ class WorkspaceCrud:
         # Add the new muxes
         priority = 0
 
-        muxes_with_routes: List[Tuple[mux_models.MuxRule, rulematcher.ModelRoute]] = []
+        muxes_with_routes: List[Tuple[mux_models.MuxRuleWithProviderId, rulematcher.ModelRoute]] = (
+            []
+        )
 
         # Verify all models are valid
         for mux in muxes:
@@ -347,7 +347,8 @@ class WorkspaceCrud:
             dbmux = await self._db_recorder.add_mux(new_mux)
             dbmuxes.append(dbmux)
 
-            matchers.append(rulematcher.MuxingMatcherFactory.create(dbmux, route))
+            provider = await self._db_reader.get_provider_endpoint_by_id(mux.provider_id)
+            matchers.append(rulematcher.MuxingMatcherFactory.create(dbmux, provider, route))
 
             priority += 1
 
@@ -357,7 +358,9 @@ class WorkspaceCrud:
 
         return dbmuxes
 
-    async def get_routing_for_mux(self, mux: mux_models.MuxRule) -> rulematcher.ModelRoute:
+    async def get_routing_for_mux(
+        self, mux: mux_models.MuxRuleWithProviderId
+    ) -> rulematcher.ModelRoute:
         """Get the routing for a mux
 
         Note that this particular mux object is the API model, not the database model.
@@ -365,7 +368,7 @@ class WorkspaceCrud:
         """
         dbprov = await self._db_reader.get_provider_endpoint_by_id(mux.provider_id)
         if not dbprov:
-            raise WorkspaceCrudError(f"Provider {mux.provider_id} does not exist")
+            raise WorkspaceCrudError(f'Provider "{mux.provider_name}" does not exist')
 
         dbm = await self._db_reader.get_provider_model_by_provider_id_and_name(
             mux.provider_id,
@@ -373,11 +376,13 @@ class WorkspaceCrud:
         )
         if not dbm:
             raise WorkspaceCrudError(
-                f"Model {mux.model} does not exist for provider {mux.provider_id}"
+                f'Model "{mux.model}" does not exist for provider "{mux.provider_name}"'
             )
         dbauth = await self._db_reader.get_auth_material_by_provider_id(mux.provider_id)
         if not dbauth:
-            raise WorkspaceCrudError(f"Auth material for provider {mux.provider_id} does not exist")
+            raise WorkspaceCrudError(
+                f'Auth material for provider "{mux.provider_name}" does not exist'
+            )
 
         return rulematcher.ModelRoute(
             endpoint=dbprov,
@@ -393,7 +398,7 @@ class WorkspaceCrud:
         """
         dbprov = await self._db_reader.get_provider_endpoint_by_id(mux.provider_endpoint_id)
         if not dbprov:
-            raise WorkspaceCrudError(f"Provider {mux.provider_endpoint_id} does not exist")
+            raise WorkspaceCrudError(f'Provider "{mux.provider_endpoint_name}" does not exist')
 
         dbm = await self._db_reader.get_provider_model_by_provider_id_and_name(
             mux.provider_endpoint_id,
@@ -407,7 +412,7 @@ class WorkspaceCrud:
         dbauth = await self._db_reader.get_auth_material_by_provider_id(mux.provider_endpoint_id)
         if not dbauth:
             raise WorkspaceCrudError(
-                f"Auth material for provider {mux.provider_endpoint_id} does not exist"
+                f'Auth material for provider "{mux.provider_endpoint_name}" does not exist'
             )
 
         return rulematcher.ModelRoute(
@@ -448,7 +453,10 @@ class WorkspaceCrud:
             matchers: List[rulematcher.MuxingRuleMatcher] = []
 
             for mux in muxes:
+                provider = await self._db_reader.get_provider_endpoint_by_id(
+                    mux.provider_endpoint_id
+                )
                 route = await self.get_routing_for_db_mux(mux)
-                matchers.append(rulematcher.MuxingMatcherFactory.create(mux, route))
+                matchers.append(rulematcher.MuxingMatcherFactory.create(mux, provider, route))
 
             await mux_registry.set_ws_rules(ws.name, matchers)

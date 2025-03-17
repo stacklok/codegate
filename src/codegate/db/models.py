@@ -253,8 +253,14 @@ class ProviderAuthMaterial(BaseModel):
     auth_blob: str
 
 
+class ProviderModelIntermediate(BaseModel):
+    provider_endpoint_id: str
+    name: str
+
+
 class ProviderModel(BaseModel):
     provider_endpoint_id: str
+    provider_endpoint_type: str
     provider_endpoint_name: Optional[str] = None
     name: str
 
