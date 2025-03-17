@@ -456,7 +456,7 @@ class PiiRedactionNotifier(OutputPipelineStep):
             # TODO: Might want to check these  with James!
             notification_text = (
                 f"🛡️ [CodeGate protected {redacted_count} instances of PII, including {pii_summary}]"
-                f"(http://localhost:9090/?search=codegate-pii) from being leaked "
+                f"(http://localhost:9090/?view=codegate-pii) from being leaked "
                 f"by redacting them.\n\n"
             )
 

@@ -556,7 +556,7 @@ class SecretRedactionNotifier(OutputPipelineStep):
                 notification_chunk = self._create_chunk(
                     chunk,
                     f"<thinking>\n🛡️ [CodeGate prevented {redacted_count} {secret_text}]"
-                    f"(http://localhost:9090/?search=codegate-secrets) from being leaked "
+                    f"(http://localhost:9090/?view=codegate-secrets) from being leaked "
                     f"by redacting them.</thinking>\n\n",
                 )
                 notification_chunk.choices[0].delta.role = "assistant"
@@ -564,7 +564,7 @@ class SecretRedactionNotifier(OutputPipelineStep):
                 notification_chunk = self._create_chunk(
                     chunk,
                     f"\n🛡️ [CodeGate prevented {redacted_count} {secret_text}]"
-                    f"(http://localhost:9090/?search=codegate-secrets) from being leaked "
+                    f"(http://localhost:9090/?view=codegate-secrets) from being leaked "
                     f"by redacting them.\n\n",
                 )
 
