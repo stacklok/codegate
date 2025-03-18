@@ -281,6 +281,7 @@ class CodegateTestRunner:
             rest_of_path = test_data["url"].replace(trimm_from_testcase_url, "")
             new_url = f"{mux_url}{rest_of_path}"
             new_test_data = copy.deepcopy(test_data)
+            new_test_data["name"] = f"{new_test_data['name']} - Mux"
             new_test_data["url"] = new_url
             new_test_id = f"{test_id}_muxed"
             test_cases_with_muxing[new_test_id] = new_test_data
