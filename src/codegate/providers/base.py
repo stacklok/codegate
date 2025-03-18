@@ -319,6 +319,9 @@ class BaseProvider(ABC):
                 is_fim_request=is_fim_request,
             )
 
+        import asyncio
+        if asyncio.iscoroutine(model_response):
+            model_response = await model_response
         # Pass the request through the output pipeline
         if not streaming:
             return await self._run_output_pipeline(input_pipeline_result.context, model_response)

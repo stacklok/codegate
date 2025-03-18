@@ -28,7 +28,7 @@ class LlamaCppProvider(BaseProvider):
             self.base_url = self._get_base_url()
         else:
             self.base_url = "./codegate_volume/models"
-        completion_handler = LlamaCppCompletionHandler()
+        completion_handler = LlamaCppCompletionHandler(self.base_url)
         super().__init__(
             None,
             None,

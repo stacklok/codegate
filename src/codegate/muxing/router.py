@@ -147,6 +147,10 @@ class MuxRouter:
                         completion_function = anthropic.acompletion
                         from_openai = anthropic_from_openai
                         to_openai = anthropic_to_openai
+                case ProviderType.llamacpp:
+                    completion_function = provider._completion_handler.execute_completion
+                    from_openai = identity
+                    to_openai = identity
                 case ProviderType.ollama:
                     if is_fim_request:
                         completion_function = ollama.generate_streaming
@@ -227,15 +231,15 @@ def inout_transformer(
         new_request = from_openai(request)
         new_request.model = model
 
+        # Execute e.g. acompletion from Anthropic types
+        response = completion_handler(
+            new_request,
+            api_key,
+            base_url,
+        )
+
         # Wrap with an async generator that maps from
         # e.g. Anthropic types to OpenAI's.
-        return to_openai(
-            # Execute e.g. acompletion from Anthropic types
-            completion_handler(
-                new_request,
-                api_key,
-                base_url,
-            ),
-        )
+        return to_openai(response)
 
     return _inner

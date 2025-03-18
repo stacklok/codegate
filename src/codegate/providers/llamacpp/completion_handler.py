@@ -50,8 +50,9 @@ async def chat_to_async_iterator(
 
 
 class LlamaCppCompletionHandler(BaseCompletionHandler):
-    def __init__(self):
+    def __init__(self, base_url):
         self.inference_engine = LlamaCppInferenceEngine()
+        self.base_url = base_url
 
     async def execute_completion(
         self,
@@ -64,7 +65,7 @@ class LlamaCppCompletionHandler(BaseCompletionHandler):
         """
         Execute the completion request with inference engine API
         """
-        model_path = f"{base_url}/{request.get_model()}.gguf"
+        model_path = f"{self.base_url}/{request.get_model()}.gguf"
 
         # Create a copy of the request dict and remove stream_options
         # Reason - Request error as JSON:
