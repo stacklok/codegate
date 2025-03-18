@@ -1,4 +1,4 @@
-{"event": "HTTP Request: GET https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json \"HTTP/1.1 200 OK\"", "level": "info", "timestamp": "2025-03-18T13:44:53.169812Z", "module": "_client", "pathname": "/home/runner/.cache/pypoetry/virtualenvs/codegate-_Tc5v74D-py3.12/lib/python3.12/site-packages/httpx/_client.py", "lineno": 1025}
+{"event": "HTTP Request: GET https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json \"HTTP/1.1 200 OK\"", "level": "info", "timestamp": "2025-03-18T15:53:45.853416Z", "module": "_client", "pathname": "/home/runner/.cache/pypoetry/virtualenvs/codegate-_Tc5v74D-py3.12/lib/python3.12/site-packages/httpx/_client.py", "lineno": 1025}
 {
   "openapi": "3.1.0",
   "info": {
