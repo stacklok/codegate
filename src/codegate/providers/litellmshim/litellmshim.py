@@ -1,16 +1,13 @@
 from typing import Any, AsyncIterator, Callable, Optional, Union
 
-import litellm
 import structlog
 from fastapi.responses import JSONResponse, StreamingResponse
-from litellm import ChatCompletionRequest, ModelResponse, acompletion, atext_completion
 
 from codegate.clients.clients import ClientType
 from codegate.providers.base import BaseCompletionHandler, StreamGenerator
+from codegate.types.anthropic import acompletion
 
 logger = structlog.get_logger("codegate")
-
-litellm.drop_params = True
 
 
 class LiteLLmShim(BaseCompletionHandler):
@@ -36,37 +33,31 @@ class LiteLLmShim(BaseCompletionHandler):
 
     async def execute_completion(
         self,
-        request: ChatCompletionRequest,
+        request: Any,
         base_url: Optional[str],
         api_key: Optional[str],
         stream: bool = False,
         is_fim_request: bool = False,
-    ) -> Union[ModelResponse, AsyncIterator[ModelResponse]]:
+    ) -> Union[Any, AsyncIterator[Any]]:
         """
         Execute the completion request with LiteLLM's API
         """
-        request["api_key"] = api_key
-        request["base_url"] = base_url
         if is_fim_request:
-            # We need to force atext_completion if there is "prompt" in the request.
-            # The default function acompletion can only handle "messages" in the request.
-            if "prompt" in request:
-                logger.debug("Forcing atext_completion in FIM")
-                return await atext_completion(**request)
-            return await self._fim_completion_func(**request)
-        return await self._completion_func(**request)
+            return self._fim_completion_func(request, api_key, base_url)
+        return self._completion_func(request, api_key, base_url)
 
     def _create_streaming_response(
         self,
         stream: AsyncIterator[Any],
         _: ClientType = ClientType.GENERIC,
+        stream_generator: Callable | None = None,
     ) -> StreamingResponse:
         """
         Create a streaming response from a stream generator. The StreamingResponse
         is the format that FastAPI expects for streaming responses.
         """
         return StreamingResponse(
-            self._stream_generator(stream),
+            stream_generator(stream) if stream_generator else self._stream_generator(stream),
             headers={
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
@@ -75,13 +66,13 @@ class LiteLLmShim(BaseCompletionHandler):
             status_code=200,
         )
 
-    def _create_json_response(self, response: ModelResponse) -> JSONResponse:
+    def _create_json_response(self, response: Any) -> JSONResponse:
         """
-        Create a JSON FastAPI response from a ModelResponse object.
-        ModelResponse is obtained when the request is not streaming.
+        Create a JSON FastAPI response from a Any object.
+        Any is obtained when the request is not streaming.
         """
-        # ModelResponse is not a Pydantic object but has a json method we can use to serialize
-        if isinstance(response, ModelResponse):
+        # Any is not a Pydantic object but has a json method we can use to serialize
+        if isinstance(response, Any):
             return JSONResponse(status_code=200, content=response.json())
         # Most of others objects in LiteLLM are Pydantic, we can use the model_dump method
         return JSONResponse(status_code=200, content=response.model_dump())

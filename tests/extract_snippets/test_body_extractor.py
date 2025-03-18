@@ -8,6 +8,7 @@ from codegate.extract_snippets.body_extractor import (
     KoduBodySnippetExtractor,
     OpenInterpreterBodySnippetExtractor,
 )
+from codegate.types import openai
 
 
 class BodyCodeSnippetTest(NamedTuple):
@@ -26,39 +27,40 @@ def _evaluate_actual_filenames(filenames: set[str], test_case: BodyCodeSnippetTe
     [
         # Analyze processed snippets from OpenInterpreter
         BodyCodeSnippetTest(
-            input_body_dict={
-                "messages": [
-                    {
-                        "role": "assistant",
-                        "content": "",
-                        "tool_calls": [
-                            {
-                                "id": "toolu_4",
-                                "type": "function",
-                                "function": {
-                                    "name": "execute",
-                                    "arguments": (
+            input_body_dict=openai.ChatCompletionRequest(
+                model="model",
+                messages=[
+                    openai.AssistantMessage(
+                        role="assistant",
+                        content="",
+                        tool_calls=[
+                            openai.ToolCallReq(
+                                id="toolu_4",
+                                type="function",
+                                function=openai.FunctionCallReq(
+                                    name="execute",
+                                    arguments=(
                                         '{"language": "python", "code": "\\n'
                                         "# Open and read the contents of the src/codegate/api/v1.py"
                                         " file\\n"
                                         "with open('src/codegate/api/v1.py', 'r') as file:\\n    "
                                         'content = file.read()\\n\\ncontent\\n"}'
                                     ),
-                                },
-                            }
+                                ),
+                            ),
                         ],
-                    },
-                    {
-                        "role": "tool",
-                        "name": "execute",
-                        "content": (
+                    ),
+                    openai.ToolMessage(
+                        role="tool",
+                        name="execute",
+                        content=(
                             "Output truncated.\n\nr as e:\\n    "
                             'raise HTTPException(status_code=400",'
                         ),
-                        "tool_call_id": "toolu_4",
-                    },
-                ]
-            },
+                        tool_call_id="toolu_4",
+                    ),
+                ],
+            ),
             expected_count=1,
             expected=["v1.py"],
         ),
@@ -75,15 +77,18 @@ def test_body_extract_openinterpreter_snippets(test_case: BodyCodeSnippetTest):
     [
         # Analyze processed snippets from OpenInterpreter
         BodyCodeSnippetTest(
-            input_body_dict={
-                "messages": [
-                    {"role": "system", "content": "You are Cline, a highly skilled software"},
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": '''
+            input_body_dict=openai.ChatCompletionRequest(
+                model="model",
+                messages=[
+                    openai.SystemMessage(
+                        role="system", content="You are Cline, a highly skilled software"
+                    ),
+                    openai.UserMessage(
+                        role="user",
+                        content=[
+                            openai.TextContent(
+                                type="text",
+                                text='''
         [<task>
 now please analyze the folder 'codegate/src/codegate/api/' (see below for folder content)
 </task>
@@ -151,11 +156,11 @@ async def _process_prompt_output_to_partial_qa(
 </file_content>
 </folder_content>
         ''',
-                            }
+                            ),
                         ],
-                    },
-                ]
-            },
+                    ),
+                ],
+            ),
             expected_count=4,
             expected=["__init__.py", "v1.py", "v1_models.py", "v1_processing.py"],
         ),
@@ -172,11 +177,11 @@ def test_body_extract_cline_snippets(test_case: BodyCodeSnippetTest):
     [
         # Analyze processed snippets from OpenInterpreter
         BodyCodeSnippetTest(
-            input_body_dict={
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": """
+            input_body_dict=openai.ChatCompletionRequest(
+                messages=[
+                    openai.UserMessage(
+                        role="user",
+                        content="""
                         ```file:///Users/user/StacklokRepos/testing_file.py
 import invokehttp
 import fastapi
@@ -199,12 +204,12 @@ def substract(a, b):
 
 please analyze testing_file.py
                         """,
-                    }
+                    ),
                 ],
-                "model": "foo-model-replaced-by-mux",
-                "max_tokens": 4096,
-                "stream": True,
-            },
+                model="foo-model-replaced-by-mux",
+                max_tokens=4096,
+                stream=True,
+            ),
             expected_count=1,
             expected=["testing_file.py"],
         ),
@@ -221,15 +226,18 @@ def test_body_extract_continue_snippets(test_case: BodyCodeSnippetTest):
     [
         # Analyze processed snippets from Kodu
         BodyCodeSnippetTest(
-            input_body_dict={
-                "messages": [
-                    {"role": "system", "content": "You are Kodu, an autonomous coding agent."},
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": """
+            input_body_dict=openai.ChatCompletionRequest(
+                model="model",
+                messages=[
+                    openai.SystemMessage(
+                        role="system", content="You are Kodu, an autonomous coding agent."
+                    ),
+                    openai.UserMessage(
+                        role="user",
+                        content=[
+                            openai.TextContent(
+                                type="text",
+                                text="""
 Here is our task for this conversation, you must remember it all time unless i tell you otherwise.
 <task>
 please analyze
@@ -259,21 +267,26 @@ def substract(a, b):
 
 </task>
         """,
-                            }
+                            ),
                         ],
-                    },
-                    {
-                        "type": "text",
-                        "text": """
-You must use a tool to proceed. Either use attempt_completion if you've completed the task,
-or ask_followup_question if you need more information. you must adhere to the tool format
-<kodu_action><tool_name><parameter1_name>value1</parameter1_name><parameter2_name>value2
-</parameter2_name>... additional parameters as needed in the same format
-...</tool_name></kodu_action>
-""",
-                    },
-                ]
-            },
+                    ),
+                    openai.AssistantMessage(
+                        role="assistant",
+                        content=[
+                            openai.TextContent(
+                                type="text",
+                                text="""
+                                You must use a tool to proceed. Either use attempt_completion if you've completed the task,
+                                or ask_followup_question if you need more information. you must adhere to the tool format
+                                <kodu_action><tool_name><parameter1_name>value1</parameter1_name><parameter2_name>value2
+                                </parameter2_name>... additional parameters as needed in the same format
+                                ...</tool_name></kodu_action>
+                                """,  # noqa: E501
+                            ),
+                        ],
+                    ),
+                ],
+            ),
             expected_count=1,
             expected=["testing_file.py"],
         ),

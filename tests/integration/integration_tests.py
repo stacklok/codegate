@@ -89,7 +89,11 @@ class CodegateTestRunner:
                                 message_content = text
                     elif "delta" in json_line:
                         message_content = json_line["delta"].get("text", "")
+                    elif "message" in json_line and isinstance(json_line["message"], str):
+                        # "messages" is a raw string
+                        message_content = json_line["message"]
                     elif "message" in json_line:
+                        # "messages" is a structured object
                         message_content = json_line["message"].get("content", "")
                     elif "response" in json_line:
                         message_content = json_line.get("response", "")
@@ -277,6 +281,7 @@ class CodegateTestRunner:
             rest_of_path = test_data["url"].replace(trimm_from_testcase_url, "")
             new_url = f"{mux_url}{rest_of_path}"
             new_test_data = copy.deepcopy(test_data)
+            new_test_data["name"] = f"{new_test_data['name']} - Mux"
             new_test_data["url"] = new_url
             new_test_id = f"{test_id}_muxed"
             test_cases_with_muxing[new_test_id] = new_test_data

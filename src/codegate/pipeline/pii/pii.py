@@ -2,10 +2,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import regex as re
 import structlog
-from litellm import ChatCompletionRequest, ChatCompletionSystemMessage, ModelResponse
-from litellm.types.utils import Delta, StreamingChoices
 
-from codegate.config import Config
 from codegate.db.models import AlertSeverity
 from codegate.pipeline.base import (
     PipelineContext,
@@ -15,7 +12,9 @@ from codegate.pipeline.base import (
 from codegate.pipeline.output import OutputPipelineContext, OutputPipelineStep
 from codegate.pipeline.pii.analyzer import PiiAnalyzer
 from codegate.pipeline.sensitive_data.manager import SensitiveData, SensitiveDataManager
-from codegate.pipeline.systemmsg import add_or_update_system_message
+from codegate.types.anthropic import UserMessage as AnthropicUserMessage
+from codegate.types.ollama import UserMessage as OllamaUserMessage
+from codegate.types.openai import UserMessage as OpenaiUserMessage
 
 logger = structlog.get_logger("codegate")
 
@@ -162,22 +161,18 @@ class CodegatePii(PipelineStep):
         # Return the anonymized text, PII details, and session store
         return found_pii, anonymized_text
 
-    async def process(
-        self, request: ChatCompletionRequest, context: PipelineContext
-    ) -> PipelineResult:
-        if "messages" not in request:
-            return PipelineResult(request=request, context=context)
-
-        new_request = request.copy()
+    async def process(self, request: Any, context: PipelineContext) -> PipelineResult:
         total_pii_found = 0
         all_pii_details: List[Dict[str, Any]] = []
         last_redacted_text = ""
         session_id = context.sensitive.session_id
 
-        for i, message in enumerate(new_request["messages"]):
-            if "content" in message and message["content"]:
+        for message in request.get_messages():
+            for content in message.get_content():
                 # This is where analyze and anonymize the text
-                original_text = str(message["content"])
+                if content.get_text() is None:
+                    continue
+                original_text = content.get_text()
                 results = self.analyzer.analyze(original_text, context)
                 if results:
                     pii_details, anonymized_text = self.process_results(
@@ -187,10 +182,16 @@ class CodegatePii(PipelineStep):
                     if pii_details:
                         total_pii_found += len(pii_details)
                         all_pii_details.extend(pii_details)
-                        new_request["messages"][i]["content"] = anonymized_text
+                        content.set_text(anonymized_text)
 
                         # If this is a user message, grab the redacted snippet!
-                        if message.get("role") == "user":
+                        if (
+                            # This is suboptimal and should be an
+                            # interface.
+                            isinstance(message, AnthropicUserMessage)
+                            or isinstance(message, OllamaUserMessage)
+                            or isinstance(message, OpenaiUserMessage)
+                        ):
                             last_redacted_text = self._get_redacted_snippet(
                                 anonymized_text, pii_details
                             )
@@ -204,17 +205,16 @@ class CodegatePii(PipelineStep):
         context.metadata["session_id"] = session_id
 
         if total_pii_found > 0:
+            # TODO(jakub): Storing per-step booleans is a temporary hack. We should
+            # instead let the steps store the system message contents they want to
+            # have added and then have a separate step that only adds them without
+            # passing around bools in the context
+            context.pii_found = True
             context.metadata["sensitive_data_manager"] = self.sensitive_data_manager
-
-            system_message = ChatCompletionSystemMessage(
-                content=Config.get_config().prompts.pii_redacted,
-                role="system",
-            )
-            new_request = add_or_update_system_message(new_request, system_message, context)
 
         logger.debug(f"Redacted text: {last_redacted_text}")
 
-        return PipelineResult(request=new_request, context=context)
+        return PipelineResult(request=request, context=context)
 
     def restore_pii(self, session_id: str, anonymized_text: str) -> str:
         """
@@ -279,82 +279,96 @@ class PiiUnRedactionStep(OutputPipelineStep):
 
     async def process_chunk(  # noqa: C901
         self,
-        chunk: ModelResponse,
+        chunk: Any,
         context: OutputPipelineContext,
         input_context: Optional[PipelineContext] = None,
-    ) -> list[ModelResponse]:
+    ) -> list[Any]:
         """Process a single chunk of the stream"""
-        if not input_context or not chunk.choices or not chunk.choices[0].delta.content:
+        if not input_context:
             return [chunk]
 
-        content = chunk.choices[0].delta.content
         session_id = input_context.sensitive.session_id
         if not session_id:
             logger.error("Could not get any session id, cannot process pii")
             return [chunk]
 
-        # Add current chunk to buffer
-        if context.prefix_buffer:
-            content = context.prefix_buffer + content
-            context.prefix_buffer = ""
-
-        # Find all potential UUID markers in the content
-        current_pos = 0
-        result = []
-        while current_pos < len(content):
-            start_idx = content.find(self.marker_start, current_pos)
-            if start_idx == -1:
-                # No more markers!, add remaining content
-                result.append(content[current_pos:])
-                break
-
-            end_idx = content.find(self.marker_end, start_idx + 1)
-            if end_idx == -1:
-                # Incomplete marker, buffer the rest only if it can be a UUID
-                if start_idx + 1 < len(content) and not can_be_uuid(content[start_idx + 1 :]):
-                    # the buffer can't be a UUID, so we can't process it, just return
-                    result.append(content[current_pos:])
-                else:
-                    # this can still be a UUID
-                    context.prefix_buffer = content[current_pos:]
-                break
-
-            # Add text before marker
-            if start_idx > current_pos:
-                result.append(content[current_pos:start_idx])
-
-            # Extract potential UUID if it's a valid format!
-            uuid_marker = content[start_idx : end_idx + 1]
-            uuid_value = uuid_marker[1:-1]  # Remove # #
-
-            if self._is_complete_uuid(uuid_value):
-                # Get the PII manager from context metadata
-                logger.debug(f"Valid UUID found: {uuid_value}")
-                sensitive_data_manager = (
-                    input_context.metadata.get("sensitive_data_manager") if input_context else None
-                )
-                if sensitive_data_manager and sensitive_data_manager.session_store:
-                    # Restore original value from PII manager
-                    logger.debug("Attempting to restore PII from UUID marker")
-                    original = sensitive_data_manager.get_original_value(session_id, uuid_marker)
-                    logger.debug(f"Restored PII: {original}")
-                    result.append(original)
-                else:
-                    logger.debug("No PII manager or session found, keeping original marker")
-                    result.append(uuid_marker)
-            else:
-                # Not a valid UUID, treat as normal text
-                logger.debug(f"Invalid UUID format: {uuid_value}")
-                result.append(uuid_marker)
-
-            current_pos = end_idx + 1
-
-        if result:
-            # Create new chunk with processed content
-            final_content = "".join(result)
-            logger.debug(f"Final processed content: {final_content}")
-            chunk.choices[0].delta.content = final_content
+        chunk_has_text = any(content.get_text() for content in chunk.get_content())
+        if not chunk_has_text:
             return [chunk]
+
+        for content in chunk.get_content():
+            text = content.get_text()
+            if text is None or text == "":
+                # Nothing to do with this content item
+                continue
+
+            # Add current chunk to buffer
+            if context.prefix_buffer:
+                text = context.prefix_buffer + text
+                context.prefix_buffer = ""
+
+            # Find all potential UUID markers in the content
+            current_pos = 0
+            result = []
+            while current_pos < len(text):
+                start_idx = text.find(self.marker_start, current_pos)
+                if start_idx == -1:
+                    # No more markers!, add remaining content
+                    result.append(text[current_pos:])
+                    break
+
+                end_idx = text.find(self.marker_end, start_idx + 1)
+                if end_idx == -1:
+                    # Incomplete marker, buffer the rest only if it can be a UUID
+                    if start_idx + 1 < len(text) and not can_be_uuid(text[start_idx + 1 :]):
+                        # the buffer can't be a UUID, so we can't process it, just return
+                        result.append(text[current_pos:])
+                    else:
+                        # this can still be a UUID
+                        context.prefix_buffer = text[current_pos:]
+                    break
+
+                # Add text before marker
+                if start_idx > current_pos:
+                    result.append(text[current_pos:start_idx])
+
+                # Extract potential UUID if it's a valid format!
+                uuid_marker = text[start_idx : end_idx + 1]
+                uuid_value = uuid_marker[1:-1]  # Remove # #
+
+                if self._is_complete_uuid(uuid_value):
+                    # Get the PII manager from context metadata
+                    logger.debug(f"Valid UUID found: {uuid_value}")
+                    sensitive_data_manager = (
+                        input_context.metadata.get("sensitive_data_manager")
+                        if input_context
+                        else None
+                    )
+                    if sensitive_data_manager and sensitive_data_manager.session_store:
+                        # Restore original value from PII manager
+                        logger.debug("Attempting to restore PII from UUID marker")
+                        original = sensitive_data_manager.get_original_value(
+                            session_id, uuid_marker
+                        )
+                        logger.debug(f"Restored PII: {original}")
+                        result.append(original)
+                    else:
+                        logger.debug("No PII manager or session found, keeping original marker")
+                        result.append(uuid_marker)
+
+                else:
+                    # Not a valid UUID, treat as normal text
+                    logger.debug(f"Invalid UUID format: {uuid_value}")
+                    result.append(uuid_marker)
+
+                current_pos = end_idx + 1
+
+            if result:
+                # Create new chunk with processed content
+                final_content = "".join(result)
+                logger.debug(f"Final processed content: {final_content}")
+                content.set_text(final_content)
+                return [chunk]
 
         # If we only have buffered content, return empty list
         return []
@@ -366,7 +380,7 @@ class PiiRedactionNotifier(OutputPipelineStep):
 
     Methods:
         name: Returns the name of the pipeline step.
-        _create_chunk: Creates a new ModelResponse chunk with the given content.
+        _create_chunk: Creates a new chunk with the given content.
         _format_pii_summary: Formats PII details into a readable summary.
         process_chunk: Processes a single chunk of stream and adds a notification if PII redacted.
 
@@ -378,21 +392,11 @@ class PiiRedactionNotifier(OutputPipelineStep):
     def name(self) -> str:
         return "pii-redaction-notifier"
 
-    def _create_chunk(self, original_chunk: ModelResponse, content: str) -> ModelResponse:
-        return ModelResponse(
-            id=original_chunk.id,
-            choices=[
-                StreamingChoices(
-                    finish_reason=None,
-                    index=0,
-                    delta=Delta(content=content, role="assistant"),
-                    logprobs=None,
-                )
-            ],
-            created=original_chunk.created,
-            model=original_chunk.model,
-            object="chat.completion.chunk",
-        )
+    def _create_chunk(self, original_chunk: Any, content: str) -> Any:
+        # TODO verify if deep-copy is necessary
+        copy = original_chunk.model_copy(deep=True)
+        copy.set_text(content)
+        return copy
 
     def _format_pii_summary(self, pii_details: List[Dict[str, Any]]) -> str:
         """Format PII details into a readable summary"""
@@ -419,10 +423,10 @@ class PiiRedactionNotifier(OutputPipelineStep):
 
     async def process_chunk(
         self,
-        chunk: ModelResponse,
+        chunk: Any,
         context: OutputPipelineContext,
         input_context: Optional[PipelineContext] = None,
-    ) -> list[ModelResponse]:
+    ) -> list[Any]:
         """Process a single chunk of the stream"""
         if (
             not input_context
@@ -436,7 +440,14 @@ class PiiRedactionNotifier(OutputPipelineStep):
             for message in input_context.alerts_raised or []
         )
 
-        if len(chunk.choices) > 0 and chunk.choices[0].delta.role:
+        for content in chunk.get_content():
+            # This if is a safety check for some SSE protocols
+            # (e.g. Anthropic) that have different message types, some
+            # of which have empty content and are not meant to be
+            # modified.
+            if content.get_text() is None or content.get_text() == "":
+                continue
+
             redacted_count = input_context.metadata["redacted_pii_count"]
             pii_details = input_context.metadata.get("redacted_pii_details", [])
             pii_summary = self._format_pii_summary(pii_details)
@@ -466,7 +477,6 @@ class PiiRedactionNotifier(OutputPipelineStep):
                     chunk,
                     f"<thinking>{notification_text}</thinking>\n",
                 )
-                notification_chunk.choices[0].delta.role = "assistant"
             else:
                 notification_chunk = self._create_chunk(
                     chunk,

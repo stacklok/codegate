@@ -1,6 +1,4 @@
-from typing import AsyncIterator, Optional, Union
-
-from litellm import ChatCompletionRequest, ModelResponse
+from typing import Any, AsyncIterator, Optional, Union
 
 from codegate.providers.litellmshim import LiteLLmShim
 
@@ -12,12 +10,12 @@ class AnthropicCompletion(LiteLLmShim):
 
     async def execute_completion(
         self,
-        request: ChatCompletionRequest,
+        request: Any,
         base_url: Optional[str],
         api_key: Optional[str],
         stream: bool = False,
         is_fim_request: bool = False,
-    ) -> Union[ModelResponse, AsyncIterator[ModelResponse]]:
+    ) -> Union[Any, AsyncIterator[Any]]:
         """
         Ensures the model name is prefixed with 'anthropic/' to explicitly route to Anthropic's API.
 
@@ -29,13 +27,10 @@ class AnthropicCompletion(LiteLLmShim):
         For more details, refer to the
         [LiteLLM Documentation](https://docs.litellm.ai/docs/providers/anthropic).
         """
-        model_in_request = request["model"]
-        if not model_in_request.startswith("anthropic/"):
-            request["model"] = f"anthropic/{model_in_request}"
         return await super().execute_completion(
-            request=request,
-            api_key=api_key,
-            stream=stream,
-            is_fim_request=is_fim_request,
-            base_url=request.get("base_url"),
+            request,
+            base_url,
+            api_key,
+            stream,
+            is_fim_request,
         )

@@ -1,19 +1,24 @@
-import json
-from typing import List
+from typing import Callable, List
 from urllib.parse import urljoin
 
 import httpx
 import structlog
 from fastapi import Header, HTTPException, Request
-from litellm import atext_completion
 
 from codegate.clients.clients import ClientType
 from codegate.clients.detector import DetectClient
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.fim_analyzer import FIMAnalyzer
-from codegate.providers.litellmshim import LiteLLmShim, sse_stream_generator
-from codegate.providers.vllm.adapter import VLLMInputNormalizer, VLLMOutputNormalizer
+from codegate.providers.litellmshim import LiteLLmShim
+from codegate.types.vllm import (
+    ChatCompletionRequest,
+    LegacyCompletionRequest,
+    completions_streaming,
+    stream_generator,
+)
+
+logger = structlog.get_logger("codegate")
 
 
 class VLLMProvider(BaseProvider):
@@ -21,12 +26,17 @@ class VLLMProvider(BaseProvider):
         self,
         pipeline_factory: PipelineFactory,
     ):
+        if self._get_base_url() != "":
+            self.base_url = self._get_base_url()
+        else:
+            self.base_url = "http://localhost:8000"
         completion_handler = LiteLLmShim(
-            stream_generator=sse_stream_generator, fim_completion_func=atext_completion
+            completion_func=completions_streaming,
+            stream_generator=stream_generator,
         )
         super().__init__(
-            VLLMInputNormalizer(),
-            VLLMOutputNormalizer(),
+            None,
+            None,
             completion_handler,
             pipeline_factory,
         )
@@ -42,9 +52,6 @@ class VLLMProvider(BaseProvider):
         base_url = super()._get_base_url()
         if base_url:
             base_url = base_url.rstrip("/")
-            # Add /v1 if not present
-            if not base_url.endswith("/v1"):
-                base_url = f"{base_url}/v1"
         return base_url
 
     def models(self, endpoint: str = None, api_key: str = None) -> List[str]:
@@ -70,16 +77,21 @@ class VLLMProvider(BaseProvider):
         self,
         data: dict,
         api_key: str,
+        base_url: str,
         is_fim_request: bool,
         client_type: ClientType,
+        completion_handler: Callable | None = None,
+        stream_generator: Callable | None = None,
     ):
         try:
             # Pass the potentially None api_key to complete
             stream = await self.complete(
                 data,
                 api_key,
+                base_url,
                 is_fim_request=is_fim_request,
                 client_type=client_type,
+                completion_handler=completion_handler,
             )
         except Exception as e:
             # Check if we have a status code there
@@ -88,7 +100,9 @@ class VLLMProvider(BaseProvider):
                 logger.error("Error in VLLMProvider completion", error=str(e))
                 raise HTTPException(status_code=e.status_code, detail=str(e))
             raise e
-        return self._completion_handler.create_response(stream, client_type)
+        return self._completion_handler.create_response(
+            stream, client_type, stream_generator=stream_generator
+        )
 
     def _setup_routes(self):
         """
@@ -118,17 +132,15 @@ class VLLMProvider(BaseProvider):
                     response.raise_for_status()
                     return response.json()
             except httpx.HTTPError as e:
-                logger = structlog.get_logger("codegate")
                 logger.error("Error fetching vLLM models", error=str(e))
                 raise HTTPException(
                     status_code=e.response.status_code if hasattr(e, "response") else 500,
                     detail=str(e),
                 )
 
-        @self.router.post(f"/{self.provider_route_name}/chat/completions")
         @self.router.post(f"/{self.provider_route_name}/completions")
         @DetectClient()
-        async def create_completion(
+        async def completions(
             request: Request,
             authorization: str | None = Header(None, description="Optional Bearer token"),
         ):
@@ -141,15 +153,47 @@ class VLLMProvider(BaseProvider):
                 api_key = authorization.split(" ")[1]
 
             body = await request.body()
-            data = json.loads(body)
+            req = LegacyCompletionRequest.model_validate_json(body)
+            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, req)
 
-            # Add the vLLM base URL to the request
-            base_url = self._get_base_url()
-            data["base_url"] = base_url
-            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, data)
+            if not req.stream:
+                logger.warn("We got a non-streaming request, forcing to a streaming one")
+                req.stream = True
+
             return await self.process_request(
-                data,
+                req,
                 api_key,
+                self.base_url,
+                is_fim_request,
+                request.state.detected_client,
+            )
+
+        @self.router.post(f"/{self.provider_route_name}/chat/completions")
+        @DetectClient()
+        async def chat_completion(
+            request: Request,
+            authorization: str | None = Header(None, description="Optional Bearer token"),
+        ):
+            api_key = None
+            if authorization:
+                if not authorization.startswith("Bearer "):
+                    raise HTTPException(
+                        status_code=401, detail="Invalid authorization header format"
+                    )
+                api_key = authorization.split(" ")[1]
+
+            body = await request.body()
+            req = ChatCompletionRequest.model_validate_json(body)
+            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, req)
+
+            if not req.stream:
+                logger.warn("We got a non-streaming request, forcing to a streaming one")
+                req.stream = True
+
+            return await self.process_request(
+                req,
+                api_key,
+                self.base_url,
                 is_fim_request,
                 request.state.detected_client,
             )

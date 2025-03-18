@@ -3,8 +3,8 @@ headers:
     x-api-key: ENV_ANTHROPIC_KEY
 
 muxing:
-  mux_url: http://127.0.0.1:8989/v1/mux/
-  trimm_from_testcase_url: http://127.0.0.1:8989/anthropic/
+  mux_url: http://127.0.0.1:8989/v1/mux/chat/completions
+  trimm_from_testcase_url: http://127.0.0.1:8989/anthropic/messages
   provider_endpoint:
     url: http://127.0.0.1:8989/api/v1/provider-endpoints
     headers:
@@ -90,6 +90,7 @@ testcases:
     url: http://127.0.0.1:8989/anthropic/messages
     data: |
       {
+        "max_tokens":4096,
         "messages":[
             {
               "content":"Generate me example code using the python invokehttp package to call an API",
@@ -110,6 +111,7 @@ testcases:
     url: http://127.0.0.1:8989/anthropic/messages
     data: |
       {
+        "max_tokens":4096,
         "messages": [
           {
             "role": "user",

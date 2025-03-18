@@ -1,6 +1,5 @@
-import json
 from pathlib import Path
-from typing import List
+from typing import Callable, List
 
 import structlog
 from fastapi import HTTPException, Request
@@ -12,7 +11,10 @@ from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.fim_analyzer import FIMAnalyzer
 from codegate.providers.llamacpp.completion_handler import LlamaCppCompletionHandler
-from codegate.providers.llamacpp.normalizer import LLamaCppInputNormalizer, LLamaCppOutputNormalizer
+from codegate.types.openai import (
+    ChatCompletionRequest,
+    LegacyCompletionRequest,
+)
 
 logger = structlog.get_logger("codegate")
 
@@ -22,10 +24,14 @@ class LlamaCppProvider(BaseProvider):
         self,
         pipeline_factory: PipelineFactory,
     ):
-        completion_handler = LlamaCppCompletionHandler()
+        if self._get_base_url() != "":
+            self.base_url = self._get_base_url()
+        else:
+            self.base_url = "./codegate_volume/models"
+        completion_handler = LlamaCppCompletionHandler(self.base_url)
         super().__init__(
-            LLamaCppInputNormalizer(),
-            LLamaCppOutputNormalizer(),
+            None,
+            None,
             completion_handler,
             pipeline_factory,
         )
@@ -54,12 +60,20 @@ class LlamaCppProvider(BaseProvider):
         self,
         data: dict,
         api_key: str,
+        base_url: str,
         is_fim_request: bool,
         client_type: ClientType,
+        completion_handler: Callable | None = None,
+        stream_generator: Callable | None = None,
     ):
         try:
             stream = await self.complete(
-                data, None, is_fim_request=is_fim_request, client_type=client_type
+                data,
+                None,
+                base_url,
+                is_fim_request=is_fim_request,
+                client_type=client_type,
+                completion_handler=completion_handler,
             )
         except RuntimeError as e:
             # propagate as error 500
@@ -75,7 +89,11 @@ class LlamaCppProvider(BaseProvider):
             else:
                 # just continue raising the exception
                 raise e
-        return self._completion_handler.create_response(stream, client_type)
+        return self._completion_handler.create_response(
+            stream,
+            client_type,
+            stream_generator=stream_generator,
+        )
 
     def _setup_routes(self):
         """
@@ -84,18 +102,33 @@ class LlamaCppProvider(BaseProvider):
         """
 
         @self.router.post(f"/{self.provider_route_name}/completions")
-        @self.router.post(f"/{self.provider_route_name}/chat/completions")
         @DetectClient()
-        async def create_completion(
+        async def completions(
             request: Request,
         ):
             body = await request.body()
-            data = json.loads(body)
-            data["base_url"] = Config.get_config().model_base_path
-            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, data)
+            req = LegacyCompletionRequest.model_validate_json(body)
+            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, req)
             return await self.process_request(
-                data,
+                req,
                 None,
+                self.base_url,
+                is_fim_request,
+                request.state.detected_client,
+            )
+
+        @self.router.post(f"/{self.provider_route_name}/chat/completions")
+        @DetectClient()
+        async def chat_completion(
+            request: Request,
+        ):
+            body = await request.body()
+            req = ChatCompletionRequest.model_validate_json(body)
+            is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, req)
+            return await self.process_request(
+                req,
+                None,
+                self.base_url,
                 is_fim_request,
                 request.state.detected_client,
             )
