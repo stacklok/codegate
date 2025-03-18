@@ -4,6 +4,7 @@ import structlog
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
+import codegate.providers.llamacpp.completion_handler as llamacpp
 from codegate.clients.detector import DetectClient
 from codegate.db.models import ProviderType
 from codegate.muxing import models as mux_models
@@ -148,9 +149,14 @@ class MuxRouter:
                         from_openai = anthropic_from_openai
                         to_openai = anthropic_to_openai
                 case ProviderType.llamacpp:
-                    completion_function = provider._completion_handler.execute_completion
-                    from_openai = identity
-                    to_openai = identity
+                    if is_fim_request:
+                        completion_function = llamacpp.complete
+                        from_openai = identity
+                        to_openai = identity
+                    else:
+                        completion_function = llamacpp.chat
+                        from_openai = identity
+                        to_openai = identity
                 case ProviderType.ollama:
                     if is_fim_request:
                         completion_function = ollama.generate_streaming

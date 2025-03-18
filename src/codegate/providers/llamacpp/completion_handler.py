@@ -49,9 +49,75 @@ async def chat_to_async_iterator(
         yield StreamingChatCompletion(**item)
 
 
+ENGINE = LlamaCppInferenceEngine()
+
+
+async def complete(request, api_key, model_path):
+    stream = request.get_stream()
+    full_path = f"{model_path}/{request.get_model()}.gguf"
+    request_dict = request.dict(
+        exclude={
+            "best_of",
+            "frequency_penalty",
+            "n",
+            "stream_options",
+            "user",
+        }
+    )
+
+    response = await ENGINE.complete(
+        full_path,
+        Config.get_config().chat_model_n_ctx,
+        Config.get_config().chat_model_n_gpu_layers,
+        **request_dict,
+    )
+
+    if stream:
+        return completion_to_async_iterator(response)
+    # TODO fix this code path is broken
+    return LegacyCompletion(**response)
+
+
+async def chat(request, api_key, model_path):
+    stream = request.get_stream()
+    full_path = f"{model_path}/{request.get_model()}.gguf"
+    request_dict = request.dict(
+        exclude={
+            "audio",
+            "frequency_penalty",
+            "include_reasoning",
+            "metadata",
+            "max_completion_tokens",
+            "modalities",
+            "n",
+            "parallel_tool_calls",
+            "prediction",
+            "prompt",
+            "reasoning_effort",
+            "service_tier",
+            "store",
+            "stream_options",
+            "user",
+        }
+    )
+
+    response = await ENGINE.chat(
+        full_path,
+        Config.get_config().chat_model_n_ctx,
+        Config.get_config().chat_model_n_gpu_layers,
+        **request_dict,
+    )
+
+    if stream:
+        return chat_to_async_iterator(response)
+    else:
+        # TODO fix this code path is broken
+        return StreamingChatCompletion(**response)
+
+
 class LlamaCppCompletionHandler(BaseCompletionHandler):
     def __init__(self, base_url):
-        self.inference_engine = LlamaCppInferenceEngine()
+        self.inference_engine = ENGINE
         self.base_url = base_url
 
     async def execute_completion(
@@ -65,64 +131,15 @@ class LlamaCppCompletionHandler(BaseCompletionHandler):
         """
         Execute the completion request with inference engine API
         """
-        model_path = f"{self.base_url}/{request.get_model()}.gguf"
-
         # Create a copy of the request dict and remove stream_options
         # Reason - Request error as JSON:
         # {'error': "Llama.create_completion() got an unexpected keyword argument 'stream_options'"}
         if is_fim_request:
-            request_dict = request.dict(
-                exclude={
-                    "best_of",
-                    "frequency_penalty",
-                    "n",
-                    "stream_options",
-                    "user",
-                }
-            )
-
-            response = await self.inference_engine.complete(
-                model_path,
-                Config.get_config().chat_model_n_ctx,
-                Config.get_config().chat_model_n_gpu_layers,
-                **request_dict,
-            )
-
-            if stream:
-                return completion_to_async_iterator(response)
-            return LegacyCompletion(**response)
+            # base_url == model_path in this case
+            return await complete(request, api_key, self.base_url)
         else:
-            request_dict = request.dict(
-                exclude={
-                    "audio",
-                    "frequency_penalty",
-                    "include_reasoning",
-                    "metadata",
-                    "max_completion_tokens",
-                    "modalities",
-                    "n",
-                    "parallel_tool_calls",
-                    "prediction",
-                    "prompt",
-                    "reasoning_effort",
-                    "service_tier",
-                    "store",
-                    "stream_options",
-                    "user",
-                }
-            )
-
-            response = await self.inference_engine.chat(
-                model_path,
-                Config.get_config().chat_model_n_ctx,
-                Config.get_config().chat_model_n_gpu_layers,
-                **request_dict,
-            )
-
-            if stream:
-                return chat_to_async_iterator(response)
-            else:
-                return StreamingChatCompletion(**response)
+            # base_url == model_path in this case
+            return await chat(request, api_key, self.base_url)
 
     def _create_streaming_response(
         self,

@@ -26,7 +26,6 @@ class MuxingAdapterError(Exception):
     pass
 
 
-
 # Note: this is yet another awful hack to get the correct folder where
 # llamacpp models are stored. This is currently retrieved inside the
 # providers, but it should probably be refactored and injected,

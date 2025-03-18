@@ -320,6 +320,7 @@ class BaseProvider(ABC):
             )
 
         import asyncio
+
         if asyncio.iscoroutine(model_response):
             model_response = await model_response
         # Pass the request through the output pipeline
