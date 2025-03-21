@@ -21,11 +21,17 @@ from codegate.types.ollama import (
     stream_generator as ollama_stream_generator,
 )
 from codegate.types.openai import (
+    ChatCompletion as OpenAIChatCompletion,
+)
+from codegate.types.openai import (
     ChatCompletionRequest,
     completions_streaming,
 )
 from codegate.types.openai import (
     StreamingChatCompletion as OpenAIStreamingChatCompletion,
+)
+from codegate.types.openai import (
+    single_response_generator as openai_single_response_generator,
 )
 from codegate.types.openai import (
     stream_generator as openai_stream_generator,
@@ -38,6 +44,7 @@ T = Union[
     StreamingChatCompletion,
     StreamingGenerateCompletion,
     OpenAIStreamingChatCompletion,
+    OpenAIChatCompletion,
 ]
 
 
@@ -64,6 +71,9 @@ async def _ollama_dispatcher(  # noqa: C901
 
     if isinstance(first, OpenAIStreamingChatCompletion):
         stream = openai_stream_generator(prepend(first, stream))
+
+    if isinstance(first, OpenAIChatCompletion):
+        stream = openai_single_response_generator(first, stream)
 
     async for item in stream:
         yield item

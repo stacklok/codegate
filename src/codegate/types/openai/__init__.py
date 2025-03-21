@@ -2,6 +2,7 @@ from ._copilot import CopilotCompletionRequest
 from ._generators import (
     completions_streaming,
     message_wrapper,
+    single_response_generator,
     stream_generator,
     streaming,
 )
@@ -72,6 +73,7 @@ __all__ = [
     "CopilotCompletionRequest",
     "completions_streaming",
     "message_wrapper",
+    "single_response_generator",
     "stream_generator",
     "streaming",
     "LegacyCompletion",

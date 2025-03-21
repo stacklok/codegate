@@ -29,8 +29,6 @@ async def stream_generator(stream: AsyncIterator[StreamingChatCompletion]) -> As
             # the stream
             chunk = chunk.model_dump_json(exclude_none=True, exclude_unset=True)
             try:
-                if os.getenv("CODEGATE_DEBUG_OPENAI") is not None:
-                    print(chunk)
                 yield f"data: {chunk}\n\n"
             except Exception as e:
                 logger.error("failed generating output payloads", exc_info=e)
@@ -48,6 +46,29 @@ async def stream_generator(stream: AsyncIterator[StreamingChatCompletion]) -> As
     finally:
         # during SSE processing.
         yield "data: [DONE]\n\n"
+
+
+async def single_response_generator(
+    first: ChatCompletion,
+    stream: AsyncIterator[ChatCompletion],
+) -> AsyncIterator[ChatCompletion]:
+    """Wraps a single response object in an AsyncIterator. This is
+    meant to be used for non-streaming responses.
+
+    """
+    yield first.model_dump_json(exclude_none=True, exclude_unset=True)
+
+    # Note: this async for loop is necessary to force Python to return
+    # an AsyncIterator. This is necessary because of the wiring at the
+    # Provider level expecting an AsyncIterator rather than a single
+    # response payload.
+    #
+    # Refactoring this means adding a code path specific for when we
+    # expect single response payloads rather than an SSE stream.
+    async for item in stream:
+        if item:
+            logger.error("no further items were expected", item=item)
+        yield item.model_dump_json(exclude_none=True, exclude_unset=True)
 
 
 async def completions_streaming(request, api_key, base_url):
@@ -93,6 +114,8 @@ async def streaming(request, api_key, url, cls=StreamingChatCompletion):
             case 200:
                 if not request.stream:
                     body = await resp.aread()
+                    if os.getenv("CODEGATE_DEBUG_OPENAI") is not None:
+                        print(body.decode("utf-8"))
                     yield ChatCompletion.model_validate_json(body)
                     return
 
@@ -145,6 +168,8 @@ async def message_wrapper(lines, cls=StreamingChatCompletion):
     messages = get_data_lines(lines)
     async for payload in messages:
         try:
+            if os.getenv("CODEGATE_DEBUG_OPENAI") is not None:
+                print(payload)
             item = cls.model_validate_json(payload)
             yield item
         except Exception as e:

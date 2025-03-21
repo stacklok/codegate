@@ -9,7 +9,7 @@ from codegate.clients.detector import DetectClient
 from codegate.db.models import ProviderType
 from codegate.muxing import models as mux_models
 from codegate.muxing import rulematcher
-from codegate.muxing.adapter import BodyAdapter, ResponseAdapter
+from codegate.muxing.adapter import get_destination_info
 from codegate.providers.fim_analyzer import FIMAnalyzer
 from codegate.providers.registry import ProviderRegistry
 from codegate.types import anthropic, ollama, openai
@@ -39,11 +39,9 @@ class MuxRouter:
 
     def __init__(self, provider_registry: ProviderRegistry):
         self._ws_crud = WorkspaceCrud()
-        self._body_adapter = BodyAdapter()
         self.router = APIRouter()
         self._setup_routes()
         self._provider_registry = provider_registry
-        self._response_adapter = ResponseAdapter()
 
     @property
     def route_name(self) -> str:
@@ -128,7 +126,7 @@ class MuxRouter:
 
             # 2. Map the request body to the destination provider format.
             rest_of_path = self._ensure_path_starts_with_slash(rest_of_path)
-            model, base_url = self._body_adapter.get_destination_info(model_route)
+            model, base_url = get_destination_info(model_route)
 
             # 3. Run pipeline. Selecting the correct destination provider.
             provider = self._provider_registry.get_provider(model_route.endpoint.provider_type)

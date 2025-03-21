@@ -88,11 +88,11 @@ class AudioMessage(pydantic.BaseModel):
 
 class Message(pydantic.BaseModel):
     content: str | None
-    refusal: str | None
+    refusal: str | None = None
     tool_calls: List[ToolCall] | None = None
     role: str
     function_call: FunctionCall | None = None  # deprecated
-    audio: AudioMessage | None
+    audio: AudioMessage | None = None
 
 
 class Choice(pydantic.BaseModel):

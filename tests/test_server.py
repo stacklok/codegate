@@ -13,11 +13,11 @@ from httpx import AsyncClient
 from uvicorn.config import Config as UvicornConfig
 
 from codegate import __version__
+from codegate.cli import UvicornServer, cli
+from codegate.codegate_logging import LogFormat, LogLevel
 from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.registry import ProviderRegistry
 from codegate.server import init_app
-from src.codegate.cli import UvicornServer, cli
-from src.codegate.codegate_logging import LogFormat, LogLevel
 
 
 @pytest.fixture
@@ -183,7 +183,7 @@ def uvicorn_config(mock_app):
 
 @pytest.fixture
 def server_instance(uvicorn_config):
-    with patch("src.codegate.cli.Server", autospec=True) as mock_server_class:
+    with patch("codegate.cli.Server", autospec=True) as mock_server_class:
         mock_server_instance = mock_server_class.return_value
         mock_server_instance.serve = AsyncMock()
         yield UvicornServer(uvicorn_config, mock_server_instance)
@@ -204,8 +204,8 @@ def test_serve_default_options(cli_runner):
     """Test serve command with default options."""
     # Use patches for run_servers and logging setup
     with (
-        patch("src.codegate.cli.run_servers") as mock_run,
-        patch("src.codegate.cli.setup_logging") as mock_setup_logging,
+        patch("codegate.cli.run_servers") as mock_run,
+        patch("codegate.cli.setup_logging") as mock_setup_logging,
     ):
         # Invoke the CLI command
         result = cli_runner.invoke(cli, ["serve"])
@@ -223,8 +223,8 @@ def test_serve_default_options(cli_runner):
 def test_serve_custom_options(cli_runner):
     """Test serve command with custom options."""
     with (
-        patch("src.codegate.cli.run_servers") as mock_run,
-        patch("src.codegate.cli.setup_logging") as mock_setup_logging,
+        patch("codegate.cli.run_servers") as mock_run,
+        patch("codegate.cli.setup_logging") as mock_setup_logging,
     ):
         # Invoke the CLI command with custom options
         result = cli_runner.invoke(
@@ -315,8 +315,8 @@ def temp_config_file(tmp_path):
 def test_serve_with_config_file(cli_runner, temp_config_file):
     """Test serve command with config file."""
     with (
-        patch("src.codegate.cli.run_servers") as mock_run,
-        patch("src.codegate.cli.setup_logging") as mock_setup_logging,
+        patch("codegate.cli.run_servers") as mock_run,
+        patch("codegate.cli.setup_logging") as mock_setup_logging,
     ):
         # Invoke the CLI command with the configuration file
         result = cli_runner.invoke(cli, ["serve", "--config", str(temp_config_file)])
@@ -357,8 +357,8 @@ def test_serve_priority_resolution(cli_runner: CliRunner, temp_config_file: Path
     # Set up environment variables and ensure they get cleaned up after the test
     with (
         patch.dict(os.environ, {"LOG_LEVEL": "INFO", "PORT": "9999"}, clear=True),
-        patch("src.codegate.cli.run_servers") as mock_run,
-        patch("src.codegate.cli.setup_logging") as mock_setup_logging,
+        patch("codegate.cli.run_servers") as mock_run,
+        patch("codegate.cli.setup_logging") as mock_setup_logging,
     ):
         # Execute CLI command with specific options overriding environment and config file settings
         result = cli_runner.invoke(
@@ -419,8 +419,8 @@ def test_serve_priority_resolution(cli_runner: CliRunner, temp_config_file: Path
 def test_serve_certificate_options(cli_runner: CliRunner) -> None:
     """Test serve command with certificate options."""
     with (
-        patch("src.codegate.cli.run_servers") as mock_run,
-        patch("src.codegate.cli.setup_logging") as mock_setup_logging,
+        patch("codegate.cli.run_servers") as mock_run,
+        patch("codegate.cli.setup_logging") as mock_setup_logging,
     ):
         # Execute CLI command with certificate options
         result = cli_runner.invoke(
