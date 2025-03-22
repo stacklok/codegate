@@ -73,7 +73,7 @@ async def _ollama_dispatcher(  # noqa: C901
         stream = openai_stream_generator(prepend(first, stream))
 
     if isinstance(first, OpenAIChatCompletion):
-        stream = openai_single_response_generator(first, stream)
+        stream = openai_single_response_generator(first)
 
     async for item in stream:
         yield item

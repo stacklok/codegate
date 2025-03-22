@@ -155,6 +155,7 @@ ToolChoiceType = Union[
     Literal["auto"],
     Literal["any"],
     Literal["tool"],
+    Literal["none"],
 ]
 
 

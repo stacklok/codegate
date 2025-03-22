@@ -23,7 +23,7 @@ async def stream_generator(
     try:
         async for chunk in stream:
             try:
-                body = chunk.model_dump_json(exclude_none=True, exclude_unset=True)
+                body = chunk.model_dump_json(exclude_unset=True)
                 data = f"{body}\n"
 
                 if os.getenv("CODEGATE_DEBUG_OLLAMA") is not None:
