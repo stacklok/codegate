@@ -50,25 +50,12 @@ async def stream_generator(stream: AsyncIterator[StreamingChatCompletion]) -> As
 
 async def single_response_generator(
     first: ChatCompletion,
-    stream: AsyncIterator[ChatCompletion],
 ) -> AsyncIterator[ChatCompletion]:
     """Wraps a single response object in an AsyncIterator. This is
     meant to be used for non-streaming responses.
 
     """
     yield first.model_dump_json(exclude_none=True, exclude_unset=True)
-
-    # Note: this async for loop is necessary to force Python to return
-    # an AsyncIterator. This is necessary because of the wiring at the
-    # Provider level expecting an AsyncIterator rather than a single
-    # response payload.
-    #
-    # Refactoring this means adding a code path specific for when we
-    # expect single response payloads rather than an SSE stream.
-    async for item in stream:
-        if item:
-            logger.error("no further items were expected", item=item)
-        yield item.model_dump_json(exclude_none=True, exclude_unset=True)
 
 
 async def completions_streaming(request, api_key, base_url):

@@ -11,7 +11,15 @@ from codegate.pipeline.factory import PipelineFactory
 from codegate.providers.anthropic.completion_handler import AnthropicCompletion
 from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.fim_analyzer import FIMAnalyzer
-from codegate.types.anthropic import ChatCompletionRequest, stream_generator
+from codegate.types.anthropic import (
+    ChatCompletionRequest,
+    single_message,
+    single_response,
+    stream_generator,
+)
+from codegate.types.generators import (
+    completion_handler_replacement,
+)
 
 logger = structlog.get_logger("codegate")
 
@@ -118,18 +126,29 @@ class AnthropicProvider(BaseProvider):
             body = await request.body()
 
             if os.getenv("CODEGATE_DEBUG_ANTHROPIC") is not None:
-                print(f"{create_message.__name__}: {body}")
+                print(f"{body.decode('utf-8')}")
 
             req = ChatCompletionRequest.model_validate_json(body)
             is_fim_request = FIMAnalyzer.is_fim_request(request.url.path, req)
 
-            return await self.process_request(
-                req,
-                x_api_key,
-                self.base_url,
-                is_fim_request,
-                request.state.detected_client,
-            )
+            if req.stream:
+                return await self.process_request(
+                    req,
+                    x_api_key,
+                    self.base_url,
+                    is_fim_request,
+                    request.state.detected_client,
+                )
+            else:
+                return await self.process_request(
+                    req,
+                    x_api_key,
+                    self.base_url,
+                    is_fim_request,
+                    request.state.detected_client,
+                    completion_handler=completion_handler_replacement(single_message),
+                    stream_generator=single_response,
+                )
 
 
 async def dumper(stream):

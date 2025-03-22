@@ -1,6 +1,8 @@
 from ._generators import (
     acompletion,
     message_wrapper,
+    single_message,
+    single_response,
     stream_generator,
 )
 from ._request_models import (
@@ -49,6 +51,8 @@ from ._response_models import (
 __all__ = [
     "acompletion",
     "message_wrapper",
+    "single_message",
+    "single_response",
     "stream_generator",
     "AssistantMessage",
     "CacheControl",

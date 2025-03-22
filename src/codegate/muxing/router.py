@@ -138,7 +138,15 @@ class MuxRouter:
             # TODO this should be improved
             match model_route.endpoint.provider_type:
                 case ProviderType.anthropic:
-                    if is_fim_request:
+                    # Note: despite `is_fim_request` being true, our
+                    # integration tests query the `/chat/completions`
+                    # endpoint, which causes the
+                    # `anthropic_from_legacy_openai` to incorrectly
+                    # populate the struct.
+                    #
+                    # Checking for the actual type is a much more
+                    # reliable way of determining the right mapper.
+                    if isinstance(parsed, openai.LegacyCompletionRequest):
                         completion_function = anthropic.acompletion
                         from_openai = anthropic_from_legacy_openai
                         to_openai = anthropic_to_legacy_openai
