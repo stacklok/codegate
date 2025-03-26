@@ -4,6 +4,10 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    groups:
+      otel:
+        patterns:
+          - "presidio-*"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
