@@ -1028,14 +1028,14 @@ test = ["pytest", "pytest-cov"]
 
 [[package]]
 name = "legacy-cgi"
-version = "2.6.2"
-description = "Fork of the standard library cgi and cgitb modules, being deprecated in PEP-594"
+version = "2.6.3"
+description = "Fork of the standard library cgi and cgitb modules removed in Python 3.13"
 optional = false
-python-versions = ">=3.10"
+python-versions = ">=3.8"
 groups = ["main"]
 files = [
-    {file = "legacy_cgi-2.6.2-py3-none-any.whl", hash = "sha256:a7b83afb1baf6ebeb56522537c5943ef9813cf933f6715e88a803f7edbce0bff"},
-    {file = "legacy_cgi-2.6.2.tar.gz", hash = "sha256:9952471ceb304043b104c22d00b4f333cac27a6abe446d8a528fc437cf13c85f"},
+    {file = "legacy_cgi-2.6.3-py3-none-any.whl", hash = "sha256:6df2ea5ae14c71ef6f097f8b6372b44f6685283dc018535a75c924564183cdab"},
+    {file = "legacy_cgi-2.6.3.tar.gz", hash = "sha256:4c119d6cb8e9d8b6ad7cc0ddad880552c62df4029622835d06dfd18f438a8154"},
 ]
 
 [[package]]
@@ -3138,4 +3138,4 @@ test = ["pytest (>=6.0.0)", "setuptools (>=65)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "66b492891d89ac4b69d5e73818d13201f35a2b6d78e7e19c42fcf86e017fbc45"
+content-hash = "8a288722e43b1cf01830edbafa7c6dad19413fe7aa0696912353d057ef20c720"
