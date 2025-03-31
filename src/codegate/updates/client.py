@@ -25,9 +25,13 @@ class UpdateClient:
         """
         Retrieves the latest version of CodeGate from updates.codegate.ai
         """
+
+        user_agent = f"codegate/{self.__current_version} {origin.value}"
+        if os.environ.get("CODEGATE_DEV_ENV"):
+            user_agent += "-dev"
         headers = {
             "X-Instance-ID": self.__instance_id,
-            "User-Agent": f"codegate/{self.__current_version} {origin.value}",
+            "User-Agent": user_agent,
         }
 
         try:
