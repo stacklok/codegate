@@ -9,6 +9,7 @@ logger = structlog.get_logger("codegate")
 
 __update_client_singleton = None
 
+is_dev_env = bool(os.environ.get("CODEGATE_DEV_ENV"))
 
 # Enum representing whether the request is coming from the front-end or the back-end.
 class Origin(Enum):
@@ -28,7 +29,7 @@ class UpdateClient:
         """
 
         user_agent = f"codegate/{self.__current_version} {origin.value}"
-        if os.environ.get("CODEGATE_DEV_ENV"):
+        if is_dev_env:
             user_agent += "-dev"
         headers = {
             "X-Instance-ID": self.__instance_id,
