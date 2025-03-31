@@ -34,7 +34,7 @@ class UpdateClient:
             "X-Instance-ID": self.__instance_id,
             "User-Agent": user_agent,
         }
-        
+
         try:
             response = requests.get(self.__update_url, headers=headers, timeout=10)
             # Throw if the request was not successful.
