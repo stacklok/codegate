@@ -2,6 +2,7 @@ from enum import Enum
 
 import requests
 import structlog
+import os
 
 logger = structlog.get_logger("codegate")
 

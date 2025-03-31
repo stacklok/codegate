@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+  codegate-proxy:
+    networks:
+      - codegatenet
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: ghcr.io/stacklok/codegate:latest
+    pull_policy: always
+    ports:
+      - 8989:8989
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command:
+      - -ollama=http://host.docker.internal:11434 # For local LLM 
+      - -vllm=https://inference.codegate.ai # For hosted LLM
+      - -ollama-embed=http://host.docker.internal:11434
+      - -package-index=/opt/rag-in-a-box/data/
+      - -db=rag-db
+    depends_on:
+      - rag-qdrant-db
+
+  rag-qdrant-db:
+    image: ghcr.io/stacklok/codegate/qdrant-codegate@sha256:fccd830f8eaf9079972fee1eb95908ffe42d4571609be8bffa32fd26610481f7
+    container_name: rag-db
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    networks:
+      - codegatenet
+
+networks:
+  codegatenet:
+    driver: bridge
