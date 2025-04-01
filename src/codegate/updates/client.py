@@ -9,8 +9,7 @@ logger = structlog.get_logger("codegate")
 
 __update_client_singleton = None
 
-is_dev_env = bool(os.environ.get("CODEGATE_DEV_ENV"))
-
+is_dev_env = os.environ.get("CODEGATE_DEV_ENV", "false").lower() == "true"
 
 # Enum representing whether the request is coming from the front-end or the back-end.
 class Origin(Enum):
