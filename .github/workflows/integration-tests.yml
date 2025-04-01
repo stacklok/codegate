@@ -80,6 +80,7 @@ jobs:
             -e CODEGATE_APP_LOG_LEVEL=$CODEGATE_LOG_LEVEL \
             -e CODEGATE_OLLAMA_URL=$LOCAL_OLLAMA_URL \
             -e CODEGATE_VLLM_URL=$LOCAL_VLLM_URL \
+            -e CODEGATE_DEV_ENV=true \
             --restart unless-stopped $DOCKER_IMAGE
 
           # Confirm the container started
