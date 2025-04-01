@@ -11,6 +11,7 @@ __update_client_singleton = None
 
 is_dev_env = bool(os.environ.get("CODEGATE_DEV_ENV"))
 
+
 # Enum representing whether the request is coming from the front-end or the back-end.
 class Origin(Enum):
     FrontEnd = "FE"
