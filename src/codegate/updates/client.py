@@ -2,11 +2,14 @@ from enum import Enum
 
 import requests
 import structlog
+import os
 
 logger = structlog.get_logger("codegate")
 
 
 __update_client_singleton = None
+
+is_dev_env = bool(os.environ.get("CODEGATE_DEV_ENV"))
 
 
 # Enum representing whether the request is coming from the front-end or the back-end.
@@ -25,9 +28,13 @@ class UpdateClient:
         """
         Retrieves the latest version of CodeGate from updates.codegate.ai
         """
+
+        user_agent = f"codegate/{self.__current_version} {origin.value}"
+        if is_dev_env:
+            user_agent += "-dev"
         headers = {
             "X-Instance-ID": self.__instance_id,
-            "User-Agent": f"codegate/{self.__current_version} {origin.value}",
+            "User-Agent": user_agent,
         }
 
         try:
