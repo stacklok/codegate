@@ -117,7 +117,7 @@ async def acompletion(request, api_key, base_url):
         "accept": "application/json",
         "content-type": "application/json",
     }
-    payload = request.json(exclude_defaults=True)
+    payload = request.model_dump_json(exclude_none=True, exclude_unset=True)
 
     if os.getenv("CODEGATE_DEBUG_ANTHROPIC") is not None:
         print(payload)
