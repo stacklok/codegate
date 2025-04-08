@@ -9,6 +9,7 @@ from codegate.clients.clients import ClientType
 from codegate.clients.detector import DetectClient
 from codegate.config import Config
 from codegate.pipeline.factory import PipelineFactory
+from codegate.profiling import profiled
 from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.fim_analyzer import FIMAnalyzer
 from codegate.providers.ollama.completion_handler import OllamaShim
@@ -59,6 +60,7 @@ class OllamaProvider(BaseProvider):
 
         return [model["name"] for model in jsonresp.get("models", [])]
 
+    @profiled("ollama")
     async def process_request(
         self,
         data: dict,
