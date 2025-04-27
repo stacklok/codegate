@@ -442,7 +442,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/FullWorkspace-Input"
+                "$ref": "#/components/schemas/FullWorkspaceInput"
               }
             }
           }
@@ -453,7 +453,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FullWorkspace-Output"
+                  "$ref": "#/components/schemas/FullWorkspaceOutput"
                 }
               }
             }
@@ -569,7 +569,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/FullWorkspace-Input"
+                "$ref": "#/components/schemas/FullWorkspaceInput"
               }
             }
           }
@@ -580,7 +580,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FullWorkspace-Output"
+                  "$ref": "#/components/schemas/FullWorkspaceOutput"
                 }
               }
             }
@@ -662,7 +662,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FullWorkspace-Output"
+                  "$ref": "#/components/schemas/FullWorkspaceOutput"
                 }
               }
             }
@@ -2055,7 +2055,7 @@
         ],
         "title": "CustomInstructions"
       },
-      "FullWorkspace-Input": {
+      "FullWorkspaceInput": {
         "properties": {
           "name": {
             "type": "string",
@@ -2064,7 +2064,7 @@
           "config": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/WorkspaceConfig-Input"
+                "$ref": "#/components/schemas/WorkspaceConfigInput"
               },
               {
                 "type": "null"
@@ -2076,9 +2076,9 @@
         "required": [
           "name"
         ],
-        "title": "FullWorkspace"
+        "title": "FullWorkspaceInput"
       },
-      "FullWorkspace-Output": {
+      "FullWorkspaceOutput": {
         "properties": {
           "name": {
             "type": "string",
@@ -2087,7 +2087,7 @@
           "config": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/WorkspaceConfig-Output"
+                "$ref": "#/components/schemas/WorkspaceConfigOutput"
               },
               {
                 "type": "null"
@@ -2099,7 +2099,7 @@
         "required": [
           "name"
         ],
-        "title": "FullWorkspace"
+        "title": "FullWorkspaceOutput"
       },
       "HTTPValidationError": {
         "properties": {
@@ -2532,7 +2532,7 @@
         ],
         "title": "Workspace"
       },
-      "WorkspaceConfig-Input": {
+      "WorkspaceConfigInput": {
         "properties": {
           "custom_instructions": {
             "type": "string",
@@ -2551,9 +2551,9 @@
           "custom_instructions",
           "muxing_rules"
         ],
-        "title": "WorkspaceConfig"
+        "title": "WorkspaceConfigInput"
       },
-      "WorkspaceConfig-Output": {
+      "WorkspaceConfigOutput": {
         "properties": {
           "custom_instructions": {
             "type": "string",
@@ -2572,7 +2572,7 @@
           "custom_instructions",
           "muxing_rules"
         ],
-        "title": "WorkspaceConfig"
+        "title": "WorkspaceConfigOutput"
       }
     }
   }
