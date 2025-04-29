@@ -376,13 +376,8 @@ async def main():
             logger.error(f"Invalid providers specified: {', '.join(invalid_providers)}")
             logger.error(f"Available providers: {', '.join(available_providers)}")
             sys.exit(1)
-        else:
-            selected_providers = available_providers
-
-    # Exclude ollama provider if it's in the list
-    if "ollama" in selected_providers:
-        selected_providers.remove("ollama")
-        logger.info("Excluded 'ollama' provider from tests.")
+    else:
+        selected_providers = available_providers
 
     # Get test names if specified
     test_names = None
