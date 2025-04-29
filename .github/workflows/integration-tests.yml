@@ -249,7 +249,7 @@ jobs:
           # We clone the VLLM repo and build the container because the CPU-mode container is not published
           git clone https://github.com/vllm-project/vllm.git
           cd vllm
-          docker build -f Dockerfile.cpu -t vllm-cpu-env --shm-size=4g .
+          docker build -f docker/Dockerfile.cpu -t vllm-cpu-env --shm-size=4g .
           docker run -d  --name vllm \
              --network="host" \
              vllm-cpu-env --model Qwen/Qwen2.5-Coder-0.5B-Instruct
