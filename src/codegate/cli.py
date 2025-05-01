@@ -346,6 +346,20 @@ def serve(  # noqa: C901
         else:
             click.echo("Existing Certificates are already present.")
 
+        cli
+        click.echo("--------------------------------------------------------------\n")
+        click.echo(
+            "WARNING: Several Coding Assistants will be deprecated in the next release. "
+
+        )
+        click.echo(
+            "For More information, please visit the following link: "
+        )
+        click.echo(
+            "https://github.com/stacklok/codegate/issues/1380"
+        )
+        click.echo("--------------------------------------------------------------\n")
+
         # Initialize secrets manager and pipeline factory
         sensitive_data_manager = SensitiveDataManager()
         pipeline_factory = PipelineFactory(sensitive_data_manager)
