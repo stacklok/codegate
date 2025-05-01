@@ -287,6 +287,7 @@ class BaseProvider(ABC):
             is_fim_request,
         )
 
+        provider_request = normalized_request  # default value
         if input_pipeline_result.request:
             provider_request = self._input_normalizer.denormalize(input_pipeline_result.request)
         if is_fim_request:
