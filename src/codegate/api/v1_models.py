@@ -1,9 +1,10 @@
 import datetime
 import json
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Annotated, Any, Dict, List, Optional, Union
 
 import pydantic
+from pydantic import Field
 
 import codegate.muxing.models as mux_models
 from codegate.db import models as db_models
@@ -268,7 +269,7 @@ class ProviderEndpoint(pydantic.BaseModel):
 
     #  This will be set on creation
     id: Optional[str] = ""
-    name: str
+    name: Annotated[str, Field(min_length=3)]
     description: str = ""
     provider_type: db_models.ProviderType
     endpoint: str = ""  # Some providers have defaults we can leverage
