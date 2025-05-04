@@ -8,6 +8,7 @@ from fastapi import Header, HTTPException, Request
 from codegate.clients.clients import ClientType
 from codegate.clients.detector import DetectClient
 from codegate.pipeline.factory import PipelineFactory
+from codegate.profiling import profiled
 from codegate.providers.anthropic.completion_handler import AnthropicCompletion
 from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.fim_analyzer import FIMAnalyzer
@@ -68,6 +69,7 @@ class AnthropicProvider(BaseProvider):
 
         return [model["id"] for model in respjson.get("data", [])]
 
+    @profiled("anthropic")
     async def process_request(
         self,
         data: dict,

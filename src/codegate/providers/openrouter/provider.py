@@ -5,6 +5,7 @@ from fastapi import Header, HTTPException, Request
 from codegate.clients.clients import ClientType
 from codegate.clients.detector import DetectClient
 from codegate.pipeline.factory import PipelineFactory
+from codegate.profiling import profiled
 from codegate.providers.fim_analyzer import FIMAnalyzer
 from codegate.providers.litellmshim import LiteLLmShim
 from codegate.providers.openai import OpenAIProvider
@@ -49,6 +50,7 @@ class OpenRouterProvider(OpenAIProvider):
     def provider_route_name(self) -> str:
         return "openrouter"
 
+    @profiled("openrouter")
     async def process_request(
         self,
         data: dict,

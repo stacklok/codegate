@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+
+import os
+import pstats
+import sys
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Error: file name required")
+        exit(1)
+    ps = pstats.Stats(*sys.argv[1:]).sort_stats("cumulative")
+    ps.print_stats(.03)
