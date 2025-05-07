@@ -27,7 +27,7 @@ COPY . /app
 RUN sed -i "s/_VERSION =.*/_VERSION = \"${CODEGATE_VERSION}\"/g" /app/src/codegate/__init__.py
 
 # Build the webapp
-FROM docker.io/library/node:23-slim@sha256:dfb18d8011c0b3a112214a32e772d9c6752131ffee512e974e59367e46fcee52 AS webbuilder
+FROM docker.io/library/node:24-slim@sha256:7b0f9cbb3f88da0e67873be5efcf38ce79ea25cfbb4986fad55a446af484e7c9 AS webbuilder
 
 
 
