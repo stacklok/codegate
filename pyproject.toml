@@ -9,7 +9,7 @@ packages = [
 ]
 [tool.poetry.dependencies]
 python = ">=3.12,<3.13"
-click = "==8.1.8"
+click = "==8.2.0"
 PyYAML = "==6.0.2"
 fastapi = "==0.115.12"
 uvicorn = "==0.34.2"
