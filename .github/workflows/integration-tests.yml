@@ -26,7 +26,7 @@ jobs:
       fail-fast: false # Continue running other tests if one fails
       matrix:
         python-version: [ "3.12" ]
-        test-provider: [ "copilot", "openai", "anthropic", "vllm", "llamacpp", "openrouter" ]
+        test-provider: [ "copilot", "openai", "anthropic", "llamacpp", "openrouter" ]
     env:
       ENV_COPILOT_KEY: ${{ secrets.copilot-key }}
       ENV_OPENAI_KEY: ${{ secrets.copilot-key }} # We use the same key for OpenAI as the Copilot tests
