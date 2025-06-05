@@ -7,6 +7,7 @@ from fastapi import Header, HTTPException, Request
 from codegate.clients.clients import ClientType
 from codegate.clients.detector import DetectClient
 from codegate.pipeline.factory import PipelineFactory
+from codegate.profiling import profiled
 from codegate.providers.base import BaseProvider, ModelFetchError
 from codegate.providers.completion import BaseCompletionHandler
 from codegate.providers.fim_analyzer import FIMAnalyzer
@@ -63,6 +64,7 @@ class OpenAIProvider(BaseProvider):
 
         return [model["id"] for model in jsonresp.get("data", [])]
 
+    @profiled("openai")
     async def process_request(
         self,
         data: dict,

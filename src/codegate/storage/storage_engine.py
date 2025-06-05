@@ -9,6 +9,7 @@ import structlog
 
 from codegate.config import Config
 from codegate.inference.inference_engine import LlamaCppInferenceEngine
+from codegate.profiling import profiled
 
 logger = structlog.get_logger("codegate")
 VALID_ECOSYSTEMS = ["npm", "pypi", "crates", "maven", "go"]
@@ -78,7 +79,14 @@ class StorageEngine:
             conn.enable_load_extension(True)
             sqlite_vec_sl_tmp.load(conn)
             conn.enable_load_extension(False)
-            return conn
+
+            dest = sqlite3.connect(":memory:")
+            dest.enable_load_extension(True)
+            sqlite_vec_sl_tmp.load(dest)
+            dest.enable_load_extension(False)
+            conn.backup(dest)
+
+            return dest
         except Exception as e:
             logger.error("Failed to initialize database connection", error=str(e))
             raise
@@ -136,6 +144,7 @@ class StorageEngine:
             logger.error(f"An error occurred during property search: {str(e)}")
             return []
 
+    @profiled("search")
     async def search(
         self,
         query: Optional[str] = None,
