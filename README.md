@@ -1,3 +1,7 @@
+# ⚠️ DEPRECATED ⚠️
+
+CodeGate was an experimental project and is no longer maintained.
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./static/codegate-logo-white.svg">
   <img alt="CodeGate logo" src="./static/codegate-logo-dark.svg" width="800px" style="max-width: 100%;">
