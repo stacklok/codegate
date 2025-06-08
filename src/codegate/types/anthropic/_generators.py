@@ -28,7 +28,7 @@ async def stream_generator(stream: AsyncIterator[Any]) -> AsyncIterator[str]:
     try:
         async for chunk in stream:
             try:
-                body = chunk.json(exclude_unset=True)
+                body = chunk.model_dump_json(exclude_unset=True)
             except Exception as e:
                 logger.error("failed serializing payload", exc_info=e)
                 err = MessageError(
@@ -38,7 +38,7 @@ async def stream_generator(stream: AsyncIterator[Any]) -> AsyncIterator[str]:
                         message=str(e),
                     ),
                 )
-                body = err.json(exclude_unset=True)
+                body = err.model_dump_json(exclude_unset=True)
                 yield f"event: error\ndata: {body}\n\n"
 
             data = f"event: {chunk.type}\ndata: {body}\n\n"
@@ -56,7 +56,7 @@ async def stream_generator(stream: AsyncIterator[Any]) -> AsyncIterator[str]:
                 message=str(e),
             ),
         )
-        body = err.json(exclude_unset=True)
+        body = err.model_dump_json(exclude_unset=True)
         yield f"event: error\ndata: {body}\n\n"
 
 
