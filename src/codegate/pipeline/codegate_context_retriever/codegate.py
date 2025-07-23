@@ -6,6 +6,7 @@ import regex as re
 import structlog
 
 from codegate.clients.clients import ClientType
+from codegate.clients.interface import ClientFactory
 from codegate.db.models import AlertSeverity
 from codegate.extract_snippets.factory import MessageCodeExtractorFactory
 from codegate.pipeline.base import (
@@ -23,6 +24,9 @@ logger = structlog.get_logger("codegate")
 # Pre-compiled regex patterns for performance
 markdown_code_block = re.compile(r"```.*?```", flags=re.DOTALL)
 markdown_file_listing = re.compile(r"⋮...*?⋮...\n\n", flags=re.DOTALL)
+cline_file_listing = re.compile(
+    r"(?i)<\s*file_content\s*[^>]*>.*?</\s*file_content\s*>", flags=re.DOTALL
+)
 environment_details = re.compile(r"<environment_details>.*?</environment_details>", flags=re.DOTALL)
 
 
@@ -123,12 +127,11 @@ class CodegateContextRetriever(PipelineStep):
 
         # Remove code snippets and file listing from the user messages and search for bad packages
         # in the rest of the user query/messsages
-        user_messages = markdown_code_block.sub("", user_message)
-        user_messages = markdown_file_listing.sub("", user_messages)
-        user_messages = environment_details.sub("", user_messages)
+        client_if = ClientFactory.create(context.client)
+        non_code_user_message = client_if.strip_code_snippets(user_message)
 
         # split messages into double newlines, to avoid passing so many content in the search
-        split_messages = re.split(r"</?task>|\n|\\n", user_messages)
+        split_messages = re.split(r"</?task>|\n|\\n", non_code_user_message)
         collected_bad_packages = []
         for item_message in filter(None, map(str.strip, split_messages)):
             # Vector search to find bad packages
