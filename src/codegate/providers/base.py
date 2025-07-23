@@ -259,6 +259,7 @@ class BaseProvider(ABC):
         is_fim_request: bool,
         client_type: ClientType,
         completion_handler: Callable | None = None,
+        short_circuiter: Callable | None = None,
     ) -> Union[Any, AsyncIterator[Any]]:
         """
         Main completion flow with pipeline integration
@@ -286,6 +287,10 @@ class BaseProvider(ABC):
             client_type,
             is_fim_request,
         )
+
+        if input_pipeline_result.response and input_pipeline_result.context:
+            if short_circuiter:  # this if should be removed eventually
+                return short_circuiter(input_pipeline_result)
 
         provider_request = normalized_request  # default value
         if input_pipeline_result.request:

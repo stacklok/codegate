@@ -1,5 +1,7 @@
 import os
+import time
 from typing import (
+    Any,
     AsyncIterator,
 )
 
@@ -9,15 +11,64 @@ import structlog
 from ._legacy_models import (
     LegacyCompletionRequest,
 )
+from ._request_models import (
+    ChatCompletionRequest,
+)
 from ._response_models import (
     ChatCompletion,
+    Choice,
+    ChoiceDelta,
     ErrorDetails,
+    Message,
+    MessageDelta,
     MessageError,
     StreamingChatCompletion,
     VllmMessageError,
 )
 
 logger = structlog.get_logger("codegate")
+
+
+async def short_circuiter(pipeline_result) -> AsyncIterator[Any]:
+    # NOTE: This routine MUST be called only when we short-circuit the
+    # request.
+    assert pipeline_result.context.shortcut_response  # nosec
+
+    match pipeline_result.context.input_request.request:
+        case ChatCompletionRequest(stream=True):
+            yield StreamingChatCompletion(
+                id="codegate",
+                model=pipeline_result.response.model,
+                created=int(time.time()),
+                choices=[
+                    ChoiceDelta(
+                        finish_reason="stop",
+                        index=0,
+                        delta=MessageDelta(
+                            content=pipeline_result.response.content,
+                        ),
+                    ),
+                ],
+            )
+        case ChatCompletionRequest(stream=False):
+            yield ChatCompletion(
+                id="codegate",
+                model=pipeline_result.response.model,
+                created=int(time.time()),
+                choices=[
+                    Choice(
+                        finish_reason="stop",
+                        index=0,
+                        message=Message(
+                            content=pipeline_result.response.content,
+                        ),
+                    ),
+                ],
+            )
+        case _:
+            raise ValueError(
+                f"invalid input request: {pipeline_result.context.input_request.request}"
+            )
 
 
 async def stream_generator(stream: AsyncIterator[StreamingChatCompletion]) -> AsyncIterator[str]:

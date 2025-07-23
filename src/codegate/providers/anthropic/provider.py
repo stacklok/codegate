@@ -77,6 +77,7 @@ class AnthropicProvider(BaseProvider):
         client_type: ClientType,
         completion_handler: Callable | None = None,
         stream_generator: Callable | None = None,
+        short_circuiter: Callable | None = None,
     ):
         try:
             stream = await self.complete(
@@ -86,6 +87,7 @@ class AnthropicProvider(BaseProvider):
                 is_fim_request,
                 client_type,
                 completion_handler=completion_handler,
+                short_circuiter=short_circuiter,
             )
         except Exception as e:
             # check if we have an status code there
